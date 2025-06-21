@@ -27,8 +27,8 @@
  * {@link validation}.
  *
  * To encrypt and decrypt data, call {@link encrypt()} and {@link decrypt()}
- * respectively, which uses 3DES encryption algorithm.  Note, the PHP Mcrypt
- * extension must be installed and loaded.
+ * respectively. These methods rely on the OpenSSL extension and the cipher
+ * specified via {@link cryptAlgorithm}.
  *
  * CSecurityManager is a core application component that can be accessed via
  * {@link CApplication::getSecurityManager()}.
@@ -58,27 +58,27 @@ class CSecurityManager extends CApplicationComponent
 	 * @since 1.1.3
 	 */
 	public $hashAlgorithm='sha1';
-	/**
-	 * @var mixed the name of the crypt algorithm to be used by {@link encrypt} and {@link decrypt}.
-	 * This will be passed as the first parameter to {@link http://php.net/manual/en/function.mcrypt-module-open.php mcrypt_module_open}.
-	 *
-	 * This property can also be configured as an array. In this case, the array elements will be passed in order
-	 * as parameters to mcrypt_module_open. For example, <code>array('rijndael-256', '', 'ofb', '')</code>.
-	 *
-	 * Defaults to 'des', meaning using DES crypt algorithm.
-	 * @since 1.1.3
-	 */
-	public $cryptAlgorithm='des';
+        /**
+         * @var string the name of the cipher algorithm to be used by {@link encrypt} and {@link decrypt}.
+         * This should be one of the cipher methods supported by OpenSSL and returned by
+         * {@link http://php.net/manual/en/function.openssl-get-cipher-methods.php openssl_get_cipher_methods()}.
+         *
+         * Defaults to 'AES-256-CBC'.
+         * @since 1.1.3
+         */
+        public $cryptAlgorithm='AES-256-CBC';
 
 	private $_validationKey;
-	private $_encryptionKey;
-	private $_mbstring;
+        private $_encryptionKey;
+        private $_mbstring;
 
-	public function init()
-	{
-		parent::init();
-		$this->_mbstring=extension_loaded('mbstring');
-	}
+        public function init()
+        {
+                parent::init();
+                $this->_mbstring=extension_loaded('mbstring');
+                if(!extension_loaded('openssl'))
+                        throw new CException(Yii::t('yii','CSecurityManager requires PHP OpenSSL extension to be loaded in order to use data encryption feature.'));
+        }
 
 	/**
 	 * @return string a randomly generated private key
@@ -176,68 +176,81 @@ class CSecurityManager extends CApplicationComponent
 		$this->hashAlgorithm=$value;
 	}
 
-	/**
-	 * Encrypts data.
-	 * @param string $data data to be encrypted.
-	 * @param string $key the decryption key. This defaults to null, meaning using {@link getEncryptionKey EncryptionKey}.
-	 * @return string the encrypted data
-	 * @throws CException if PHP Mcrypt extension is not loaded
-	 */
-	public function encrypt($data,$key=null)
-	{
-		$module=$this->openCryptModule();
-		$key=$this->substr($key===null ? md5($this->getEncryptionKey()) : $key,0,mcrypt_enc_get_key_size($module));
-		srand();
-		$iv=mcrypt_create_iv(mcrypt_enc_get_iv_size($module), MCRYPT_RAND);
-		mcrypt_generic_init($module,$key,$iv);
-		$encrypted=$iv.mcrypt_generic($module,$data);
-		mcrypt_generic_deinit($module);
-		mcrypt_module_close($module);
-		return $encrypted;
-	}
+        /**
+         * Encrypts data.
+         * @param string $data data to be encrypted.
+         * @param string $key the decryption key. This defaults to null, meaning using {@link getEncryptionKey EncryptionKey}.
+         * @return string the encrypted data
+         * @throws CException if PHP OpenSSL extension is not loaded or cipher method is unsupported
+         */
+        public function encrypt($data,$key=null)
+        {
+                $cipher=$this->getCipher();
+                $key=$this->prepareKey($key===null ? md5($this->getEncryptionKey()) : $key,$cipher);
+                $ivLength=openssl_cipher_iv_length($cipher);
+                $iv=openssl_random_pseudo_bytes($ivLength);
+                $encrypted=openssl_encrypt($data,$cipher,$key,OPENSSL_RAW_DATA,$iv);
+                if($encrypted===false)
+                        throw new CException(Yii::t('yii','Failed to initialize the OpenSSL cipher method.'));
+                return $iv.$encrypted;
+        }
 
-	/**
-	 * Decrypts data
-	 * @param string $data data to be decrypted.
-	 * @param string $key the decryption key. This defaults to null, meaning using {@link getEncryptionKey EncryptionKey}.
-	 * @return string the decrypted data
-	 * @throws CException if PHP Mcrypt extension is not loaded
-	 */
-	public function decrypt($data,$key=null)
-	{
-		$module=$this->openCryptModule();
-		$key=$this->substr($key===null ? md5($this->getEncryptionKey()) : $key,0,mcrypt_enc_get_key_size($module));
-		$ivSize=mcrypt_enc_get_iv_size($module);
-		$iv=$this->substr($data,0,$ivSize);
-		mcrypt_generic_init($module,$key,$iv);
-		$decrypted=mdecrypt_generic($module,$this->substr($data,$ivSize,$this->strlen($data)));
-		mcrypt_generic_deinit($module);
-		mcrypt_module_close($module);
-		return rtrim($decrypted,"\0");
-	}
+        /**
+         * Decrypts data
+         * @param string $data data to be decrypted.
+         * @param string $key the decryption key. This defaults to null, meaning using {@link getEncryptionKey EncryptionKey}.
+         * @return string the decrypted data
+         * @throws CException if PHP OpenSSL extension is not loaded or cipher method is unsupported
+         */
+        public function decrypt($data,$key=null)
+        {
+                $cipher=$this->getCipher();
+                $key=$this->prepareKey($key===null ? md5($this->getEncryptionKey()) : $key,$cipher);
+                $ivLength=openssl_cipher_iv_length($cipher);
+                $iv=$this->substr($data,0,$ivLength);
+                $decrypted=openssl_decrypt($this->substr($data,$ivLength,$this->strlen($data)),$cipher,$key,OPENSSL_RAW_DATA,$iv);
+                if($decrypted===false)
+                        throw new CException(Yii::t('yii','Failed to initialize the OpenSSL cipher method.'));
+                return rtrim($decrypted,"\0");
+        }
 
-	/**
-	 * Opens the mcrypt module with the configuration specified in {@link cryptAlgorithm}.
-	 * @return resource the mycrypt module handle.
-	 * @since 1.1.3
-	 */
-	protected function openCryptModule()
-	{
-		if(extension_loaded('mcrypt'))
-		{
-			if(is_array($this->cryptAlgorithm))
-				$module=@call_user_func_array('mcrypt_module_open',$this->cryptAlgorithm);
-			else
-				$module=@mcrypt_module_open($this->cryptAlgorithm,'', MCRYPT_MODE_CBC,'');
+        /**
+         * Returns the cipher method to be used for encryption/decryption.
+         * @return string the cipher method name
+         * @throws CException if OpenSSL extension is not loaded or method unsupported
+         */
+        protected function getCipher()
+        {
+                if(!extension_loaded('openssl'))
+                        throw new CException(Yii::t('yii','CSecurityManager requires PHP OpenSSL extension to be loaded in order to use data encryption feature.'));
 
-			if($module===false)
-				throw new CException(Yii::t('yii','Failed to initialize the mcrypt module.'));
+                $cipher=is_array($this->cryptAlgorithm) ? $this->cryptAlgorithm[0] : $this->cryptAlgorithm;
+                if(!in_array($cipher, openssl_get_cipher_methods()))
+                        throw new CException(Yii::t('yii','Failed to initialize the OpenSSL cipher method.'));
 
-			return $module;
-		}
-		else
-			throw new CException(Yii::t('yii','CSecurityManager requires PHP mcrypt extension to be loaded in order to use data encryption feature.'));
-	}
+                return $cipher;
+        }
+
+        /**
+         * Prepares the key according to the chosen cipher method.
+         * @param string $key base key value
+         * @param string $cipher cipher method name
+         * @return string key padded or truncated to required length
+         */
+        protected function prepareKey($key,$cipher)
+        {
+                $length=0;
+                if(preg_match('/-(\d+)-/',$cipher,$m))
+                        $length=intval($m[1])/8;
+                elseif(stripos($cipher,'DES-EDE3')!==false)
+                        $length=24;
+                elseif(stripos($cipher,'DES')!==false)
+                        $length=8;
+                if($length>0)
+                        return $this->substr($key,0,$length);
+                else
+                        return $key;
+        }
 
 	/**
 	 * Prefixes data with an HMAC.
