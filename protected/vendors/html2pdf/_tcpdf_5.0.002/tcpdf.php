@@ -66,7 +66,7 @@
 // dullus for text Justification.
 // Bob Vincent (pillarsdotnet@users.sourceforge.net) for <li> value attribute.
 // Patrick Benny for text stretch suggestion on Cell().
-// Johannes Güntert for JavaScript support.
+// Johannes GÃ¼ntert for JavaScript support.
 // Denis Van Nuffelen for Dynamic Form.
 // Jacek Czekaj for multibyte justification
 // Anthony Ferrara for the reintroduction of legacy image methods.
@@ -77,7 +77,7 @@
 // Mohamad Ali Golkar, Saleh AlMatrafe, Charles Abbott for Arabic and Persian support.
 // Moritz Wagner and Andreas Wurmser for graphic functions.
 // Andrew Whitehead for core fonts support.
-// Esteban Joël Marín for OpenType font conversion.
+// Esteban JoÃ«l MarÃ­n for OpenType font conversion.
 // Teus Hagen for several suggestions and fixes.
 // Yukihiro Nakadaira for CID-0 CJK fonts fixes.
 // Kosmas Papachristos for some CSS improvements.
@@ -9312,7 +9312,7 @@ if (!class_exists('TCPDF', false)) {
 		}
 
 		/**
-		 * Append a cubic Bézier curve to the current path. The curve shall extend from the current point to the point (x3, y3), using (x1, y1) and (x2, y2) as the Bézier control points.
+		 * Append a cubic BÃ©zier curve to the current path. The curve shall extend from the current point to the point (x3, y3), using (x1, y1) and (x2, y2) as the BÃ©zier control points.
 		 * The new current point shall be (x3, y3).
 		 * @param float $x1 Abscissa of control point 1.
 		 * @param float $y1 Ordinate of control point 1.
@@ -9328,7 +9328,7 @@ if (!class_exists('TCPDF', false)) {
 		}
 
 		/**
-		 * Append a cubic Bézier curve to the current path. The curve shall extend from the current point to the point (x3, y3), using the current point and (x2, y2) as the Bézier control points.
+		 * Append a cubic BÃ©zier curve to the current path. The curve shall extend from the current point to the point (x3, y3), using the current point and (x2, y2) as the BÃ©zier control points.
 		 * The new current point shall be (x3, y3).
 		 * @param float $x2 Abscissa of control point 2.
 		 * @param float $y2 Ordinate of control point 2.
@@ -9342,7 +9342,7 @@ if (!class_exists('TCPDF', false)) {
 		}
 
 		/**
-		 * Append a cubic Bézier curve to the current path. The curve shall extend from the current point to the point (x3, y3), using (x1, y1) and (x3, y3) as the Bézier control points.
+		 * Append a cubic BÃ©zier curve to the current path. The curve shall extend from the current point to the point (x3, y3), using (x1, y1) and (x3, y3) as the BÃ©zier control points.
 		 * The new current point shall be (x3, y3).
 		 * @param float $x1 Abscissa of control point 1.
 		 * @param float $y1 Ordinate of control point 1.
@@ -10730,7 +10730,7 @@ if (!class_exists('TCPDF', false)) {
 		 * Adds a javascript
 		 * @param string $script Javascript code
 		 * @access public
-		 * @author Johannes Güntert, Nicola Asuni
+		 * @author Johannes GÃ¼ntert, Nicola Asuni
 		 * @since 2.1.002 (2008-02-12)
 		 */
 		public function IncludeJS($script) {
@@ -10755,7 +10755,7 @@ if (!class_exists('TCPDF', false)) {
 		/**
 		 * Create a javascript PDF string.
 		 * @access protected
-		 * @author Johannes Güntert, Nicola Asuni
+		 * @author Johannes GÃ¼ntert, Nicola Asuni
 		 * @since 2.1.002 (2008-02-12)
 		 */
 		protected function _putjavascript() {
@@ -12445,7 +12445,7 @@ if (!class_exists('TCPDF', false)) {
 		 * @param array $col1 first color (Grayscale, RGB or CMYK components).
 		 * @param array $col2 second color (Grayscale, RGB or CMYK components).
 		 * @param array $coords array of the form (x1, y1, x2, y2) which defines the gradient vector (see linear_gradient_coords.jpg). The default value is from left to right (x1=0, y1=0, x2=1, y2=0).
-		 * @author Andreas Würmser, Nicola Asuni
+		 * @author Andreas WÃ¼rmser, Nicola Asuni
 		 * @since 3.1.000 (2008-06-09)
 		 * @access public
 		 */
@@ -12463,7 +12463,7 @@ if (!class_exists('TCPDF', false)) {
 		 * @param array $col1 first color (Grayscale, RGB or CMYK components).
 		 * @param array $col2 second color (Grayscale, RGB or CMYK components).
 		 * @param array $coords array of the form (fx, fy, cx, cy, r) where (fx, fy) is the starting point of the gradient with color1, (cx, cy) is the center of the circle with color2, and r is the radius of the circle (see radial_gradient_coords.jpg). (fx, fy) should be inside the circle, otherwise some areas will not be defined.
-		 * @author Andreas Würmser, Nicola Asuni
+		 * @author Andreas WÃ¼rmser, Nicola Asuni
 		 * @since 3.1.000 (2008-06-09)
 		 * @access public
 		 */
@@ -12486,7 +12486,7 @@ if (!class_exists('TCPDF', false)) {
 		 * @param array $coords_min minimum value used by the coordinates. If a coordinate's value is smaller than this it will be cut to coords_min. default: 0
 		 * @param array $coords_max maximum value used by the coordinates. If a coordinate's value is greater than this it will be cut to coords_max. default: 1
 		 * @param boolean $antialias A flag indicating whether to filter the shading function to prevent aliasing artifacts.
-		 * @author Andreas Würmser, Nicola Asuni
+		 * @author Andreas WÃ¼rmser, Nicola Asuni
 		 * @since 3.1.000 (2008-06-09)
 		 * @access public
 		 */
@@ -12571,7 +12571,7 @@ if (!class_exists('TCPDF', false)) {
 		 * @param float $y ordinate of the top left corner of the rectangle.
 		 * @param float $w width of the rectangle.
 		 * @param float $h height of the rectangle.
-		 * @author Andreas Würmser, Nicola Asuni
+		 * @author Andreas WÃ¼rmser, Nicola Asuni
 		 * @since 3.1.000 (2008-06-09)
 		 * @access protected
 		 */
@@ -14869,9 +14869,9 @@ if (!class_exists('TCPDF', false)) {
 												}
 												// justify block
 												$pmid = preg_replace_callback('/([0-9\.\+\-]*)[\s]('.$strpiece[1][0].')[\s]('.$strpiece[2][0].')([\s]*)/x',
-													create_function('$matches', 'global $spacew;
+													function ($matches) use ($spacew) {
 													$newx = sprintf("%.2F",(floatval($matches[1]) + $spacew));
-													return "".$newx." ".$matches[2]." x*#!#*x".$matches[3].$matches[4];'), $pmid, 1);
+													return "".$newx." ".$matches[2]." x*#!#*x".$matches[3].$matches[4];}, $pmid, 1);
 												break;
 											}
 											case 're': {
@@ -14907,10 +14907,10 @@ if (!class_exists('TCPDF', false)) {
 													}
 												}
 												$pmid = preg_replace_callback('/('.$xmatches[1].')[\s]('.$xmatches[2].')[\s]('.$xmatches[3].')[\s]('.$strpiece[1][0].')[\s](re)([\s]*)/x',
-													create_function('$matches', 'global $x_diff, $w_diff;
+													function ($matches) use ($x_diff, $w_diff) {
 													$newx = sprintf("%.2F",(floatval($matches[1]) + $x_diff));
 													$neww = sprintf("%.2F",(floatval($matches[3]) + $w_diff));
-													return "".$newx." ".$matches[2]." ".$neww." ".$matches[4]." x*#!#*x".$matches[5].$matches[6];'), $pmid, 1);
+													return "".$newx." ".$matches[2]." ".$neww." ".$matches[4]." x*#!#*x".$matches[5].$matches[6];}, $pmid, 1);
 												break;
 											}
 											case 'c': {
@@ -14919,11 +14919,11 @@ if (!class_exists('TCPDF', false)) {
 												$currentxpos = $xmatches[1];
 												// justify block
 												$pmid = preg_replace_callback('/('.$xmatches[1].')[\s]('.$xmatches[2].')[\s]('.$xmatches[3].')[\s]('.$xmatches[4].')[\s]('.$xmatches[5].')[\s]('.$strpiece[1][0].')[\s](c)([\s]*)/x',
-													create_function('$matches', 'global $spacew;
+													function ($matches) use ($spacew) {
 													$newx1 = sprintf("%.3F",(floatval($matches[1]) + $spacew));
 													$newx2 = sprintf("%.3F",(floatval($matches[3]) + $spacew));
 													$newx3 = sprintf("%.3F",(floatval($matches[5]) + $spacew));
-													return "".$newx1." ".$matches[2]." ".$newx2." ".$matches[4]." ".$newx3." ".$matches[6]." x*#!#*x".$matches[7].$matches[8];'), $pmid, 1);
+													return "".$newx1." ".$matches[2]." ".$newx2." ".$matches[4]." ".$newx3." ".$matches[6]." x*#!#*x".$matches[7].$matches[8];}, $pmid, 1);
 												break;
 											}
 										}
@@ -14954,10 +14954,10 @@ if (!class_exists('TCPDF', false)) {
 										$pmidtemp = preg_replace('/[\\\][\(]/x', '\\#!#OP#!#', $pmidtemp);
 										$pmidtemp = preg_replace('/[\\\][\)]/x', '\\#!#CP#!#', $pmidtemp);
 										$pmid = preg_replace_callback("/\[\(([^\)]*)\)\]/x",
-													create_function('$matches', 'global $spacew;
+													function ($matches) use ($spacew) {
 													$matches[1] = str_replace("#!#OP#!#", "(", $matches[1]);
 													$matches[1] = str_replace("#!#CP#!#", ")", $matches[1]);
-													return "[(".str_replace(chr(0).chr(32), ") ".sprintf("%.3F", $spacew)." (", $matches[1]).")]";'), $pmidtemp);
+													return "[(".str_replace(chr(0).chr(32), ") ".sprintf("%.3F", $spacew)." (", $matches[1]).")]";}, $pmidtemp);
 										$this->setPageBuffer($startlinepage, $pstart."\n".$pmid."\n".$pend);
 										$endlinepos = strlen($pstart."\n".$pmid."\n");
 									} else {
@@ -17319,16 +17319,18 @@ if (!class_exists('TCPDF', false)) {
 			}
 			// adjust javascript
 			$tmpjavascript = $this->javascript;
-			global $jfrompage, $jtopage;
-			$jfrompage = $frompage;
-			$jtopage = $topage;
-			$this->javascript = preg_replace_callback('/this\.addField\(\'([^\']*)\',\'([^\']*)\',([0-9]+)/',
-				create_function('$matches', 'global $jfrompage, $jtopage;
-				$pagenum = intval($matches[3]) + 1;
-				if (($pagenum >= $jtopage) AND ($pagenum < $jfrompage)) {
-					$newpage = ($pagenum + 1);
-				} elseif ($pagenum == $jfrompage) {
-					$newpage = $jtopage;
+                                function ($matches) use ($jfrompage, $jtopage) {
+                                $pagenum = intval($matches[3]) + 1;
+                                if (($pagenum >= $jtopage) AND ($pagenum < $jfrompage)) {
+                                        $newpage = ($pagenum + 1);
+                                } elseif ($pagenum == $jfrompage) {
+                                        $newpage = $jtopage;
+                                } else {
+                                        $newpage = $pagenum;
+                                }
+                                --$newpage;
+                                return "this.addField(\'".$matches[1]."\',\'".$matches[2]."\',".$newpage."";
+                                }, $tmpjavascript);
 				} else {
 					$newpage = $pagenum;
 				}
@@ -17460,17 +17462,18 @@ if (!class_exists('TCPDF', false)) {
 			global $jpage;
 			$jpage = $page;
 			$this->javascript = preg_replace_callback('/this\.addField\(\'([^\']*)\',\'([^\']*)\',([0-9]+)/',
-				create_function('$matches', 'global $jpage;
-				$pagenum = intval($matches[3]) + 1;
-				if ($pagenum >= $jpage) {
-					$newpage = ($pagenum - 1);
-				} elseif ($pagenum == $jpage) {
-					$newpage = 1;
-				} else {
-					$newpage = $pagenum;
-				}
-				--$newpage;
-				return "this.addField(\'".$matches[1]."\',\'".$matches[2]."\',".$newpage."";'), $tmpjavascript);
+                                function ($matches) use ($jpage) {
+                                $pagenum = intval($matches[3]) + 1;
+                                if ($pagenum >= $jpage) {
+                                        $newpage = ($pagenum - 1);
+                                } elseif ($pagenum == $jpage) {
+                                        $newpage = 1;
+                                } else {
+                                        $newpage = $pagenum;
+                                }
+                                --$newpage;
+                                return "this.addField(\'".$matches[1]."\',\'".$matches[2]."\',".$newpage."";
+                                }, $tmpjavascript);
 			// return to last page
 			$this->lastPage(true);
 			return true;
@@ -19196,7 +19199,7 @@ if (!class_exists('TCPDF', false)) {
 						}
 						break;
 					}
-					case 'Q': { // quadratic Bézier curveto
+					case 'Q': { // quadratic BÃ©zier curveto
 						foreach ($params as $ck => $cp) {
 							$params[$ck] = $cp;
 							if ((($ck + 1) % 4) == 0) {
@@ -19222,7 +19225,7 @@ if (!class_exists('TCPDF', false)) {
 						}
 						break;
 					}
-					case 'T': { // shorthand/smooth quadratic Bézier curveto
+					case 'T': { // shorthand/smooth quadratic BÃ©zier curveto
 						foreach ($params as $ck => $cp) {
 							$params[$ck] = $cp;
 							if (($ck % 2) != 0) {

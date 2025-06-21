@@ -176,8 +176,10 @@ class CProfileLogRoute extends CWebLogRoute
 		}
 
 		$entries=array_values($results);
-		$func=create_function('$a,$b','return $a[4]<$b[4]?1:0;');
-		usort($entries,$func);
+               $func = function ($a, $b) {
+                       return $a[4] < $b[4] ? 1 : 0;
+               };
+               usort($entries, $func);
 
 		$this->render('profile-summary',$entries);
 	}
