@@ -19,8 +19,8 @@ RUN mkdir -p /var/www/html/protected/runtime /var/www/html/assets \
     && chown -R www-data:www-data /var/www/html/protected/runtime /var/www/html/assets \
     && chmod -R 775 /var/www/html/protected/runtime /var/www/html/assets
 
-# (Optional) Run Composer install if you have composer.json
-# RUN cd /var/www/html && composer install --no-dev --optimize-autoloader
+# Run Composer install if you have composer.json
+RUN cd /var/www/html && composer install --no-dev --optimize-autoloader
 
 EXPOSE 80
 CMD ["apache2-foreground"]
