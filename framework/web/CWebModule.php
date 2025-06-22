@@ -3,9 +3,9 @@
  * CWebModule class file.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 /**
@@ -27,7 +27,6 @@
  * moduleDir is the directory containing the module class.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id: CWebModule.php 3515 2011-12-28 12:29:24Z mdomba $
  * @package system.web
  */
 class CWebModule extends CModule
@@ -44,6 +43,12 @@ class CWebModule extends CModule
 	 * will be used. If this is false, then no layout will be used.
 	 */
 	public $layout;
+	/**
+	 * @var string Namespace that should be used when loading controllers.
+	 * Default is to use global namespace.
+	 * @since 1.1.11
+	 */
+	public $controllerNamespace;
 	/**
 	 * @var array mapping from controller ID to controller configurations.
 	 * Pleaser refer to {@link CWebApplication::controllerMap} for more details.
@@ -90,7 +95,7 @@ class CWebModule extends CModule
 
 	/**
 	 * @return string the directory that contains the controller classes. Defaults to 'moduleDir/controllers' where
-     * moduleDir is the directory containing the module class.
+	 * moduleDir is the directory containing the module class.
 	 */
 	public function getControllerPath()
 	{

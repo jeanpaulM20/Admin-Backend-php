@@ -3,9 +3,9 @@
  * CController class file.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 
@@ -43,7 +43,7 @@
  * </pre>
  * The above example declares three filters: accessControl, ajaxOnly, COutputCache. The first two
  * are method-based filters (defined in CController), which refer to filtering methods in the controller class;
- * while the last refers to a object-based filter whose class is 'system.web.widgets.COutputCache' and
+ * while the last refers to an object-based filter whose class is 'system.web.widgets.COutputCache' and
  * the 'duration' property is initialized as 300 (s).
  *
  * For method-based filters, a method named 'filterXYZ($filterChain)' in the controller class
@@ -70,7 +70,6 @@
  * @property CStack $cachingStack Stack of {@link COutputCache} objects.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id: CController.php 3515 2011-12-28 12:29:24Z mdomba $
  * @package system.web
  * @since 1.0
  */
@@ -331,6 +330,7 @@ class CController extends CBaseController
 	 * The default implementation will throw a 400 HTTP exception.
 	 * @param CAction $action the action being executed
 	 * @since 1.1.7
+	 * @throws CHttpException
 	 */
 	public function invalidActionParams($action)
 	{
@@ -406,6 +406,7 @@ class CController extends CBaseController
 	 * @param string $actionID ID of the action. If empty, the {@link defaultAction default action} will be used.
 	 * @return CAction the action instance, null if the action does not exist.
 	 * @see actions
+	 * @throws CException
 	 */
 	public function createAction($actionID)
 	{
@@ -432,6 +433,7 @@ class CController extends CBaseController
 	 * @param string $requestActionID the originally requested action ID
 	 * @param array $config the action configuration that should be applied on top of the configuration specified in the map
 	 * @return CAction the action instance, null if the action does not exist.
+	 * @throws CException
 	 */
 	protected function createActionFromMap($actionMap,$actionID,$requestActionID,$config=array())
 	{
@@ -440,7 +442,7 @@ class CController extends CBaseController
 			$baseConfig=is_array($actionMap[$actionID]) ? $actionMap[$actionID] : array('class'=>$actionMap[$actionID]);
 			return Yii::createComponent(empty($config)?$baseConfig:array_merge($baseConfig,$config),$this,$requestActionID);
 		}
-		else if($pos===false)
+		elseif($pos===false)
 			return null;
 
 		// the action is defined in a provider
@@ -452,7 +454,7 @@ class CController extends CBaseController
 		$provider=$actionMap[$prefix];
 		if(is_string($provider))
 			$providerType=$provider;
-		else if(is_array($provider) && isset($provider['class']))
+		elseif(is_array($provider) && isset($provider['class']))
 		{
 			$providerType=$provider['class'];
 			if(isset($provider[$actionID]))
@@ -653,7 +655,7 @@ class CController extends CBaseController
 				$module=Yii::app();
 			$layoutName=$module->layout;
 		}
-		else if(($module=$this->getModule())===null)
+		elseif(($module=$this->getModule())===null)
 			$module=Yii::app();
 
 		return $this->resolveViewFile($layoutName,$module->getLayoutPath(),Yii::app()->getViewPath(),$module->getViewPath());
@@ -704,14 +706,14 @@ class CController extends CBaseController
 			else
 				$viewFile=$moduleViewPath.$viewName;
 		}
-		else if(strpos($viewName,'.'))
+		elseif(strpos($viewName,'.'))
 			$viewFile=Yii::getPathOfAlias($viewName);
 		else
 			$viewFile=$viewPath.DIRECTORY_SEPARATOR.$viewName;
 
 		if(is_file($viewFile.$extension))
 			return Yii::app()->findLocalizedFile($viewFile.$extension);
-		else if($extension!=='.php' && is_file($viewFile.'.php'))
+		elseif($extension!=='.php' && is_file($viewFile.'.php'))
 			return Yii::app()->findLocalizedFile($viewFile.'.php');
 		else
 			return false;
@@ -808,7 +810,7 @@ class CController extends CBaseController
 	}
 
 	/**
-	 * This method is invoked after the specified is rendered by calling {@link render()}.
+	 * This method is invoked after the specified view is rendered by calling {@link render()}.
 	 * Note that this method is invoked BEFORE {@link processOutput()}.
 	 * You may override this method to do some postprocessing for the view rendering.
 	 * @param string $view the view that has been rendered
@@ -916,14 +918,14 @@ class CController extends CBaseController
 	 * Note, the callback and its parameter values will be serialized and saved in cache.
 	 * Make sure they are serializable.
 	 *
-	 * @param callback $callback a PHP callback which returns the needed dynamic content.
+	 * @param callable $callback a PHP callback which returns the needed dynamic content.
 	 * When the callback is specified as a string, it will be first assumed to be a method of the current
 	 * controller class. If the method does not exist, it is assumed to be a global PHP function.
 	 * Note, the callback should return the dynamic content instead of echoing it.
 	 */
 	public function renderDynamic($callback)
 	{
-		$n=count($this->_dynamicOutput);
+		$n=($this->_dynamicOutput === null ? 0 : count($this->_dynamicOutput));
 		echo "<###dynamic-$n###>";
 		$params=func_get_args();
 		array_shift($params);
@@ -932,7 +934,7 @@ class CController extends CBaseController
 
 	/**
 	 * This method is internally used.
-	 * @param callback $callback a PHP callback which returns the needed dynamic content.
+	 * @param callable $callback a PHP callback which returns the needed dynamic content.
 	 * @param array $params parameters passed to the PHP callback
 	 * @see renderDynamic
 	 */
@@ -961,7 +963,7 @@ class CController extends CBaseController
 	{
 		if($route==='')
 			$route=$this->getId().'/'.$this->getAction()->getId();
-		else if(strpos($route,'/')===false)
+		elseif(strpos($route,'/')===false)
 			$route=$this->getId().'/'.$route;
 		if($route[0]!=='/' && ($module=$this->getModule())!==null)
 			$route=$module->getId().'/'.$route;
@@ -1017,8 +1019,8 @@ class CController extends CBaseController
 	 * @param mixed $url the URL to be redirected to. If the parameter is an array,
 	 * the first element must be a route to a controller action and the rest
 	 * are GET parameters in name-value pairs.
-	 * @param boolean $terminate whether to terminate the current application after calling this method
-	 * @param integer $statusCode the HTTP status code. Defaults to 302. See {@link http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html}
+	 * @param boolean $terminate whether to terminate the current application after calling this method. Defaults to true.
+	 * @param integer $statusCode the HTTP status code. Defaults to 302. See {@link https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html}
 	 * for details about HTTP status code.
 	 */
 	public function redirect($url,$terminate=true,$statusCode=302)
@@ -1107,7 +1109,7 @@ class CController extends CBaseController
 
 	/**
 	 * The filter method for 'postOnly' filter.
-	 * This filter reports an error if the applied action is receiving a non-POST request.
+	 * This filter throws an exception (CHttpException with code 400) if the applied action is receiving a non-POST request.
 	 * @param CFilterChain $filterChain the filter chain that the filter is on.
 	 * @throws CHttpException if the current request is not a POST request
 	 */
@@ -1121,7 +1123,7 @@ class CController extends CBaseController
 
 	/**
 	 * The filter method for 'ajaxOnly' filter.
-	 * This filter reports an error if the applied action is receiving a non-AJAX request.
+	 * This filter throws an exception (CHttpException with code 400) if the applied action is receiving a non-AJAX request.
 	 * @param CFilterChain $filterChain the filter chain that the filter is on.
 	 * @throws CHttpException if the current request is not an AJAX request.
 	 */

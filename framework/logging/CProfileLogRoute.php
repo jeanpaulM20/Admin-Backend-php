@@ -3,9 +3,9 @@
  * CProfileLogRoute class file.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 /**
@@ -23,7 +23,6 @@
  * @property string $report The type of the profiling report to display. Defaults to 'summary'.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id: CProfileLogRoute.php 3515 2011-12-28 12:29:24Z mdomba $
  * @package system.logging
  * @since 1.0
  */
@@ -60,6 +59,7 @@ class CProfileLogRoute extends CWebLogRoute
 
 	/**
 	 * @param string $value the type of the profiling report to display. Valid values include 'summary' and 'callstack'.
+	 * @throws CException if given value is not "summary" or "callstack"
 	 */
 	public function setReport($value)
 	{
@@ -89,6 +89,7 @@ class CProfileLogRoute extends CWebLogRoute
 	/**
 	 * Displays the callstack of the profiling procedures for display.
 	 * @param array $logs list of logs
+	 * @throws CException if Yii::beginProfile() and Yii::endProfile() are not matching
 	 */
 	protected function displayCallstack($logs)
 	{
@@ -107,7 +108,7 @@ class CProfileLogRoute extends CWebLogRoute
 				$stack[]=$log;
 				$n++;
 			}
-			else if(!strncasecmp($message,'end:',4))
+			elseif(!strncasecmp($message,'end:',4))
 			{
 				$token=substr($message,4);
 				if(($last=array_pop($stack))!==null && $last[0]===$token)
@@ -131,10 +132,12 @@ class CProfileLogRoute extends CWebLogRoute
 	/**
 	 * Displays the summary report of the profiling result.
 	 * @param array $logs list of logs
+	 * @throws CException if Yii::beginProfile() and Yii::endProfile() are not matching
 	 */
 	protected function displaySummary($logs)
 	{
 		$stack=array();
+		$results=array();
 		foreach($logs as $log)
 		{
 			if($log[1]!==CLogger::LEVEL_PROFILE)
@@ -145,7 +148,7 @@ class CProfileLogRoute extends CWebLogRoute
 				$log[0]=substr($message,6);
 				$stack[]=$log;
 			}
-			else if(!strncasecmp($message,'end:',4))
+			elseif(!strncasecmp($message,'end:',4))
 			{
 				$token=substr($message,4);
 				if(($last=array_pop($stack))!==null && $last[0]===$token)
@@ -184,6 +187,18 @@ class CProfileLogRoute extends CWebLogRoute
 	}
 
 	/**
+	 * Result entry compare function used by usort.
+	 * Included to circumvent the use of closures (not supported by PHP 5.2) and create_function (deprecated since PHP 7.2.0)
+	 * @param array $a
+	 * @param array $b
+	 * @return int 0 (a>=b), 1 (a<b)
+	 */
+	private function resultEntryCompare($a, $b)
+	{
+		return ($a[4] < $b[4]) ? 1 : 0;
+	}
+
+	/**
 	 * Aggregates the report result.
 	 * @param array $result log result for this code block
 	 * @param float $delta time spent for this code block
@@ -194,7 +209,7 @@ class CProfileLogRoute extends CWebLogRoute
 		list($token,$calls,$min,$max,$total)=$result;
 		if($delta<$min)
 			$min=$delta;
-		else if($delta>$max)
+		elseif($delta>$max)
 			$max=$delta;
 		$calls++;
 		$total+=$delta;

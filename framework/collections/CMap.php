@@ -3,9 +3,9 @@
  * This file contains classes implementing Map feature.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 /**
@@ -29,7 +29,6 @@
  * @property array $keys The key list.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id: CMap.php 3518 2011-12-28 23:31:29Z alexander.makarow $
  * @package system.collections
  * @since 1.0
  */
@@ -47,7 +46,7 @@ class CMap extends CComponent implements IteratorAggregate,ArrayAccess,Countable
 	/**
 	 * Constructor.
 	 * Initializes the list with an array or an iterable object.
-	 * @param array $data the intial data. Default is null, meaning no initialization.
+	 * @param array $data the initial data. Default is null, meaning no initialization.
 	 * @param boolean $readOnly whether the list is read-only
 	 * @throws CException If data is not null and neither an array nor an iterator.
 	 */
@@ -79,6 +78,7 @@ class CMap extends CComponent implements IteratorAggregate,ArrayAccess,Countable
 	 * This method is required by the interface IteratorAggregate.
 	 * @return CMapIterator an iterator for traversing the items in the list.
 	 */
+	#[ReturnTypeWillChange]
 	public function getIterator()
 	{
 		return new CMapIterator($this->_d);
@@ -89,6 +89,7 @@ class CMap extends CComponent implements IteratorAggregate,ArrayAccess,Countable
 	 * This method is required by Countable interface.
 	 * @return integer number of items in the map.
 	 */
+	#[ReturnTypeWillChange]
 	public function count()
 	{
 		return $this->getCount();
@@ -215,7 +216,7 @@ class CMap extends CComponent implements IteratorAggregate,ArrayAccess,Countable
 			foreach($data as $key=>$value)
 				$this->add($key,$value);
 		}
-		else if($data!==null)
+		elseif($data!==null)
 			throw new CException(Yii::t('yii','Map data must be an array or an object implementing Traversable.'));
 	}
 
@@ -226,7 +227,7 @@ class CMap extends CComponent implements IteratorAggregate,ArrayAccess,Countable
 	 * If the merge is recursive, the following algorithm is performed:
 	 * <ul>
 	 * <li>the map data is saved as $a, and the source data is saved as $b;</li>
-	 * <li>if $a and $b both have an array indxed at the same string key, the arrays will be merged using this algorithm;</li>
+	 * <li>if $a and $b both have an array indexed at the same string key, the arrays will be merged using this algorithm;</li>
 	 * <li>any integer-indexed elements in $b will be appended to $a and reindexed accordingly;</li>
 	 * <li>any string-indexed elements in $b will overwrite elements in $a with the same index;</li>
 	 * </ul>
@@ -260,7 +261,7 @@ class CMap extends CComponent implements IteratorAggregate,ArrayAccess,Countable
 					$this->add($key,$value);
 			}
 		}
-		else if($data!==null)
+		elseif($data!==null)
 			throw new CException(Yii::t('yii','Map data must be an array or an object implementing Traversable.'));
 	}
 
@@ -273,7 +274,7 @@ class CMap extends CComponent implements IteratorAggregate,ArrayAccess,Countable
 	 * For integer-keyed elements, the elements from the latter array will
 	 * be appended to the former array.
 	 * @param array $a array to be merged to
-	 * @param array $b array to be merged from. You can specifiy additional
+	 * @param array $b array to be merged from. You can specify additional
 	 * arrays via third argument, fourth argument etc.
 	 * @return array the merged array (the original arrays are not changed.)
 	 * @see mergeWith
@@ -289,7 +290,7 @@ class CMap extends CComponent implements IteratorAggregate,ArrayAccess,Countable
 			{
 				if(is_integer($k))
 					isset($res[$k]) ? $res[]=$v : $res[$k]=$v;
-				else if(is_array($v) && isset($res[$k]) && is_array($res[$k]))
+				elseif(is_array($v) && isset($res[$k]) && is_array($res[$k]))
 					$res[$k]=self::mergeArray($res[$k],$v);
 				else
 					$res[$k]=$v;
@@ -304,6 +305,7 @@ class CMap extends CComponent implements IteratorAggregate,ArrayAccess,Countable
 	 * @param mixed $offset the offset to check on
 	 * @return boolean
 	 */
+	#[ReturnTypeWillChange]
 	public function offsetExists($offset)
 	{
 		return $this->contains($offset);
@@ -312,9 +314,10 @@ class CMap extends CComponent implements IteratorAggregate,ArrayAccess,Countable
 	/**
 	 * Returns the element at the specified offset.
 	 * This method is required by the interface ArrayAccess.
-	 * @param integer $offset the offset to retrieve element.
+	 * @param mixed $offset the offset to retrieve element.
 	 * @return mixed the element at the offset, null if no element is found at the offset
 	 */
+	#[ReturnTypeWillChange]
 	public function offsetGet($offset)
 	{
 		return $this->itemAt($offset);
@@ -323,9 +326,10 @@ class CMap extends CComponent implements IteratorAggregate,ArrayAccess,Countable
 	/**
 	 * Sets the element at the specified offset.
 	 * This method is required by the interface ArrayAccess.
-	 * @param integer $offset the offset to set element
+	 * @param mixed $offset the offset to set element
 	 * @param mixed $item the element value
 	 */
+	#[ReturnTypeWillChange]
 	public function offsetSet($offset,$item)
 	{
 		$this->add($offset,$item);
@@ -336,6 +340,7 @@ class CMap extends CComponent implements IteratorAggregate,ArrayAccess,Countable
 	 * This method is required by the interface ArrayAccess.
 	 * @param mixed $offset the offset to unset element
 	 */
+	#[ReturnTypeWillChange]
 	public function offsetUnset($offset)
 	{
 		$this->remove($offset);

@@ -3,9 +3,9 @@
  * CMarkdown class file.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 /**
@@ -17,15 +17,14 @@
  *
  * For details about the markdown syntax, please check the following:
  * <ul>
- * <li>{@link http://daringfireball.net/projects/markdown/syntax official markdown syntax}</li>
- * <li>{@link http://michelf.com/projects/php-markdown/extra/ markdown extra syntax}</li>
+ * <li>{@link https://daringfireball.net/projects/markdown/syntax official markdown syntax}</li>
+ * <li>{@link https://michelf.com/projects/php-markdown/extra/ markdown extra syntax}</li>
  * <li>{@link CMarkdownParser markdown with syntax highlighting}</li>
  * </ul>
  *
  * @property CMarkdownParser $markdownParser The parser instance.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id: CMarkdown.php 3515 2011-12-28 12:29:24Z mdomba $
  * @package system.web.widgets
  * @since 1.0
  */
@@ -47,8 +46,8 @@ class CMarkdown extends COutputProcessor
 
 	/**
 	 * Processes the captured output.
-     * This method converts the content in markdown syntax to HTML code.
-     * If {@link purifyOutput} is true, the HTML code will also be purified.
+	 * This method converts the content in markdown syntax to HTML code.
+	 * If {@link purifyOutput} is true, the HTML code will also be purified.
 	 * @param string $output the captured output to be processed
 	 * @see convert
 	 */

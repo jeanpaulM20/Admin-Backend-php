@@ -3,9 +3,9 @@
  * CWebServiceAction class file.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 /**
@@ -26,7 +26,6 @@
  * @property CWebService $service The Web service instance.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id: CWebServiceAction.php 3426 2011-10-25 00:01:09Z alexander.makarow $
  * @package system.web.services
  * @since 1.0
  */
@@ -63,7 +62,7 @@ class CWebServiceAction extends CAction
 	 * @var array a list of PHP classes that are declared as complex types in WSDL.
 	 * This should be an array with WSDL types as keys and names of PHP classes as values.
 	 * A PHP class can also be specified as a path alias.
-	 * @see http://www.php.net/manual/en/soapclient.soapclient.php
+	 * @see https://www.php.net/manual/en/soapclient.soapclient.php
 	 */
 	public $classMap;
 	/**

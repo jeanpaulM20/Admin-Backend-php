@@ -3,9 +3,9 @@
  * CFormElementCollection class file.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 /**
@@ -25,7 +25,6 @@
  * to {@link CFormElement} objects.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id: CFormElementCollection.php 3054 2011-03-12 21:30:21Z qiang.xue $
  * @package system.web.form
  * @since 1.1
  */
@@ -76,7 +75,7 @@ class CFormElementCollection extends CMap
 					unset($value['type'],$value['name']);
 					$element=new CFormStringElement($value,$this->_form);
 				}
-				else if(!strcasecmp(substr($value['type'],-4),'form'))	// a form
+				elseif(!strcasecmp(substr($value['type'],-4),'form'))	// a form
 				{
 					$class=$value['type']==='form' ? get_class($this->_form) : Yii::import($value['type']);
 					$element=new $class($value,null,$this->_form);
@@ -88,7 +87,7 @@ class CFormElementCollection extends CMap
 				}
 			}
 		}
-		else if($value instanceof CFormElement)
+		elseif($value instanceof CFormElement)
 		{
 			if(property_exists($value,'name') && is_string($key))
 				$value->name=$key;
@@ -103,6 +102,7 @@ class CFormElementCollection extends CMap
 	/**
 	 * Removes the specified element by key.
 	 * @param string $key the name of the element to be removed from the collection
+	 * @throws CException
 	 */
 	public function remove($key)
 	{

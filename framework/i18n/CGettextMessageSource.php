@@ -3,15 +3,15 @@
  * CGettextMessageSource class file.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 /**
  * CGettextMessageSource represents a message source that is based on GNU Gettext.
  *
- * Each CGettextMessageSource instance represents the message tranlations
+ * Each CGettextMessageSource instance represents the message translations
  * for a single domain. And each message category represents a message context
  * in Gettext. Translated messages are stored as either a MO or PO file,
  * depending on the {@link useMoFile} property value.
@@ -22,7 +22,6 @@
  * {@link catalog} property, which defaults to 'messages'.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id: CGettextMessageSource.php 3515 2011-12-28 12:29:24Z mdomba $
  * @package system.i18n
  * @since 1.0
  */
@@ -54,7 +53,7 @@ class CGettextMessageSource extends CMessageSource
 	 */
 	public $useMoFile=true;
 	/**
-	 * @var boolean whether to use Big Endian to read and write MO files.
+	 * @var boolean whether to use Big Endian to read MO files.
 	 * Defaults to false. This property is only used when {@link useMoFile} is true.
 	 */
 	public $useBigEndian=false;
@@ -92,7 +91,7 @@ class CGettextMessageSource extends CMessageSource
 
 		if ($this->cachingDuration > 0 && $this->cacheID!==false && ($cache=Yii::app()->getComponent($this->cacheID))!==null)
 		{
-			$key = self::CACHE_KEY_PREFIX . $messageFile;
+			$key = self::CACHE_KEY_PREFIX . $messageFile . "." . $category;
 			if (($data=$cache->get($key)) !== false)
 				return unserialize($data);
 		}

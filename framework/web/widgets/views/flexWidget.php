@@ -3,10 +3,9 @@
  * The view file for CFlexWidget.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
- * @version $Id: flexWidget.php 2799 2011-01-01 19:31:13Z qiang.xue $
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  * @package system.web.widgets.views
  * @since 1.0
  */
@@ -43,7 +42,7 @@ if ( hasProductInstall && !hasRequestedVersion ) {
 		"allowScriptAccess","<?php echo $this->allowScriptAccess ?>",
 		"allowFullScreen","<?php echo $this->allowFullScreen ?>",
 		"type", "application/x-shockwave-flash",
-		"pluginspage", "http://www.adobe.com/go/getflashplayer"
+		"pluginspage", "https://www.adobe.com/go/getflashplayer"
 	);
 } else if (hasRequestedVersion) {
 	// if we've detected an acceptable version
@@ -61,7 +60,7 @@ if ( hasProductInstall && !hasRequestedVersion ) {
 		"allowScriptAccess","<?php echo $this->allowScriptAccess ?>",
 		"allowFullScreen","<?php echo $this->allowFullScreen ?>",
 		"type", "application/x-shockwave-flash",
-		"pluginspage", "http://www.adobe.com/go/getflashplayer"
+		"pluginspage", "https://www.adobe.com/go/getflashplayer"
 	);
 } else {  // flash is too old or we can't detect the plugin
 	var alternateContent = '<?php echo CJavaScript::quote($this->altHtmlContent); ?>';

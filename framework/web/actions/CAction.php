@@ -3,9 +3,9 @@
  * CAction class file.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 /**
@@ -22,8 +22,9 @@
  * @property CController $controller The controller who owns this action.
  * @property string $id Id of this action.
  *
+ * @method run() executes action
+ *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id: CAction.php 3426 2011-10-25 00:01:09Z alexander.makarow $
  * @package system.web.actions
  * @since 1.0
  */
@@ -71,8 +72,9 @@ abstract class CAction extends CComponent implements IAction
 		$method=new ReflectionMethod($this, 'run');
 		if($method->getNumberOfParameters()>0)
 			return $this->runWithParamsInternal($this, $method, $params);
-		else
-			return $this->run();
+
+		$this->run();
+		return true;
 	}
 
 	/**
@@ -92,14 +94,19 @@ abstract class CAction extends CComponent implements IAction
 			$name=$param->getName();
 			if(isset($params[$name]))
 			{
-				if($param->isArray())
+				if(version_compare(PHP_VERSION,'8.0','>='))
+					$isArray=($type=$param->getType()) instanceof \ReflectionNamedType && $type->getName()==='array';
+				else
+					$isArray=$param->isArray();
+
+				if($isArray)
 					$ps[]=is_array($params[$name]) ? $params[$name] : array($params[$name]);
-				else if(!is_array($params[$name]))
+				elseif(!is_array($params[$name]))
 					$ps[]=$params[$name];
 				else
 					return false;
 			}
-			else if($param->isDefaultValueAvailable())
+			elseif($param->isDefaultValueAvailable())
 				$ps[]=$param->getDefaultValue();
 			else
 				return false;

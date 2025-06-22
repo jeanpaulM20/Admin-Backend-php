@@ -3,9 +3,9 @@
  * CStringValidator class file.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 /**
@@ -15,9 +15,9 @@
  *
  * In addition to the {@link message} property for setting a custom error message,
  * CStringValidator has a couple custom error messages you can set that correspond to different
- * validation scenarios. For defining a custom message when the string is too short, 
- * you may use the {@link tooShort} property. Similarly with {@link tooLong}. The messages may contain 
- * placeholders that will be replaced with the actual content. In addition to the "{attribute}" 
+ * validation scenarios. For defining a custom message when the string is too short,
+ * you may use the {@link tooShort} property. Similarly with {@link tooLong}. The messages may contain
+ * placeholders that will be replaced with the actual content. In addition to the "{attribute}"
  * placeholder, recognized by all validators (see {@link CValidator}), CStringValidator allows for the following
  * placeholders to be specified:
  * <ul>
@@ -27,7 +27,6 @@
  * </ul>
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id: CStringValidator.php 3491 2011-12-17 05:17:57Z jefftulsa $
  * @package system.validators
  * @since 1.0
  */
@@ -81,10 +80,17 @@ class CStringValidator extends CValidator
 		if($this->allowEmpty && $this->isEmpty($value))
 			return;
 
+		if(is_array($value))
+		{
+			// https://github.com/yiisoft/yii/issues/1955
+			$this->addError($object,$attribute,Yii::t('yii','{attribute} is invalid.'));
+			return;
+		}
+
 		if(function_exists('mb_strlen') && $this->encoding!==false)
-			$length=mb_strlen($value, $this->encoding ? $this->encoding : Yii::app()->charset);
+			$length=mb_strlen((string)$value, $this->encoding ? $this->encoding : Yii::app()->charset);
 		else
-			$length=strlen($value);
+			$length=strlen((string)$value);
 
 		if($this->min!==null && $length<$this->min)
 		{
@@ -165,7 +171,7 @@ if(value.length!={$this->is}) {
 		if($this->allowEmpty)
 		{
 			$js="
-if($.trim(value)!='') {
+if(jQuery.trim(value)!='') {
 	$js
 }
 ";

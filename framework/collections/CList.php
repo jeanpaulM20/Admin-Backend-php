@@ -3,9 +3,9 @@
  * This file contains classes implementing list feature.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 /**
@@ -32,7 +32,6 @@
  * @property integer $count The number of items in the list.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id: CList.php 3430 2011-11-02 23:10:03Z alexander.makarow@gmail.com $
  * @package system.collections
  * @since 1.0
  */
@@ -86,6 +85,7 @@ class CList extends CComponent implements IteratorAggregate,ArrayAccess,Countabl
 	 * This method is required by the interface IteratorAggregate.
 	 * @return Iterator an iterator for traversing the items in the list.
 	 */
+	#[ReturnTypeWillChange]
 	public function getIterator()
 	{
 		return new CListIterator($this->_d);
@@ -96,6 +96,7 @@ class CList extends CComponent implements IteratorAggregate,ArrayAccess,Countabl
 	 * This method is required by Countable interface.
 	 * @return integer number of items in the list.
 	 */
+	#[ReturnTypeWillChange]
 	public function count()
 	{
 		return $this->getCount();
@@ -121,7 +122,7 @@ class CList extends CComponent implements IteratorAggregate,ArrayAccess,Countabl
 	{
 		if(isset($this->_d[$index]))
 			return $this->_d[$index];
-		else if($index>=0 && $index<$this->_c) // in case the value is null
+		elseif($index>=0 && $index<$this->_c) // in case the value is null
 			return $this->_d[$index];
 		else
 			throw new CException(Yii::t('yii','List index "{index}" is out of bound.',
@@ -153,7 +154,7 @@ class CList extends CComponent implements IteratorAggregate,ArrayAccess,Countabl
 		{
 			if($index===$this->_c)
 				$this->_d[$this->_c++]=$item;
-			else if($index>=0 && $index<$this->_c)
+			elseif($index>=0 && $index<$this->_c)
 			{
 				array_splice($this->_d,$index,0,array($item));
 				$this->_c++;
@@ -270,7 +271,7 @@ class CList extends CComponent implements IteratorAggregate,ArrayAccess,Countabl
 			foreach($data as $item)
 				$this->add($item);
 		}
-		else if($data!==null)
+		elseif($data!==null)
 			throw new CException(Yii::t('yii','List data must be an array or an object implementing Traversable.'));
 	}
 
@@ -289,7 +290,7 @@ class CList extends CComponent implements IteratorAggregate,ArrayAccess,Countabl
 			foreach($data as $item)
 				$this->add($item);
 		}
-		else if($data!==null)
+		elseif($data!==null)
 			throw new CException(Yii::t('yii','List data must be an array or an object implementing Traversable.'));
 	}
 
@@ -299,6 +300,7 @@ class CList extends CComponent implements IteratorAggregate,ArrayAccess,Countabl
 	 * @param integer $offset the offset to check on
 	 * @return boolean
 	 */
+	#[ReturnTypeWillChange]
 	public function offsetExists($offset)
 	{
 		return ($offset>=0 && $offset<$this->_c);
@@ -311,6 +313,7 @@ class CList extends CComponent implements IteratorAggregate,ArrayAccess,Countabl
 	 * @return mixed the item at the offset
 	 * @throws CException if the offset is invalid
 	 */
+	#[ReturnTypeWillChange]
 	public function offsetGet($offset)
 	{
 		return $this->itemAt($offset);
@@ -322,6 +325,7 @@ class CList extends CComponent implements IteratorAggregate,ArrayAccess,Countabl
 	 * @param integer $offset the offset to set item
 	 * @param mixed $item the item value
 	 */
+	#[ReturnTypeWillChange]
 	public function offsetSet($offset,$item)
 	{
 		if($offset===null || $offset===$this->_c)
@@ -338,6 +342,7 @@ class CList extends CComponent implements IteratorAggregate,ArrayAccess,Countabl
 	 * This method is required by the interface ArrayAccess.
 	 * @param integer $offset the offset to unset item
 	 */
+	#[ReturnTypeWillChange]
 	public function offsetUnset($offset)
 	{
 		$this->removeAt($offset);
