@@ -1448,25 +1448,11 @@ class Markdown_Parser {
 	# regular expression.
 	#
 		if (function_exists($this->utf8_strlen)) return;
-		$this->utf8_strlen = function($text) {
-			return preg_match_all(
-				"/[\\\\x00-\\\\xBF]|[\\\\xC0-\\\\xFF][\\\\x80-\\\\xBF]*/",
-				$text, $m
-			);
-		};
+		$this->utf8_strlen = create_function('$text', 'return preg_match_all(
+			"/[\\\\x00-\\\\xBF]|[\\\\xC0-\\\\xFF][\\\\x80-\\\\xBF]*/",
+			$text, $m);');
 	}
 
-	protected function utf8_strlen($string) {
-		if (function_exists('mb_strlen')) {
-			return mb_strlen($string, 'UTF-8');
-		}
-
-		return preg_match_all(
-			'/[\x00-\xBF]|[\xC0-\xFF][\x80-\xBF]*/',
-			$string,
-			$m
-		);
-	}
 
 	public function unhash($text) {
 	#

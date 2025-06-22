@@ -76,7 +76,7 @@ return array (
   'CMemCache server configuration must have "host" value.' => 'Конфігурація серверу CMemCache повинна містити значення "host".',
   'CProfileLogRoute found a mismatching code block "{token}". Make sure the calls to Yii::beginProfile() and Yii::endProfile() be properly nested.' => 'Компонент CProfileLogRoute виявив невірний код "{token}". Переконайтесь, що вкладеність викликів Yii::beginProfile() та Yii::endProfile() дотримується.',
   'CProfileLogRoute.report "{report}" is invalid. Valid values include "summary" and "callstack".' => 'Параметр CProfileLogRoute.report "{report}" заданий невірно. Підтримуються значення "summary" та "callstack".',
-  'CSecurityManager requires PHP mcrypt extension to be loaded in order to use data encryption feature.' => 'Для використання можливості шифрування даних компоненту CSecurityManager потрібне PHP-розширення mcrypt.',
+  'CSecurityManager requires PHP OpenSSL extension to be loaded in order to use data encryption feature.' => 'Для використання можливості шифрування даних компоненту CSecurityManager потрібне PHP-розширення OpenSSL.',
   'CSecurityManager.encryptionKey cannot be empty.' => 'Параметр CSecurityManager.encryptionKey не повинен бути порожнім.',
   'CSecurityManager.validationKey cannot be empty.' => 'Параметр CSecurityManager.validationKey не повинен бути порожнім.',
   'CTypedList<{type}> can only hold objects of {type} class.' => 'CTypedList<{type}> може містити тільки об\'єкти класу {type}.',

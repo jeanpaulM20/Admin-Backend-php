@@ -30,7 +30,7 @@ return array (
   'CWinCache user cache is disabled. Please set wincache.ucenabled to On in your php.ini.' => 'Le cache utilisateur CWinCache est désactivé. Veuillez définir la propriété wincache.ucenabled à On dans le fichier php.ini.',
   'Dropping DB column is not supported by SQLite.' => 'Supprimer une colonne n\'est pas supporté par SQLite.',
   'Dropping a foreign key constraint is not supported by SQLite.' => 'Supprimer une contrainte de clef étrangère n\'est pas supporté par SQLite.',
-  'Failed to initialize the mcrypt module.' => 'Impossible d\'initiliser le module mcrypt.',
+  'Failed to initialize the OpenSSL cipher method.' => 'Impossible d\'initialiser la méthode de chiffrement OpenSSL.',
   'Failed to set unsafe attribute "{attribute}".' => 'Impossilbe de définir l\'attribut « {attribute} ».',
   'GD and FreeType PHP extensions are required.' => 'Les extension PHP GD et FreeType sont nécessaires.',
   'Property CMaskedTextField.mask cannot be empty.' => 'La propriété CMaskedTextField.mask ne peut être vide.',
