@@ -1,0 +1,13 @@
+{
+    "name": "admin-backend-php/admin-backend-php",
+    "description": "Admin backend project",
+    "require": {
+        "php": "^8.3",
+        "ext-openssl": "*",
+        "ext-pdo": "*",
+        "ext-pdo_mysql": "*"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^1.10"
+    }
+}

@@ -3,9 +3,9 @@
  * COutputProcessor class file.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 /**
@@ -19,7 +19,6 @@
  * to true, the output will not be echoed anymore. Otherwise (by default), the output will be echoed.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id: COutputProcessor.php 2799 2011-01-01 19:31:13Z qiang.xue $
  * @package system.web.widgets
  * @since 1.0
  */

@@ -3,17 +3,15 @@
  * ModelCommand class file.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
- * @version $Id: ModelCommand.php 3477 2011-12-06 22:33:37Z alexander.makarow $
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 /**
  * ModelCommand generates a model class.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id: ModelCommand.php 3477 2011-12-06 22:33:37Z alexander.makarow $
  * @package system.cli.commands.shell
  * @since 1.0
  */
@@ -109,22 +107,20 @@ EOD;
 	/**
 	 * Checks if the given table is a "many to many" helper table.
 	 * Their PK has 2 fields, and both of those fields are also FK to other separate tables.
-	 * @param CDbTableSchema table to inspect
-	 * @return boolean true if table matches description of helpter table.
+	 * @param CDbTableSchema $table table to inspect
+	 * @return boolean true if table matches description of helper table.
 	 */
 	protected function isRelationTable($table)
 	{
 		$pk=$table->primaryKey;
 		return (count($pk) === 2 // we want 2 columns
 			&& isset($table->foreignKeys[$pk[0]]) // pk column 1 is also a foreign key
-			&& isset($table->foreignKeys[$pk[1]]) // pk column 2 is also a foriegn key
+			&& isset($table->foreignKeys[$pk[1]]) // pk column 2 is also a foreign key
 			&& $table->foreignKeys[$pk[0]][0] !== $table->foreignKeys[$pk[1]][0]); // and the foreign keys point different tables
 	}
 
 	/**
 	 * Generate code to put in ActiveRecord class's relations() function.
-	 * @return array indexed by table names, each entry contains array of php code to go in appropriate ActiveRecord class.
-	 *		Empty array is returned if database couldn't be connected.
 	 */
 	protected function generateRelations()
 	{
@@ -182,7 +178,7 @@ EOD;
 
 	/**
 	 * Generates model class name based on a table name
-	 * @param string the table name
+	 * @param string $tableName the table name
 	 * @return string the generated model class name
 	 */
 	protected function generateClassName($tableName)
@@ -197,8 +193,8 @@ EOD;
 
 	/**
 	 * Generates the mapping table between table names and class names.
-	 * @param CDbSchema the database schema
-	 * @param string a regular expression that may be used to filter table names
+	 * @param CDbSchema $schema the database schema
+	 * @param string $pattern a regular expression that may be used to filter table names
 	 */
 	protected function generateClassNames($schema,$pattern=null)
 	{
@@ -207,7 +203,7 @@ EOD;
 		{
 			if($pattern===null)
 				$this->_tables[$name]=$this->generateClassName($this->removePrefix($name));
-			else if(preg_match($pattern,$name,$matches))
+			elseif(preg_match($pattern,$name,$matches))
 			{
 				if(count($matches)>1 && !empty($matches[1]))
 					$className=$this->generateClassName($matches[1]);
@@ -220,9 +216,10 @@ EOD;
 
 	/**
 	 * Generate a name for use as a relation name (inside relations() function in a model).
-	 * @param string the name of the table to hold the relation
-	 * @param string the foreign key name
-	 * @param boolean whether the relation would contain multiple objects
+	 * @param string $tableName the name of the table to hold the relation
+	 * @param string $fkName the foreign key name
+	 * @param boolean $multiple whether the relation would contain multiple objects
+	 * @return string the generated relation name
 	 */
 	protected function generateRelationName($tableName, $fkName, $multiple)
 	{
@@ -230,7 +227,7 @@ EOD;
 			$relationName=rtrim(substr($fkName, 0, -2),'_');
 		else
 			$relationName=$fkName;
-		$relationName[0]=strtolower($relationName);
+		$relationName[0]=strtolower($relationName[0]);
 
 		$rawName=$relationName;
 		if($multiple)
@@ -245,7 +242,8 @@ EOD;
 
 	/**
 	 * Execute the action.
-	 * @param array command line parameters specific for this command
+	 * @param array $args command line parameters specific for this command
+	 * @return integer|null non zero application exit code for help or null on success
 	 */
 	public function run($args)
 	{
@@ -253,7 +251,7 @@ EOD;
 		{
 			echo "Error: model class name is required.\n";
 			echo $this->getHelp();
-			return;
+			return 1;
 		}
 		$className=$args[0];
 
@@ -262,7 +260,7 @@ EOD;
 			echo "Error: an active 'db' connection is required.\n";
 			echo "If you already added 'db' component in application configuration,\n";
 			echo "please quit and re-enter the yiic shell.\n";
-			return;
+			return 1;
 		}
 
 		$db->active=true;
@@ -271,7 +269,7 @@ EOD;
 		if(!preg_match('/^[\w\.\-\*]*(.*?)$/',$className,$matches))
 		{
 			echo "Error: model class name is invalid.\n";
-			return;
+			return 1;
 		}
 
 		if(empty($matches[1]))  // without regular expression
@@ -348,7 +346,7 @@ EOD;
 			if($unitTestPath!==false)
 			{
 				$fixtureName=$this->pluralize($className);
-				$fixtureName[0]=strtolower($fixtureName);
+				$fixtureName[0]=strtolower($fixtureName[0]);
 				$list['unit/'.$className.'Test.php']=array(
 					'source'=>$templatePath.DIRECTORY_SEPARATOR.'test.php',
 					'target'=>$unitTestPath.DIRECTORY_SEPARATOR.$className.'Test.php',
@@ -407,11 +405,11 @@ EOD;
 					$required[]=$column->name;
 				if($column->type==='integer')
 					$integers[]=$column->name;
-				else if($column->type==='double')
+				elseif($column->type==='double')
 					$numerical[]=$column->name;
-				else if($column->type==='string' && $column->size>0)
+				elseif($column->type==='string' && $column->size>0)
 					$length[$column->size][]=$column->name;
-				else if(!$column->isPrimaryKey && !$r)
+				elseif(!$column->isPrimaryKey && !$r)
 					$safe[]=$column->name;
 			}
 			if($required!==array())

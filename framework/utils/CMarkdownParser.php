@@ -3,9 +3,9 @@
  * CMarkdownParser class file.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 require_once(Yii::getPathOfAlias('system.vendors.markdown.markdown').'.php');
@@ -16,7 +16,7 @@ if(!class_exists('HTMLPurifier_Bootstrap',false))
 }
 
 /**
- * CMarkdownParser is a wrapper of {@link http://michelf.com/projects/php-markdown/extra/ MarkdownExtra_Parser}.
+ * CMarkdownParser is a wrapper of {@link https://michelf.com/projects/php-markdown/extra/ MarkdownExtra_Parser}.
  *
  * CMarkdownParser extends MarkdownExtra_Parser by using Text_Highlighter
  * to highlight code blocks with specific language syntax.
@@ -37,14 +37,13 @@ if(!class_exists('HTMLPurifier_Bootstrap',false))
  *
  * For details about the standard markdown syntax, please check the following:
  * <ul>
- * <li>{@link http://daringfireball.net/projects/markdown/syntax official markdown syntax}</li>
- * <li>{@link http://michelf.com/projects/php-markdown/extra/ markdown extra syntax}</li>
+ * <li>{@link https://daringfireball.net/projects/markdown/syntax official markdown syntax}</li>
+ * <li>{@link https://michelf.com/projects/php-markdown/extra/ markdown extra syntax}</li>
  * </ul>
  *
  * @property string $defaultCssFile The default CSS file that is used to highlight code blocks.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id: CMarkdownParser.php 3515 2011-12-28 12:29:24Z mdomba $
  * @package system.utils
  * @since 1.0
  */
@@ -160,7 +159,7 @@ class CMarkdownParser extends MarkdownExtra_Parser
 		$lang = current(preg_split('/\s+/', substr(substr($options,1), 0,-1),2));
 		$highlighter = Text_Highlighter::factory($lang);
 		if($highlighter)
-			$highlighter->setRenderer(new Text_Highlighter_Renderer_Html($this->getHiglightConfig($options)));
+			$highlighter->setRenderer(new Text_Highlighter_Renderer_Html($this->getHighlightConfig($options)));
 		return $highlighter;
 	}
 
@@ -169,13 +168,27 @@ class CMarkdownParser extends MarkdownExtra_Parser
 	 * @param string $options user-entered options
 	 * @return array the highlighter config
 	 */
-	public function getHiglightConfig($options)
+	public function getHighlightConfig($options)
 	{
-		$config['use_language'] = true;
+		$config = array('use_language'=>true);
 		if( $this->getInlineOption('showLineNumbers', $options, false) )
 			$config['numbers'] = HL_NUMBERS_LI;
 		$config['tabsize'] = $this->getInlineOption('tabSize', $options, 4);
 		return $config;
+	}
+
+	/**
+	 * Generates the config for the highlighter.
+	 *
+	 * NOTE: This method is deprecated due to a mistake in the method name.
+	 * Use {@link getHighlightConfig} instead of this.
+	 *
+	 * @param string $options user-entered options
+	 * @return array the highlighter config
+	 */
+	public function getHiglightConfig($options)
+	{
+		return $this->getHighlightConfig($options);
 	}
 
 	/**

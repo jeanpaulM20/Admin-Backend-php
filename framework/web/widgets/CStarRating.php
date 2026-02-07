@@ -3,15 +3,15 @@
  * CStarRating class file.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 /**
  * CStarRating displays a star rating control that can collect user rating input.
  *
- * CStarRating is based on {@link http://www.fyneworks.com/jquery/star-rating/ jQuery Star Rating Plugin}.
+ * CStarRating is based on {@link https://www.fyneworks.com/jquery/star-rating/ jQuery Star Rating Plugin}.
  * It displays a list of stars indicating the rating values. Users can toggle these stars
  * to indicate their rating input. On the server side, when the rating input is submitted,
  * the value can be retrieved in the same way as working with a normal HTML input.
@@ -24,7 +24,6 @@
  * CStarRating allows customization of its appearance. It also supports empty rating as well as read-only rating.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id: CStarRating.php 3515 2011-12-28 12:29:24Z mdomba $
  * @package system.web.widgets
  * @since 1.0
  */
@@ -171,7 +170,7 @@ class CStarRating extends CInputWidget
 				$options['title']=$this->titles[$value];
 			else
 				unset($options['title']);
-			echo CHtml::radioButton($name,!strcmp($value,$selection),$options) . "\n";
+			echo CHtml::radioButton($name,!strcmp($value,(string)$selection),$options) . "\n";
 		}
 	}
 
@@ -191,26 +190,15 @@ class CStarRating extends CInputWidget
 			$options['starWidth']=$this->starWidth;
 		if($this->readOnly===true)
 			$options['readOnly']=true;
-		if($this->focus!==null)
+		foreach(array('focus', 'blur', 'callback') as $event)
 		{
-			if(strncmp($this->focus,'js:',3))
-				$options['focus']='js:'.$this->focus;
-			else
-				$options['focus']=$this->focus;
-		}
-		if($this->blur!==null)
-		{
-			if(strncmp($this->blur,'js:',3))
-				$options['blur']='js:'.$this->blur;
-			else
-				$options['blur']=$this->blur;
-		}
-		if($this->callback!==null)
-		{
-			if(strncmp($this->callback,'js:',3))
-				$options['callback']='js:'.$this->callback;
-			else
-				$options['callback']=$this->callback;
+			if($this->$event!==null)
+			{
+				if($this->$event instanceof CJavaScriptExpression)
+					$options[$event]=$this->$event;
+				else
+					$options[$event]=new CJavaScriptExpression($this->$event);
+			}
 		}
 		return $options;
 	}

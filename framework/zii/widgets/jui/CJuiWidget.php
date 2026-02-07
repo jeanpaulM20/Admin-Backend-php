@@ -4,9 +4,9 @@
  *
  * @author Sebastian Thierer <sebathi@gmail.com>
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 /**
@@ -14,7 +14,6 @@
  *
  * @author Sebastian Thierer <sebathi@gmail.com>
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id: CJuiWidget.php 2799 2011-01-01 19:31:13Z qiang.xue $
  * @package zii.widgets.jui
  * @since 1.1
  */
@@ -39,10 +38,10 @@ abstract class CJuiWidget extends CWidget
 	 */
 	public $themeUrl;
 	/**
-	 * @var string the JUI theme name. Defaults to 'base'. Make sure that under {@link themeUrl} there
+	 * @var string the JUI theme name. Defaults to 'smoothness'. Make sure that under {@link themeUrl} there
 	 * is a directory whose name is the same as this property value (case-sensitive).
 	 */
-	public $theme='base';
+	public $theme='smoothness';
 	/**
 	 * @var mixed the main JUI JavaScript file. Defaults to 'jquery-ui.min.js'.
 	 * Note the file must exist under the URL specified by {@link scriptUrl}.
@@ -111,7 +110,7 @@ abstract class CJuiWidget extends CWidget
 		$cs=Yii::app()->getClientScript();
 		if(is_string($this->cssFile))
 			$cs->registerCssFile($this->themeUrl.'/'.$this->theme.'/'.$this->cssFile);
-		else if(is_array($this->cssFile))
+		elseif(is_array($this->cssFile))
 		{
 			foreach($this->cssFile as $cssFile)
 				$cs->registerCssFile($this->themeUrl.'/'.$this->theme.'/'.$cssFile);
@@ -120,7 +119,7 @@ abstract class CJuiWidget extends CWidget
 		$cs->registerCoreScript('jquery');
 		if(is_string($this->scriptFile))
 			$this->registerScriptFile($this->scriptFile);
-		else if(is_array($this->scriptFile))
+		elseif(is_array($this->scriptFile))
 		{
 			foreach($this->scriptFile as $scriptFile)
 				$this->registerScriptFile($scriptFile);
