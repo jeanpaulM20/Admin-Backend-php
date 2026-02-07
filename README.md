@@ -18,9 +18,9 @@ After migrating from `mcrypt`, the application relies on the OpenSSL extension f
    git clone <repository-url>
    cd Admin-Backend-php
    ```
-2. Install PHP 8.2 and required extensions. For example on Debian/Ubuntu:
+2. Install PHP 8.3 and required extensions. For example on Debian/Ubuntu:
    ```bash
-   sudo apt-get install php8.2 php8.2-mysql php8.2-openssl
+   sudo apt-get install php8.3 php8.3-mysql php8.3-openssl
    ```
 3. Configure database credentials in `protected/config/main.php`.
 4. (Optional) Install Composer and run `composer install` if using the provided `composer.json`.
@@ -33,5 +33,4 @@ A `Dockerfile` is included for convenience. Build and run the container with:
 docker build -t admin-backend-php .
 docker run -p 8080:80 admin-backend-php
 ```
-The container is based on PHP 8.2 and enables the necessary extensions.
-
+The container is based on PHP 8.3 and enables the necessary extensions.
