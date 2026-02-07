@@ -99,7 +99,7 @@ return array (
   'Event "{class}.{event}" is attached with an invalid handler "{handler}".' => 'Подія "{class}.{event}" привʼязана невірним обробником "{handler}".',
   'Event "{class}.{event}" is not defined.' => 'Подія "{class}.{event}" не визначена.',
   'Extension path "{path}" does not exist.' => 'Шлях розширення "{path}" не існує.',
-  'Failed to initialize the mcrypt module.' => 'Не вдалося ініціалізувати модуль mcrypt.',
+  'Failed to initialize the OpenSSL cipher method.' => 'Не вдалося ініціалізувати метод шифрування OpenSSL.',
   'Failed to set unsafe attribute "{attribute}" of "{class}".' => 'Не вдалося привласнити небезпечний атрибут "{attribute}" класу "{class}".',
   'Failed to start session.' => 'Не вдалося запустити сесію.',
   'Failed to write the uploaded file "{file}" to disk.' => 'Не вдалося записати завантажений файл "{file}" на диск.',
