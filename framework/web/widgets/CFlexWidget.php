@@ -3,9 +3,9 @@
  * CFlexWidget class file.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 /**
@@ -18,7 +18,6 @@
  * @property string $flashVarsAsString The flash parameter string.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id: CFlexWidget.php 3515 2011-12-28 12:29:24Z mdomba $
  * @package system.web.widgets
  * @since 1.0
  */
@@ -86,7 +85,7 @@ class CFlexWidget extends CWidget
 		if(empty($this->baseUrl))
 			throw new CException(Yii::t('yii','CFlexWidget.baseUrl cannot be empty.'));
 		if($this->altHtmlContent===null)
-			$this->altHtmlContent=Yii::t('yii','This content requires the <a href="http://www.adobe.com/go/getflash/">Adobe Flash Player</a>.');
+			$this->altHtmlContent=Yii::t('yii','This content requires the <a href="https://www.adobe.com/go/getflash/">Adobe Flash Player</a>.');
 
 		$this->registerClientScript();
 

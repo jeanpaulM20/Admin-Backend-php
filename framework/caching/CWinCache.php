@@ -3,20 +3,19 @@
  * CWinCache class file
  *
  * @author Alexander Makarov <sam@rmcreative.ru>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 /**
- * CWinCache implements a cache application component based on {@link http://www.iis.net/expand/wincacheforphp WinCache}.
+ * CWinCache implements a cache application component based on {@link https://www.iis.net/expand/wincacheforphp WinCache}.
  *
  * To use this application component, the WinCache PHP extension must be loaded.
  *
  * See {@link CCache} manual for common cache operations that are supported by CWinCache.
  *
  * @author Alexander Makarov <sam@rmcreative.ru>
- * @version $Id: CWinCache.php 2799 2011-01-01 19:31:13Z qiang.xue $
  * @package system.caching
  * @since 1.1.2
  */
@@ -40,7 +39,7 @@ class CWinCache extends CCache {
 	 * Retrieves a value from cache with a specified key.
 	 * This is the implementation of the method declared in the parent class.
 	 * @param string $key a unique key identifying the cached value
-	 * @return string the value stored in cache, false if the value is not in the cache or expired.
+	 * @return string|boolean the value stored in cache, false if the value is not in the cache or expired.
 	 */
 	protected function getValue($key)
 	{
@@ -50,7 +49,7 @@ class CWinCache extends CCache {
 	/**
 	 * Retrieves multiple values from cache with the specified keys.
 	 * @param array $keys a list of keys identifying the cached values
-	 * @return array a list of cached values indexed by the keys	 
+	 * @return array a list of cached values indexed by the keys
 	 */
 	protected function getValues($keys)
 	{

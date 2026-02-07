@@ -3,9 +3,9 @@
  * CDummyCache class file.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 /**
@@ -17,7 +17,6 @@
  * non-caching mode to caching mode.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id: CDummyCache.php 3515 2011-12-28 12:29:24Z mdomba $
  * @package system.caching
  * @since 1.0
  */
@@ -124,6 +123,7 @@ class CDummyCache extends CApplicationComponent implements ICache, ArrayAccess
 	 * @param string $id a key identifying the cached value
 	 * @return boolean
 	 */
+	#[ReturnTypeWillChange]
 	public function offsetExists($id)
 	{
 		return false;
@@ -135,6 +135,7 @@ class CDummyCache extends CApplicationComponent implements ICache, ArrayAccess
 	 * @param string $id a key identifying the cached value
 	 * @return mixed the value stored in cache, false if the value is not in the cache or expired.
 	 */
+	#[ReturnTypeWillChange]
 	public function offsetGet($id)
 	{
 		return false;
@@ -148,6 +149,7 @@ class CDummyCache extends CApplicationComponent implements ICache, ArrayAccess
 	 * @param string $id the key identifying the value to be cached
 	 * @param mixed $value the value to be cached
 	 */
+	#[ReturnTypeWillChange]
 	public function offsetSet($id, $value)
 	{
 	}
@@ -156,8 +158,8 @@ class CDummyCache extends CApplicationComponent implements ICache, ArrayAccess
 	 * Deletes the value with the specified key from cache
 	 * This method is required by the interface ArrayAccess.
 	 * @param string $id the key of the value to be deleted
-	 * @return boolean if no error happens during deletion
 	 */
+	#[ReturnTypeWillChange]
 	public function offsetUnset($id)
 	{
 	}

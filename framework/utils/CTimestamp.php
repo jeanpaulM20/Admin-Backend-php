@@ -3,9 +3,9 @@
  * CTimestamp class file.
  *
  * @author Wei Zhuo <weizhuo[at]gamil[dot]com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 /**
@@ -22,12 +22,11 @@
  * of 1901-2038 on Unix and1970-2038 on Windows. Except {@link getTimestamp},
  * all other methods in this class can work with the extended timestamp range.
  * For {@link getTimestamp}, because it is merely a wrapper of
- * {@link mktime http://php.net/manual/en/function.mktime.php}, it may still
+ * {@link mktime https://php.net/manual/en/function.mktime.php}, it may still
  * be subject to the limit of timestamp range on certain platforms. Please refer
  * to the PHP manual for more information.
  *
  * @author Wei Zhuo <weizhuo[at]gmail[dot]com>
- * @version $Id: CTimestamp.php 3515 2011-12-28 12:29:24Z mdomba $
  * @package system.utils
  * @since 1.0
  */
@@ -68,11 +67,11 @@ class CTimestamp
 		}
 
 		if($month > 2)
-		    $month -= 2;
+			$month -= 2;
 		else
 		{
-		    $month += 10;
-		    $year--;
+			$month += 10;
+			$year--;
 		}
 
 		$day =  floor((13 * $month - 1) / 5) +
@@ -99,7 +98,7 @@ class CTimestamp
 		if ($year % 400 == 0)
 			return true;
 		// if gregorian calendar (>1582), century not-divisible by 400 is not leap
-		else if ($year > 1582 && $year % 100 == 0 )
+		elseif ($year > 1582 && $year % 100 == 0 )
 			return false;
 		return true;
 	}
@@ -288,8 +287,8 @@ class CTimestamp
 			case 'S':
 				$d10 = $day % 10;
 				if ($d10 == 1) $dates .= 'st';
-				else if ($d10 == 2 && $day != 12) $dates .= 'nd';
-				else if ($d10 == 3) $dates .= 'rd';
+				elseif ($d10 == 2 && $day != 12) $dates .= 'nd';
+				elseif ($d10 == 3) $dates .= 'rd';
 				else $dates .= 'th';
 				break;
 
@@ -358,7 +357,7 @@ class CTimestamp
 
 	/**
 	 * Generates a timestamp.
-	 * This is the same as the PHP function {@link mktime http://php.net/manual/en/function.mktime.php}.
+	 * This is the same as the PHP function {@link mktime https://php.net/manual/en/function.mktime.php}.
 	 * @param integer $hr hour
 	 * @param integer $min minute
 	 * @param integer $sec second

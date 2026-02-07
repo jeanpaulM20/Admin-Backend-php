@@ -3,16 +3,15 @@
  * CInlineValidator class file.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 /**
  * CInlineValidator represents a validator which is defined as a method in the object being validated.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id: CInlineValidator.php 3517 2011-12-28 23:22:21Z mdomba $
  * @package system.validators
  * @since 1.0
  */
@@ -57,9 +56,11 @@ class CInlineValidator extends CValidator
 	 * the method that returns the client validation code and can look like:
 	 * <pre>
 	 * <?php
-	 *   public function clientValidate123($attribute)
+	 *   public function clientValidate123($attribute,$params)
 	 *   {
-	 *      $js = "if(value != '123') { messages.push('Value should be 123'); }";
+	 *      if(!isset($params['message']))
+	 *         $params['message']='Value should be 123';
+	 *      $js = "if(value != '123') { messages.push($params['message']); }";
 	 *      return $js;
 	 *   }
 	 * ?>
@@ -75,7 +76,7 @@ class CInlineValidator extends CValidator
 		if($this->clientValidate!==null)
 		{
 			$method=$this->clientValidate;
-			return $object->$method($attribute);
+			return $object->$method($attribute,$this->params);
 		}
 	}
 }

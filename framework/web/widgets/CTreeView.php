@@ -3,16 +3,16 @@
  * CTreeView class file.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 /**
  * CTreeView displays a tree view of hierarchical data.
  *
  * It encapsulates the excellent tree view plugin for jQuery
- * ({@link http://bassistance.de/jquery-plugins/jquery-plugin-treeview/}).
+ * ({@link https://bassistance.de/jquery-plugins/jquery-plugin-treeview/}).
  *
  * To use CTreeView, simply sets {@link data} to the data that you want
  * to present and you are there.
@@ -21,7 +21,6 @@
  * {@link url} to be the URL that can serve the tree view data upon request.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id: CTreeView.php 3144 2011-03-30 07:03:48Z mdomba $
  * @package system.web.widgets
  * @since 1.0
  */
@@ -147,7 +146,7 @@ class CTreeView extends CWidget
 		$cs->registerScript('Yii.CTreeView#'.$id,"jQuery(\"#{$id}\").treeview($options);");
 		if($this->cssFile===null)
 			$cs->registerCssFile($cs->getCoreScriptUrl().'/treeview/jquery.treeview.css');
-		else if($this->cssFile!==false)
+		elseif($this->cssFile!==false)
 			$cs->registerCssFile($this->cssFile);
 
 		echo CHtml::tag('ul',$this->htmlOptions,false,false)."\n";

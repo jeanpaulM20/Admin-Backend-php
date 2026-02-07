@@ -3,9 +3,9 @@
  * CDbDataReader class file
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 /**
@@ -22,7 +22,7 @@
  * Since CDbDataReader is a forward-only stream, you can only traverse it once.
  *
  * It is possible to use a specific mode of data fetching by setting
- * {@link setFetchMode FetchMode}. See {@link http://www.php.net/manual/en/function.PDOStatement-setFetchMode.php}
+ * {@link setFetchMode FetchMode}. See {@link https://www.php.net/manual/en/function.PDOStatement-setFetchMode.php}
  * for more details.
  *
  * @property boolean $isClosed Whether the reader is closed or not.
@@ -31,7 +31,6 @@
  * @property mixed $fetchMode Fetch mode.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id: CDbDataReader.php 3426 2011-10-25 00:01:09Z alexander.makarow $
  * @package system.db
  * @since 1.0
  */
@@ -61,7 +60,7 @@ class CDbDataReader extends CComponent implements Iterator, Countable
 	 * should match the case of the column, as returned by the driver.
 	 * @param mixed $value Name of the PHP variable to which the column will be bound.
 	 * @param integer $dataType Data type of the parameter
-	 * @see http://www.php.net/manual/en/function.PDOStatement-bindColumn.php
+	 * @see https://www.php.net/manual/en/function.PDOStatement-bindColumn.php
 	 */
 	public function bindColumn($column, &$value, $dataType=null)
 	{
@@ -74,7 +73,7 @@ class CDbDataReader extends CComponent implements Iterator, Countable
 	/**
 	 * Set the default fetch mode for this statement
 	 * @param mixed $mode fetch mode
-	 * @see http://www.php.net/manual/en/function.PDOStatement-setFetchMode.php
+	 * @see https://www.php.net/manual/en/function.PDOStatement-setFetchMode.php
 	 */
 	public function setFetchMode($mode)
 	{
@@ -138,7 +137,7 @@ class CDbDataReader extends CComponent implements Iterator, Countable
 	/**
 	 * Closes the reader.
 	 * This frees up the resources allocated for executing this SQL statement.
-	 * Read attemps after this method call are unpredictable.
+	 * Read attempts after this method call are unpredictable.
 	 */
 	public function close()
 	{
@@ -173,6 +172,7 @@ class CDbDataReader extends CComponent implements Iterator, Countable
 	 * In this case, use "SELECT COUNT(*) FROM tableName" to obtain the number of rows.
 	 * @return integer number of rows contained in the result.
 	 */
+	#[ReturnTypeWillChange]
 	public function count()
 	{
 		return $this->getRowCount();
@@ -193,6 +193,7 @@ class CDbDataReader extends CComponent implements Iterator, Countable
 	 * This method is required by the interface Iterator.
 	 * @throws CException if this method is invoked twice
 	 */
+	#[ReturnTypeWillChange]
 	public function rewind()
 	{
 		if($this->_index<0)
@@ -209,6 +210,7 @@ class CDbDataReader extends CComponent implements Iterator, Countable
 	 * This method is required by the interface Iterator.
 	 * @return integer the index of the current row.
 	 */
+	#[ReturnTypeWillChange]
 	public function key()
 	{
 		return $this->_index;
@@ -219,6 +221,7 @@ class CDbDataReader extends CComponent implements Iterator, Countable
 	 * This method is required by the interface Iterator.
 	 * @return mixed the current row.
 	 */
+	#[ReturnTypeWillChange]
 	public function current()
 	{
 		return $this->_row;
@@ -228,6 +231,7 @@ class CDbDataReader extends CComponent implements Iterator, Countable
 	 * Moves the internal pointer to the next row.
 	 * This method is required by the interface Iterator.
 	 */
+	#[ReturnTypeWillChange]
 	public function next()
 	{
 		$this->_row=$this->_statement->fetch();
@@ -239,6 +243,7 @@ class CDbDataReader extends CComponent implements Iterator, Countable
 	 * This method is required by the interface Iterator.
 	 * @return boolean whether there is a row of data at current position.
 	 */
+	#[ReturnTypeWillChange]
 	public function valid()
 	{
 		return $this->_row!==false;

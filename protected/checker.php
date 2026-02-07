@@ -29,7 +29,7 @@ if (file_exists(dirname(__FILE__) . '/runtime/dbupdate.run')) {
 	$args = array('yiic', 'migrate', '--interactive=0');
 	ob_start();
 	$runner->run($args);
-	echo htmlentities(nl2br(ob_get_clean()), null, Yii::app()->charset);
+	echo htmlentities(nl2br(ob_get_clean()), ENT_QUOTES | ENT_SUBSTITUTE, Yii::app()->charset);
 	unlink(dirname(__FILE__) . '/runtime/dbupdate.run');
 	die('<br/>Please refresh the page!!!');
 }

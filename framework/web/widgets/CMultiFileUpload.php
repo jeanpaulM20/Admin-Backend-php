@@ -3,15 +3,15 @@
  * CMultiFileUpload class file.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 /**
  * CMultiFileUpload generates a file input that can allow uploading multiple files at a time.
  *
- * This is based on the {@link http://www.fyneworks.com/jquery/multiple-file-upload/ jQuery Multi File Upload plugin}.
+ * This is based on the {@link https://www.fyneworks.com/jquery/multiple-file-upload/ jQuery Multi File Upload plugin}.
  * The uploaded file information can be accessed via $_FILES[widget-name], which gives an array of the uploaded
  * files. Note, you have to set the enclosing form's 'enctype' attribute to be 'multipart/form-data'.
  *
@@ -35,7 +35,6 @@
  * </pre>
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id: CMultiFileUpload.php 3515 2011-12-28 12:29:24Z mdomba $
  * @package system.web.widgets
  * @since 1.0
  */
@@ -119,8 +118,8 @@ class CMultiFileUpload extends CInputWidget
 		$options=$this->options;
 		foreach(array('onFileRemove','afterFileRemove','onFileAppend','afterFileAppend','onFileSelect','afterFileSelect') as $event)
 		{
-			if(isset($options[$event]) && strpos($options[$event],'js:')!==0)
-				$options[$event]='js:'.$options[$event];
+			if(isset($options[$event]) && !($options[$event] instanceof CJavaScriptExpression))
+				$options[$event]=new CJavaScriptExpression($options[$event]);
 		}
 
 		if($this->accept!==null)

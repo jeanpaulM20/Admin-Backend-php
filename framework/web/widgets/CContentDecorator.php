@@ -3,9 +3,9 @@
  * CContentDecorator class file.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 /**
@@ -25,7 +25,6 @@
  * accessed with variable <code>$content</code>.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id: CContentDecorator.php 3515 2011-12-28 12:29:24Z mdomba $
  * @package system.web.widgets
  * @since 1.0
  */
@@ -47,7 +46,7 @@ class CContentDecorator extends COutputProcessor
 
 	/**
 	 * Processes the captured output.
-     * This method decorates the output with the specified {@link view}.
+	 * This method decorates the output with the specified {@link view}.
 	 * @param string $output the captured output to be processed
 	 */
 	public function processOutput($output)

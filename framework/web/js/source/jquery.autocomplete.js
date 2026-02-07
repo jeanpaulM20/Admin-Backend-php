@@ -4,12 +4,13 @@
  * Modified for Yii Framework:
  * - Renamed "autocomplete" to "legacyautocomplete".
  * - Fixed IE8 problems (mario.ffranco).
+ * - Fixed compatibility for jQuery 1.9+ (.browser is deprecated)
  *
  * Copyright (c) 2009 Jörn Zaefferer
  *
  * Dual licensed under the MIT and GPL licenses:
- *   http://www.opensource.org/licenses/mit-license.php
- *   http://www.gnu.org/licenses/gpl.html
+ *   https://www.opensource.org/licenses/mit-license.php
+ *   https://www.gnu.org/licenses/gpl.html
  *
  * Revision: $Id: jquery.autocomplete.js 15 2009-08-22 10:30:27Z joern.zaefferer $
  */
@@ -84,7 +85,7 @@ $.Autocompleter = function(input, options) {
 	var blockSubmit;
 	
 	// prevent form submit in opera when selecting with return key
-	$.browser.opera && $(input.form).bind("submit.autocomplete", function() {
+	(navigator.userAgent.match(/OPERA|OPR\//i) !== null) && $(input.form).bind("submit.autocomplete", function() {
 		if (blockSubmit) {
 			blockSubmit = false;
 			return false;
@@ -92,7 +93,7 @@ $.Autocompleter = function(input, options) {
 	});
 	
 	// only opera doesn't trigger keydown multiple times while pressed, others don't work with keypress at all
-	$input.bind(($.browser.opera ? "keypress" : "keydown") + ".autocomplete", function(event) {
+	$input.bind(((navigator.userAgent.match(/OPERA|OPR\//i) !== null) ? "keypress" : "keydown") + ".autocomplete", function(event) {
 		// a keypress means the input has focus
 		// avoids issue where input had focus before the autocomplete was applied
 		hasFocus = 1;
@@ -738,7 +739,7 @@ $.Autocompleter.Select = function (options, input, select, config) {
 					overflow: 'auto'
 				});
 				
-                if($.browser.msie && typeof document.body.style.maxHeight === "undefined") {
+                if(navigator.userAgent.match(/MSIE/i) !== null && typeof document.body.style.maxHeight === "undefined") {
 					var listHeight = 0;
 					listItems.each(function() {
 						listHeight += this.offsetHeight;

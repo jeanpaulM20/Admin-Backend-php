@@ -26,7 +26,7 @@
 .grid-view table.items th
 {
 	color: white;
-	background: url("bg.gif") repeat scroll left top white;
+	background: url("bg.gif") repeat-x scroll left top white;
 	text-align: center;
 }
 
@@ -69,7 +69,12 @@
 	background: #BCE774;
 }
 
-.grid-view table.items tr:hover
+.grid-view table.items tr:hover.selected
+{
+	background: #CCFF66;
+}
+
+.grid-view table.items tbody tr:hover
 {
 	background: #ECFBD4;
 }

@@ -1,0 +1,17 @@
+# IDE directories
+.idea/
+.vscode/
+
+# Dependency directories
+node_modules/
+vendor/
+
+# Runtime/generated files
+protected/runtime/
+assets/
+
+# Logs and OS files
+*.log
+*.tmp
+.DS_Store
+Thumbs.db

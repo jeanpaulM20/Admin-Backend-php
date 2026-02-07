@@ -3,17 +3,15 @@
  * CrudCommand class file.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
- * @license http://www.yiiframework.com/license/
- * @version $Id: CrudCommand.php 2799 2011-01-01 19:31:13Z qiang.xue $
+ * @link https://www.yiiframework.com/
+ * @copyright 2008-2013 Yii Software LLC
+ * @license https://www.yiiframework.com/license/
  */
 
 /**
  * CrudCommand generates code implementing CRUD operations.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id: CrudCommand.php 2799 2011-01-01 19:31:13Z qiang.xue $
  * @package system.cli.commands.shell
  * @since 1.0
  */
@@ -83,7 +81,8 @@ EOD;
 
 	/**
 	 * Execute the action.
-	 * @param array command line parameters specific for this command
+	 * @param array $args command line parameters specific for this command
+	 * @return integer|null non zero application exit code for help or null on success
 	 */
 	public function run($args)
 	{
@@ -91,7 +90,7 @@ EOD;
 		{
 			echo "Error: data model class is required.\n";
 			echo $this->getHelp();
-			return;
+			return 1;
 		}
 		$module=Yii::app();
 		$modelClass=$args[0];
@@ -117,7 +116,7 @@ EOD;
 			else
 			{
 				$last=substr($controllerID,$pos+1);
-				$last[0]=strtolower($last);
+				$last[0]=strtolower($last[0]);
 				$pos2=strpos($controllerID,'/');
 				$first=substr($controllerID,0,$pos2);
 				$middle=$pos===$pos2?'':substr($controllerID,$pos2+1,$pos-$pos2);
@@ -149,7 +148,7 @@ EOD;
 
 		$viewPath=$module->viewPath.DIRECTORY_SEPARATOR.str_replace('.',DIRECTORY_SEPARATOR,$controllerID);
 		$fixtureName=$this->pluralize($modelClass);
-		$fixtureName[0]=strtolower($fixtureName);
+		$fixtureName[0]=strtolower($fixtureName[0]);
 		$list=array(
 			basename($controllerFile)=>array(
 				'source'=>$templatePath.'/controller.php',
@@ -197,7 +196,7 @@ EOD;
 		$id=$model->tableSchema->primaryKey;
 		if($id===null)
 			throw new ShellException(Yii::t('yii','Error: Table "{table}" does not have a primary key.',array('{table}'=>$model->tableName())));
-		else if(is_array($id))
+		elseif(is_array($id))
 			throw new ShellException(Yii::t('yii','Error: Table "{table}" has a composite primary key which is not supported by crud command.',array('{table}'=>$model->tableName())));
 
 		if(!is_file($source))  // fall back to default ones
@@ -244,7 +243,7 @@ EOD;
 	{
 		if($column->type==='boolean')
 			return "CHtml::activeCheckBox(\$model,'{$column->name}')";
-		else if(stripos($column->dbType,'text')!==false)
+		elseif(stripos($column->dbType,'text')!==false)
 			return "CHtml::activeTextArea(\$model,'{$column->name}',array('rows'=>6, 'cols'=>50))";
 		else
 		{
@@ -273,7 +272,7 @@ EOD;
 	{
 		if($column->type==='boolean')
 			return "\$form->checkBox(\$model,'{$column->name}')";
-		else if(stripos($column->dbType,'text')!==false)
+		elseif(stripos($column->dbType,'text')!==false)
 			return "\$form->textArea(\$model,'{$column->name}',array('rows'=>6, 'cols'=>50))";
 		else
 		{
