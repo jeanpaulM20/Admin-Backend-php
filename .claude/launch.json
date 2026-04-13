@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "PHP Built-in Server",
+      "runtimeExecutable": "php",
+      "runtimeArgs": ["-S", "localhost:8080", "router.php"],
+      "port": 8080
+    },
+    {
+      "name": "Docker (Apache)",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["run", "--rm", "-p", "80:80", "admin-backend-php"],
+      "port": 80
+    }
+  ]
+}
