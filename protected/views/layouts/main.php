@@ -18,6 +18,18 @@
 </head>
 
 <body>
+<script>
+/* jQuery compatibility shims for legacy plugins (chosen.js, elfinder.js) that rely on jQuery 1.8 APIs */
+(function() {
+	if (!window.jQuery) return;
+	if (!jQuery.browser) {
+		jQuery.browser = { msie: /msie|trident/i.test(navigator.userAgent), version: 0 };
+	}
+	if (!jQuery.curCSS) {
+		jQuery.curCSS = function(el, prop) { return jQuery(el).css(prop); };
+	}
+})();
+</script>
 
 <div id="page">
 

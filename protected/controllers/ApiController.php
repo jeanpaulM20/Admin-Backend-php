@@ -353,6 +353,10 @@ class ApiController extends Controller
 		$this->_checkAccess();
 		$client = Client::model()->findbyPk($params['client_id']);
 		if ($client) {
+			if (!$client->account) {
+				$this->_sendResponse(404, 'Client account not found');
+				return;
+			}
 			$client->account->interval_distance = $params['interval_distance'];
 			$client->account->interval_repeats= $params['interval_repeats'];
 			$client->account->interval_zone = $params['interval_zone'];
@@ -940,7 +944,7 @@ class ApiController extends Controller
 			$this->_sendResponse(200, $feedback);
 		} else {
 			$errors = array();
-			foreach ($model->errors as $attr_errors) {
+			foreach ($feedback->errors as $attr_errors) {
 				foreach ($attr_errors as $attr_error) {
 					$errors[] = $attr_error;
 				}
@@ -948,7 +952,7 @@ class ApiController extends Controller
 			$this->_sendResponse(500, array('errors' => $errors));
 		}
 	}
-	
+
 	public function actionMarkClientFeedback() {
 		$client_id = Yii::app()->request->getParam('client_id', null);
 		$feedbacks = Feedback::model()->findAllByAttributes(array('client_id' => $client_id, 'read_client' => 0));
