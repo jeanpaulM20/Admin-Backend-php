@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "mcp__Claude_in_Chrome__navigate",
+      "mcp__Claude_in_Chrome__find",
+      "mcp__Claude_in_Chrome__form_input",
+      "mcp__Claude_in_Chrome__javascript_tool",
+      "mcp__Claude_in_Chrome__read_page",
+      "mcp__Claude_in_Chrome__get_page_text",
+      "mcp__Claude_in_Chrome__read_console_messages",
+      "Bash(grep -n \"jQuery\\\\|noConflict\\\\|\\\\$.fn\\\\b\" /c/Users/User/OneDrive/Dokumente/GitHub/Admin-Backend-php/.claude/worktrees/sharp-mendel/js/fullcalendar.js)",
+      "Bash(grep -rn \"noConflict\\\\|window\\\\.jQuery\\\\|\\\\$.migrateWarnings\" /c/Users/User/OneDrive/Dokumente/GitHub/Admin-Backend-php/.claude/worktrees/sharp-mendel/protected/)",
+      "Bash(xargs grep:*)",
+      "Bash(sed -i \"s/\\\\$\\('.grid-view .items tbody tr'\\).live\\('dblclick', function\\(\\)/\\\\$\\(document\\).on\\('dblclick', '.grid-view .items tbody tr', function\\(\\)/g\" protected/views/abbonement/admin.php protected/views/account/admin.php protected/views/client/admin.php protected/views/content/admin.php protected/views/credits/admin.php protected/views/exercise/admin.php protected/views/exercisegroup/admin.php protected/views/exerciseset/admin.php protected/views/exercisesubgroup/admin.php protected/views/file/admin.php protected/views/goal/admin.php protected/views/language/admin.php protected/views/location/admin.php protected/views/locker/admin.php protected/views/metric/admin.php protected/views/offer/admin.php protected/views/performance/admin.php protected/views/preference/admin.php protected/views/review/admin.php protected/views/review/offsite.php protected/views/service/admin.php protected/views/trainer/admin.php protected/views/training/admin.php protected/views/trainingtype/admin.php protected/views/translation/admin.php)",
+      "Bash(sed -i \"s/\\\\$\\('#trainingplan-grid .items tbody tr'\\).live\\('dblclick', function\\(\\)/\\\\$\\(document\\).on\\('dblclick', '#trainingplan-grid .items tbody tr', function\\(\\)/g\" protected/views/trainingplan/admin.php)"
+    ]
+  }
+}

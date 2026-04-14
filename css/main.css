@@ -1,51 +1,12 @@
-body
-{
-	margin: 0;
-	padding: 0;
-	color: #555;
-	font: normal 10pt Arial,Helvetica,sans-serif;
-	background: #EFEFEF;
+body {
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+	font-size: 0.9rem;
+	color: #333;
+	background: #f0f4f8;
 }
 
-#page
-{
-	margin-top: 5px;
-	margin-bottom: 5px;
-	background: white;
-	border: 1px solid #C9E0ED;
-}
-
-#header
-{
-	margin: 0;
-	padding: 0;
-	border-top: 3px solid #C9E0ED;
-}
-
-#content
-{
-    padding: 20px;
-}
-
-#sidebar
-{
-	padding: 20px 20px 20px 0;
-}
-
-#footer
-{
-	padding: 10px;
-	margin: 10px 20px;
-	font-size: 0.8em;
-	text-align: center;
-	border-top: 1px solid #C9E0ED;
-}
-
-#logo
-{
-	padding: 10px 20px;
-	font-size: 200%;
-}
+#content  { padding: 0; }
+#sidebar  { padding: 0; }
 
 
 

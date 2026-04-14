@@ -110,8 +110,8 @@ return array(
 			'class' => 'application.extensions.curl.Curl',
 			'options' => array(
 				'setOptions' => array(
-					CURLOPT_SSL_VERIFYPEER => false,
-					CURLOPT_FOLLOWLOCATION => false,
+					(defined('CURLOPT_SSL_VERIFYPEER') ? CURLOPT_SSL_VERIFYPEER : 64) => false,
+					(defined('CURLOPT_FOLLOWLOCATION') ? CURLOPT_FOLLOWLOCATION : 52) => false,
 				),
 			),
 		),

@@ -67,7 +67,7 @@ or <b>=</b>) at the beginning of each of your search values to specify how the c
 )) ?>
 <script type="text/javascript">
 	$(document).ready(function() {
-		$('.grid-view .items tbody tr').live('dblclick', function(){
+		$(document).on('dblclick', '.grid-view .items tbody tr', function(){
 			var id_class;
 			$($(this).attr('class').split(' ')).each(function() { 
 				if (this.indexOf('id_') === 0) {

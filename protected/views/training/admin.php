@@ -148,7 +148,7 @@ echo CHtml::htmlButton('Manage Training types', array(
 				data: getData()
 			});
 		}
-		$('.grid-view .items tbody tr').live('dblclick', function() {
+		$(document).on('dblclick', '.grid-view .items tbody tr', function() {
 			var id_class;
 			$($(this).attr('class').split(' ')).each(function() {
 				if (this.indexOf('id_') === 0) {

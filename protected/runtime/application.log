@@ -2428,3 +2428,61 @@ Stack trace:
 #8 {main}
 REQUEST_URI=/admin/api/review/list?client_id=170
 ---
+2026/04/13 20:39:46 [error] [exception.CDbException] CDbException: CDbConnection failed to open the DB connection: could not find driver in C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\db\CDbConnection.php:399
+Stack trace:
+#0 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\db\CDbConnection.php(347): CDbConnection->open()
+#1 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\db\CDbConnection.php(325): CDbConnection->setActive(true)
+#2 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\base\CModule.php(394): CDbConnection->init()
+#3 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\base\CApplication.php(459): CModule->getComponent('db')
+#4 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\db\ar\CActiveRecord.php(639): CApplication->getDb()
+#5 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\db\ar\CActiveRecord.php(2390): CActiveRecord->getDbConnection()
+#6 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\db\ar\CActiveRecord.php(413): CActiveRecordMetaData->__construct(Object(Trainer))
+#7 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\db\ar\CActiveRecord.php(79): CActiveRecord->getMetaData()
+#8 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\protected\controllers\TrainerController.php(122): CActiveRecord->__construct('search')
+#9 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\web\actions\CInlineAction.php(49): TrainerController->actionAdmin()
+#10 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\web\CController.php(308): CInlineAction->runWithParams(Array)
+#11 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\web\filters\CFilterChain.php(134): CController->runAction(Object(CInlineAction))
+#12 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\web\filters\CFilter.php(40): CFilterChain->run()
+#13 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\web\CController.php(1148): CFilter->filter(Object(CFilterChain))
+#14 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\web\filters\CInlineFilter.php(58): CController->filterAccessControl(Object(CFilterChain))
+#15 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\web\filters\CFilterChain.php(131): CInlineFilter->filter(Object(CFilterChain))
+#16 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\web\CController.php(291): CFilterChain->run()
+#17 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\web\CController.php(265): CController->runActionWithFilters(Object(CInlineAction), Array)
+#18 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\web\CWebApplication.php(282): CController->run('admin')
+#19 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\web\CWebApplication.php(141): CWebApplication->runController('trainer/admin')
+#20 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\base\CApplication.php(185): CWebApplication->processRequest()
+#21 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\index.php(18): CApplication->run()
+#22 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\router.php(9): require_once('C:\\Users\\User\\O...')
+#23 {main}
+REQUEST_URI=/trainer/admin
+HTTP_REFERER=http://localhost:8080/
+---
+2026/04/13 20:55:32 [error] [exception.CDbException] CDbException: CDbConnection failed to open the DB connection: could not find driver in C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\db\CDbConnection.php:399
+Stack trace:
+#0 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\db\CDbConnection.php(347): CDbConnection->open()
+#1 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\db\CDbConnection.php(325): CDbConnection->setActive(true)
+#2 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\base\CModule.php(394): CDbConnection->init()
+#3 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\base\CApplication.php(459): CModule->getComponent('db')
+#4 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\db\ar\CActiveRecord.php(639): CApplication->getDb()
+#5 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\db\ar\CActiveRecord.php(2390): CActiveRecord->getDbConnection()
+#6 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\db\ar\CActiveRecord.php(413): CActiveRecordMetaData->__construct(Object(Trainer))
+#7 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\db\ar\CActiveRecord.php(79): CActiveRecord->getMetaData()
+#8 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\protected\controllers\TrainerController.php(122): CActiveRecord->__construct('search')
+#9 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\web\actions\CInlineAction.php(49): TrainerController->actionAdmin()
+#10 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\web\CController.php(308): CInlineAction->runWithParams(Array)
+#11 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\web\filters\CFilterChain.php(134): CController->runAction(Object(CInlineAction))
+#12 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\web\filters\CFilter.php(40): CFilterChain->run()
+#13 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\web\CController.php(1148): CFilter->filter(Object(CFilterChain))
+#14 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\web\filters\CInlineFilter.php(58): CController->filterAccessControl(Object(CFilterChain))
+#15 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\web\filters\CFilterChain.php(131): CInlineFilter->filter(Object(CFilterChain))
+#16 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\web\CController.php(291): CFilterChain->run()
+#17 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\web\CController.php(265): CController->runActionWithFilters(Object(CInlineAction), Array)
+#18 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\web\CWebApplication.php(282): CController->run('admin')
+#19 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\web\CWebApplication.php(141): CWebApplication->runController('trainer/admin')
+#20 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\framework\base\CApplication.php(185): CWebApplication->processRequest()
+#21 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\index.php(18): CApplication->run()
+#22 C:\Users\User\OneDrive\Dokumente\GitHub\Admin-Backend-php\.claude\worktrees\sharp-mendel\router.php(9): require_once('C:\\Users\\User\\O...')
+#23 {main}
+REQUEST_URI=/trainer/admin
+HTTP_REFERER=http://localhost:8080/
+---
