@@ -166,7 +166,7 @@ class Trainer extends ActiveRecord {
 
 
 		foreach ($availabilities as $one) {
-			if (!is_array($result[$one->date])) {
+			if (!isset($result[$one->date]) || !is_array($result[$one->date])) {
 				$result[$one->date] = array();
 			}
 			if ($one->type->participants > 1) {
