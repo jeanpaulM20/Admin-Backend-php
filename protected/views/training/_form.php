@@ -33,9 +33,9 @@
 	)); ?>
 	<?php echo $form->error($model,'starttime'); ?></div>
 	<div class="row">
-	<?php echo $form->labelEx($model,'type'); ?>
-	<?php echo $form->dropDownList($model,'type', TrainingType::getDropdownList()); ?>
-	<?php echo $form->error($model,'type'); ?></div>
+	<?php echo $form->labelEx($model,'type_id'); ?>
+	<?php echo $form->dropDownList($model,'type_id', TrainingType::getDropdownList()); ?>
+	<?php echo $form->error($model,'type_id'); ?></div>
 	<div class="row">
 	<?php echo $form->labelEx($model,'text'); ?>
 	<?php echo $form->textArea($model,'text',array('size'=>60)); ?>

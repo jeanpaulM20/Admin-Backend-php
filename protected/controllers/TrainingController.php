@@ -240,23 +240,23 @@ class TrainingController extends Controller
 			),
 			array(
 				'name'	 => 'cancelled_by_client_search',
-				'value'	 => '$data->cancelled_by_client->clientid  . " " . $data->cancelled_by_client->surname  . " " . $data->cancelled_by_client->name ',
+				'value'	 => '$data->cancelled_by_client ? $data->cancelled_by_client->clientid . " " . $data->cancelled_by_client->surname . " " . $data->cancelled_by_client->name : ""',
 			),
 			array(
 				'name'	 => 'cancelled_by_trainer_search',
-				'value'	 => '$data->cancelled_by_trainer->surname  . " " . $data->cancelled_by_trainer->name ',
+				'value'	 => '$data->cancelled_by_trainer ? $data->cancelled_by_trainer->surname . " " . $data->cancelled_by_trainer->name : ""',
 			),
 			array(
 				'name'	 => 'client_search',
-				'value'	 => '$data->client->clientid  . " " . $data->client->surname  . " " . $data->client->name ',
+				'value'	 => '$data->client ? $data->client->clientid . " " . $data->client->surname . " " . $data->client->name : ""',
 			),
 			array(
 				'name'	 => 'location_search',
-				'value'	 => '$data->location->name ',
+				'value'	 => '$data->location ? $data->location->name : ""',
 			),
 			array(
 				'name'	 => 'trainer_search',
-				'value'	 => '$data->trainer->surname  . " " . $data->trainer->name ',
+				'value'	 => '$data->trainer ? $data->trainer->surname . " " . $data->trainer->name : ""',
 			),
 		);
 

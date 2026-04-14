@@ -353,7 +353,7 @@ class Training extends ActiveRecord
 
 	protected function afterSave()
 	{
-		if ($this->isNewRecord && $this->client->preference->auto_send_appointement && $this->client->e_mail && !$this->no_email) {
+		if ($this->isNewRecord && $this->client && $this->client->preference && $this->client->preference->auto_send_appointement && $this->client->e_mail && !$this->no_email) {
 			$this->sendTrainingEmail();
 		}
 		parent::afterSave();
