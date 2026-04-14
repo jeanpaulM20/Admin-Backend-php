@@ -50,12 +50,12 @@ or <b>=</b>) at the beginning of each of your search values to specify how the c
 		),
 		array(
 			'name' => 'training_type_id',
-			'value' => '$data->training_type->name_en',
+			'value' => '$data->training_type ? $data->training_type->name_en : ""',
 			'filter' => TrainingType::getDropdownList(),
 		),
 	 	array(
 			'name' => 'abbonement_search',
-			'value' => '$data->abbonement->title'
+			'value' => '$data->abbonement ? $data->abbonement->title : ""'
 		),
 		'price',
 		'paid',
@@ -82,7 +82,7 @@ or <b>=</b>) at the beginning of each of your search values to specify how the c
 		'acquisition',
 		array(
 			'name' => 'client_domicile_search',
-			'value' => '$data->client->domicile',
+			'value' => '$data->client ? $data->client->domicile : ""',
 		),
 		array(
 			'header'=>'Action',

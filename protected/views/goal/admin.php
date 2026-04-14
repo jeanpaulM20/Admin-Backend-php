@@ -57,7 +57,7 @@ or <b>=</b>) at the beginning of each of your search values to specify how the c
 ),
 		array(
 	'name' => 'client_search',
-	'value'=>'$data->client->clientid  . " " . $data->client->surname  . " " . $data->client->name ',
+	'value'=>'$data->client ? $data->client->clientid . " " . $data->client->surname . " " . $data->client->name : ""',
 ),
 		array(
 			'header'=>'Action',

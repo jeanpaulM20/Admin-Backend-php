@@ -71,7 +71,7 @@ or <b>=</b>) at the beginning of each of your search values to specify how the c
 		'result',
 		array(
 			'name' => 'exerciseset_search',
-			'value'=>'$data->exerciseset->name ',
+			'value'=>'$data->exerciseset ? $data->exerciseset->name : ""',
 		),
 		array(
 			'name' => 'training_search',

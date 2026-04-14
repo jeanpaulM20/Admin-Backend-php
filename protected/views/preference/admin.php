@@ -43,19 +43,19 @@ $this->widget('zii.widgets.grid.CGridView', array(
 		'id',
 		array(
 			'name'	 => 'preferred_trainer_search',
-			'value'	 => '$data->preferred_trainer->surname  . " " . $data->preferred_trainer->name ',
+			'value'	 => '$data->preferred_trainer ? $data->preferred_trainer->surname . " " . $data->preferred_trainer->name : ""',
 		),
 		array(
 			'name'	 => 'preferred_language_search',
-			'value'	 => '$data->preferred_language->language ',
+			'value'	 => '$data->preferred_language ? $data->preferred_language->language : ""',
 		),
 		array(
 			'name'	 => 'preferred_location_search',
-			'value'	 => '$data->preferred_location->name ',
+			'value'	 => '$data->preferred_location ? $data->preferred_location->name : ""',
 		),
 		array(
 			'name'	 => 'client_search',
-			'value'	 => '$data->client->clientid  . " " . $data->client->surname  . " " . $data->client->name ',
+			'value'	 => '$data->client ? $data->client->clientid . " " . $data->client->surname . " " . $data->client->name : ""',
 		),
 		array(
 			'name' => 'auto_send_appointement',

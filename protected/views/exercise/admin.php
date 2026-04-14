@@ -44,12 +44,12 @@ $this->widget('zii.widgets.grid.CGridView', array(
 		'name',
 		array(
 			'name'	 => 'group_id',
-			'value'	 => '$data->group->name',
+			'value'	 => '$data->group ? $data->group->name : ""',
 			'filter' => Exercisegroup::getDropdownList(),
 		),
 		array(
 			'name'	 => 'subgroup_id',
-			'value'	 => '$data->subgroup->name',
+			'value'	 => '$data->subgroup ? $data->subgroup->name : ""',
 			'filter' => Exercisesubgroup::getDropdownList(),
 		),
 		array(

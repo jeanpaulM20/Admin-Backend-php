@@ -82,11 +82,11 @@ or <b>=</b>) at the beginning of each of your search values to specify how the c
 ),
 		array(
 	'name' => 'language_search',
-	'value'=>'$data->language->language ',
+	'value'=>'$data->language ? $data->language->language : ""',
 ),
 		array(
 	'name' => 'trainer_search',
-	'value'=>'$data->trainer->surname  . " " . $data->trainer->name ',
+	'value'=>'$data->trainer ? $data->trainer->surname . " " . $data->trainer->name : ""',
 ),
 		array(
 			'header'=>'Action',

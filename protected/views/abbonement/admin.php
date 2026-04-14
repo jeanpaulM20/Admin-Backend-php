@@ -41,7 +41,7 @@ or <b>=</b>) at the beginning of each of your search values to specify how the c
 	'columns'=>array(
 		array(
 			'name' => 'training_type_id',
-			'value' => '$data->training_type->name_en',
+			'value' => '$data->training_type ? $data->training_type->name_en : ""',
 			'filter' => TrainingType::getDropdownList(),
 		),
 		'title',
