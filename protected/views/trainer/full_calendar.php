@@ -25,11 +25,14 @@ $this->breadcrumbs=array(
 <div id="updateForm"></div>
 <?php $this->endWidget('zii.widgets.jui.CJuiDialog'); ?>
 <script type="text/javascript">
-	// jQuery 1.9+ compatibility shim: $.curCSS was removed, map it to $.css
+	// jQuery 1.9+ compatibility shims
 	if (!$.curCSS) {
 		$.curCSS = function(element, prop) {
 			return $(element).css(prop);
 		};
+	}
+	if (!$.browser) {
+		$.browser = { msie: false, version: 0 };
 	}
 	$(document).ready(function() {
 		var copying = false;
