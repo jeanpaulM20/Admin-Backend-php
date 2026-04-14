@@ -97,7 +97,9 @@ $this->breadcrumbs=array(
 						.fullCalendar( 'changeView', 'agendaDay');
 
 				} else {
-					$('#updateForm').load('<?php echo $this->createUrl('form') ?>/?view=' + $('#calendar').fullCalendar('getView').name, function() {
+					var selectedTrainer = $('#trainer_id').val();
+					var trainerId = selectedTrainer && selectedTrainer.length > 0 ? selectedTrainer[0] : '';
+					$('#updateForm').load('<?php echo $this->createUrl('form') ?>/?view=' + $('#calendar').fullCalendar('getView').name + '&trainer_id=' + trainerId, function() {
 						$('#avalability').dialog('open');
 						jQuery('#TrainerAvailability_date')
 							.datepicker({'showAnim':'fold','dateFormat':'dd-mm-yy' })

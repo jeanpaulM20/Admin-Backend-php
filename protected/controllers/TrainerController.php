@@ -186,9 +186,10 @@ class TrainerController extends Controller
 			$model = TrainerAvailability::model()->findByPk($id);
 		} else {
 			$model = new TrainerAvailability;
-			$model->trainer_id = $_GET['trainer_id'];
+			$model->trainer_id = isset($_GET['trainer_id']) ? $_GET['trainer_id'] : null;
 		}
-		echo $this->renderPartial('_formAvailability', array('model'=>$model, 'view' => $_GET['view']));
+		$view = isset($_GET['view']) ? $_GET['view'] : 'month';
+		echo $this->renderPartial('_formAvailability', array('model'=>$model, 'view' => $view));
 		Yii::app()->end();
 	}
 	
