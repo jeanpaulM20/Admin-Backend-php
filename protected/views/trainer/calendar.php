@@ -29,6 +29,12 @@ echo CHtml::htmlButton('Serial input', array(
 ));
 ?>
 <script type="text/javascript">
+	// jQuery 1.9+ compatibility shim: $.curCSS was removed, map it to $.css
+	if (!$.curCSS) {
+		$.curCSS = function(element, prop) {
+			return $(element).css(prop);
+		};
+	}
 	$(document).ready(function() {
 		var copying = false;
 		$('#calendar').fullCalendar({
