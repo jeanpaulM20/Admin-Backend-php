@@ -248,9 +248,7 @@ class Trainer extends ActiveRecord {
 		$tmpResult = $result;
 		$result = array();
 		$minDuration = min($durations);
-		if (!$minDuration) {
-			$min = 55;
-		} 
+		$min = $minDuration ?: 55;
 		foreach ($tmpResult as $one) {
 			foreach ($one as $line) {
 				if ((strtotime($line['to']) - strtotime($line['from'])) / 60 < $min)
