@@ -183,7 +183,7 @@ class Curl extends CApplicationComponent
 		!isset($this->options['timeout']) ? $this->setOption(CURLOPT_TIMEOUT, 30) : $this->setOption(CURLOPT_TIMEOUT, $this->options['timeout']);
 		isset($this->options['setOptions'][CURLOPT_HEADER]) ? $this->setOption(CURLOPT_HEADER, $this->options['setOptions'][CURLOPT_HEADER]) : $this->setOption(CURLOPT_HEADER, FALSE);
 		isset($this->options['setOptions'][CURLOPT_RETURNTRANSFER]) ? $this->setOption(CURLOPT_RETURNTRANSFER, $this->options['setOptions'][CURLOPT_RETURNTRANSFER]) : $this->setOption(CURLOPT_RETURNTRANSFER, TRUE);
-		isset($this->options['setOptions'][CURLOPT_FOLLOWLOCATION]) ? $this->setOption(CURLOPT_FOLLOWLOCATIO, $this->options['setOptions'][CURLOPT_FOLLOWLOCATION]) : $this->setOption(CURLOPT_FOLLOWLOCATION, TRUE);
+		isset($this->options['setOptions'][CURLOPT_FOLLOWLOCATION]) ? $this->setOption(CURLOPT_FOLLOWLOCATION, $this->options['setOptions'][CURLOPT_FOLLOWLOCATION]) : $this->setOption(CURLOPT_FOLLOWLOCATION, TRUE);
 		isset($this->options['setOptions'][CURLOPT_FAILONERROR]) ? $this->setOption(CURLOPT_FAILONERROR, $this->options['setOptions'][CURLOPT_FAILONERROR]) : $this->setOption(CURLOPT_FAILONERROR, TRUE);
 	}
 
@@ -263,7 +263,7 @@ class Curl extends CApplicationComponent
 			$thePostString .= '&' . urlencode((string) $thePrefix) . '=' . urlencode($string);
 		}
 
-		$r = & substr($thePostString, 1);
+		$r = substr($thePostString, 1);
 
 		return $r;
 	}

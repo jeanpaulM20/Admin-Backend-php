@@ -14,7 +14,7 @@ if (!is_writable(dirname(__FILE__) . '/runtime')) {
 	$notWritable[] = 'protected/runtime';
 }
 
-if (count($notWritable) && PHP_OS == 'Linux') {
+if (count($notWritable) && (PHP_OS == 'Linux' || PHP_OS_FAMILY === 'BSD')) {
 	echo 'The following directories should be writable: <br/>';
 	echo implode('<br/>', $notWritable);
 	die();
