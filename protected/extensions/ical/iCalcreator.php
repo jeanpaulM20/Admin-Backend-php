@@ -3136,8 +3136,8 @@ class calendarComponent {
           }
         }
         elseif(( 3 <= strlen( trim( $fbMember ))) &&    // string format duration
-               ( in_array( $fbMember{0}, array( 'P', '+', '-' )))) {
-          if( 'P' != $fbMember{0} )
+               ( in_array( $fbMember[0], array( 'P', '+', '-' )))) {
+          if( 'P' != $fbMember[0] )
             $fbmember = substr( $fbMember, 1 );
           $freebusyPairMember = iCalUtilityFunctions::_duration_string( $fbMember );
         }
@@ -4311,7 +4311,7 @@ class calendarComponent {
     $length = 6;
     $str    = null;
     for( $p = 0; $p < $length; $p++ )
-      $unique .= $base{mt_rand( $start, $end )};
+      $unique .= $base[mt_rand( $start, $end )];
     $this->uid = array( 'params' => null );
     $this->uid['value']  = $date.'-'.$unique.'@'.$this->getConfig( 'unique_id' );
   }
@@ -7148,7 +7148,7 @@ class iCalUtilityFunctions {
         if( isset( $theDate['timestamp'] ))
           $tzid = ( isset( $theDate['tz'] )) ? $theDate['tz'] : null;
         else
-          $tzid = ( isset( $theDate['tz'] )) ? $theDate['tz'] : ( 7 == count( $theDate )) ? end( $theDate ) : null;
+          $tzid = ( isset( $theDate['tz'] )) ? $theDate['tz'] : (( 7 == count( $theDate )) ? end( $theDate ) : null);
         if( !empty( $tzid )) {
           $parno = 7;
           if( !iCalUtilityFunctions::_isOffset( $tzid ))
