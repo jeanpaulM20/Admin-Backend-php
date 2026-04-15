@@ -83,6 +83,29 @@ class ApiService {
     }
   }
 
+  /// POST with application/x-www-form-urlencoded (required for PHP $_POST reads)
+  Future<dynamic> postForm(String endpoint,
+      {Map<String, String>? body}) async {
+    try {
+      final uri = _buildUri(endpoint);
+      final formHeaders = <String, String>{
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+      };
+      if (_authToken != null) {
+        formHeaders[ApiConfig.authHeader] = _authToken!;
+      }
+      final response = await http
+          .post(uri, headers: formHeaders, body: body)
+          .timeout(const Duration(seconds: 30));
+      return _handleResponse(response);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw ApiException('Network error: ${e.toString()}');
+    }
+  }
+
   dynamic _handleResponse(http.Response response) {
     final statusCode = response.statusCode;
     if (statusCode >= 200 && statusCode < 300) {
