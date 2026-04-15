@@ -34,7 +34,7 @@
   <style>
     @font-face {
       font-family: 'MaterialIcons';
-      src: url('assets/fonts/MaterialIcons-Regular.otf') format('opentype');
+      src: url('https://cdn.jsdelivr.net/gh/jeanpaulM20/Admin-Backend-php@main/trainer-app/assets/fonts/MaterialIcons-Regular.otf') format('opentype');
       font-weight: normal;
       font-style: normal;
       font-display: block;
@@ -42,14 +42,42 @@
     body { margin: 0; background-color: #1a1a1a; }
   </style>
   <script>
-    // Pre-load MaterialIcons font via FontFace API before Flutter starts
+    // 1) Pre-load MaterialIcons from CDN via FontFace API before Flutter starts
     (function() {
-      var font = new FontFace('MaterialIcons', 'url(assets/fonts/MaterialIcons-Regular.otf)');
+      var cdnFont = 'https://cdn.jsdelivr.net/gh/jeanpaulM20/Admin-Backend-php@main/trainer-app/assets/fonts/MaterialIcons-Regular.otf';
+      var font = new FontFace('MaterialIcons', 'url(' + cdnFont + ')');
       font.load().then(function(f) {
         document.fonts.add(f);
       }).catch(function(e) {
-        console.warn('MaterialIcons font load failed:', e);
+        console.warn('MaterialIcons CDN load failed:', e);
       });
+    })();
+
+    // 2) Intercept Flutter asset fetches — serve FontManifest inline, redirect other missing assets to CDN
+    (function() {
+      var CDN = 'https://cdn.jsdelivr.net/gh/jeanpaulM20/Admin-Backend-php@main/trainer-app/assets/';
+      var _fetch = window.fetch.bind(window);
+      window.fetch = function(input, init) {
+        var url = (input && input.url) ? input.url : String(input);
+
+        // Serve FontManifest inline so Flutter registers MaterialIcons
+        if (url.indexOf('FontManifest.json') !== -1) {
+          var manifest = [{"family":"MaterialIcons","fonts":[{"asset":"fonts/MaterialIcons-Regular.otf"}]}];
+          return Promise.resolve(new Response(JSON.stringify(manifest), {
+            status: 200,
+            headers: {'Content-Type': 'application/json'}
+          }));
+        }
+
+        // For anything under /assets/ that 404s, fall back to CDN
+        return _fetch(input, init).then(function(response) {
+          if (!response.ok && url.indexOf('/assets/') !== -1) {
+            var assetPath = url.replace(/.*\/assets\//, '');
+            return _fetch(CDN + assetPath);
+          }
+          return response;
+        });
+      };
     })();
   </script>
 </head>
