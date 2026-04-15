@@ -465,8 +465,13 @@ class ApiController extends Controller
 		$this->_checkAccess();
 		$newPassword = Yii::app()->getRequest()->getParam('password');
 		if ($newPassword) {
-			$this->current_client->clientpasscode = Yii::app()->getRequest()->getParam('password');
-			$this->current_client->save();
+			if ($this->current_trainer) {
+				$this->current_trainer->passcode = $newPassword;
+				$this->current_trainer->save();
+			} else {
+				$this->current_client->clientpasscode = $newPassword;
+				$this->current_client->save();
+			}
 		}
 		$this->_sendResponse(200, 'ok');
 	}
@@ -925,6 +930,31 @@ class ApiController extends Controller
 	}
 	
 	public function actionFeedback() {
+		// Trainer: return all feedback entries for this trainer
+		if ($this->current_trainer) {
+			$feedbacks = Feedback::model()->with('client')->findAllByAttributes(
+				array('trainer_id' => $this->current_trainer->id),
+				array('order' => 't.id DESC')
+			);
+			$result = array();
+			foreach ($feedbacks as $fb) {
+				$clientName = 'Unknown';
+				if ($fb->client) {
+					$clientName = trim($fb->client->name . ' ' . $fb->client->surname);
+				}
+				$result[] = array(
+					'id'          => (int)$fb->id,
+					'client_name' => $clientName,
+					'text'        => $fb->text,
+					'comment'     => $fb->text,
+					'is_read'     => (bool)(int)$fb->read_trainer,
+					'read'        => (bool)(int)$fb->read_trainer,
+				);
+			}
+			$this->_sendResponse(200, $result);
+			return;
+		}
+		// Client: return feedback for this client
 		$client_id = Yii::app()->request->getParam('client_id');
 		$this->_checkAccess($client_id);
 		$client = Client::model()->findByPk($client_id);
@@ -963,11 +993,22 @@ class ApiController extends Controller
 		$this->_sendResponse(200, 'ok');
 	}
 	public function actionMarkTrainerFeedback() {
-		$client_id = Yii::app()->request->getParam('client_id', null);
-		$feedbacks = Feedback::model()->findAllByAttributes(array('client_id' => $client_id, 'read_trainer' => 0));
-		foreach ($feedbacks as $feedback) {
-			$feedback->read_trainer = 1;
-			$feedback->save();
+		// Support marking a single feedback by id (trainer app)
+		$id = Yii::app()->request->getParam('id', null);
+		if ($id) {
+			$feedback = Feedback::model()->findByPk($id);
+			if ($feedback && $this->current_trainer && (int)$feedback->trainer_id === (int)$this->current_trainer->id) {
+				$feedback->read_trainer = 1;
+				$feedback->save();
+			}
+		} else {
+			// Legacy: mark all unread feedback for a client
+			$client_id = Yii::app()->request->getParam('client_id', null);
+			$feedbacks = Feedback::model()->findAllByAttributes(array('client_id' => $client_id, 'read_trainer' => 0));
+			foreach ($feedbacks as $feedback) {
+				$feedback->read_trainer = 1;
+				$feedback->save();
+			}
 		}
 		$this->_sendResponse(200, 'ok');
 	}
