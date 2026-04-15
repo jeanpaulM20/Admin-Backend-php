@@ -32,11 +32,14 @@
   <title>Sihl Training</title>
   <link rel="manifest" href="manifest.json">
   <style>
+    /* Load MaterialIcons font with exact name Flutter expects */
     @font-face {
       font-family: 'MaterialIcons';
-      src: url('assets/fonts/MaterialIcons-Regular.otf') format('opentype');
+      src: url('https://fonts.gstatic.com/s/materialicons/v140/flUhRq6tzZclQEJ-Vdg-IuiaDsNcIhQ8tQ.woff2') format('woff2'),
+           url('assets/fonts/MaterialIcons-Regular.otf') format('opentype');
       font-weight: normal;
       font-style: normal;
+      font-display: block;
     }
     body { margin: 0; background-color: #1a1a1a; }
   </style>
