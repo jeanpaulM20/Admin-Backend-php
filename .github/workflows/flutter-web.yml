@@ -1,0 +1,37 @@
+name: Build & Deploy Flutter Web App
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'trainer-flutter/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.4'
+          channel: 'stable'
+          cache: true
+
+      - name: Get dependencies
+        working-directory: trainer-flutter
+        run: flutter pub get
+
+      - name: Build Web
+        working-directory: trainer-flutter
+        run: flutter build web --release --base-href /trainer-app/
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: trainer-flutter/build/web
+          destination_dir: trainer-app
+          keep_files: true
