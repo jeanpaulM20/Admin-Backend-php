@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/client.dart';
 import '../models/training.dart';
+import '../providers/auth_provider.dart';
 import '../providers/trainer_provider.dart';
+import '../services/api_service.dart';
+import '../config/api_config.dart';
+import 'training_detail_screen.dart';
 
 class ClientDetailScreen extends StatelessWidget {
   final Client client;
@@ -301,7 +305,7 @@ class ClientDetailScreen extends StatelessWidget {
           const SizedBox(height: 10),
           ...trainings
               .take(upcoming ? 5 : 3)
-              .map((t) => _TrainingItem(training: t)),
+              .map((t) => _TrainingItem(training: t, upcoming: upcoming)),
           if (upcoming && trainings.length > 5)
             TextButton(
               onPressed: () {},
@@ -339,77 +343,234 @@ class _ContactRow extends StatelessWidget {
   }
 }
 
-class _TrainingItem extends StatelessWidget {
+class _TrainingItem extends StatefulWidget {
   final Training training;
+  final bool upcoming;
 
-  const _TrainingItem({required this.training});
+  const _TrainingItem({required this.training, this.upcoming = false});
+
+  @override
+  State<_TrainingItem> createState() => _TrainingItemState();
+}
+
+class _TrainingItemState extends State<_TrainingItem> {
+  final ApiService _apiService = ApiService();
+  bool _isCancelling = false;
+  late Training _training;
+
+  @override
+  void initState() {
+    super.initState();
+    _training = widget.training;
+  }
+
+  Future<void> _cancelTraining() async {
+    final authProvider = context.read<AuthProvider>();
+    final trainer = authProvider.trainer;
+    if (trainer == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF252525),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: const Text(
+          'Cancel Training',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Are you sure you want to cancel this training session?',
+          style: TextStyle(color: Color(0xFFCCCCCC)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('No',
+                style: TextStyle(color: Color(0xFF9E9E9E))),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Yes, Cancel',
+                style: TextStyle(color: Color(0xFFB71C1C))),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _isCancelling = true);
+    try {
+      await _apiService.postForm(
+        ApiConfig.cancelTrainingTrainer,
+        body: {
+          'trainer_id': trainer.id.toString(),
+          'training_id': _training.id.toString(),
+        },
+      );
+      if (mounted) {
+        setState(() {
+          _training = Training(
+            id: _training.id,
+            title: _training.title,
+            startTime: _training.startTime,
+            endTime: _training.endTime,
+            date: _training.date,
+            timeFrom: _training.timeFrom,
+            timeTo: _training.timeTo,
+            clientId: _training.clientId,
+            clientName: _training.clientName,
+            trainerId: _training.trainerId,
+            trainerName: _training.trainerName,
+            locationId: _training.locationId,
+            locationName: _training.locationName,
+            trainingType: _training.trainingType,
+            status: 'cancelled',
+            notes: _training.notes,
+            isCancelled: true,
+          );
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Training cancelled successfully.'),
+            backgroundColor: Color(0xFF2E7D32),
+          ),
+        );
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message),
+            backgroundColor: const Color(0xFF8B2020),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isCancelling = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF252525),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF333333), width: 0.5),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 4,
-            height: 40,
-            decoration: BoxDecoration(
-              color: training.isCancelled
-                  ? const Color(0xFF555555)
-                  : const Color(0xFF8B2020),
-              borderRadius: BorderRadius.circular(2),
-            ),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => TrainingDetailScreen(training: _training),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF252525),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF333333), width: 0.5),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Text(
-                  training.displayDate,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 14,
+                Container(
+                  width: 4,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: _training.isCancelled
+                        ? const Color(0xFF555555)
+                        : const Color(0xFF8B2020),
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  training.displayTime,
-                  style: const TextStyle(
-                    color: Color(0xFF9E9E9E),
-                    fontSize: 13,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _training.displayDate,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _training.displayTime,
+                        style: const TextStyle(
+                          color: Color(0xFF9E9E9E),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+                if (_training.locationName != null)
+                  Text(
+                    _training.locationName!,
+                    style: const TextStyle(
+                        color: Color(0xFF777777), fontSize: 12),
+                  ),
+                if (_training.isCancelled) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF333333),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'Cancelled',
+                      style: TextStyle(
+                          color: Color(0xFF777777), fontSize: 11),
+                    ),
+                  ),
+                ] else
+                  const Icon(
+                    Icons.chevron_right,
+                    color: Color(0xFF555555),
+                    size: 18,
+                  ),
               ],
             ),
-          ),
-          if (training.locationName != null)
-            Text(
-              training.locationName!,
-              style: const TextStyle(color: Color(0xFF777777), fontSize: 12),
-            ),
-          if (training.isCancelled) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFF333333),
-                borderRadius: BorderRadius.circular(8),
+            if (!_training.isCancelled && widget.upcoming) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _isCancelling ? null : _cancelTraining,
+                  icon: _isCancelling
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Color(0xFF8B2020)),
+                        )
+                      : const Icon(Icons.cancel_outlined, size: 15),
+                  label: Text(
+                    _isCancelling ? 'Cancelling...' : 'Cancel Training',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF8B2020),
+                    side: const BorderSide(
+                        color: Color(0xFF8B2020), width: 0.8),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
               ),
-              child: const Text(
-                'Cancelled',
-                style: TextStyle(color: Color(0xFF777777), fontSize: 11),
-              ),
-            ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

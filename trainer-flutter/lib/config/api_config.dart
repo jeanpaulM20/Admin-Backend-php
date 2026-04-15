@@ -13,4 +13,10 @@ class ApiConfig {
   static const String availability = 'avaliability';
   static const String training = 'training';
   static const String cancelTraining = 'cancelTrainingTrainer';
+  static const String cancelTrainingTrainer = 'cancelTrainingTrainer';
+  static const String inviteTrainingTrainer = 'inviteTrainingTrainer';
+  static const String feedback = 'feedback';
+  static const String markTrainerFeedback = 'markTrainerFeedback';
+  static const String changePassword = 'changePassword';
+  static const String preference = 'preference';
 }

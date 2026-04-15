@@ -6,6 +6,8 @@ import 'home_screen.dart';
 import 'clients_screen.dart';
 import 'review_screen.dart';
 import 'calendar_screen.dart';
+import 'feedback_screen.dart';
+import 'settings_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -31,6 +33,14 @@ class _MainScreenState extends State<MainScreen> {
         label: 'Calendar',
         icon: Icons.calendar_month_outlined,
         activeIcon: Icons.calendar_month),
+    _TabItem(
+        label: 'Feedback',
+        icon: Icons.feedback_outlined,
+        activeIcon: Icons.feedback),
+    _TabItem(
+        label: 'Settings',
+        icon: Icons.settings_outlined,
+        activeIcon: Icons.settings),
   ];
 
   @override
@@ -64,6 +74,10 @@ class _MainScreenState extends State<MainScreen> {
         return const ReviewScreen();
       case 3:
         return const CalendarScreen();
+      case 4:
+        return const FeedbackScreen();
+      case 5:
+        return const SettingsScreen();
       default:
         return const HomeScreen();
     }
@@ -79,6 +93,8 @@ class _MainScreenState extends State<MainScreen> {
           ClientsScreen(),
           ReviewScreen(),
           CalendarScreen(),
+          FeedbackScreen(),
+          SettingsScreen(),
         ],
       ),
       bottomNavigationBar: _buildBottomNav(),

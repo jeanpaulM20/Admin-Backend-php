@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../providers/auth_provider.dart';
 import '../providers/trainer_provider.dart';
 import '../models/availability.dart';
+import '../models/training.dart';
+import 'training_detail_screen.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -56,9 +58,124 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return map[key] ?? [];
   }
 
+  List<Training> _getTrainingsForDay(
+      DateTime day, List<Training> trainings) {
+    return trainings.where((t) {
+      if (t.startTime != null) {
+        return t.startTime!.year == day.year &&
+            t.startTime!.month == day.month &&
+            t.startTime!.day == day.day;
+      }
+      if (t.date != null) {
+        final parsed = DateTime.tryParse(t.date!);
+        if (parsed != null) {
+          return parsed.year == day.year &&
+              parsed.month == day.month &&
+              parsed.day == day.day;
+        }
+      }
+      return false;
+    }).toList();
+  }
+
+  void _showTrainingsBottomSheet(
+      BuildContext context, DateTime day, List<Training> trainings) {
+    if (trainings.isEmpty) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF252525),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      isScrollControlled: true,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.45,
+          minChildSize: 0.3,
+          maxChildSize: 0.85,
+          builder: (context, scrollController) {
+            return Column(
+              children: [
+                Container(
+                  margin: const EdgeInsets.symmetric(vertical: 10),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF555555),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.fitness_center,
+                          color: Color(0xFF8B2020), size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        DateFormat('EEEE, MMMM d').format(day),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF8B2020).withAlpha(40),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${trainings.length} session${trainings.length == 1 ? '' : 's'}',
+                          style: const TextStyle(
+                            color: Color(0xFFB03030),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1, color: Color(0xFF333333)),
+                Expanded(
+                  child: ListView.separated(
+                    controller: scrollController,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: trainings.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final t = trainings[index];
+                      return _TrainingBottomSheetItem(
+                        training: t,
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  TrainingDetailScreen(training: t),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final authProvider = context.watch<AuthProvider>();
     final trainerProvider = context.watch<TrainerProvider>();
     final slots = _selectedDay != null
         ? _getSlotsForDay(_selectedDay!, trainerProvider.availabilityMap)
@@ -155,6 +272,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
           _selectedDay = selectedDay;
           _focusedDay = focusedDay;
         });
+        final trainingsForDay =
+            _getTrainingsForDay(selectedDay, provider.trainings);
+        if (trainingsForDay.isNotEmpty) {
+          _showTrainingsBottomSheet(context, selectedDay, trainingsForDay);
+        }
       },
       onFormatChanged: (format) {
         setState(() => _calendarFormat = format);
@@ -467,6 +589,102 @@ class _SlotCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TrainingBottomSheetItem extends StatelessWidget {
+  final Training training;
+  final VoidCallback onTap;
+
+  const _TrainingBottomSheetItem({
+    required this.training,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isCancelled = training.isCancelled;
+    final accentColor =
+        isCancelled ? const Color(0xFF555555) : const Color(0xFF8B2020);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1E1E),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+              color: accentColor.withAlpha(60), width: 0.5),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 4,
+              height: 44,
+              decoration: BoxDecoration(
+                color: accentColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (training.clientName != null)
+                    Text(
+                      training.clientName!,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  const SizedBox(height: 2),
+                  Text(
+                    training.displayTime,
+                    style: const TextStyle(
+                      color: Color(0xFF9E9E9E),
+                      fontSize: 13,
+                    ),
+                  ),
+                  if (training.trainingType != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      training.trainingType!,
+                      style: const TextStyle(
+                        color: Color(0xFF777777),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (isCancelled)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF333333),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'Cancelled',
+                  style: TextStyle(color: Color(0xFF777777), fontSize: 11),
+                ),
+              )
+            else
+              const Icon(
+                Icons.chevron_right,
+                color: Color(0xFF555555),
+                size: 20,
+              ),
+          ],
+        ),
       ),
     );
   }
