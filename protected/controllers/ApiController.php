@@ -930,18 +930,28 @@ class ApiController extends Controller
 	}
 	
 	public function actionFeedback() {
-		// Trainer: return all feedback entries for this trainer
-		if ($this->current_trainer) {
-			$feedbacks = Feedback::model()->with('client')->findAllByAttributes(
-				array('trainer_id' => $this->current_trainer->id),
-				array('order' => 't.id DESC')
-			);
+		// Detect trainer via current_trainer or by re-checking the token directly
+		$trainer = $this->current_trainer;
+		if (!$trainer && isset($_SERVER['HTTP_X_AUTH_TOKEN'])) {
+			foreach (Trainer::model()->findAll() as $t) {
+				if ($_SERVER['HTTP_X_AUTH_TOKEN'] === md5(ApiAccessFilter::$salt . $t->passcode)) {
+					$trainer = $t;
+					break;
+				}
+			}
+		}
+		if ($trainer) {
+			$criteria = new CDbCriteria();
+			$criteria->condition = 'trainer_id = :tid';
+			$criteria->params    = array(':tid' => $trainer->id);
+			$criteria->order     = 't.id DESC';
+			$criteria->with      = array('client');
+			$feedbacks = Feedback::model()->findAll($criteria);
 			$result = array();
 			foreach ($feedbacks as $fb) {
-				$clientName = 'Unknown';
-				if ($fb->client) {
-					$clientName = trim($fb->client->name . ' ' . $fb->client->surname);
-				}
+				$clientName = $fb->client
+					? trim($fb->client->name . ' ' . $fb->client->surname)
+					: 'Unknown';
 				$result[] = array(
 					'id'          => (int)$fb->id,
 					'client_name' => $clientName,
@@ -954,10 +964,14 @@ class ApiController extends Controller
 			$this->_sendResponse(200, $result);
 			return;
 		}
-		// Client: return feedback for this client
+		// Client path
 		$client_id = Yii::app()->request->getParam('client_id');
 		$this->_checkAccess($client_id);
 		$client = Client::model()->findByPk($client_id);
+		if (!$client) {
+			$this->_sendResponse(404, 'Client not found');
+			return;
+		}
 		$this->_sendResponse(200, $client->getFeedbackList());
 	}
 	
