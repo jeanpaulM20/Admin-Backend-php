@@ -465,8 +465,13 @@ class ApiController extends Controller
 		$this->_checkAccess();
 		$newPassword = Yii::app()->getRequest()->getParam('password');
 		if ($newPassword) {
-			$this->current_client->clientpasscode = Yii::app()->getRequest()->getParam('password');
-			$this->current_client->save();
+			if ($this->current_trainer) {
+				$this->current_trainer->passcode = $newPassword;
+				$this->current_trainer->save();
+			} else {
+				$this->current_client->clientpasscode = $newPassword;
+				$this->current_client->save();
+			}
 		}
 		$this->_sendResponse(200, 'ok');
 	}
@@ -930,9 +935,48 @@ class ApiController extends Controller
 	}
 	
 	public function actionFeedback() {
+		// Detect trainer via current_trainer or by re-checking the token directly
+		$trainer = $this->current_trainer;
+		if (!$trainer && isset($_SERVER['HTTP_X_AUTH_TOKEN'])) {
+			foreach (Trainer::model()->findAll() as $t) {
+				if ($_SERVER['HTTP_X_AUTH_TOKEN'] === md5(ApiAccessFilter::$salt . $t->passcode)) {
+					$trainer = $t;
+					break;
+				}
+			}
+		}
+		if ($trainer) {
+			$criteria = new CDbCriteria();
+			$criteria->condition = 'trainer_id = :tid';
+			$criteria->params    = array(':tid' => $trainer->id);
+			$criteria->order     = 't.id DESC';
+			$criteria->with      = array('client');
+			$feedbacks = Feedback::model()->findAll($criteria);
+			$result = array();
+			foreach ($feedbacks as $fb) {
+				$clientName = $fb->client
+					? trim($fb->client->name . ' ' . $fb->client->surname)
+					: 'Unknown';
+				$result[] = array(
+					'id'          => (int)$fb->id,
+					'client_name' => $clientName,
+					'text'        => $fb->text,
+					'comment'     => $fb->text,
+					'is_read'     => (bool)(int)$fb->read_trainer,
+					'read'        => (bool)(int)$fb->read_trainer,
+				);
+			}
+			$this->_sendResponse(200, $result);
+			return;
+		}
+		// Client path
 		$client_id = Yii::app()->request->getParam('client_id');
 		$this->_checkAccess($client_id);
 		$client = Client::model()->findByPk($client_id);
+		if (!$client) {
+			$this->_sendResponse(404, 'Client not found');
+			return;
+		}
 		$this->_sendResponse(200, $client->getFeedbackList());
 	}
 	
@@ -968,11 +1012,22 @@ class ApiController extends Controller
 		$this->_sendResponse(200, 'ok');
 	}
 	public function actionMarkTrainerFeedback() {
-		$client_id = Yii::app()->request->getParam('client_id', null);
-		$feedbacks = Feedback::model()->findAllByAttributes(array('client_id' => $client_id, 'read_trainer' => 0));
-		foreach ($feedbacks as $feedback) {
-			$feedback->read_trainer = 1;
-			$feedback->save();
+		// Support marking a single feedback by id (trainer app)
+		$id = Yii::app()->request->getParam('id', null);
+		if ($id) {
+			$feedback = Feedback::model()->findByPk($id);
+			if ($feedback && $this->current_trainer && (int)$feedback->trainer_id === (int)$this->current_trainer->id) {
+				$feedback->read_trainer = 1;
+				$feedback->save();
+			}
+		} else {
+			// Legacy: mark all unread feedback for a client
+			$client_id = Yii::app()->request->getParam('client_id', null);
+			$feedbacks = Feedback::model()->findAllByAttributes(array('client_id' => $client_id, 'read_trainer' => 0));
+			foreach ($feedbacks as $feedback) {
+				$feedback->read_trainer = 1;
+				$feedback->save();
+			}
 		}
 		$this->_sendResponse(200, 'ok');
 	}
