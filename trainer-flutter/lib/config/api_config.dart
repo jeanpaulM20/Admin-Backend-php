@@ -7,7 +7,7 @@ class ApiConfig {
   static const String loginTrainer = 'loginTrainer';
   static const String aboutUs = 'trainer/aboutus';
   static const String trainingType = 'training_type';
-  static const String locationList = 'location/list';
+  static const String locationList = 'location';
   static const String settings = 'settings';
   static const String client = 'client';
   static const String availability = 'avaliability';

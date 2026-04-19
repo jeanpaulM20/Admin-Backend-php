@@ -406,7 +406,7 @@ class _TrainingItemState extends State<_TrainingItem> {
         ApiConfig.cancelTrainingTrainer,
         body: {
           'trainer_id': trainer.id.toString(),
-          'training_id': _training.id.toString(),
+          'id': _training.id.toString(),
         },
       );
       if (mounted) {

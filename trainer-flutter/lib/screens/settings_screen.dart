@@ -413,18 +413,15 @@ class _ChangePasswordDialog extends StatefulWidget {
 class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
   final ApiService _apiService = ApiService();
   final _formKey = GlobalKey<FormState>();
-  final _oldPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
   bool _isLoading = false;
-  bool _obscureOld = true;
   bool _obscureNew = true;
   bool _obscureConfirm = true;
 
   @override
   void dispose() {
-    _oldPasswordController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -438,8 +435,7 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
       await _apiService.postForm(
         ApiConfig.changePassword,
         body: {
-          'old_password': _oldPasswordController.text,
-          'new_password': _newPasswordController.text,
+          'password': _newPasswordController.text,
         },
       );
       if (mounted) {
@@ -479,15 +475,6 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _PasswordField(
-              controller: _oldPasswordController,
-              label: 'Current Password',
-              obscure: _obscureOld,
-              onToggle: () => setState(() => _obscureOld = !_obscureOld),
-              validator: (v) =>
-                  (v == null || v.isEmpty) ? 'Required' : null,
-            ),
-            const SizedBox(height: 12),
             _PasswordField(
               controller: _newPasswordController,
               label: 'New Password',

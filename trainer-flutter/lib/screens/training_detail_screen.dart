@@ -68,7 +68,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
         ApiConfig.cancelTrainingTrainer,
         body: {
           'trainer_id': trainer.id.toString(),
-          'training_id': _training.id.toString(),
+          'id': _training.id.toString(),
         },
       );
       if (mounted) {
@@ -125,7 +125,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
         ApiConfig.inviteTrainingTrainer,
         body: {
           'trainer_id': trainer.id.toString(),
-          'training_id': _training.id.toString(),
+          'id': _training.id.toString(),
         },
       );
       if (mounted) {

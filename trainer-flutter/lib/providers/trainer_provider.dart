@@ -177,7 +177,7 @@ class TrainerProvider extends ChangeNotifier {
     try {
       final response =
           await _apiService.get(ApiConfig.availability, queryParams: {
-        'trainers[]': trainerId.toString(),
+        'trainers': trainerId.toString(),
         'location_id': locationId.toString(),
         'from': fmt.format(dateFrom),
         'to': fmt.format(dateTo),
@@ -231,10 +231,12 @@ class TrainerProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> cancelTraining(int trainingId) async {
+  Future<bool> cancelTraining(int trainingId, {int? trainerId}) async {
     try {
-      await _apiService.post(ApiConfig.cancelTraining,
-          body: {'training_id': trainingId});
+      await _apiService.post(ApiConfig.cancelTraining, body: {
+        'id': trainingId,
+        if (trainerId != null) 'trainer_id': trainerId,
+      });
       // Update local state
       final index = _trainings.indexWhere((t) => t.id == trainingId);
       if (index != -1) {
