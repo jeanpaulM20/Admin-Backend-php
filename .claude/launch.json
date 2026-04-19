@@ -12,6 +12,30 @@
       "runtimeExecutable": "docker",
       "runtimeArgs": ["run", "--rm", "-p", "80:80", "admin-backend-php"],
       "port": 80
+    },
+    {
+      "name": "sihl-api-docs",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:/Users/User/AppData/Local/Temp/sihl-api-wrapper/preview/server.js"],
+      "port": 3456
+    },
+    {
+      "name": "sihl-flutter-docs",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:/Users/User/AppData/Local/Temp/sihl-api-wrapper/docs_app/serve.js"],
+      "port": 3457
+    },
+    {
+      "name": "sihl-client-build",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "cd /d C:\\Users\\User\\AppData\\Local\\Temp\\sihl-client-app && C:\\Users\\User\\flutter\\flutter\\bin\\flutter.bat build web --release && echo BUILD_DONE"],
+      "port": 3459
+    },
+    {
+      "name": "sihl-client-app",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:/Users/User/AppData/Local/Temp/sihl-client-app/serve.js"],
+      "port": 3458
     }
   ]
 }

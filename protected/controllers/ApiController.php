@@ -544,10 +544,15 @@ class ApiController extends Controller
 	
 	public function actionToken()
 	{
-		if (Yii::app()->getRequest()->getPost('e_mail')) {
-			$client = Client::model()->active()->findByAttributes(array('e_mail' => Yii::app()->getRequest()->getPost('e_mail'), 'clientpasscode' => Yii::app()->getRequest()->getPost('clientpasscode')));
+		// Accept both JSON body and form POST
+		$jsonBody = json_decode(file_get_contents('php://input'), true);
+		$email    = isset($jsonBody['e_mail'])        ? $jsonBody['e_mail']        : Yii::app()->getRequest()->getPost('e_mail');
+		$passcode = isset($jsonBody['clientpasscode']) ? $jsonBody['clientpasscode'] : Yii::app()->getRequest()->getPost('clientpasscode');
+
+		if ($email) {
+			$client = Client::model()->active()->findByAttributes(array('e_mail' => $email, 'clientpasscode' => $passcode));
 		} else {
-			$client = Client::model()->active()->findByAttributes(array('clientpasscode' => Yii::app()->getRequest()->getPost('clientpasscode')));
+			$client = Client::model()->active()->findByAttributes(array('clientpasscode' => $passcode));
 		}
 		if ($client) {
 			if (!$client->preference) {
@@ -1204,8 +1209,13 @@ class ApiController extends Controller
 		} else {
 			header('Access-Control-Allow-Origin: *');
 		}
-		header('Access-Control-Allow-Headers: X-Requested-With');
+		header('Access-Control-Allow-Headers: X-Requested-With, Content-Type, X-Auth-Token, Authorization');
+		header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 		header('Access-Control-Allow-Credentials: true');
+		if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+			header('HTTP/1.1 200 OK');
+			Yii::app()->end();
+		}
 		
 
 		if ($body != '') {
@@ -1336,5 +1346,322 @@ class ApiController extends Controller
 		if (!$this->current_client || ($client_id && $client_id != $this->current_client->id)) {
 			throw new CHttpException(403,Yii::t('yii','You are not authorized to perform this action.'));
 		}
+	}
+
+	// ── Client app endpoints ────────────────────────────────────────────────
+
+	private function _trainingToAppointment($t)
+	{
+		return array(
+			'id'             => (string)$t->id,
+			'date'           => date('Y-m-d H:i', strtotime($t->date . ' ' . $t->starttime)),
+			'duration'       => (int)$t->duration,
+			'text'           => (string)($t->text ?? ''),
+			'typeId'         => (string)$t->type_id,
+			'type'           => $t->type ? $t->type->name_de : '',
+			'locationId'     => (string)$t->location_id,
+			'location'       => $t->location ? $t->location->name : '',
+			'trainerId'      => (string)$t->trainer_id,
+			'trainer'        => $t->trainer ? ($t->trainer->surname . ' ' . $t->trainer->name) : '',
+			'creditsCharged' => (int)$t->credits_charged,
+			'status'         => (string)$t->status,
+		);
+	}
+
+	public function actionClientStart()
+	{
+		$clientId = Yii::app()->getRequest()->getParam('clientId');
+		$this->_checkAccess($clientId);
+		$client = Client::model()->findByPk($clientId);
+		if (!$client) {
+			$this->_sendResponse(404, 'Client not found');
+			return;
+		}
+		$criteria = new CDbCriteria();
+		$criteria->condition = 'client_id=:cid AND status=:status AND date >= :today';
+		$criteria->params    = array(':cid' => $clientId, ':status' => 'booked', ':today' => date('Y-m-d'));
+		$criteria->order     = 'date ASC, starttime ASC';
+		$criteria->limit     = 20;
+		$criteria->with      = array('type', 'location', 'trainer');
+		$trainings = Training::model()->findAll($criteria);
+		$appointments = array();
+		foreach ($trainings as $t) {
+			$appointments[] = $this->_trainingToAppointment($t);
+		}
+		$this->_sendResponse(200, array(
+			'firstName'    => (string)$client->surname,
+			'lastName'     => (string)$client->name,
+			'appointments' => $appointments,
+		));
+	}
+
+	public function actionClientCalendar()
+	{
+		$clientId = Yii::app()->getRequest()->getParam('clientId');
+		$this->_checkAccess($clientId);
+		$client = Client::model()->findByPk($clientId);
+		if (!$client) {
+			$this->_sendResponse(404, 'Client not found');
+			return;
+		}
+
+		$preference = $client->preference;
+		$defaultTrainerId = $preference ? (string)$preference->preferred_trainer_rel : '';
+		$defaultTypeId    = $preference ? '' : '';
+
+		$trainers = Trainer::model()->findAll(array('condition' => 'active=1', 'order' => 'surname ASC'));
+		$trainerList = array();
+		foreach ($trainers as $tr) {
+			$trainerList[] = array(
+				'id'        => (string)$tr->id,
+				'firstName' => (string)$tr->surname,
+				'lastName'  => (string)$tr->name,
+				'shortName' => $tr->getInitials(),
+			);
+		}
+
+		$types = TrainingType::model()->findAll(array('order' => 'sort ASC'));
+		$typeList = array();
+		foreach ($types as $ty) {
+			$typeList[] = array(
+				'id'       => (string)$ty->id,
+				'name'     => (string)$ty->name_de,
+				'duration' => (int)($ty->duration ?? 60),
+			);
+		}
+
+		$criteria = new CDbCriteria();
+		$criteria->condition = 'client_id=:cid AND status=:status AND date >= :from AND date <= :to';
+		$criteria->params    = array(
+			':cid'    => $clientId,
+			':status' => 'booked',
+			':from'   => date('Y-m-d', strtotime('-30 days')),
+			':to'     => date('Y-m-d', strtotime('+60 days')),
+		);
+		$criteria->order = 'date ASC, starttime ASC';
+		$criteria->with  = array('type', 'location', 'trainer');
+		$trainings = Training::model()->findAll($criteria);
+		$appointments = array();
+		foreach ($trainings as $t) {
+			$appointments[] = $this->_trainingToAppointment($t);
+		}
+
+		$avCriteria = new CDbCriteria();
+		$avCriteria->condition = 'date >= :from AND date <= :to';
+		$avCriteria->params    = array(
+			':from' => date('Y-m-d', strtotime('-1 days')),
+			':to'   => date('Y-m-d', strtotime('+60 days')),
+		);
+		$avCriteria->with = array('location');
+		$availability = TrainerAvailability::model()->findAll($avCriteria);
+		$avList = array();
+		foreach ($availability as $av) {
+			$avList[] = array(
+				'locationId' => (string)$av->location_id,
+				'location'   => $av->location ? $av->location->name : '',
+				'start'      => date('Y-m-d H:i', strtotime($av->date . ' ' . $av->from)),
+				'end'        => date('Y-m-d H:i', strtotime($av->date . ' ' . $av->to)),
+			);
+		}
+
+		$this->_sendResponse(200, array(
+			'defaultTrainer' => $defaultTrainerId,
+			'defaultType'    => $defaultTypeId,
+			'minimumDate'    => date('Y-m-d', strtotime('-30 days')),
+			'maximumDate'    => date('Y-m-d', strtotime('+60 days')),
+			'trainers'       => $trainerList,
+			'types'          => $typeList,
+			'appointments'   => $appointments,
+			'availability'   => $avList,
+		));
+	}
+
+	public function actionClientProfile()
+	{
+		$clientId = Yii::app()->getRequest()->getParam('clientId');
+		$this->_checkAccess($clientId);
+		$client = Client::model()->with('credits')->findByPk($clientId);
+		if (!$client) {
+			$this->_sendResponse(404, 'Client not found');
+			return;
+		}
+		$packs = array();
+		foreach ($client->credits as $c) {
+			if ($c->startdate && strtotime($c->startdate) > time()) continue;
+			$packs[] = array(
+				'title'          => $c->abbonement ? $c->abbonement->title : $c->training_type->name_de,
+				'prepaidCredits' => (int)$c->paid,
+				'spentCredits'   => (int)$c->attended,
+				'expiryDate'     => $c->expires ? date('Y-m-d', strtotime($c->expires)) : null,
+			);
+		}
+		$this->_sendResponse(200, array(
+			'firstName' => (string)$client->surname,
+			'lastName'  => (string)$client->name,
+			'imageUrl'  => null,
+			'credits'   => $packs,
+		));
+	}
+
+	public function actionClientCredits()
+	{
+		$clientId = Yii::app()->getRequest()->getParam('clientId');
+		$this->_checkAccess($clientId);
+		$abbonements = Abbonement::model()->findAll();
+		$result = array();
+		foreach ($abbonements as $ab) {
+			$result[] = array(
+				'partnumber'  => (string)$ab->id,
+				'title'       => (string)$ab->title,
+				'description' => $ab->training_type ? $ab->training_type->name_de : '',
+				'unit'        => 'Sessions',
+				'sellprice'   => (float)($ab->price ?? 0),
+			);
+		}
+		$this->_sendResponse(200, $result);
+	}
+
+	public function actionClientCreditsBuy()
+	{
+		$clientId  = Yii::app()->getRequest()->getParam('clientId');
+		$creditId  = Yii::app()->getRequest()->getParam('creditId');
+		$this->_checkAccess($clientId);
+		$this->_sendResponse(200, array('success' => true, 'message' => 'Bitte kontaktiere deinen Trainer für den Kauf.'));
+	}
+
+	public function actionClientInvoices()
+	{
+		$clientId = Yii::app()->getRequest()->getParam('clientId');
+		$this->_checkAccess($clientId);
+		$this->_sendResponse(200, array());
+	}
+
+	public function actionClientTests()
+	{
+		$clientId = Yii::app()->getRequest()->getParam('clientId');
+		$this->_checkAccess($clientId);
+		$tests = PerformanceTest::model()->findAll(array(
+			'condition' => 'client_id=:cid',
+			'params'    => array(':cid' => $clientId),
+			'order'     => 'date DESC',
+			'limit'     => 10,
+		));
+		$testFields = array(
+			'straight_thigh_extensors', 'hamstrings', 'calfs', 'adductors',
+			'pullups', 'trunk_bending', 'pushups', 'forearm_support',
+			'side_support', 'squat_on_wall', 'sensomotoric', 'symmetry',
+			'reaction', 'counter_movement_jump', 'tapping',
+			'sprint_10', 'sprint_20', 'sprint_30',
+		);
+		$fieldLabels = array(
+			'straight_thigh_extensors' => 'Oberschenkel Strecker',
+			'hamstrings'               => 'Hamstrings',
+			'calfs'                    => 'Waden',
+			'adductors'                => 'Adduktoren',
+			'pullups'                  => 'Klimmzüge',
+			'trunk_bending'            => 'Rumpfbeuge',
+			'pushups'                  => 'Liegestütze',
+			'forearm_support'          => 'Unterarmstütz',
+			'side_support'             => 'Seitstütz',
+			'squat_on_wall'            => 'Wandsitzen',
+			'sensomotoric'             => 'Sensomotorik',
+			'symmetry'                 => 'Symmetrie',
+			'reaction'                 => 'Reaktion',
+			'counter_movement_jump'    => 'CMJ',
+			'tapping'                  => 'Tapping',
+			'sprint_10'                => '10m Sprint',
+			'sprint_20'                => '20m Sprint',
+			'sprint_30'                => '30m Sprint',
+		);
+		$sections = array();
+		if (count($tests) >= 1) {
+			$latest = $tests[0];
+			$previous = count($tests) >= 2 ? $tests[1] : null;
+			$items = array();
+			foreach ($testFields as $field) {
+				$val  = $latest->$field;
+				$prev = $previous ? $previous->$field : null;
+				if ($val === null && $prev === null) continue;
+				$change = '';
+				if ($val !== null && $prev !== null && $prev != 0) {
+					$diff = round((($val - $prev) / $prev) * 100);
+					$change = ($diff >= 0 ? '+' : '') . $diff . '%';
+				}
+				$items[] = array(
+					'key'           => $fieldLabels[$field] ?? $field,
+					'value'         => $val !== null ? (string)$val : '–',
+					'previousValue' => $prev !== null ? (string)$prev : '–',
+					'change'        => $change,
+				);
+			}
+			if (!empty($items)) {
+				$sections[] = array('section' => 'Leistungstest', 'data' => $items);
+			}
+		}
+		$this->_sendResponse(200, $sections);
+	}
+
+	public function actionClientBooking()
+	{
+		$clientId = Yii::app()->getRequest()->getParam('clientId');
+		$this->_checkAccess($clientId);
+		$params = $this->_getRequestParams();
+		$training = new Training();
+		$training->client_id   = $clientId;
+		$training->trainer_id  = isset($params['trainerId'])  ? $params['trainerId']  : null;
+		$training->type_id     = isset($params['typeId'])     ? $params['typeId']     : null;
+		$training->location_id = isset($params['locationId']) ? $params['locationId'] : null;
+		$training->text        = isset($params['text'])       ? $params['text']       : '';
+		$training->status      = 'booked';
+		if (isset($params['date'])) {
+			$dt = date_create($params['date']);
+			if ($dt) {
+				$training->date      = date_format($dt, 'Y-m-d');
+				$training->starttime = date_format($dt, 'H:i:s');
+			}
+		}
+		if ($training->save()) {
+			$this->_sendResponse(200, array('success' => true, 'id' => $training->id));
+		} else {
+			$errors = array();
+			foreach ($training->errors as $attrErrors) {
+				foreach ($attrErrors as $err) { $errors[] = $err; }
+			}
+			$this->_sendResponse(400, array('success' => false, 'errors' => $errors));
+		}
+	}
+
+	public function actionClientUpdateAppt()
+	{
+		$appointmentId = Yii::app()->getRequest()->getParam('appointmentId');
+		$training = Training::model()->findByPk($appointmentId);
+		if (!$training) {
+			$this->_sendResponse(404, 'Appointment not found');
+			return;
+		}
+		$this->_checkAccess($training->client_id);
+		$params = $this->_getRequestParams();
+		if (isset($params['text'])) {
+			$training->text = $params['text'];
+		}
+		if ($training->save()) {
+			$this->_sendResponse(200, array('success' => true));
+		} else {
+			$this->_sendResponse(400, array('success' => false));
+		}
+	}
+
+	public function actionClientCancelAppt()
+	{
+		$clientId      = Yii::app()->getRequest()->getParam('clientId');
+		$appointmentId = Yii::app()->getRequest()->getParam('appointmentId');
+		$this->_checkAccess($clientId);
+		$training = Training::model()->findByPk($appointmentId);
+		if (!$training || $training->client_id != $clientId) {
+			$this->_sendResponse(404, 'Appointment not found');
+			return;
+		}
+		$training->cancel($this->current_client);
+		$this->_sendResponse(200, array('success' => true));
 	}
 }
