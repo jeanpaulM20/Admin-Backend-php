@@ -1268,7 +1268,7 @@ class ApiController extends Controller
 		header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 		header('Access-Control-Allow-Credentials: true');
 		if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-			header('HTTP/1.1 200 OK');
+			http_response_code(200);
 			Yii::app()->end();
 		}
 		

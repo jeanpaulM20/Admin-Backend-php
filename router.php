@@ -10,10 +10,9 @@ if (strpos($_SERVER['REQUEST_URI'], '/api/') !== false) {
 
     // Handle OPTIONS preflight — respond immediately
     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-        header('HTTP/1.1 200 OK');
+        http_response_code(200);
         header('Content-Length: 0');
-        echo '';
-        return true; // PHP built-in server: return true = response sent
+        exit(0);
     }
 }
 
