@@ -1,3 +1,4 @@
+// API configuration for Sihl Training Flutter app
 class ApiConfig {
   static const String baseUrl = 'https://apps.sihltraining.ch/admin/api/';
   static const String salt = r'sKLUIE7dfwo4hn23l;idfj[028325p*^&)(op';
