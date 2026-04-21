@@ -12,6 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -28,10 +30,15 @@ jobs:
         working-directory: trainer-flutter
         run: flutter build web --release --base-href /trainer-app/
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: trainer-flutter/build/web
-          destination_dir: trainer-app
-          keep_files: true
+      - name: Copy build output to trainer-app/
+        run: |
+          rm -rf trainer-app
+          cp -r trainer-flutter/build/web trainer-app
+
+      - name: Commit updated trainer-app/ to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add trainer-app/
+          git diff --cached --quiet || git commit -m "chore: rebuild Flutter web app [skip ci]"
+          git push
