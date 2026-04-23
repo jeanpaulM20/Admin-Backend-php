@@ -315,7 +315,7 @@ class ClientDetailScreen extends StatelessWidget {
         ),
       ),
       _QuickAction(
-        icon: Icons.chat_bubble_rounded,
+        icon: Icons.chat_bubble_outline,
         label: 'Nachrichten',
         subtitle: 'Chat & Feedback',
         color: const Color(0xFF26A69A),
