@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../providers/auth_provider.dart';
 import '../providers/trainer_provider.dart';
 import '../models/training.dart';
+import '../config/app_colors.dart';
 
 class ReviewScreen extends StatefulWidget {
   const ReviewScreen({super.key});
@@ -65,7 +66,7 @@ class _ReviewScreenState extends State<ReviewScreen>
     final filtered = _getFilteredTrainings(allTrainings);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1a1a1a),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Training Review'),
         actions: [
@@ -78,9 +79,9 @@ class _ReviewScreenState extends State<ReviewScreen>
         ],
         bottom: TabBar(
           controller: _tabController,
-          labelColor: const Color(0xFFB03030),
-          unselectedLabelColor: const Color(0xFF9E9E9E),
-          indicatorColor: const Color(0xFF8B2020),
+          labelColor: AppColors.primary,
+          unselectedLabelColor: AppColors.muted,
+          indicatorColor: AppColors.primary,
           indicatorSize: TabBarIndicatorSize.label,
           tabs: const [
             Tab(text: 'This Week'),
@@ -92,15 +93,15 @@ class _ReviewScreenState extends State<ReviewScreen>
       body: trainerProvider.trainingsLoading
           ? const Center(
               child: CircularProgressIndicator(
-                  color: Color(0xFF8B2020), strokeWidth: 2))
+                  color: AppColors.primary, strokeWidth: 2))
           : RefreshIndicator(
               onRefresh: () async {
                 if (trainer != null) {
                   await trainerProvider.fetchTrainings(trainer.id);
                 }
               },
-              color: const Color(0xFF8B2020),
-              backgroundColor: const Color(0xFF2a2a2a),
+              color: AppColors.primary,
+              backgroundColor: AppColors.surface,
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
@@ -139,7 +140,7 @@ class _ReviewScreenState extends State<ReviewScreen>
                 label: 'Sessions',
                 value: completed.toString(),
                 icon: Icons.fitness_center,
-                color: const Color(0xFF8B2020),
+                color: AppColors.primary,
                 subtitle: _getPeriodLabel(),
               ),
             ),
@@ -163,7 +164,7 @@ class _ReviewScreenState extends State<ReviewScreen>
                 label: 'Cancelled',
                 value: cancelled.toString(),
                 icon: Icons.cancel_outlined,
-                color: const Color(0xFF555555),
+                color: AppColors.muted,
                 subtitle: _getPeriodLabel(),
               ),
             ),
@@ -215,9 +216,9 @@ class _ReviewScreenState extends State<ReviewScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF252525),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF333333), width: 0.5),
+        border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -240,7 +241,7 @@ class _ReviewScreenState extends State<ReviewScreen>
                   show: true,
                   drawVerticalLine: false,
                   getDrawingHorizontalLine: (_) => const FlLine(
-                    color: Color(0xFF333333),
+                    color: AppColors.border,
                     strokeWidth: 0.5,
                   ),
                 ),
@@ -252,7 +253,7 @@ class _ReviewScreenState extends State<ReviewScreen>
                       getTitlesWidget: (value, _) => Text(
                         value.toInt().toString(),
                         style: const TextStyle(
-                            color: Color(0xFF777777), fontSize: 11),
+                            color: AppColors.muted, fontSize: 11),
                       ),
                     ),
                   ),
@@ -268,7 +269,7 @@ class _ReviewScreenState extends State<ReviewScreen>
                           return Text(
                             sortedKeys[idx],
                             style: const TextStyle(
-                                color: Color(0xFF777777), fontSize: 10),
+                                color: AppColors.muted, fontSize: 10),
                           );
                         }
                         return const SizedBox.shrink();
@@ -285,14 +286,14 @@ class _ReviewScreenState extends State<ReviewScreen>
                   LineChartBarData(
                     spots: spots,
                     isCurved: true,
-                    color: const Color(0xFF8B2020),
+                    color: AppColors.primary,
                     barWidth: 2.5,
                     isStrokeCapRound: true,
                     dotData: FlDotData(
                       show: spots.length <= 14,
                       getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
                         radius: 3,
-                        color: const Color(0xFFB03030),
+                        color: AppColors.primary,
                         strokeWidth: 0,
                       ),
                     ),
@@ -300,8 +301,8 @@ class _ReviewScreenState extends State<ReviewScreen>
                       show: true,
                       gradient: LinearGradient(
                         colors: [
-                          const Color(0xFF8B2020).withAlpha(60),
-                          const Color(0xFF8B2020).withAlpha(0),
+                          AppColors.primary.withAlpha(60),
+                          AppColors.primary.withAlpha(0),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
@@ -329,7 +330,7 @@ class _ReviewScreenState extends State<ReviewScreen>
 
     final total = typeCounts.values.fold(0, (a, b) => a + b);
     final colors = [
-      const Color(0xFF8B2020),
+      AppColors.primary,
       const Color(0xFF1565C0),
       const Color(0xFF2E7D32),
       const Color(0xFF6A1B9A),
@@ -340,9 +341,9 @@ class _ReviewScreenState extends State<ReviewScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF252525),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF333333), width: 0.5),
+        border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -383,13 +384,13 @@ class _ReviewScreenState extends State<ReviewScreen>
                         child: Text(
                           name,
                           style: const TextStyle(
-                              color: Color(0xFFCCCCCC), fontSize: 13),
+                              color: AppColors.text, fontSize: 13),
                         ),
                       ),
                       Text(
                         '$count ($pct%)',
                         style: const TextStyle(
-                            color: Color(0xFF9E9E9E), fontSize: 13),
+                            color: AppColors.muted, fontSize: 13),
                       ),
                     ],
                   ),
@@ -398,7 +399,7 @@ class _ReviewScreenState extends State<ReviewScreen>
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
                       value: count / total,
-                      backgroundColor: const Color(0xFF333333),
+                      backgroundColor: AppColors.border,
                       valueColor: AlwaysStoppedAnimation<Color>(color),
                       minHeight: 6,
                     ),
@@ -417,18 +418,18 @@ class _ReviewScreenState extends State<ReviewScreen>
       return Container(
         padding: const EdgeInsets.all(32),
         decoration: BoxDecoration(
-          color: const Color(0xFF252525),
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFF333333), width: 0.5),
+          border: Border.all(color: AppColors.border, width: 0.5),
         ),
         child: const Center(
           child: Column(
             children: [
-              Icon(Icons.fitness_center, color: Color(0xFF555555), size: 44),
+              Icon(Icons.fitness_center, color: AppColors.muted, size: 44),
               SizedBox(height: 12),
               Text(
                 'No sessions in this period',
-                style: TextStyle(color: Color(0xFF9E9E9E), fontSize: 14),
+                style: TextStyle(color: AppColors.muted, fontSize: 14),
               ),
             ],
           ),
@@ -479,9 +480,9 @@ class _SummaryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF252525),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF333333), width: 0.5),
+        border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -492,7 +493,7 @@ class _SummaryCard extends StatelessWidget {
               Text(
                 label,
                 style: const TextStyle(
-                  color: Color(0xFF9E9E9E),
+                  color: AppColors.muted,
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                 ),
@@ -511,7 +512,7 @@ class _SummaryCard extends StatelessWidget {
           ),
           Text(
             subtitle,
-            style: const TextStyle(color: Color(0xFF777777), fontSize: 11),
+            style: const TextStyle(color: AppColors.muted, fontSize: 11),
           ),
         ],
       ),
@@ -530,9 +531,9 @@ class _ReviewTrainingItem extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF252525),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF333333), width: 0.5),
+        border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Row(
         children: [
@@ -541,8 +542,8 @@ class _ReviewTrainingItem extends StatelessWidget {
             height: 42,
             decoration: BoxDecoration(
               color: training.isCancelled
-                  ? const Color(0xFF333333)
-                  : const Color(0xFF8B2020).withAlpha(30),
+                  ? AppColors.border
+                  : AppColors.primary.withAlpha(30),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
@@ -550,8 +551,8 @@ class _ReviewTrainingItem extends StatelessWidget {
                   ? Icons.cancel_outlined
                   : Icons.fitness_center,
               color: training.isCancelled
-                  ? const Color(0xFF666666)
-                  : const Color(0xFFB03030),
+                  ? AppColors.muted
+                  : AppColors.primary,
               size: 20,
             ),
           ),
@@ -572,7 +573,7 @@ class _ReviewTrainingItem extends StatelessWidget {
                 Text(
                   '${training.displayDate} · ${training.displayTime}',
                   style: const TextStyle(
-                    color: Color(0xFF9E9E9E),
+                    color: AppColors.muted,
                     fontSize: 12,
                   ),
                 ),
@@ -583,24 +584,24 @@ class _ReviewTrainingItem extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: const Color(0xFF333333),
+                color: AppColors.border,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 training.trainingType!,
-                style: const TextStyle(color: Color(0xFF9E9E9E), fontSize: 11),
+                style: const TextStyle(color: AppColors.muted, fontSize: 11),
               ),
             ),
           if (training.isCancelled)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: const Color(0xFF8B2020).withAlpha(30),
+                color: AppColors.primary.withAlpha(30),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Text(
                 'Cancelled',
-                style: TextStyle(color: Color(0xFFB03030), fontSize: 11),
+                style: TextStyle(color: AppColors.primary, fontSize: 11),
               ),
             ),
         ],

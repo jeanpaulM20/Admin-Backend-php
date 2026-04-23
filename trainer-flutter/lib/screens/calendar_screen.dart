@@ -6,7 +6,9 @@ import '../providers/auth_provider.dart';
 import '../providers/trainer_provider.dart';
 import '../models/availability.dart';
 import '../models/training.dart';
+import '../config/app_colors.dart';
 import 'training_detail_screen.dart';
+import 'availability_serial_screen.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -83,7 +85,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     if (trainings.isEmpty) return;
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF252525),
+      backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -102,7 +104,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF555555),
+                    color: AppColors.muted,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -111,7 +113,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   child: Row(
                     children: [
                       const Icon(Icons.fitness_center,
-                          color: Color(0xFF8B2020), size: 18),
+                          color: AppColors.primary, size: 18),
                       const SizedBox(width: 8),
                       Text(
                         DateFormat('EEEE, MMMM d').format(day),
@@ -126,13 +128,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF8B2020).withAlpha(40),
+                          color: AppColors.primary.withAlpha(40),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
                           '${trainings.length} session${trainings.length == 1 ? '' : 's'}',
                           style: const TextStyle(
-                            color: Color(0xFFB03030),
+                            color: AppColors.primary,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -141,7 +143,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     ],
                   ),
                 ),
-                const Divider(height: 1, color: Color(0xFF333333)),
+                const Divider(height: 1, color: AppColors.border),
                 Expanded(
                   child: ListView.separated(
                     controller: scrollController,
@@ -182,10 +184,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
         : <AvailabilitySlot>[];
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1a1a1a),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Availability Calendar'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.event_repeat),
+            tooltip: 'Serial Availability',
+            onPressed: () {
+              final trainer = context.read<AuthProvider>().trainer;
+              if (trainer == null) return;
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      AvailabilitySerialScreen(trainerId: trainer.id),
+                ),
+              ).then((_) => _loadData());
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadData,
@@ -197,7 +214,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           if (trainerProvider.locations.isNotEmpty)
             _buildLocationSelector(trainerProvider),
           _buildCalendar(trainerProvider),
-          const Divider(height: 1, color: Color(0xFF333333)),
+          const Divider(height: 1, color: AppColors.border),
           Expanded(
             child: _buildSlotList(slots, trainerProvider.availabilityLoading),
           ),
@@ -209,7 +226,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Widget _buildLocationSelector(TrainerProvider provider) {
     return Container(
       height: 44,
-      color: const Color(0xFF1E1E1E),
+      color: AppColors.surface,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -231,19 +248,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? const Color(0xFF8B2020)
-                      : const Color(0xFF2E2E2E),
+                      ? AppColors.primary
+                      : AppColors.surface,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: isSelected
-                        ? const Color(0xFF8B2020)
-                        : const Color(0xFF444444),
+                        ? AppColors.primary
+                        : AppColors.border,
                   ),
                 ),
                 child: Text(
                   loc.name,
                   style: TextStyle(
-                    color: isSelected ? Colors.white : const Color(0xFF9E9E9E),
+                    color: isSelected ? Colors.white : AppColors.muted,
                     fontSize: 13,
                     fontWeight: isSelected
                         ? FontWeight.w600
@@ -288,15 +305,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
       calendarStyle: CalendarStyle(
         outsideDaysVisible: false,
         defaultTextStyle:
-            const TextStyle(color: Color(0xFFE0E0E0), fontSize: 14),
+            const TextStyle(color: AppColors.text, fontSize: 14),
         weekendTextStyle:
-            const TextStyle(color: Color(0xFFBBBBBB), fontSize: 14),
+            const TextStyle(color: AppColors.text, fontSize: 14),
         selectedDecoration: BoxDecoration(
-          color: const Color(0xFF8B2020),
+          color: AppColors.primary,
           shape: BoxShape.circle,
         ),
         todayDecoration: BoxDecoration(
-          color: const Color(0xFF8B2020).withAlpha(60),
+          color: AppColors.primary.withAlpha(60),
           shape: BoxShape.circle,
         ),
         todayTextStyle: const TextStyle(
@@ -315,9 +332,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
         ),
         markersMaxCount: 3,
         outsideTextStyle:
-            const TextStyle(color: Color(0xFF555555), fontSize: 14),
+            const TextStyle(color: AppColors.muted, fontSize: 14),
         disabledTextStyle:
-            const TextStyle(color: Color(0xFF444444), fontSize: 14),
+            const TextStyle(color: AppColors.border, fontSize: 14),
         cellMargin: const EdgeInsets.all(4),
         rowDecoration: const BoxDecoration(color: Colors.transparent),
       ),
@@ -330,15 +347,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
           fontWeight: FontWeight.w600,
         ),
         leftChevronIcon:
-            const Icon(Icons.chevron_left, color: Color(0xFF9E9E9E)),
+            const Icon(Icons.chevron_left, color: AppColors.muted),
         rightChevronIcon:
-            const Icon(Icons.chevron_right, color: Color(0xFF9E9E9E)),
+            const Icon(Icons.chevron_right, color: AppColors.muted),
         formatButtonTextStyle: const TextStyle(
-          color: Color(0xFFB03030),
+          color: AppColors.primary,
           fontSize: 13,
         ),
         formatButtonDecoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFF8B2020)),
+          border: Border.all(color: AppColors.primary),
           borderRadius: BorderRadius.circular(8),
         ),
         headerPadding: const EdgeInsets.symmetric(vertical: 10),
@@ -346,12 +363,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ),
       daysOfWeekStyle: const DaysOfWeekStyle(
         weekdayStyle: TextStyle(
-          color: Color(0xFF9E9E9E),
+          color: AppColors.muted,
           fontSize: 13,
           fontWeight: FontWeight.w500,
         ),
         weekendStyle: TextStyle(
-          color: Color(0xFF777777),
+          color: AppColors.muted,
           fontSize: 13,
           fontWeight: FontWeight.w500,
         ),
@@ -382,7 +399,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     height: 6,
                     margin: const EdgeInsets.symmetric(horizontal: 1),
                     decoration: const BoxDecoration(
-                      color: Color(0xFF8B2020),
+                      color: AppColors.primary,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -398,7 +415,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     if (loading) {
       return const Center(
         child: CircularProgressIndicator(
-          color: Color(0xFF8B2020),
+          color: AppColors.primary,
           strokeWidth: 2,
         ),
       );
@@ -409,11 +426,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.touch_app, color: Color(0xFF555555), size: 36),
+            Icon(Icons.touch_app, color: AppColors.muted, size: 36),
             SizedBox(height: 12),
             Text(
               'Select a day to view availability',
-              style: TextStyle(color: Color(0xFF9E9E9E), fontSize: 14),
+              style: TextStyle(color: AppColors.muted, fontSize: 14),
             ),
           ],
         ),
@@ -425,11 +442,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.event_busy, color: Color(0xFF555555), size: 36),
+            const Icon(Icons.event_busy, color: AppColors.muted, size: 36),
             const SizedBox(height: 12),
             Text(
               'No availability on ${DateFormat('MMMM d, yyyy').format(_selectedDay!)}',
-              style: const TextStyle(color: Color(0xFF9E9E9E), fontSize: 14),
+              style: const TextStyle(color: AppColors.muted, fontSize: 14),
             ),
           ],
         ),
@@ -476,7 +493,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       children: [
         _LegendDot(color: const Color(0xFF4CAF50), label: 'Free'),
         const SizedBox(width: 10),
-        _LegendDot(color: const Color(0xFF8B2020), label: 'Booked'),
+        _LegendDot(color: AppColors.primary, label: 'Booked'),
       ],
     );
   }
@@ -500,7 +517,7 @@ class _LegendDot extends StatelessWidget {
         ),
         const SizedBox(width: 4),
         Text(label,
-            style: const TextStyle(color: Color(0xFF9E9E9E), fontSize: 11)),
+            style: const TextStyle(color: AppColors.muted, fontSize: 11)),
       ],
     );
   }
@@ -515,12 +532,12 @@ class _SlotCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isBooked = slot.isBooked;
     final statusColor =
-        isBooked ? const Color(0xFF8B2020) : const Color(0xFF2E7D32);
+        isBooked ? AppColors.primary : const Color(0xFF2E7D32);
     final bgColor = isBooked
-        ? const Color(0xFF8B2020).withAlpha(15)
+        ? AppColors.primary.withAlpha(15)
         : const Color(0xFF2E7D32).withAlpha(15);
     final borderColor = isBooked
-        ? const Color(0xFF8B2020).withAlpha(50)
+        ? AppColors.primary.withAlpha(50)
         : const Color(0xFF2E7D32).withAlpha(50);
 
     return Container(
@@ -558,12 +575,12 @@ class _SlotCard extends StatelessWidget {
                   Row(
                     children: [
                       const Icon(Icons.location_on_outlined,
-                          size: 13, color: Color(0xFF9E9E9E)),
+                          size: 13, color: AppColors.muted),
                       const SizedBox(width: 4),
                       Text(
                         slot.locationName!,
                         style: const TextStyle(
-                            color: Color(0xFF9E9E9E), fontSize: 13),
+                            color: AppColors.muted, fontSize: 13),
                       ),
                     ],
                   ),
@@ -607,14 +624,14 @@ class _TrainingBottomSheetItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final isCancelled = training.isCancelled;
     final accentColor =
-        isCancelled ? const Color(0xFF555555) : const Color(0xFF8B2020);
+        isCancelled ? AppColors.muted : AppColors.primary;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E1E1E),
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
               color: accentColor.withAlpha(60), width: 0.5),
@@ -647,7 +664,7 @@ class _TrainingBottomSheetItem extends StatelessWidget {
                   Text(
                     training.displayTime,
                     style: const TextStyle(
-                      color: Color(0xFF9E9E9E),
+                      color: AppColors.muted,
                       fontSize: 13,
                     ),
                   ),
@@ -656,7 +673,7 @@ class _TrainingBottomSheetItem extends StatelessWidget {
                     Text(
                       training.trainingType!,
                       style: const TextStyle(
-                        color: Color(0xFF777777),
+                        color: AppColors.muted,
                         fontSize: 12,
                       ),
                     ),
@@ -669,18 +686,18 @@ class _TrainingBottomSheetItem extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF333333),
+                  color: AppColors.border,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Text(
                   'Cancelled',
-                  style: TextStyle(color: Color(0xFF777777), fontSize: 11),
+                  style: TextStyle(color: AppColors.muted, fontSize: 11),
                 ),
               )
             else
               const Icon(
                 Icons.chevron_right,
-                color: Color(0xFF555555),
+                color: AppColors.muted,
                 size: 20,
               ),
           ],

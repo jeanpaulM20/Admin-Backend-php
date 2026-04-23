@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'config/app_colors.dart';
 import 'providers/auth_provider.dart';
 import 'providers/trainer_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_screen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await initializeDateFormatting('de_DE', null);
+  } catch (_) {}
   runApp(const SihlTrainingApp());
 }
 
@@ -30,138 +36,158 @@ class SihlTrainingApp extends StatelessWidget {
   }
 
   ThemeData _buildTheme() {
-    const backgroundColor = Color(0xFF1a1a1a);
-    const surfaceColor = Color(0xFF2a2a2a);
-    const cardColor = Color(0xFF252525);
-    const accentColor = Color(0xFF8B2020);
-    const accentLight = Color(0xFFB03030);
-    const onSurface = Color(0xFFE0E0E0);
-    const onSurfaceDim = Color(0xFF9E9E9E);
-
-    return ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.dark,
-      colorScheme: const ColorScheme.dark(
-        primary: accentColor,
-        onPrimary: Colors.white,
-        primaryContainer: Color(0xFF5C1010),
-        onPrimaryContainer: Color(0xFFFFDAD6),
-        secondary: Color(0xFF9E6B6B),
-        onSecondary: Colors.white,
-        surface: surfaceColor,
-        onSurface: onSurface,
-        surfaceContainerHighest: cardColor,
-        error: Color(0xFFCF6679),
-        onError: Colors.white,
-        outline: Color(0xFF444444),
-        outlineVariant: Color(0xFF333333),
+    final base = ThemeData.dark();
+    final textTheme = GoogleFonts.openSansTextTheme(base.textTheme).copyWith(
+      bodyMedium: GoogleFonts.openSans(
+        color: AppColors.text,
+        fontSize: 14,
       ),
-      scaffoldBackgroundColor: backgroundColor,
+      bodySmall: GoogleFonts.openSans(
+        color: AppColors.muted,
+        fontSize: 12,
+      ),
+      titleMedium: GoogleFonts.montserrat(
+        color: AppColors.text,
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+      ),
+      titleLarge: GoogleFonts.montserrat(
+        color: AppColors.text,
+        fontSize: 20,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+
+    return base.copyWith(
+      colorScheme: const ColorScheme.dark(
+        primary: AppColors.primary,
+        secondary: AppColors.primary,
+        surface: AppColors.surface,
+        error: AppColors.red,
+        onPrimary: AppColors.white,
+        onSurface: AppColors.text,
+      ),
+      scaffoldBackgroundColor: AppColors.background,
+      primaryColor: AppColors.primary,
+      textTheme: textTheme,
+      appBarTheme: const AppBarTheme(
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.text,
+        elevation: 0,
+        centerTitle: false,
+        titleTextStyle: TextStyle(
+          color: AppColors.text,
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
       cardTheme: CardTheme(
-        color: cardColor,
+        color: AppColors.surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: Color(0xFF333333), width: 0.5),
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: AppColors.border),
         ),
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF1a1a1a),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        scrolledUnderElevation: 2,
-        surfaceTintColor: Colors.transparent,
-        shadowColor: Colors.black54,
-        titleTextStyle: TextStyle(
-          color: Colors.white,
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.5,
-        ),
-      ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: Color(0xFF1E1E1E),
-        selectedItemColor: accentLight,
-        unselectedItemColor: Color(0xFF757575),
-        type: BottomNavigationBarType.fixed,
-        elevation: 8,
-        selectedLabelStyle:
-            TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: TextStyle(fontSize: 11),
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: const Color(0xFF2E2E2E),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF444444)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF444444)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: accentColor, width: 1.5),
-        ),
-        labelStyle: const TextStyle(color: onSurfaceDim),
-        hintStyle: const TextStyle(color: Color(0xFF666666)),
-        prefixIconColor: onSurfaceDim,
-      ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: accentColor,
-          foregroundColor: Colors.white,
-          minimumSize: const Size(double.infinity, 52),
+          backgroundColor: AppColors.primary,
+          foregroundColor: AppColors.white,
+          elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          elevation: 0,
           textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: accentLight,
+          foregroundColor: AppColors.primary,
         ),
       ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: AppColors.surface,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.red),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.red, width: 1.5),
+        ),
+        hintStyle: const TextStyle(color: AppColors.muted),
+        labelStyle: const TextStyle(color: AppColors.muted),
+        errorStyle: const TextStyle(color: AppColors.red),
+        prefixIconColor: AppColors.muted,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      ),
       listTileTheme: const ListTileThemeData(
-        tileColor: cardColor,
-        iconColor: onSurfaceDim,
-        textColor: onSurface,
+        iconColor: AppColors.muted,
+        textColor: AppColors.text,
         contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       ),
       dividerTheme: const DividerThemeData(
-        color: Color(0xFF333333),
-        thickness: 0.5,
+        color: AppColors.border,
+        thickness: 1,
+      ),
+      iconTheme: const IconThemeData(
+        color: AppColors.muted,
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: const Color(0xFF333333),
-        selectedColor: accentColor,
-        labelStyle: const TextStyle(fontSize: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        backgroundColor: AppColors.surface2,
+        selectedColor: AppColors.primary,
+        labelStyle: const TextStyle(fontSize: 12, color: AppColors.text),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: const BorderSide(color: AppColors.border),
+        ),
       ),
-      textTheme: const TextTheme(
-        displayLarge: TextStyle(color: Colors.white),
-        displayMedium: TextStyle(color: Colors.white),
-        displaySmall: TextStyle(color: Colors.white),
-        headlineLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        headlineMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-        headlineSmall: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-        titleLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-        titleMedium: TextStyle(color: onSurface, fontWeight: FontWeight.w500),
-        titleSmall: TextStyle(color: onSurface),
-        bodyLarge: TextStyle(color: onSurface),
-        bodyMedium: TextStyle(color: onSurface),
-        bodySmall: TextStyle(color: onSurfaceDim),
-        labelLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-        labelMedium: TextStyle(color: onSurfaceDim),
-        labelSmall: TextStyle(color: onSurfaceDim),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: AppColors.surface2,
+        contentTextStyle: const TextStyle(color: AppColors.text),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+      dialogTheme: DialogTheme(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: AppColors.primary,
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.white,
+      ),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: AppColors.surface,
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: AppColors.muted,
+        type: BottomNavigationBarType.fixed,
+        elevation: 0,
+        selectedLabelStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: TextStyle(fontSize: 11),
       ),
     );
   }
@@ -190,7 +216,7 @@ class _AppEntryState extends State<AppEntry> {
     switch (authProvider.status) {
       case AuthStatus.unknown:
         return const Scaffold(
-          backgroundColor: Color(0xFF1a1a1a),
+          backgroundColor: AppColors.background,
           body: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -198,7 +224,7 @@ class _AppEntryState extends State<AppEntry> {
                 _SihlLogo(),
                 SizedBox(height: 32),
                 CircularProgressIndicator(
-                  color: Color(0xFF8B2020),
+                  color: AppColors.primary,
                   strokeWidth: 2,
                 ),
               ],
@@ -224,32 +250,40 @@ class _SihlLogo extends StatelessWidget {
           width: 80,
           height: 80,
           decoration: BoxDecoration(
-            color: const Color(0xFF8B2020),
+            color: AppColors.primary,
             borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withOpacity(0.35),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           child: const Icon(
             Icons.fitness_center,
-            color: Colors.white,
-            size: 44,
+            color: AppColors.white,
+            size: 40,
           ),
         ),
         const SizedBox(height: 16),
-        const Text(
+        Text(
           'SIHL TRAINING',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 3,
+          style: GoogleFonts.montserrat(
+            color: AppColors.text,
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 2.0,
           ),
         ),
         const SizedBox(height: 4),
-        const Text(
-          'Personal Training Studio',
-          style: TextStyle(
-            color: Color(0xFF9E9E9E),
+        Text(
+          'Trainer App',
+          style: GoogleFonts.openSans(
+            color: AppColors.muted,
             fontSize: 13,
-            letterSpacing: 1,
+            fontWeight: FontWeight.w400,
+            letterSpacing: 0.2,
           ),
         ),
       ],

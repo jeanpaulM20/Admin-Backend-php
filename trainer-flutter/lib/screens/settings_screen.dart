@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../config/api_config.dart';
+import '../config/app_colors.dart';
+import 'qr_code_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -60,9 +62,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final trainer = authProvider.trainer;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1a1a1a),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1a1a1a),
+        backgroundColor: AppColors.background,
         title: const Text(
           'Settings',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -76,22 +78,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF252525),
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                    color: const Color(0xFF333333), width: 0.5),
+                    color: AppColors.border, width: 0.5),
               ),
               child: Row(
                 children: [
                   CircleAvatar(
                     radius: 28,
-                    backgroundColor: const Color(0xFF8B2020).withAlpha(40),
+                    backgroundColor: AppColors.primary.withAlpha(40),
                     child: Text(
                       trainer.name.isNotEmpty
                           ? trainer.name[0].toUpperCase()
                           : 'T',
                       style: const TextStyle(
-                        color: Color(0xFFB03030),
+                        color: AppColors.primary,
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
                       ),
@@ -115,7 +117,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           Text(
                             trainer.email!,
                             style: const TextStyle(
-                              color: Color(0xFF9E9E9E),
+                              color: AppColors.muted,
                               fontSize: 13,
                             ),
                           ),
@@ -138,16 +140,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: 'Update your account password',
             onTap: _showChangePasswordDialog,
           ),
+          if (trainer != null)
+            _SettingsTile(
+              icon: Icons.qr_code_2,
+              title: 'My QR Code',
+              subtitle: 'Share with clients to connect',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => QrCodeScreen(trainerId: trainer.id),
+                ),
+              ),
+            ),
           _SettingsTile(
             icon: Icons.logout,
             title: 'Logout',
             subtitle: 'Sign out of your account',
-            iconColor: const Color(0xFF8B2020),
+            iconColor: AppColors.primary,
             onTap: () async {
               final confirmed = await showDialog<bool>(
                 context: context,
                 builder: (context) => AlertDialog(
-                  backgroundColor: const Color(0xFF252525),
+                  backgroundColor: AppColors.surface,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14)),
                   title: const Text(
@@ -157,13 +171,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   content: const Text(
                     'Are you sure you want to sign out?',
-                    style: TextStyle(color: Color(0xFFCCCCCC)),
+                    style: TextStyle(color: AppColors.text),
                   ),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context, false),
                       child: const Text('Cancel',
-                          style: TextStyle(color: Color(0xFF9E9E9E))),
+                          style: TextStyle(color: AppColors.muted)),
                     ),
                     TextButton(
                       onPressed: () => Navigator.pop(context, true),
@@ -196,7 +210,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Padding(
           padding: EdgeInsets.all(20),
           child: CircularProgressIndicator(
-            color: Color(0xFF8B2020),
+            color: AppColors.primary,
             strokeWidth: 2,
           ),
         ),
@@ -207,21 +221,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF252525),
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(14),
           border:
-              Border.all(color: const Color(0xFF333333), width: 0.5),
+              Border.all(color: AppColors.border, width: 0.5),
         ),
         child: Row(
           children: [
             const Icon(Icons.error_outline,
-                color: Color(0xFF777777), size: 18),
+                color: AppColors.muted, size: 18),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 _prefsError!,
                 style:
-                    const TextStyle(color: Color(0xFF9E9E9E), fontSize: 13),
+                    const TextStyle(color: AppColors.muted, fontSize: 13),
               ),
             ),
             TextButton(
@@ -229,7 +243,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: const Text(
                 'Retry',
                 style: TextStyle(
-                    color: Color(0xFF8B2020), fontSize: 13),
+                    color: AppColors.primary, fontSize: 13),
               ),
             ),
           ],
@@ -241,15 +255,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF252525),
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(14),
           border:
-              Border.all(color: const Color(0xFF333333), width: 0.5),
+              Border.all(color: AppColors.border, width: 0.5),
         ),
         child: const Center(
           child: Text(
             'No preferences configured.',
-            style: TextStyle(color: Color(0xFF9E9E9E), fontSize: 14),
+            style: TextStyle(color: AppColors.muted, fontSize: 14),
           ),
         ),
       );
@@ -259,16 +273,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF252525),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF333333), width: 0.5),
+        border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: ListView.separated(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: entries.length,
         separatorBuilder: (_, __) =>
-            const Divider(height: 1, color: Color(0xFF333333)),
+            const Divider(height: 1, color: AppColors.border),
         itemBuilder: (context, index) {
           final entry = entries[index];
           final key = entry.key
@@ -288,7 +302,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: Text(
                     key,
                     style: const TextStyle(
-                      color: Color(0xFFCCCCCC),
+                      color: AppColors.text,
                       fontSize: 14,
                     ),
                   ),
@@ -297,7 +311,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Text(
                   value,
                   style: const TextStyle(
-                    color: Color(0xFF9E9E9E),
+                    color: AppColors.muted,
                     fontSize: 14,
                   ),
                 ),
@@ -319,7 +333,7 @@ class _SectionHeader extends StatelessWidget {
     return Text(
       label.toUpperCase(),
       style: const TextStyle(
-        color: Color(0xFF8B2020),
+        color: AppColors.primary,
         fontSize: 12,
         fontWeight: FontWeight.w700,
         letterSpacing: 1.2,
@@ -351,9 +365,9 @@ class _SettingsTile extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFF252525),
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFF333333), width: 0.5),
+          border: Border.all(color: AppColors.border, width: 0.5),
         ),
         child: Row(
           children: [
@@ -361,12 +375,12 @@ class _SettingsTile extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: (iconColor ?? const Color(0xFF8B2020)).withAlpha(25),
+                color: (iconColor ?? AppColors.primary).withAlpha(25),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
                 icon,
-                color: iconColor ?? const Color(0xFF9E9E9E),
+                color: iconColor ?? AppColors.muted,
                 size: 19,
               ),
             ),
@@ -387,7 +401,7 @@ class _SettingsTile extends StatelessWidget {
                   Text(
                     subtitle,
                     style: const TextStyle(
-                      color: Color(0xFF777777),
+                      color: AppColors.muted,
                       fontSize: 12,
                     ),
                   ),
@@ -395,7 +409,7 @@ class _SettingsTile extends StatelessWidget {
               ),
             ),
             const Icon(Icons.chevron_right,
-                color: Color(0xFF555555), size: 20),
+                color: AppColors.muted, size: 20),
           ],
         ),
       ),
@@ -456,7 +470,7 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.message),
-            backgroundColor: const Color(0xFF8B2020),
+            backgroundColor: AppColors.red,
           ),
         );
       }
@@ -468,7 +482,7 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color(0xFF252525),
+      backgroundColor: AppColors.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: const Text(
         'Change Password',
@@ -522,13 +536,13 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
           onPressed: _isLoading ? null : () => Navigator.pop(context),
           child: const Text(
             'Cancel',
-            style: TextStyle(color: Color(0xFF9E9E9E)),
+            style: TextStyle(color: AppColors.muted),
           ),
         ),
         ElevatedButton(
           onPressed: _isLoading ? null : _submit,
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF8B2020),
+            backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8)),
@@ -571,28 +585,28 @@ class _PasswordField extends StatelessWidget {
       style: const TextStyle(color: Colors.white, fontSize: 14),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: Color(0xFF9E9E9E), fontSize: 13),
+        labelStyle: const TextStyle(color: AppColors.muted, fontSize: 13),
         filled: true,
-        fillColor: const Color(0xFF1E1E1E),
+        fillColor: AppColors.surface,
         suffixIcon: IconButton(
           icon: Icon(
             obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-            color: const Color(0xFF777777),
+            color: AppColors.muted,
             size: 18,
           ),
           onPressed: onToggle,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF333333)),
+          borderSide: const BorderSide(color: AppColors.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF333333)),
+          borderSide: const BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF8B2020)),
+          borderSide: const BorderSide(color: AppColors.primary),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),

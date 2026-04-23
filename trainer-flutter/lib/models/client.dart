@@ -57,7 +57,15 @@ class Client {
 
   static String _buildName(Map<String, dynamic> json) {
     if (json.containsKey('name') && json['name'] != null) {
-      return json['name'].toString();
+      final first = json['name'].toString().trim();
+      // Combine with surname/last_name if present to build full name
+      final surname = (json['surname']?.toString() ??
+              json['last_name']?.toString() ??
+              json['lastname']?.toString() ??
+              '')
+          .trim();
+      if (surname.isNotEmpty) return '$first $surname';
+      return first;
     }
     final firstName = json['first_name']?.toString() ??
         json['firstname']?.toString() ??
