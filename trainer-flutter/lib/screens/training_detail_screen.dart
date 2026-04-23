@@ -4,6 +4,7 @@ import '../models/training.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../config/api_config.dart';
+import '../config/app_colors.dart';
 
 class TrainingDetailScreen extends StatefulWidget {
   final Training training;
@@ -34,7 +35,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF252525),
+        backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         title: const Text(
           'Cancel Training',
@@ -42,12 +43,12 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
         ),
         content: const Text(
           'Are you sure you want to cancel this training session?',
-          style: TextStyle(color: Color(0xFFCCCCCC)),
+          style: TextStyle(color: AppColors.text),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('No', style: TextStyle(color: Color(0xFF9E9E9E))),
+            child: const Text('No', style: TextStyle(color: AppColors.muted)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -105,7 +106,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.message),
-            backgroundColor: const Color(0xFF8B2020),
+            backgroundColor: AppColors.red,
           ),
         );
       }
@@ -141,7 +142,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.message),
-            backgroundColor: const Color(0xFF8B2020),
+            backgroundColor: AppColors.red,
           ),
         );
       }
@@ -154,7 +155,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
     final s = (_training.status ?? '').toLowerCase();
     if (s == 'confirmed') return const Color(0xFF2E7D32);
     if (s == 'cancelled' || s == 'canceled' || _training.isCancelled) {
-      return const Color(0xFF555555);
+      return AppColors.muted;
     }
     return const Color(0xFF8B6020);
   }
@@ -171,9 +172,9 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1a1a1a),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1a1a1a),
+        backgroundColor: AppColors.background,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, size: 20),
           onPressed: () => Navigator.pop(context),
@@ -239,9 +240,9 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFF252525),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF333333), width: 0.5),
+        border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -310,7 +311,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
               : const Icon(Icons.send_outlined, size: 18),
           label: Text(_isInviting ? 'Sending...' : 'Invite Training'),
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF8B2020),
+            backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(
@@ -330,13 +331,13 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
                   width: 18,
                   height: 18,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Color(0xFF8B2020)),
+                      strokeWidth: 2, color: AppColors.primary),
                 )
               : const Icon(Icons.cancel_outlined, size: 18),
           label: Text(_isCancelling ? 'Cancelling...' : 'Cancel Training'),
           style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF8B2020),
-            side: const BorderSide(color: Color(0xFF8B2020)),
+            foregroundColor: AppColors.primary,
+            side: const BorderSide(color: AppColors.primary),
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -370,14 +371,14 @@ class _DetailRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 17, color: const Color(0xFF9E9E9E)),
+          Icon(icon, size: 17, color: AppColors.muted),
           const SizedBox(width: 10),
           SizedBox(
             width: 80,
             child: Text(
               label,
               style: const TextStyle(
-                color: Color(0xFF9E9E9E),
+                color: AppColors.muted,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
@@ -386,7 +387,7 @@ class _DetailRow extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(color: Color(0xFFE0E0E0), fontSize: 14),
+              style: const TextStyle(color: AppColors.text, fontSize: 14),
             ),
           ),
         ],

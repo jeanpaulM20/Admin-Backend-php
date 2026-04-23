@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/trainer_provider.dart';
+import '../config/app_colors.dart';
 import 'home_screen.dart';
 import 'clients_screen.dart';
-import 'review_screen.dart';
+import 'trainings_screen.dart';
 import 'calendar_screen.dart';
-import 'feedback_screen.dart';
+import 'nachrichten_screen.dart';
 import 'settings_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -20,27 +21,12 @@ class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
   final List<_TabItem> _tabs = const [
-    _TabItem(label: 'Home', icon: Icons.home_outlined, activeIcon: Icons.home),
-    _TabItem(
-        label: 'Clients',
-        icon: Icons.people_outline,
-        activeIcon: Icons.people),
-    _TabItem(
-        label: 'Review',
-        icon: Icons.bar_chart_outlined,
-        activeIcon: Icons.bar_chart),
-    _TabItem(
-        label: 'Calendar',
-        icon: Icons.calendar_month_outlined,
-        activeIcon: Icons.calendar_month),
-    _TabItem(
-        label: 'Feedback',
-        icon: Icons.feedback_outlined,
-        activeIcon: Icons.feedback),
-    _TabItem(
-        label: 'Settings',
-        icon: Icons.settings_outlined,
-        activeIcon: Icons.settings),
+    _TabItem(label: 'Home',      icon: Icons.home_outlined,          activeIcon: Icons.home),
+    _TabItem(label: 'Kunden',    icon: Icons.people_outline,         activeIcon: Icons.people),
+    _TabItem(label: 'Trainings', icon: Icons.fitness_center_outlined,activeIcon: Icons.fitness_center),
+    _TabItem(label: 'Kalender',  icon: Icons.calendar_month_outlined,activeIcon: Icons.calendar_month),
+    _TabItem(label: 'Nachrichten', icon: Icons.chat_bubble_outline,   activeIcon: Icons.chat_bubble),
+    _TabItem(label: 'Settings',  icon: Icons.settings_outlined,      activeIcon: Icons.settings),
   ];
 
   @override
@@ -64,40 +50,33 @@ class _MainScreenState extends State<MainScreen> {
     ]);
   }
 
-  Widget _buildBody() {
-    switch (_currentIndex) {
-      case 0:
-        return const HomeScreen();
-      case 1:
-        return const ClientsScreen();
-      case 2:
-        return const ReviewScreen();
-      case 3:
-        return const CalendarScreen();
-      case 4:
-        return const FeedbackScreen();
-      case 5:
-        return const SettingsScreen();
-      default:
-        return const HomeScreen();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: const [
-          HomeScreen(),
-          ClientsScreen(),
-          ReviewScreen(),
-          CalendarScreen(),
-          FeedbackScreen(),
-          SettingsScreen(),
-        ],
+      backgroundColor: AppColors.background,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Column(
+            children: [
+              Expanded(
+                child: IndexedStack(
+                  index: _currentIndex,
+                  children: const [
+                    HomeScreen(),
+                    ClientsScreen(),
+                    TrainingsScreen(),
+                    CalendarScreen(),
+                    NachrichtenScreen(),
+                    SettingsScreen(),
+                  ],
+                ),
+              ),
+              SafeArea(top: false, child: _buildBottomNav()),
+            ],
+          ),
+        ),
       ),
-      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
@@ -105,16 +84,19 @@ class _MainScreenState extends State<MainScreen> {
     return Container(
       decoration: const BoxDecoration(
         border: Border(
-          top: BorderSide(color: Color(0xFF333333), width: 0.5),
+          top: BorderSide(color: AppColors.border, width: 0.5),
         ),
       ),
       child: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+        onTap: (index) => setState(() => _currentIndex = index),
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: AppColors.surface,
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: AppColors.muted,
+        selectedFontSize: 11,
+        unselectedFontSize: 10,
+        elevation: 0,
         items: _tabs
             .map((tab) => BottomNavigationBarItem(
                   icon: Icon(tab.icon),

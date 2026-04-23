@@ -4,6 +4,7 @@ import '../providers/auth_provider.dart';
 import '../providers/trainer_provider.dart';
 import '../models/trainer.dart';
 import '../models/training.dart';
+import '../config/app_colors.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,7 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final trainer = authProvider.trainer;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1a1a1a),
+      backgroundColor: AppColors.background,
       body: RefreshIndicator(
         onRefresh: () async {
           if (trainer != null) {
@@ -30,8 +31,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ]);
           }
         },
-        color: const Color(0xFF8B2020),
-        backgroundColor: const Color(0xFF2a2a2a),
+        color: AppColors.primary,
+        backgroundColor: AppColors.surface,
         child: CustomScrollView(
           slivers: [
             _buildAppBar(context, trainer),
@@ -62,14 +63,14 @@ class _HomeScreenState extends State<HomeScreen> {
       expandedHeight: 0,
       floating: true,
       snap: true,
-      backgroundColor: const Color(0xFF1a1a1a),
+      backgroundColor: AppColors.background,
       title: Row(
         children: [
           Container(
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: const Color(0xFF8B2020),
+              color: AppColors.primary,
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(Icons.fitness_center, color: Colors.white, size: 18),
@@ -87,7 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.logout, color: Color(0xFF9E9E9E)),
+          icon: const Icon(Icons.logout, color: AppColors.muted),
           onPressed: () => _confirmLogout(context),
           tooltip: 'Logout',
         ),
@@ -99,11 +100,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF2a2a2a),
+        backgroundColor: AppColors.surface,
         title: const Text('Logout', style: TextStyle(color: Colors.white)),
         content: const Text(
           'Are you sure you want to logout?',
-          style: TextStyle(color: Color(0xFFE0E0E0)),
+          style: TextStyle(color: AppColors.text),
         ),
         actions: [
           TextButton(
@@ -112,7 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: const Color(0xFF8B2020)),
+            style: TextButton.styleFrom(foregroundColor: AppColors.primary),
             child: const Text('Logout'),
           ),
         ],
@@ -131,14 +132,14 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFF8B2020), Color(0xFF5C1010)],
+            colors: [AppColors.primary, AppColors.primaryDark],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF8B2020).withAlpha(60),
+              color: AppColors.primary.withAlpha(60),
               blurRadius: 16,
               offset: const Offset(0, 4),
             ),
@@ -262,7 +263,7 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Total Sessions',
             value: total.toString(),
             icon: Icons.fitness_center,
-            color: const Color(0xFF8B2020),
+            color: AppColors.primary,
           )),
           const SizedBox(width: 10),
           Expanded(
@@ -327,9 +328,9 @@ class _AppointmentCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF252525),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF333333), width: 0.5),
+        border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -339,12 +340,12 @@ class _AppointmentCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF8B2020).withAlpha(30),
+                  color: AppColors.primary.withAlpha(30),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
                   Icons.event,
-                  color: Color(0xFFB03030),
+                  color: AppColors.primary,
                   size: 22,
                 ),
               ),
@@ -366,7 +367,7 @@ class _AppointmentCard extends StatelessWidget {
                       Text(
                         training.trainingType!,
                         style: const TextStyle(
-                          color: Color(0xFF9E9E9E),
+                          color: AppColors.muted,
                           fontSize: 13,
                         ),
                       ),
@@ -377,7 +378,7 @@ class _AppointmentCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          const Divider(color: Color(0xFF333333), height: 1),
+          const Divider(color: AppColors.border, height: 1),
           const SizedBox(height: 14),
           Row(
             children: [
@@ -416,11 +417,11 @@ class _InfoChip extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: const Color(0xFF9E9E9E)),
+        Icon(icon, size: 14, color: AppColors.muted),
         const SizedBox(width: 4),
         Text(
           text,
-          style: const TextStyle(color: Color(0xFFBBBBBB), fontSize: 13),
+          style: const TextStyle(color: AppColors.text, fontSize: 13),
         ),
       ],
     );
@@ -437,9 +438,9 @@ class _AboutCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF252525),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF333333), width: 0.5),
+        border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -458,7 +459,7 @@ class _AboutCard extends StatelessWidget {
             Text(
               info.description!,
               style: const TextStyle(
-                color: Color(0xFFBBBBBB),
+                color: AppColors.text,
                 fontSize: 14,
                 height: 1.6,
               ),
@@ -466,7 +467,7 @@ class _AboutCard extends StatelessWidget {
           ],
           if (info.address != null) ...[
             const SizedBox(height: 14),
-            const Divider(color: Color(0xFF333333), height: 1),
+            const Divider(color: AppColors.border, height: 1),
             const SizedBox(height: 14),
             _InfoChip(icon: Icons.location_on_outlined, text: info.address!),
           ],
@@ -480,7 +481,7 @@ class _AboutCard extends StatelessWidget {
           ],
           if (info.trainers != null && info.trainers.isNotEmpty) ...[
             const SizedBox(height: 14),
-            const Divider(color: Color(0xFF333333), height: 1),
+            const Divider(color: AppColors.border, height: 1),
             const SizedBox(height: 14),
             const Text(
               'Our Trainers',
@@ -497,11 +498,11 @@ class _AboutCard extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: 18,
-                        backgroundColor: const Color(0xFF8B2020).withAlpha(40),
+                        backgroundColor: AppColors.primary.withAlpha(40),
                         child: Text(
                           t.name.isNotEmpty ? t.name[0].toUpperCase() : '?',
                           style: const TextStyle(
-                            color: Color(0xFFB03030),
+                            color: AppColors.primary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -514,7 +515,7 @@ class _AboutCard extends StatelessWidget {
                             Text(
                               t.name,
                               style: const TextStyle(
-                                color: Color(0xFFE0E0E0),
+                                color: AppColors.text,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -522,7 +523,7 @@ class _AboutCard extends StatelessWidget {
                               Text(
                                 t.specialization!,
                                 style: const TextStyle(
-                                  color: Color(0xFF9E9E9E),
+                                  color: AppColors.muted,
                                   fontSize: 12,
                                 ),
                               ),
@@ -557,9 +558,9 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF252525),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF333333), width: 0.5),
+        border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -578,7 +579,7 @@ class _StatCard extends StatelessWidget {
           Text(
             label,
             style: const TextStyle(
-              color: Color(0xFF9E9E9E),
+              color: AppColors.muted,
               fontSize: 11,
             ),
           ),
@@ -596,13 +597,13 @@ class _LoadingCard extends StatelessWidget {
     return Container(
       height: 100,
       decoration: BoxDecoration(
-        color: const Color(0xFF252525),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF333333), width: 0.5),
+        border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: const Center(
         child: CircularProgressIndicator(
-          color: Color(0xFF8B2020),
+          color: AppColors.primary,
           strokeWidth: 2,
         ),
       ),
@@ -621,18 +622,18 @@ class _EmptyCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF252525),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF333333), width: 0.5),
+        border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: const Color(0xFF555555), size: 22),
+          Icon(icon, color: AppColors.muted, size: 22),
           const SizedBox(width: 10),
           Text(
             message,
-            style: const TextStyle(color: Color(0xFF666666), fontSize: 14),
+            style: const TextStyle(color: AppColors.muted, fontSize: 14),
           ),
         ],
       ),

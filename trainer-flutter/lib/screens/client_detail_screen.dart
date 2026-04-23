@@ -6,7 +6,14 @@ import '../providers/auth_provider.dart';
 import '../providers/trainer_provider.dart';
 import '../services/api_service.dart';
 import '../config/api_config.dart';
+import '../config/app_colors.dart';
 import 'training_detail_screen.dart';
+import 'anamnese_screen.dart';
+import 'training_plan_list_screen.dart';
+import 'performance_screen.dart';
+import 'client_files_screen.dart';
+import 'workout_feedback_screen.dart';
+import 'client_next_appointments_screen.dart';
 
 class ClientDetailScreen extends StatelessWidget {
   final Client client;
@@ -35,7 +42,7 @@ class ClientDetailScreen extends StatelessWidget {
         .toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1a1a1a),
+      backgroundColor: AppColors.background,
       body: CustomScrollView(
         slivers: [
           _buildAppBar(context),
@@ -58,16 +65,17 @@ class ClientDetailScreen extends StatelessWidget {
                       child: Column(
                         children: [
                           Icon(Icons.event_note_outlined,
-                              color: Color(0xFF555555), size: 48),
+                              color: AppColors.muted, size: 48),
                           SizedBox(height: 12),
                           Text(
                             'No training sessions found',
-                            style: TextStyle(color: Color(0xFF9E9E9E)),
+                            style: TextStyle(color: AppColors.muted),
                           ),
                         ],
                       ),
                     ),
                   ),
+                _buildQuickActions(context),
                 const SizedBox(height: 40),
               ],
             ),
@@ -81,7 +89,7 @@ class ClientDetailScreen extends StatelessWidget {
     return SliverAppBar(
       expandedHeight: 120,
       pinned: true,
-      backgroundColor: const Color(0xFF1a1a1a),
+      backgroundColor: AppColors.background,
       leading: IconButton(
         icon: const Icon(Icons.arrow_back_ios, size: 20),
         onPressed: () => Navigator.pop(context),
@@ -98,7 +106,7 @@ class ClientDetailScreen extends StatelessWidget {
         background: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF2a1010), Color(0xFF1a1a1a)],
+              colors: [AppColors.primaryDark, AppColors.background],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
@@ -114,9 +122,9 @@ class ClientDetailScreen extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: const Color(0xFF252525),
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFF333333), width: 0.5),
+          border: Border.all(color: AppColors.border, width: 0.5),
         ),
         child: Row(
           children: [
@@ -140,15 +148,15 @@ class ClientDetailScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 3),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF8B2020).withAlpha(30),
+                        color: AppColors.primary.withAlpha(30),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                            color: const Color(0xFF8B2020).withAlpha(60)),
+                            color: AppColors.primary.withAlpha(60)),
                       ),
                       child: Text(
                         client.trainingType!,
                         style: const TextStyle(
-                          color: Color(0xFFB03030),
+                          color: AppColors.primary,
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
                         ),
@@ -160,7 +168,7 @@ class ClientDetailScreen extends StatelessWidget {
                     Text(
                       'Member since ${client.memberSince}',
                       style: const TextStyle(
-                          color: Color(0xFF9E9E9E), fontSize: 12),
+                          color: AppColors.muted, fontSize: 12),
                     ),
                   ],
                 ],
@@ -176,18 +184,18 @@ class ClientDetailScreen extends StatelessWidget {
     if (client.photo != null && client.photo!.isNotEmpty) {
       return CircleAvatar(
         radius: 36,
-        backgroundColor: const Color(0xFF333333),
+        backgroundColor: AppColors.border,
         backgroundImage: NetworkImage(client.photo!),
         onBackgroundImageError: (_, __) {},
       );
     }
     return CircleAvatar(
       radius: 36,
-      backgroundColor: const Color(0xFF8B2020).withAlpha(40),
+      backgroundColor: AppColors.primary.withAlpha(40),
       child: Text(
         client.initials,
         style: const TextStyle(
-          color: Color(0xFFB03030),
+          color: AppColors.primary,
           fontSize: 24,
           fontWeight: FontWeight.bold,
         ),
@@ -208,9 +216,9 @@ class ClientDetailScreen extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF252525),
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFF333333), width: 0.5),
+          border: Border.all(color: AppColors.border, width: 0.5),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -237,12 +245,12 @@ class ClientDetailScreen extends StatelessWidget {
                   icon: Icons.cake_outlined, text: client.dateOfBirth!),
             if (client.notes != null && client.notes!.isNotEmpty) ...[
               const SizedBox(height: 8),
-              const Divider(color: Color(0xFF333333), height: 1),
+              const Divider(color: AppColors.border, height: 1),
               const SizedBox(height: 8),
               const Text(
                 'Notes',
                 style: TextStyle(
-                    color: Color(0xFF9E9E9E),
+                    color: AppColors.muted,
                     fontSize: 12,
                     fontWeight: FontWeight.w500),
               ),
@@ -250,7 +258,7 @@ class ClientDetailScreen extends StatelessWidget {
               Text(
                 client.notes!,
                 style: const TextStyle(
-                  color: Color(0xFFBBBBBB),
+                  color: AppColors.text,
                   fontSize: 14,
                   height: 1.5,
                 ),
@@ -258,6 +266,118 @@ class ClientDetailScreen extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActions(BuildContext context) {
+    final actions = [
+      _QuickAction(
+        icon: Icons.assignment_outlined,
+        label: 'Anamnese',
+        subtitle: 'Fragebogen',
+        color: AppColors.primary,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => AnamneseScreen(client: client)),
+        ),
+      ),
+      _QuickAction(
+        icon: Icons.table_chart_outlined,
+        label: 'Trainingsplan',
+        subtitle: 'Pläne & Übungen',
+        color: AppColors.blue,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => TrainingPlanListScreen(client: client)),
+        ),
+      ),
+      _QuickAction(
+        icon: Icons.show_chart,
+        label: 'Performance',
+        subtitle: 'Leistungen',
+        color: AppColors.green,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => PerformanceScreen(client: client)),
+        ),
+      ),
+      _QuickAction(
+        icon: Icons.event_available,
+        label: 'Termine',
+        subtitle: 'Nächste Sessions',
+        color: const Color(0xFF9C27B0),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => ClientNextAppointmentsScreen(client: client)),
+        ),
+      ),
+      _QuickAction(
+        icon: Icons.chat_bubble_rounded,
+        label: 'Nachrichten',
+        subtitle: 'Chat & Feedback',
+        color: const Color(0xFF26A69A),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => WorkoutFeedbackScreen(client: client)),
+        ),
+      ),
+      _QuickAction(
+        icon: Icons.folder_outlined,
+        label: 'Dateien',
+        subtitle: 'Dokumente',
+        color: const Color(0xFF00897B),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => ClientFilesScreen(client: client)),
+        ),
+      ),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 3,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Aktionen',
+                style: TextStyle(
+                  color: AppColors.text,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 3,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 0.95,
+            children: actions
+                .map((a) => _QuickActionTile(action: a))
+                .toList(),
+          ),
+        ],
       ),
     );
   }
@@ -274,8 +394,8 @@ class ClientDetailScreen extends StatelessWidget {
               Icon(
                 upcoming ? Icons.upcoming : Icons.history,
                 color: upcoming
-                    ? const Color(0xFF8B2020)
-                    : const Color(0xFF555555),
+                    ? AppColors.primary
+                    : AppColors.muted,
                 size: 18,
               ),
               const SizedBox(width: 8),
@@ -292,12 +412,12 @@ class ClientDetailScreen extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF333333),
+                  color: AppColors.border,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   trainings.length.toString(),
-                  style: const TextStyle(color: Color(0xFF9E9E9E), fontSize: 12),
+                  style: const TextStyle(color: AppColors.muted, fontSize: 12),
                 ),
               ),
             ],
@@ -329,12 +449,12 @@ class _ContactRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: const Color(0xFF9E9E9E)),
+          Icon(icon, size: 16, color: AppColors.muted),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(color: Color(0xFFCCCCCC), fontSize: 14),
+              style: const TextStyle(color: AppColors.text, fontSize: 14),
             ),
           ),
         ],
@@ -372,7 +492,7 @@ class _TrainingItemState extends State<_TrainingItem> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF252525),
+        backgroundColor: AppColors.surface,
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         title: const Text(
@@ -381,13 +501,13 @@ class _TrainingItemState extends State<_TrainingItem> {
         ),
         content: const Text(
           'Are you sure you want to cancel this training session?',
-          style: TextStyle(color: Color(0xFFCCCCCC)),
+          style: TextStyle(color: AppColors.text),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('No',
-                style: TextStyle(color: Color(0xFF9E9E9E))),
+                style: TextStyle(color: AppColors.muted)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -443,7 +563,7 @@ class _TrainingItemState extends State<_TrainingItem> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.message),
-            backgroundColor: const Color(0xFF8B2020),
+            backgroundColor: AppColors.red,
           ),
         );
       }
@@ -467,9 +587,9 @@ class _TrainingItemState extends State<_TrainingItem> {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xFF252525),
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFF333333), width: 0.5),
+          border: Border.all(color: AppColors.border, width: 0.5),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -481,8 +601,8 @@ class _TrainingItemState extends State<_TrainingItem> {
                   height: 40,
                   decoration: BoxDecoration(
                     color: _training.isCancelled
-                        ? const Color(0xFF555555)
-                        : const Color(0xFF8B2020),
+                        ? AppColors.muted
+                        : AppColors.primary,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -503,7 +623,7 @@ class _TrainingItemState extends State<_TrainingItem> {
                       Text(
                         _training.displayTime,
                         style: const TextStyle(
-                          color: Color(0xFF9E9E9E),
+                          color: AppColors.muted,
                           fontSize: 13,
                         ),
                       ),
@@ -514,7 +634,7 @@ class _TrainingItemState extends State<_TrainingItem> {
                   Text(
                     _training.locationName!,
                     style: const TextStyle(
-                        color: Color(0xFF777777), fontSize: 12),
+                        color: AppColors.muted, fontSize: 12),
                   ),
                 if (_training.isCancelled) ...[
                   const SizedBox(width: 8),
@@ -522,19 +642,19 @@ class _TrainingItemState extends State<_TrainingItem> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF333333),
+                      color: AppColors.border,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text(
                       'Cancelled',
                       style: TextStyle(
-                          color: Color(0xFF777777), fontSize: 11),
+                          color: AppColors.muted, fontSize: 11),
                     ),
                   ),
                 ] else
                   const Icon(
                     Icons.chevron_right,
-                    color: Color(0xFF555555),
+                    color: AppColors.muted,
                     size: 18,
                   ),
               ],
@@ -551,7 +671,7 @@ class _TrainingItemState extends State<_TrainingItem> {
                           height: 14,
                           child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Color(0xFF8B2020)),
+                              color: AppColors.primary),
                         )
                       : const Icon(Icons.cancel_outlined, size: 15),
                   label: Text(
@@ -559,14 +679,92 @@ class _TrainingItemState extends State<_TrainingItem> {
                     style: const TextStyle(fontSize: 13),
                   ),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF8B2020),
+                    foregroundColor: AppColors.primary,
                     side: const BorderSide(
-                        color: Color(0xFF8B2020), width: 0.8),
+                        color: AppColors.primary, width: 0.8),
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickAction {
+  final IconData icon;
+  final String label;
+  final String? subtitle;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    this.subtitle,
+    required this.color,
+    required this.onTap,
+  });
+}
+
+class _QuickActionTile extends StatelessWidget {
+  final _QuickAction action;
+
+  const _QuickActionTile({required this.action});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: action.onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: action.color.withOpacity(0.2),
+            width: 0.8,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: action.color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Icon(action.icon, color: action.color, size: 22),
+            ),
+            const SizedBox(height: 7),
+            Text(
+              action.label,
+              style: const TextStyle(
+                color: AppColors.text,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (action.subtitle != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                action.subtitle!,
+                style: const TextStyle(
+                  color: AppColors.muted,
+                  fontSize: 9,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ],

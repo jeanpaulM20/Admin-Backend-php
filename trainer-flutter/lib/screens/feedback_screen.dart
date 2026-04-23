@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../config/api_config.dart';
+import '../config/app_colors.dart';
 
 class FeedbackItem {
   final int id;
@@ -126,7 +127,7 @@ class _FeedbackScreenState extends State<FeedbackScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.message),
-            backgroundColor: const Color(0xFF8B2020),
+            backgroundColor: AppColors.red,
           ),
         );
       }
@@ -141,9 +142,9 @@ class _FeedbackScreenState extends State<FeedbackScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1a1a1a),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1a1a1a),
+        backgroundColor: AppColors.background,
         title: const Text(
           'Feedback',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -156,9 +157,9 @@ class _FeedbackScreenState extends State<FeedbackScreen>
         ],
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: const Color(0xFF8B2020),
+          indicatorColor: AppColors.primary,
           labelColor: Colors.white,
-          unselectedLabelColor: const Color(0xFF9E9E9E),
+          unselectedLabelColor: AppColors.muted,
           tabs: [
             Tab(
               child: Row(
@@ -171,7 +172,7 @@ class _FeedbackScreenState extends State<FeedbackScreen>
                       padding: const EdgeInsets.symmetric(
                           horizontal: 7, vertical: 2),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF8B2020),
+                        color: AppColors.primary,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
@@ -194,7 +195,7 @@ class _FeedbackScreenState extends State<FeedbackScreen>
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(
-                color: Color(0xFF8B2020),
+                color: AppColors.primary,
                 strokeWidth: 2,
               ),
             )
@@ -215,11 +216,11 @@ class _FeedbackScreenState extends State<FeedbackScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline, color: Color(0xFF8B2020), size: 40),
+          const Icon(Icons.error_outline, color: AppColors.primary, size: 40),
           const SizedBox(height: 12),
           Text(
             _error!,
-            style: const TextStyle(color: Color(0xFF9E9E9E), fontSize: 14),
+            style: const TextStyle(color: AppColors.muted, fontSize: 14),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
@@ -227,7 +228,7 @@ class _FeedbackScreenState extends State<FeedbackScreen>
             onPressed: _fetchFeedback,
             child: const Text(
               'Retry',
-              style: TextStyle(color: Color(0xFF8B2020)),
+              style: TextStyle(color: AppColors.primary),
             ),
           ),
         ],
@@ -243,14 +244,14 @@ class _FeedbackScreenState extends State<FeedbackScreen>
           children: [
             Icon(
               isUnreadTab ? Icons.mark_email_read_outlined : Icons.feedback_outlined,
-              color: const Color(0xFF555555),
+              color: AppColors.muted,
               size: 48,
             ),
             const SizedBox(height: 12),
             Text(
               isUnreadTab ? 'No unread feedback' : 'No feedback yet',
               style:
-                  const TextStyle(color: Color(0xFF9E9E9E), fontSize: 15),
+                  const TextStyle(color: AppColors.muted, fontSize: 15),
             ),
           ],
         ),
@@ -293,13 +294,13 @@ class _FeedbackCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: isUnread
-              ? const Color(0xFF8B2020).withAlpha(18)
-              : const Color(0xFF252525),
+              ? AppColors.primary.withAlpha(18)
+              : AppColors.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isUnread
-                ? const Color(0xFF8B2020).withAlpha(70)
-                : const Color(0xFF333333),
+                ? AppColors.primary.withAlpha(70)
+                : AppColors.border,
             width: isUnread ? 1 : 0.5,
           ),
         ),
@@ -325,7 +326,7 @@ class _FeedbackCard extends StatelessWidget {
                     height: 8,
                     margin: const EdgeInsets.only(right: 8),
                     decoration: const BoxDecoration(
-                      color: Color(0xFF8B2020),
+                      color: AppColors.primary,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -335,7 +336,7 @@ class _FeedbackCard extends StatelessWidget {
                     height: 16,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Color(0xFF8B2020),
+                      color: AppColors.primary,
                     ),
                   ),
               ],
@@ -347,7 +348,7 @@ class _FeedbackCard extends StatelessWidget {
               Text(
                 item.comment,
                 style: const TextStyle(
-                  color: Color(0xFFCCCCCC),
+                  color: AppColors.text,
                   fontSize: 14,
                   height: 1.5,
                 ),
@@ -360,7 +361,7 @@ class _FeedbackCard extends StatelessWidget {
                   Text(
                     item.date,
                     style: const TextStyle(
-                      color: Color(0xFF777777),
+                      color: AppColors.muted,
                       fontSize: 12,
                     ),
                   ),
@@ -368,12 +369,12 @@ class _FeedbackCard extends StatelessWidget {
                   const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.check, size: 13, color: Color(0xFF555555)),
+                      Icon(Icons.check, size: 13, color: AppColors.muted),
                       SizedBox(width: 4),
                       Text(
                         'Read',
                         style: TextStyle(
-                            color: Color(0xFF555555), fontSize: 12),
+                            color: AppColors.muted, fontSize: 12),
                       ),
                     ],
                   )
@@ -381,7 +382,7 @@ class _FeedbackCard extends StatelessWidget {
                   const Text(
                     'Tap to mark as read',
                     style: TextStyle(
-                      color: Color(0xFF8B2020),
+                      color: AppColors.primary,
                       fontSize: 12,
                     ),
                   ),
@@ -409,7 +410,7 @@ class _StarRating extends StatelessWidget {
           size: 16,
           color: index < rating
               ? const Color(0xFFFFB300)
-              : const Color(0xFF555555),
+              : AppColors.muted,
         );
       }),
     );

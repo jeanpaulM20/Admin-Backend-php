@@ -65,6 +65,39 @@ class ApiService {
     }
   }
 
+  Future<dynamic> put(String endpoint, {Map<String, dynamic>? body}) async {
+    try {
+      final uri = _buildUri(endpoint);
+      final response = await http
+          .put(
+            uri,
+            headers: _headers,
+            body: body != null ? jsonEncode(body) : null,
+          )
+          .timeout(const Duration(seconds: 30));
+      return _handleResponse(response);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw ApiException('Network error: ${e.toString()}');
+    }
+  }
+
+  Future<dynamic> delete(String endpoint,
+      {Map<String, String>? queryParams}) async {
+    try {
+      final uri = _buildUri(endpoint, queryParams);
+      final response = await http
+          .delete(uri, headers: _headers)
+          .timeout(const Duration(seconds: 30));
+      return _handleResponse(response);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw ApiException('Network error: ${e.toString()}');
+    }
+  }
+
   Future<dynamic> post(String endpoint, {Map<String, dynamic>? body}) async {
     try {
       final uri = _buildUri(endpoint);
