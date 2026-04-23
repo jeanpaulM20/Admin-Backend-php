@@ -145,6 +145,9 @@ return array(
 	// using Yii::app()->params['paramName']
 	'params'=>array(
 		'defaultPageSize'=>10,
-		'adminEmail' => 'hello@sihltraining.ch'
+		'adminEmail' => 'hello@sihltraining.ch',
+		// Firebase Realtime Database URL — nach Firebase-Setup eintragen:
+		// Format: https://DEIN_PROJECT_ID-default-rtdb.europe-west1.firebasedatabase.app
+		'firebaseDatabaseUrl' => 'https://sihltraining-3ce40-default-rtdb.europe-west1.firebasedatabase.app',
 	),
 );

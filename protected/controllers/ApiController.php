@@ -944,21 +944,36 @@ class ApiController extends Controller
 			$criteria = new CDbCriteria();
 			$criteria->condition = 'trainer_id = :tid';
 			$criteria->params    = array(':tid' => $trainer->id);
-			$criteria->order     = 't.id DESC';
-			$criteria->with      = array('client');
+			// Support per-client filtering (chat view)
+			$client_id_filter = Yii::app()->request->getParam('client_id');
+			if ($client_id_filter) {
+				$criteria->condition .= ' AND client_id = :cid';
+				$criteria->params[':cid'] = (int)$client_id_filter;
+				$criteria->order = 't.id ASC'; // oldest first for chat view
+			} else {
+				$criteria->order = 't.id DESC'; // newest first for inbox
+			}
+			$criteria->with = array('client');
 			$feedbacks = Feedback::model()->findAll($criteria);
 			$result = array();
 			foreach ($feedbacks as $fb) {
 				$clientName = $fb->client
 					? trim($fb->client->name . ' ' . $fb->client->surname)
 					: 'Unknown';
+				// align: read_trainer=1 AND read_client=0 → trainer sent it
+				$align = ((int)$fb->read_trainer === 1 && (int)$fb->read_client === 0) ? 'right' : 'left';
 				$result[] = array(
-					'id'          => (int)$fb->id,
-					'client_name' => $clientName,
-					'text'        => $fb->text,
-					'comment'     => $fb->text,
-					'is_read'     => (bool)(int)$fb->read_trainer,
-					'read'        => (bool)(int)$fb->read_trainer,
+					'id'           => (int)$fb->id,
+					'client_id'    => (int)$fb->client_id,
+					'client_name'  => $clientName,
+					'text'         => $fb->text,
+					'comment'      => $fb->text,
+					'align'        => $align,
+					'is_read'      => (bool)(int)$fb->read_trainer,
+					'read'         => (bool)(int)$fb->read_trainer,
+					'read_trainer' => (bool)(int)$fb->read_trainer,
+					'read_client'  => (bool)(int)$fb->read_client,
+					'is_circle'    => (int)$fb->is_circle,
 				);
 			}
 			$this->_sendResponse(200, $result);
@@ -980,11 +995,21 @@ class ApiController extends Controller
 		$this->_checkAccess($client_id);
 		$feedback = new Feedback;
 		$feedback->client_id = $client_id;
-		$feedback->trainer_id = Yii::app()->request->getParam('trainer_id', null);
 		$feedback->text = Yii::app()->request->getParam('text', null);
-		$feedback->read_client = (int)Yii::app()->request->getParam('read_client');
-		$feedback->read_trainer = (int)Yii::app()->request->getParam('read_trainer');
+		$feedback->is_circle = (int)Yii::app()->request->getParam('is_circle', 0);
+		// Determine sender: trainer vs client — set read flags accordingly
+		if ($this->current_trainer) {
+			$feedback->trainer_id  = $this->current_trainer->id;
+			$feedback->read_trainer = 1; // trainer sent it → already "read" by trainer
+			$feedback->read_client  = 0; // client hasn't seen it yet
+		} else {
+			$feedback->trainer_id  = Yii::app()->request->getParam('trainer_id', null);
+			$feedback->read_client  = 1; // client sent it → already "read" by client
+			$feedback->read_trainer = 0; // trainer hasn't seen it yet
+		}
 		if ($feedback->save()) {
+			// Firebase Realtime DB pingen → Flutter-Clients hören live mit
+			$this->_pingFirebase((int)$client_id);
 			$this->_sendResponse(200, $feedback);
 		} else {
 			$errors = array();
@@ -995,6 +1020,32 @@ class ApiController extends Controller
 			}
 			$this->_sendResponse(500, array('errors' => $errors));
 		}
+	}
+
+	/**
+	 * Schreibt einen Timestamp in Firebase Realtime DB.
+	 * Flutter-Chat-Screens hören auf diesen Pfad und laden Nachrichten neu.
+	 * Firebase-URL in Yii-Config setzen: Yii::app()->params['firebaseDatabaseUrl']
+	 */
+	private function _pingFirebase($client_id) {
+		$baseUrl = isset(Yii::app()->params['firebaseDatabaseUrl'])
+			? rtrim(Yii::app()->params['firebaseDatabaseUrl'], '/')
+			: null;
+		if (!$baseUrl) return; // Nicht konfiguriert → überspringen
+
+		$url = $baseUrl . '/chat_pings/client_' . (int)$client_id . '.json';
+		$payload = json_encode(array('ts' => time(), 'cid' => (int)$client_id));
+
+		$ctx = stream_context_create(array(
+			'http' => array(
+				'method'  => 'PUT',
+				'header'  => 'Content-Type: application/json',
+				'content' => $payload,
+				'timeout' => 3,
+			),
+			'ssl' => array('verify_peer' => false),
+		));
+		@file_get_contents($url, false, $ctx); // Fire-and-forget
 	}
 
 	public function actionMarkClientFeedback() {
