@@ -6,6 +6,8 @@ class TrainingPlanRow {
   String position;
   String weight;
   List<String> dates;
+  bool liked;
+  bool disliked;
 
   TrainingPlanRow({
     this.exercise = '',
@@ -13,6 +15,8 @@ class TrainingPlanRow {
     this.position = '',
     this.weight = '',
     List<String>? dates,
+    this.liked = false,
+    this.disliked = false,
   }) : dates = dates ?? List.filled(8, '');
 
   factory TrainingPlanRow.fromJson(Map<String, dynamic> json) {
@@ -24,6 +28,8 @@ class TrainingPlanRow {
       dates: json['dates'] is List
           ? List<String>.from((json['dates'] as List).map((e) => e?.toString() ?? ''))
           : List.filled(8, ''),
+      liked: json['liked'] == true || json['liked'] == 1 || json['liked'] == '1',
+      disliked: json['disliked'] == true || json['disliked'] == 1 || json['disliked'] == '1',
     );
   }
 
@@ -33,6 +39,8 @@ class TrainingPlanRow {
         'position': position,
         'weight': weight,
         'dates': dates,
+        if (liked) 'liked': true,
+        if (disliked) 'disliked': true,
       };
 }
 
