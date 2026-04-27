@@ -9,8 +9,11 @@ export class Exerciseset {
   @Column()
   name: string;
 
-  @Column({ nullable: true, type: 'text' })
-  description: string;
+  @Column({ default: 0 })
+  archive: number;
+
+  @Column({ default: 0 })
+  published: number;
 
   @ManyToMany(() => Exercise)
   @JoinTable({ name: 'exerciseset_exercise' })

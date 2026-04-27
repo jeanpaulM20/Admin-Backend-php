@@ -11,17 +11,20 @@ export class Exercise {
   @Column()
   name: string;
 
-  @Column({ nullable: true, type: 'text' })
-  description: string;
-
   @Column({ name: 'group_id', nullable: true })
   groupId: number;
 
   @Column({ name: 'subgroup_id', nullable: true })
   subgroupId: number;
 
-  @Column({ default: 1 })
-  active: number;
+  @Column({ nullable: true })
+  pictures: string;
+
+  @Column({ default: 0 })
+  archive: number;
+
+  @Column({ default: 0 })
+  published: number;
 
   @ManyToOne(() => Exercisegroup, (g) => g.exercises)
   @JoinColumn({ name: 'group_id' })
@@ -32,5 +35,5 @@ export class Exercise {
   subgroup: Exercisesubgroup;
 
   @OneToMany(() => Exercisepictures, (p) => p.exercise)
-  pictures: Exercisepictures[];
+  exercisePictures: Exercisepictures[];
 }

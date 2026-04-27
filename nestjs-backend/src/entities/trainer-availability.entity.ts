@@ -9,14 +9,20 @@ export class TrainerAvailability {
   @Column({ name: 'trainer_id' })
   trainerId: number;
 
-  @Column()
-  weekday: number;
+  @Column({ name: 'location_id', nullable: true })
+  locationId: number;
 
-  @Column({ type: 'time' })
-  starttime: string;
+  @Column({ name: 'training_type_id', nullable: true })
+  trainingTypeId: number;
 
-  @Column({ type: 'time' })
-  endtime: string;
+  @Column({ type: 'date' })
+  date: string;
+
+  @Column({ name: 'from', type: 'time' })
+  from: string;
+
+  @Column({ name: 'to', type: 'time', nullable: true })
+  to: string;
 
   @ManyToOne(() => Trainer, (t) => t.availabilities)
   @JoinColumn({ name: 'trainer_id' })

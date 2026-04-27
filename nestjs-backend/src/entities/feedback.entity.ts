@@ -13,17 +13,17 @@ export class Feedback {
   @Column({ name: 'trainer_id', nullable: true })
   trainerId: number;
 
-  @Column({ type: 'text' })
+  @Column({ name: 'text', type: 'text', nullable: true })
   message: string;
 
-  @Column({ default: 0 })
-  read: number;
+  @Column({ name: 'read_client', default: 0 })
+  readClient: number;
 
-  @Column({ name: 'sent_by' })
-  sentBy: string;
+  @Column({ name: 'read_trainer', default: 0 })
+  readTrainer: number;
 
-  @Column({ name: 'created_at', type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
-  createdAt: Date;
+  @Column({ name: 'is_circle', default: 0 })
+  isCircle: number;
 
   @ManyToOne(() => Client)
   @JoinColumn({ name: 'client_id' })

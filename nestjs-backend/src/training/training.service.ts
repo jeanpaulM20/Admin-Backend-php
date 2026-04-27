@@ -43,7 +43,7 @@ export class TrainingService {
     }
     await this.repo.update(id, {
       status: TrainingStatus.CANCELLED,
-      cancelledAt: new Date(),
+      cancelledAt: new Date().toISOString().slice(0, 10),
     });
     return this.findOne(id);
   }

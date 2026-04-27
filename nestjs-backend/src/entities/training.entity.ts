@@ -23,20 +23,38 @@ export class Training {
   @Column({ name: 'client_id' })
   clientId: number;
 
+  @Column({ name: 'type_id', nullable: true })
+  trainingTypeId: number;
+
+  @Column({ name: 'location_id', nullable: true })
+  locationId: number;
+
   @Column({ type: 'date' })
   date: string;
 
   @Column({ type: 'time' })
   starttime: string;
 
+  @Column({ nullable: true })
+  duration: number;
+
+  @Column({ nullable: true })
+  text: string;
+
   @Column({ type: 'varchar', default: TrainingStatus.BOOKED })
   status: TrainingStatus;
 
-  @Column({ name: 'cancelled_at', type: 'datetime', nullable: true })
-  cancelledAt: Date;
+  @Column({ name: 'cancelled_at', nullable: true })
+  cancelledAt: string;
 
-  @Column({ name: 'training_type_id', nullable: true })
-  trainingTypeId: number;
+  @Column({ name: 'cancelled_by_client_rel', nullable: true })
+  cancelledByClientId: number;
+
+  @Column({ name: 'cancelled_by_trainer_rel', nullable: true })
+  cancelledByTrainerId: number;
+
+  @Column({ name: 'credits_charged', nullable: true })
+  creditsCharged: number;
 
   @ManyToOne(() => Trainer, (t) => t.trainings)
   @JoinColumn({ name: 'trainer_id' })

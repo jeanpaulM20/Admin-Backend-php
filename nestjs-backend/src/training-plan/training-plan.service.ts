@@ -13,14 +13,14 @@ export class TrainingPlanService {
   findAll(clientId?: number) {
     return this.repo.find({
       where: clientId ? { clientId } : {},
-      relations: ['exercisesets', 'exercisesets.exercises'],
+      relations: ['client'],
     });
   }
 
   async findOne(id: number) {
     const plan = await this.repo.findOne({
       where: { id },
-      relations: ['client', 'trainer', 'exercisesets', 'exercisesets.exercises'],
+      relations: ['client'],
     });
     if (!plan) throw new NotFoundException(`TrainingPlan ${id} not found`);
     return plan;

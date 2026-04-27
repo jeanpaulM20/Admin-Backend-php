@@ -12,8 +12,11 @@ export class Clientaccesstoken {
   @Column({ unique: true })
   token: string;
 
-  @Column({ name: 'created_at', type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
-  createdAt: Date;
+  @Column({ nullable: true })
+  date: string;
+
+  @Column({ nullable: true })
+  sort: number;
 
   @ManyToOne(() => Client, (c) => c.accessTokens)
   @JoinColumn({ name: 'client_id' })

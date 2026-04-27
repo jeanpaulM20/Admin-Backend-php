@@ -11,26 +11,47 @@ export class Trainer {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ name: 'name' })
   firstname: string;
 
-  @Column()
+  @Column({ name: 'surname' })
   lastname: string;
 
-  @Column({ unique: true })
+  @Column({ name: 'e_mail', unique: true })
   email: string;
+
+  @Column({ nullable: true })
+  phone: string;
+
+  @Column({ nullable: true })
+  mobile: string;
+
+  @Column({ name: 'foto', nullable: true })
+  picture: string;
+
+  @Column({ nullable: true })
+  color: string;
+
+  @Column({ nullable: true })
+  position: string;
+
+  @Column({ nullable: true })
+  qualification: string;
+
+  @Column({ default: 1 })
+  active: number;
+
+  @Column({ default: 0 })
+  published: number;
 
   @Column({ select: false })
   passcode: string;
 
   @Column({ nullable: true })
-  phone: string;
+  qrcode: string;
 
-  @Column({ default: 1 })
-  active: number;
-
-  @Column({ nullable: true })
-  picture: string;
+  @Column({ name: 'qrcode_valid_to', nullable: true })
+  qrcodeValidTo: string;
 
   @ManyToMany(() => Client, (client) => client.trainers)
   @JoinTable({ name: 'trainer_client' })

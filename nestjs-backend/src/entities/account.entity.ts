@@ -6,26 +6,29 @@ export class Account {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'client_id' })
+  @Column({ name: 'client_id', unique: true })
   clientId: number;
 
-  @Column({ name: 'hr_zone1', type: 'int', nullable: true })
-  hrZone1: number;
+  @Column({ nullable: true })
+  status: string;
 
-  @Column({ name: 'hr_zone2', type: 'int', nullable: true })
-  hrZone2: number;
-
-  @Column({ name: 'hr_zone3', type: 'int', nullable: true })
-  hrZone3: number;
-
-  @Column({ name: 'hr_zone4', type: 'int', nullable: true })
-  hrZone4: number;
-
-  @Column({ name: 'hr_zone5', type: 'int', nullable: true })
-  hrZone5: number;
+  @Column({ name: 'date_of_joining', nullable: true })
+  dateOfJoining: string;
 
   @Column({ nullable: true })
-  language: string;
+  device: string;
+
+  @Column({ name: 'interval_distance', nullable: true })
+  intervalDistance: number;
+
+  @Column({ name: 'interval_repeats', nullable: true })
+  intervalRepeats: number;
+
+  @Column({ name: 'interval_zone', nullable: true })
+  intervalZone: string;
+
+  @Column({ name: 'running_zone', nullable: true })
+  runningZone: string;
 
   @OneToOne(() => Client, (c) => c.account)
   @JoinColumn({ name: 'client_id' })

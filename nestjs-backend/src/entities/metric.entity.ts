@@ -9,23 +9,32 @@ export class Metric {
   @Column({ name: 'client_id' })
   clientId: number;
 
+  @Column({ type: 'date' })
+  date: string;
+
   @Column({ type: 'float', nullable: true })
   weight: number;
 
   @Column({ type: 'float', nullable: true })
-  height: number;
+  sys: number;
 
-  @Column({ name: 'body_fat', type: 'float', nullable: true })
-  bodyFat: number;
+  @Column({ type: 'float', nullable: true })
+  dia: number;
 
-  @Column({ name: 'muscle_mass', type: 'float', nullable: true })
-  muscleMass: number;
+  @Column({ name: 'calm_pulse', type: 'float', nullable: true })
+  calmPulse: number;
 
-  @Column({ type: 'date', nullable: true })
-  date: string;
+  @Column({ name: 'body_fat_kg', type: 'float', nullable: true })
+  bodyFatKg: number;
 
-  @Column({ name: 'created_at', type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
-  createdAt: Date;
+  @Column({ name: 'body_fat_perc', type: 'float', nullable: true })
+  bodyFatPerc: number;
+
+  @Column({ name: 'waist_circumference', type: 'float', nullable: true })
+  waistCircumference: number;
+
+  @Column({ type: 'float', nullable: true })
+  bcm: number;
 
   @ManyToOne(() => Client, (c) => c.metrics)
   @JoinColumn({ name: 'client_id' })

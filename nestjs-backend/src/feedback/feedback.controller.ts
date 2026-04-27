@@ -11,9 +11,8 @@ export class FeedbackController {
   constructor(private readonly service: FeedbackService) {}
 
   @Get()
-  findAll(@CurrentClient() client: Client, @CurrentTrainer() trainer: Trainer) {
-    const clientId = client?.id ?? 0;
-    return this.service.findByClient(clientId);
+  findAll(@CurrentClient() client: Client) {
+    return this.service.findByClient(client?.id);
   }
 
   @Post()
@@ -26,13 +25,15 @@ export class FeedbackController {
       ...body,
       clientId: body.clientId ?? client?.id,
       trainerId: body.trainerId ?? trainer?.id,
-      sentBy: client ? 'client' : 'trainer',
     });
   }
 
   @Post(':id/read')
-  markRead(@Param('id', ParseIntPipe) id: number) {
-    return this.service.markRead(id);
+  markRead(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentClient() client: Client,
+  ) {
+    return this.service.markRead(id, !!client);
   }
 
   @Delete(':id')

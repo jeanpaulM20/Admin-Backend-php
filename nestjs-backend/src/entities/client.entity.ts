@@ -12,17 +12,20 @@ export class Client {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ name: 'name' })
   firstname: string;
 
-  @Column()
+  @Column({ name: 'surname' })
   lastname: string;
 
-  @Column({ unique: true })
+  @Column({ name: 'e_mail', unique: true })
   email: string;
 
   @Column({ select: false, nullable: true })
   clientpasscode: string;
+
+  @Column({ nullable: true })
+  clientid: string;
 
   @Column({ default: 1 })
   active: number;
@@ -31,7 +34,22 @@ export class Client {
   phone: string;
 
   @Column({ nullable: true })
+  mobile: string;
+
+  @Column({ name: 'foto', nullable: true })
   picture: string;
+
+  @Column({ nullable: true })
+  birthday: string;
+
+  @Column({ nullable: true })
+  gender: string;
+
+  @Column({ nullable: true })
+  zip: string;
+
+  @Column({ nullable: true })
+  domicile: string;
 
   @Column({ nullable: true })
   qrcode: string;
@@ -39,8 +57,17 @@ export class Client {
   @Column({ name: 'qrcode_static', nullable: true })
   qrcodeStatic: string;
 
+  @Column({ name: 'qrcode_valid_to', nullable: true })
+  qrcodeValidTo: string;
+
   @Column({ name: 'door_access', default: 0 })
   doorAccess: number;
+
+  @Column({ name: 'min_heart_rate', nullable: true })
+  minHeartRate: number;
+
+  @Column({ name: 'max_heart_rate', nullable: true })
+  maxHeartRate: number;
 
   @ManyToMany(() => Trainer, (t) => t.clients)
   trainers: Trainer[];

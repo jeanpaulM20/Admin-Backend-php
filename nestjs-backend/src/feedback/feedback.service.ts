@@ -14,7 +14,7 @@ export class FeedbackService {
     return this.repo.find({
       where: { clientId },
       relations: ['trainer'],
-      order: { createdAt: 'DESC' },
+      order: { id: 'DESC' },
     });
   }
 
@@ -22,8 +22,9 @@ export class FeedbackService {
     return this.repo.save(this.repo.create(data));
   }
 
-  async markRead(id: number) {
-    await this.repo.update(id, { read: 1 });
+  async markRead(id: number, byClient: boolean) {
+    const update = byClient ? { readClient: 1 } : { readTrainer: 1 };
+    await this.repo.update(id, update);
   }
 
   async remove(id: number) {

@@ -45,7 +45,9 @@ export class ClientService {
   // Replaces actionToken() – client login returns an access token
   async login(email: string, passcode: string): Promise<{ token: string }> {
     const client = await this.clientRepo.findOne({
+      // email maps to e_mail column; TypeORM uses the property name in where clauses
       where: { email, clientpasscode: passcode, active: 1 } as any,
+      select: { id: true, firstname: true, lastname: true, active: true, clientpasscode: true },
     });
     if (!client) throw new NotFoundException('Invalid credentials');
 
