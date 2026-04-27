@@ -17,31 +17,37 @@ class TrainingPlanListScreen extends StatefulWidget {
 
 class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
   final _api = ApiService();
+  final _searchCtrl = TextEditingController();
   bool _loading = true;
   String? _error;
   List<TrainingPlan> _plans = [];
+  String _query = '';
 
-  // Spotify-style dark gradient pairs for plan cards
-  static const _cardGradients = [
-    [Color(0xFF5A3E28), Color(0xFF1E1209)], // warm amber
-    [Color(0xFF1B3A5C), Color(0xFF070F1A)], // deep blue
-    [Color(0xFF2E4A2A), Color(0xFF0B1709)], // forest green
-    [Color(0xFF4A2845), Color(0xFF130A12)], // deep purple
-    [Color(0xFF3A4A1C), Color(0xFF111707)], // olive (brand)
-    [Color(0xFF4A3214), Color(0xFF150D04)], // caramel
+  // Accent colors for plan icons (cycling)
+  static const _accentColors = [
+    Color(0xFF8B6B3D), // amber
+    Color(0xFF3D6B8B), // blue
+    Color(0xFF3D8B5A), // green
+    Color(0xFF7A3D8B), // purple
+    Color(0xFF636B2F), // olive (brand)
+    Color(0xFF8B4A3D), // rust
   ];
 
   @override
   void initState() {
     super.initState();
     _load();
+    _searchCtrl.addListener(() => setState(() => _query = _searchCtrl.text));
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    setState(() { _loading = true; _error = null; });
     try {
       final resp = await _api.get(
         ApiConfig.trainingPlan,
@@ -71,8 +77,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
     final ok = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            TrainingPlanDetailScreen(client: widget.client, plan: plan),
+        builder: (_) => TrainingPlanDetailScreen(client: widget.client, plan: plan),
       ),
     );
     if (ok == true) _load();
@@ -83,26 +88,24 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
       p.values.main.where((r) => r.exercise.isNotEmpty).length +
       p.values.core.where((r) => r.exercise.isNotEmpty).length;
 
+  List<TrainingPlan> get _filtered {
+    if (_query.isEmpty) return _plans;
+    final q = _query.toLowerCase();
+    return _plans.where((p) {
+      final name = (p.name ?? '').toLowerCase();
+      return name.contains(q);
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          _buildSliverAppBar(),
-          if (_loading)
-            const SliverFillRemaining(
-              child: Center(
-                  child: CircularProgressIndicator(color: AppColors.primary)),
-            )
-          else if (_error != null)
-            SliverFillRemaining(child: _buildError())
-          else if (_plans.isEmpty)
-            SliverFillRemaining(child: _buildEmpty())
-          else
-            _buildGrid(),
-          const SliverToBoxAdapter(child: SizedBox(height: 100)),
+      body: Column(
+        children: [
+          _buildHeader(),
+          _buildSearchBar(),
+          Expanded(child: _buildBody()),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -115,127 +118,190 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
     );
   }
 
-  SliverAppBar _buildSliverAppBar() {
-    return SliverAppBar(
-      expandedHeight: 190,
-      pinned: true,
-      backgroundColor: AppColors.surface,
-      surfaceTintColor: Colors.transparent,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios, color: AppColors.text, size: 20),
-        onPressed: () => Navigator.pop(context),
+  // ─── Gradient header ──────────────────────────────────────────────────────
+
+  Widget _buildHeader() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF2A3010), Color(0xFF111808), AppColors.background],
+          stops: [0.0, 0.6, 1.0],
+        ),
       ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.refresh, color: AppColors.muted),
-          onPressed: _load,
-        ),
-      ],
-      flexibleSpace: FlexibleSpaceBar(
-        collapseMode: CollapseMode.parallax,
-        titlePadding: const EdgeInsets.only(left: 56, bottom: 14),
-        title: Text(
-          'Trainingspläne',
-          style: GoogleFonts.montserrat(
-            color: AppColors.text,
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        background: Stack(
-          fit: StackFit.expand,
-          children: [
-            Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xFF2A3010), Color(0xFF111808), AppColors.background],
-                  stops: [0.0, 0.5, 1.0],
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 4, 8, 16),
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios,
+                    color: AppColors.text, size: 20),
+                onPressed: () => Navigator.pop(context),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Trainingspläne',
+                      style: GoogleFonts.montserrat(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        const Icon(Icons.person_outline,
+                            size: 12, color: Colors.white54),
+                        const SizedBox(width: 4),
+                        Text(
+                          widget.client.name,
+                          style: GoogleFonts.openSans(
+                              color: Colors.white54, fontSize: 12),
+                        ),
+                        if (_plans.isNotEmpty) ...[
+                          Text('  ·  ',
+                              style: GoogleFonts.openSans(
+                                  color: Colors.white30, fontSize: 12)),
+                          Text(
+                            '${_plans.length} ${_plans.length == 1 ? 'Plan' : 'Pläne'}',
+                            style: GoogleFonts.openSans(
+                                color: Colors.white30, fontSize: 12),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
                 ),
               ),
-            ),
-            Positioned(
-              right: -10,
-              top: -10,
-              child: Icon(
-                Icons.fitness_center,
-                size: 130,
-                color: Colors.white.withOpacity(0.04),
+              IconButton(
+                icon: const Icon(Icons.refresh, color: AppColors.muted),
+                onPressed: _load,
               ),
-            ),
-            Positioned(
-              left: 20,
-              bottom: 44,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Trainingspläne',
-                    style: GoogleFonts.montserrat(
-                      color: Colors.white,
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Row(
-                    children: [
-                      const Icon(Icons.person_outline,
-                          size: 13, color: Colors.white54),
-                      const SizedBox(width: 5),
-                      Text(
-                        widget.client.name,
-                        style: GoogleFonts.openSans(
-                          color: Colors.white54,
-                          fontSize: 13,
-                        ),
-                      ),
-                      if (_plans.isNotEmpty) ...[
-                        Text('  ·  ',
-                            style: GoogleFonts.openSans(
-                                color: Colors.white38, fontSize: 13)),
-                        Text(
-                          '${_plans.length} ${_plans.length == 1 ? 'Plan' : 'Pläne'}',
-                          style: GoogleFonts.openSans(
-                            color: Colors.white38,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── Search bar ───────────────────────────────────────────────────────────
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: TextField(
+        controller: _searchCtrl,
+        style: GoogleFonts.openSans(color: AppColors.text, fontSize: 14),
+        decoration: InputDecoration(
+          hintText: 'Pläne durchsuchen…',
+          hintStyle: GoogleFonts.openSans(
+              color: AppColors.muted.withOpacity(0.6), fontSize: 13),
+          prefixIcon: const Icon(Icons.search, color: AppColors.muted, size: 20),
+          suffixIcon: _query.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.close, color: AppColors.muted, size: 18),
+                  onPressed: () => _searchCtrl.clear(),
+                )
+              : null,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          filled: true,
+          fillColor: AppColors.surface2,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+          ),
+          isDense: true,
+        ),
+      ),
+    );
+  }
+
+  // ─── Body ─────────────────────────────────────────────────────────────────
+
+  Widget _buildBody() {
+    if (_loading) {
+      return const Center(
+          child: CircularProgressIndicator(color: AppColors.primary));
+    }
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, color: AppColors.red, size: 48),
+            const SizedBox(height: 12),
+            Text(_error!, style: const TextStyle(color: AppColors.muted)),
+            const SizedBox(height: 16),
+            TextButton(onPressed: _load, child: const Text('Erneut versuchen')),
+          ],
+        ),
+      );
+    }
+    final items = _filtered;
+    if (items.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                    colors: [Color(0xFF3A4A1C), Color(0xFF111707)]),
+                borderRadius: BorderRadius.circular(18),
               ),
+              child: const Icon(Icons.table_chart_outlined,
+                  color: Colors.white54, size: 36),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              _query.isEmpty ? 'Noch keine Pläne' : 'Keine Treffer',
+              style: GoogleFonts.montserrat(
+                  color: AppColors.text,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _query.isEmpty
+                  ? 'Tippe + um den ersten Plan zu erstellen'
+                  : 'Versuche einen anderen Suchbegriff',
+              style:
+                  GoogleFonts.openSans(color: AppColors.muted, fontSize: 13),
             ),
           ],
         ),
-      ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(0, 0, 0, 100),
+      itemCount: items.length,
+      itemBuilder: (ctx, i) => _buildRow(items[i], i),
     );
   }
 
-  Widget _buildGrid() {
-    return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
-      sliver: SliverGrid(
-        delegate: SliverChildBuilderDelegate(
-          (ctx, i) => _buildCard(_plans[i], i),
-          childCount: _plans.length,
-        ),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          mainAxisSpacing: 14,
-          crossAxisSpacing: 14,
-          childAspectRatio: 0.80,
-        ),
-      ),
-    );
-  }
+  // ─── List row ─────────────────────────────────────────────────────────────
 
-  Widget _buildCard(TrainingPlan plan, int index) {
-    final grad = _cardGradients[index % _cardGradients.length];
+  Widget _buildRow(TrainingPlan plan, int index) {
+    final accent = _accentColors[index % _accentColors.length];
     final name = plan.name?.isNotEmpty == true
         ? plan.name!
         : 'Plan ${index + 1}';
@@ -244,140 +310,75 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
         ? plan.createdAt!.substring(0, plan.createdAt!.length.clamp(0, 10))
         : null;
 
-    return GestureDetector(
+    return InkWell(
       onTap: () => _open(plan),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient:
-              LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: grad),
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: grad[0].withOpacity(0.45),
-              blurRadius: 16,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: Stack(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+        child: Row(
           children: [
-            Positioned(
-              right: -12,
-              top: -12,
-              child: Icon(Icons.fitness_center,
-                  size: 100, color: Colors.white.withOpacity(0.06)),
+            // Colored icon thumbnail (like Spotify album art)
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: accent.withOpacity(0.18),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                    color: accent.withOpacity(0.3), width: 0.5),
+              ),
+              child: Icon(Icons.table_chart_outlined,
+                  color: accent, size: 24),
             ),
-            Padding(
-              padding: const EdgeInsets.all(15),
+            const SizedBox(width: 14),
+            // Name + meta
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Icon box (like album art placeholder)
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.14),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.table_chart_outlined,
-                        color: Colors.white, size: 26),
-                  ),
-                  const Spacer(),
-                  // Plan name
                   Text(
                     name,
-                    style: GoogleFonts.montserrat(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      height: 1.3,
+                    style: GoogleFonts.openSans(
+                      color: AppColors.text,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 6),
-                  // Exercise count
+                  const SizedBox(height: 3),
                   Row(
                     children: [
-                      Icon(Icons.bolt,
-                          size: 12, color: Colors.white.withOpacity(0.55)),
-                      const SizedBox(width: 3),
-                      Text(
-                        count > 0 ? '$count Übungen' : 'Leer',
-                        style: GoogleFonts.openSans(
-                          color: Colors.white.withOpacity(0.55),
-                          fontSize: 11,
+                      if (count > 0) ...[
+                        Icon(Icons.bolt,
+                            size: 11,
+                            color: AppColors.muted.withOpacity(0.7)),
+                        const SizedBox(width: 2),
+                        Text(
+                          '$count Übungen',
+                          style: GoogleFonts.openSans(
+                              color: AppColors.muted, fontSize: 11),
                         ),
-                      ),
+                      ],
+                      if (count > 0 && dateStr != null)
+                        Text('  ·  ',
+                            style: GoogleFonts.openSans(
+                                color: AppColors.muted.withOpacity(0.5),
+                                fontSize: 11)),
+                      if (dateStr != null)
+                        Text(
+                          dateStr,
+                          style: GoogleFonts.openSans(
+                              color: AppColors.muted, fontSize: 11),
+                        ),
                     ],
                   ),
-                  if (dateStr != null) ...[
-                    const SizedBox(height: 3),
-                    Text(
-                      dateStr,
-                      style: GoogleFonts.openSans(
-                        color: Colors.white.withOpacity(0.3),
-                        fontSize: 10,
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
+            const Icon(Icons.chevron_right,
+                color: AppColors.muted, size: 18),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildEmpty() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 84,
-            height: 84,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF3A4A1C), Color(0xFF111707)],
-              ),
-              borderRadius: BorderRadius.circular(22),
-            ),
-            child:
-                const Icon(Icons.table_chart_outlined, color: Colors.white54, size: 42),
-          ),
-          const SizedBox(height: 22),
-          Text(
-            'Noch keine Pläne',
-            style: GoogleFonts.montserrat(
-              color: AppColors.text,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Tippe + um den ersten Plan zu erstellen',
-            style: GoogleFonts.openSans(color: AppColors.muted, fontSize: 13),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildError() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, color: AppColors.red, size: 48),
-          const SizedBox(height: 12),
-          Text(_error!, style: const TextStyle(color: AppColors.muted)),
-          const SizedBox(height: 16),
-          TextButton(onPressed: _load, child: const Text('Erneut versuchen')),
-        ],
       ),
     );
   }
