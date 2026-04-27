@@ -1,0 +1,73 @@
+services:
+
+  # ── Datenbank ──────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: sihl-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpass}
+      MYSQL_DATABASE: ${DB_NAME:-sihltrai_admin}
+      MYSQL_USER: ${DB_USER:-sihltrai_admin}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-changeме}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d   # SQL-Dumps hier ablegen
+    ports:
+      - "3306:3306"   # lokal erreichbar für DB-Tools (TablePlus, DBeaver etc.)
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      retries: 5
+
+  # ── PHP / Yii (altes Backend) ──────────────────────────────
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sihl-php
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_HOST: mysql
+      DB_NAME: ${DB_NAME:-sihltrai_admin}
+      DB_USER: ${DB_USER:-sihltrai_admin}
+      DB_PASSWORD: ${DB_PASSWORD:-changeme}
+
+  # ── NestJS (neues Backend) ─────────────────────────────────
+  nestjs:
+    build:
+      context: ./nestjs-backend
+      dockerfile: Dockerfile
+    container_name: sihl-nestjs
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-sihltrai_admin}
+      DB_USER: ${DB_USER:-sihltrai_admin}
+      DB_PASSWORD: ${DB_PASSWORD:-changeme}
+      NODE_ENV: production
+      AUTH_SALT: ${AUTH_SALT}
+      PORT: 3000
+
+  # ── Nginx Reverse Proxy ────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: sihl-nginx
+    restart: unless-stopped
+    depends_on:
+      - php
+      - nestjs
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
+volumes:
+  mysql_data:

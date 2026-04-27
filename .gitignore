@@ -13,6 +13,11 @@ protected/runtime/
 # Include Flutter web build assets
 !trainer-app/assets/
 
+# Environment & secrets
+.env
+nestjs-backend/.env
+nestjs-backend/dev.sqlite
+
 # Logs and OS files
 *.log
 *.tmp
