@@ -7,7 +7,7 @@ NESTJS_DIR="$(cd "$(dirname "$0")/../nestjs-backend" && pwd)"
 echo "==> Deploying NestJS backend..."
 cd "$NESTJS_DIR"
 
-npm ci --only=production=false
+npm ci
 npm run build
 
 # pm2 neu laden falls installiert, sonst Hinweis ausgeben

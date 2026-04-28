@@ -24,7 +24,7 @@ fi
 
 # 3. Abhängigkeiten installieren & bauen
 cd "$NESTJS_DIR"
-npm ci --only=production=false
+npm ci
 npm run build
 
 echo ""
