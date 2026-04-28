@@ -54,11 +54,19 @@ export class Trainer {
   qrcodeValidTo: string;
 
   @ManyToMany(() => Client, (client) => client.trainers)
-  @JoinTable({ name: 'trainer_client' })
+  @JoinTable({
+    name: 'trainer_client',
+    joinColumn: { name: 'trainer_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'client_id', referencedColumnName: 'id' },
+  })
   clients: Client[];
 
   @ManyToMany(() => Location)
-  @JoinTable({ name: 'trainer_location' })
+  @JoinTable({
+    name: 'trainer_location',
+    joinColumn: { name: 'trainer_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'location_id', referencedColumnName: 'id' },
+  })
   locations: Location[];
 
   @OneToMany(() => Training, (t) => t.trainer)
