@@ -25,7 +25,6 @@ const dbConfig: any = isSqlite
       username: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
-      entityPrefix: 'tbl_',
       entities: [__dirname + '/entities/*.{entity,entities}{.ts,.js}'],
       synchronize: false,
       logging: process.env.NODE_ENV === 'development',
