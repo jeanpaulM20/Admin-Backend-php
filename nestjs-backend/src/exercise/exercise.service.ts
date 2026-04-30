@@ -14,13 +14,13 @@ export class ExerciseService {
   ) {}
 
   findAll() {
-    return this.exerciseRepo.find({ relations: ['group', 'subgroup', 'pictures'] });
+    return this.exerciseRepo.find({ relations: ['group', 'subgroup', 'exercisePictures'] });
   }
 
   async findOne(id: number) {
     const exercise = await this.exerciseRepo.findOne({
       where: { id },
-      relations: ['group', 'subgroup', 'pictures'],
+      relations: ['group', 'subgroup', 'exercisePictures'],
     });
     if (!exercise) throw new NotFoundException(`Exercise ${id} not found`);
     return exercise;

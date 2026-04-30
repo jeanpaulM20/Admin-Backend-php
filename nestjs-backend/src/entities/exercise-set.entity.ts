@@ -16,6 +16,10 @@ export class Exerciseset {
   published: number;
 
   @ManyToMany(() => Exercise)
-  @JoinTable({ name: 'exerciseset_exercise' })
+  @JoinTable({
+    name: 'exerciseset_exercise',
+    joinColumn: { name: 'exerciseset_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'exercise_id', referencedColumnName: 'id' },
+  })
   exercises: Exercise[];
 }

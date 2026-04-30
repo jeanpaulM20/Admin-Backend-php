@@ -9,13 +9,25 @@ export class Exercisepictures {
   @Column({ name: 'exercise_id' })
   exerciseId: number;
 
-  @Column()
+  @Column({ nullable: true })
+  label: string;
+
+  @Column({ name: 'picture', nullable: true })
   filename: string;
+
+  @Column({ nullable: true })
+  description: string;
+
+  @Column({ default: 0 })
+  published: number;
 
   @Column({ default: 0 })
   sort: number;
 
-  @ManyToOne(() => Exercise, (e) => e.pictures)
+  @Column({ name: 'language_id', nullable: true })
+  languageId: number;
+
+  @ManyToOne(() => Exercise, (e) => e.exercisePictures)
   @JoinColumn({ name: 'exercise_id' })
   exercise: Exercise;
 }
