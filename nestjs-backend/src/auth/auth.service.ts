@@ -18,9 +18,12 @@ export class AuthService {
 
   async validateToken(token: string): Promise<{ trainer?: Trainer; client?: any } | null> {
     // Check trainer auth: token = md5(salt + passcode)
+    // Only check active trainers, ordered by id to ensure deterministic matching
     const trainers = await this.trainerRepo
       .createQueryBuilder('trainer')
       .addSelect('trainer.passcode')
+      .where('trainer.active = :active', { active: 1 })
+      .orderBy('trainer.id', 'ASC')
       .getMany();
     for (const trainer of trainers) {
       const expected = createHash('md5').update(AUTH_SALT + trainer.passcode).digest('hex');
