@@ -7,7 +7,4 @@ export class Exercisesubgroup {
 
   @Column()
   name: string;
-
-  @Column({ name: 'group_id', nullable: true })
-  groupId: number;
 }
