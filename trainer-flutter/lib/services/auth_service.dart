@@ -21,23 +21,18 @@ class AuthService {
   Future<Trainer> login(String passcode) async {
     final token = _computeToken(passcode);
 
-    final response = await _apiService.postForm(
-      ApiConfig.loginTrainer,
-      body: {'passcode': passcode},
-    );
+    // NestJS auth: set token header, then GET /api/trainer/me to verify + fetch profile
+    _apiService.setAuthToken(token);
+
+    final response = await _apiService.get(ApiConfig.trainerMe);
 
     if (response == null) {
       throw ApiException('No response from server');
     }
 
-    // The response is wrapped: {"trainer": {...}}
     Map<String, dynamic> trainerData;
-    if (response is Map<String, dynamic> && response.containsKey('trainer')) {
-      trainerData = response['trainer'] as Map<String, dynamic>;
-    } else if (response is Map<String, dynamic>) {
+    if (response is Map<String, dynamic>) {
       trainerData = response;
-    } else if (response is List && response.isNotEmpty) {
-      trainerData = response[0] as Map<String, dynamic>;
     } else {
       throw ApiException('Invalid response format');
     }
@@ -48,9 +43,6 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, token);
     await prefs.setString(_trainerKey, jsonEncode(trainerData));
-
-    // Set token on API service
-    _apiService.setAuthToken(token);
 
     return trainer;
   }
