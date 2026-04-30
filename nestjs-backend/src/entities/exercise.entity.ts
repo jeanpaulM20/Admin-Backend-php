@@ -17,9 +17,6 @@ export class Exercise {
   @Column({ name: 'subgroup_id', nullable: true })
   subgroupId: number;
 
-  @Column({ nullable: true })
-  pictures: string;
-
   @Column({ default: 0 })
   archive: number;
 
