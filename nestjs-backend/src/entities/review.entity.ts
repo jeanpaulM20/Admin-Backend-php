@@ -1,37 +1,80 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
 import { Training } from './training.entity';
-import { Reviewheartratetimeseries } from './review-heartrate-timeseries.entity';
+import { ReviewHeartRateTimeseries } from './review-heartrate-timeseries.entity';
 
+/**
+ * Review = one training recording / workout result.
+ * Snake_case properties match MySQL columns AND Flutter fromJson keys.
+ */
 @Entity({ name: 'review' })
 export class Review {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'training_id' })
-  trainingId: number;
+  @Column({ nullable: true })
+  file: string;
 
-  @Column({ type: 'int', nullable: true })
-  rating: number;
+  @Column({ type: 'time', nullable: true })
+  duration: string;
 
-  @Column({ nullable: true, type: 'text' })
-  comment: string;
+  @Column({ nullable: true })
+  kcal: number;
 
-  @Column({ name: 'avg_heart_rate', type: 'int', nullable: true })
-  avgHeartRate: number;
+  @Column({ type: 'float', nullable: true })
+  heart_rate: number;
 
-  @Column({ name: 'max_heart_rate', type: 'int', nullable: true })
-  maxHeartRate: number;
+  @Column({ type: 'text', nullable: true })
+  heart_rate_timeseries: string;
 
-  @Column({ name: 'calories_burned', type: 'int', nullable: true })
-  caloriesBurned: number;
+  @Column({ nullable: true })
+  exerciseset_id: number;
 
-  @Column({ name: 'created_at', type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
-  createdAt: Date;
+  @Column({ nullable: true })
+  training_id: number;
+
+  @Column({ nullable: true })
+  training_type: string;
+
+  @Column({ nullable: true })
+  type: string;
+
+  @Column({ nullable: true })
+  goal: number;
+
+  @Column({ nullable: true })
+  goal_metric: string;
+
+  @Column({ nullable: true })
+  bonus_goal: number;
+
+  @Column({ nullable: true })
+  bonus_goal_metric: string;
+
+  @Column({ nullable: true })
+  trainingplan_id: number;
+
+  @Column({ nullable: true })
+  result: number;
+
+  @Column({ nullable: true })
+  feedback_emoticon: string;
+
+  @Column({ type: 'text', nullable: true })
+  feedback_client: string;
+
+  @Column({ type: 'text', nullable: true })
+  feedback_trainer: string;
+
+  @Column({ type: 'float', nullable: true })
+  speed: number;
+
+  @Column({ type: 'float', nullable: true })
+  distance: number;
 
   @ManyToOne(() => Training)
   @JoinColumn({ name: 'training_id' })
   training: Training;
 
-  @OneToMany(() => Reviewheartratetimeseries, (ts) => ts.review)
-  heartRateTimeseries: Reviewheartratetimeseries[];
+  @OneToMany(() => ReviewHeartRateTimeseries, (ts) => ts.review)
+  timeseries: ReviewHeartRateTimeseries[];
 }

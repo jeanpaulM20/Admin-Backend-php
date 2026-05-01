@@ -1,21 +1,28 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { Review } from './review.entity';
 
+/**
+ * Individual heart-rate data points for a Review.
+ * Snake_case properties match MySQL columns AND Flutter fromJson keys.
+ */
 @Entity({ name: 'review_heart_rate_timeseries' })
-export class Reviewheartratetimeseries {
+export class ReviewHeartRateTimeseries {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'review_id' })
-  reviewId: number;
+  @Column({ type: 'datetime', nullable: true })
+  timestamp: string;
 
-  @Column({ name: 'heart_rate', type: 'int' })
-  heartRate: number;
+  @Column({ type: 'float', nullable: true })
+  value: number;
 
-  @Column({ type: 'datetime' })
-  timestamp: Date;
+  @Column({ default: 0 })
+  sort: number;
 
-  @ManyToOne(() => Review, (r) => r.heartRateTimeseries)
+  @Column()
+  review_id: number;
+
+  @ManyToOne(() => Review, (r) => r.timeseries)
   @JoinColumn({ name: 'review_id' })
   review: Review;
 }

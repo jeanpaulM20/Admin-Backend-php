@@ -1,0 +1,67 @@
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Review } from '../entities/review.entity';
+import { ReviewHeartRateTimeseries } from '../entities/review-heartrate-timeseries.entity';
+
+@Injectable()
+export class ReviewService {
+  constructor(
+    @InjectRepository(Review)
+    private readonly reviewRepo: Repository<Review>,
+    @InjectRepository(ReviewHeartRateTimeseries)
+    private readonly timeseriesRepo: Repository<ReviewHeartRateTimeseries>,
+  ) {}
+
+  /**
+   * Find all reviews for a given training.
+   * Includes the heart-rate timeseries ordered by `sort`.
+   */
+  async findByTraining(trainingId: number) {
+    return this.reviewRepo.find({
+      where: { training_id: trainingId },
+      relations: ['timeseries'],
+      order: { id: 'ASC' },
+    });
+  }
+
+  /**
+   * Find reviews for a client via training → client_id join.
+   * Returns newest first so the Flutter list shows recent workouts on top.
+   */
+  async findByClient(clientId: number) {
+    const rows = await this.reviewRepo
+      .createQueryBuilder('r')
+      .innerJoinAndSelect('r.training', 't')
+      .where('t.client_id = :clientId', { clientId })
+      .orderBy('t.date', 'DESC')
+      .addOrderBy('t.starttime', 'DESC')
+      .getMany();
+    return rows;
+  }
+
+  /** Single review with timeseries */
+  async findOne(id: number) {
+    return this.reviewRepo.findOne({
+      where: { id },
+      relations: ['timeseries', 'training'],
+    });
+  }
+
+  /** Heart-rate timeseries for one review, ordered by sort */
+  async getTimeseries(reviewId: number) {
+    return this.timeseriesRepo.find({
+      where: { review_id: reviewId },
+      order: { sort: 'ASC' },
+    });
+  }
+
+  create(data: Partial<Review>) {
+    return this.reviewRepo.save(this.reviewRepo.create(data));
+  }
+
+  async update(id: number, data: Partial<Review>) {
+    await this.reviewRepo.update(id, data);
+    return this.findOne(id);
+  }
+}

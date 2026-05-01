@@ -12,6 +12,7 @@ import { MetricModule } from './metric/metric.module';
 import { AvailabilityModule } from './availability/availability.module';
 import { PerformanceTestModule } from './performance-test/performance-test.module';
 import { AnamneseModule } from './anamnese/anamnese.module';
+import { ReviewModule } from './review/review.module';
 
 const isSqlite = process.env.DB_TYPE === 'sqlite';
 
@@ -50,6 +51,7 @@ const dbConfig: any = isSqlite
     AvailabilityModule,
     PerformanceTestModule,
     AnamneseModule,
+    ReviewModule,
   ],
 })
 export class AppModule {}
