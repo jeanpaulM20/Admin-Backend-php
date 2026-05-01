@@ -35,11 +35,18 @@ class ApiConfig {
   // Performance / metrics
   static const String metric            = 'metric';
 
+  // Performance tests
+  static const String performance       = 'performance_test';
+
+  // Anamnese (medical intake questionnaire)
+  static const String anamnese          = 'anamnese';
+
+  // Reviews (training recordings with heart rate)
+  static const String review            = 'review';
+
   // ── PHP-legacy endpoints (not yet in NestJS — will return 404) ─────────────
   // These are referenced in screens but not yet implemented in NestJS.
   // They fail gracefully with an error message shown to the user.
-  static const String anamnese          = 'anamnese';
-  static const String performance       = 'performance_test';
   static const String file              = 'file';
   static const String sendFile          = 'file/send';
   static const String trainerQR         = 'trainer/qr';

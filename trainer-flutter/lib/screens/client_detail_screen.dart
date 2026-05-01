@@ -14,6 +14,7 @@ import 'performance_screen.dart';
 import 'client_files_screen.dart';
 import 'workout_feedback_screen.dart';
 import 'client_next_appointments_screen.dart';
+import 'training_recording_screen.dart';
 
 class ClientDetailScreen extends StatelessWidget {
   final Client client;
@@ -301,6 +302,17 @@ class ClientDetailScreen extends StatelessWidget {
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => PerformanceScreen(client: client)),
+        ),
+      ),
+      _QuickAction(
+        icon: Icons.monitor_heart_outlined,
+        label: 'Aufzeichnung',
+        subtitle: 'Herzfrequenz',
+        color: AppColors.red,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => TrainingRecordingScreen(client: client)),
         ),
       ),
       _QuickAction(
