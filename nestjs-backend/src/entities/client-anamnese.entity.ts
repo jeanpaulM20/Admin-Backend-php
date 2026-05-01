@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { Client } from './client.entity';
 
 /**
@@ -9,10 +9,7 @@ import { Client } from './client.entity';
  */
 @Entity({ name: 'client_anamnese' })
 export class ClientAnamnese {
-  @PrimaryGeneratedColumn()
-  id: number;
-
-  @Column()
+  @PrimaryColumn()
   client_id: number;
 
   // Personal info

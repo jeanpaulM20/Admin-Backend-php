@@ -50,9 +50,9 @@ export class AnamneseController {
     }
   }
 
-  /** DELETE /api/anamnese/:id — delete by primary key */
-  @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.service.remove(id);
+  /** DELETE /api/anamnese/:clientId — delete by client ID */
+  @Delete(':clientId')
+  remove(@Param('clientId', ParseIntPipe) clientId: number) {
+    return this.service.remove(clientId);
   }
 }

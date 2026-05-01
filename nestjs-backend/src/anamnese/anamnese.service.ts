@@ -15,10 +15,6 @@ export class AnamneseService {
     return this.repo.findOneBy({ client_id: clientId });
   }
 
-  findOne(id: number) {
-    return this.repo.findOneBy({ id });
-  }
-
   create(data: Partial<ClientAnamnese>) {
     return this.repo.save(this.repo.create(data));
   }
@@ -26,15 +22,17 @@ export class AnamneseService {
   async upsertByClient(clientId: number, data: Partial<ClientAnamnese>) {
     const existing = await this.repo.findOneBy({ client_id: clientId });
     if (existing) {
-      await this.repo.update(existing.id, data);
-      return this.repo.findOneBy({ id: existing.id });
+      // Merge incoming data with existing, then save
+      Object.assign(existing, data);
+      existing.client_id = clientId;
+      return this.repo.save(existing);
     }
     data.client_id = clientId;
     return this.repo.save(this.repo.create(data));
   }
 
-  async remove(id: number) {
-    const m = await this.repo.findOneBy({ id });
+  async remove(clientId: number) {
+    const m = await this.repo.findOneBy({ client_id: clientId });
     if (!m) return null;
     return this.repo.remove(m);
   }
