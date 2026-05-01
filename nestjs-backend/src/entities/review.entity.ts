@@ -23,9 +23,6 @@ export class Review {
   @Column({ type: 'float', nullable: true })
   heart_rate: number;
 
-  @Column({ type: 'text', nullable: true })
-  heart_rate_timeseries: string;
-
   @Column({ nullable: true })
   exerciseset_id: number;
 
