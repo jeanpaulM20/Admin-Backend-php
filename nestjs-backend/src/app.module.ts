@@ -7,6 +7,9 @@ import { TrainingModule } from './training/training.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { ExerciseModule } from './exercise/exercise.module';
 import { TrainingPlanModule } from './training-plan/training-plan.module';
+import { LocationModule } from './location/location.module';
+import { MetricModule } from './metric/metric.module';
+import { AvailabilityModule } from './availability/availability.module';
 
 const isSqlite = process.env.DB_TYPE === 'sqlite';
 
@@ -40,6 +43,9 @@ const dbConfig: any = isSqlite
     FeedbackModule,
     ExerciseModule,
     TrainingPlanModule,
+    LocationModule,
+    MetricModule,
+    AvailabilityModule,
   ],
 })
 export class AppModule {}
