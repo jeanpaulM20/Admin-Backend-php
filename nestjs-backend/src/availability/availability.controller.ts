@@ -21,6 +21,23 @@ export class AvailabilityController {
     return this.service.findOne(id);
   }
 
+  @Post('serial')
+  createSerial(
+    @CurrentTrainer() trainer: Trainer,
+    @Body() body: {
+      trainerId?: number;
+      from: string;
+      to?: string;
+      rStart: string;
+      rEnd: string;
+      days: number[];
+      locationId?: number;
+    },
+  ) {
+    const resolvedTrainerId = trainer?.id ?? body.trainerId;
+    return this.service.createSerial({ ...body, trainerId: resolvedTrainerId });
+  }
+
   @Post()
   create(@Body() body: Partial<TrainerAvailability>) {
     return this.service.create(body);

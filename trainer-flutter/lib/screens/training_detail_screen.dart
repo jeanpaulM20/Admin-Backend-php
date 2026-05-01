@@ -65,13 +65,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
 
     setState(() => _isCancelling = true);
     try {
-      await _apiService.postForm(
-        ApiConfig.cancelTrainingTrainer,
-        body: {
-          'trainer_id': trainer.id.toString(),
-          'id': _training.id.toString(),
-        },
-      );
+      await _apiService.post('${ApiConfig.training}/${_training.id}/cancel');
       if (mounted) {
         setState(() {
           _training = Training(
@@ -120,34 +114,14 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
     final trainer = authProvider.trainer;
     if (trainer == null) return;
 
-    setState(() => _isInviting = true);
-    try {
-      await _apiService.postForm(
-        ApiConfig.inviteTrainingTrainer,
-        body: {
-          'trainer_id': trainer.id.toString(),
-          'id': _training.id.toString(),
-        },
+    setState(() => _isInviting = false);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Invite functionality not yet available in new app.'),
+          backgroundColor: AppColors.primary,
+        ),
       );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Invite sent successfully.'),
-            backgroundColor: Color(0xFF2E7D32),
-          ),
-        );
-      }
-    } on ApiException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.message),
-            backgroundColor: AppColors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isInviting = false);
     }
   }
 

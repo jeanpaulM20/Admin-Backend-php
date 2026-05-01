@@ -168,20 +168,11 @@ class TrainerProvider extends ChangeNotifier {
     _availabilityError = null;
     notifyListeners();
 
-    final dateFrom = from ?? DateTime.now();
-    final dateTo = to ??
-        DateTime(DateTime.now().year, DateTime.now().month + 2, 1)
-            .subtract(const Duration(days: 1));
-    final fmt = DateFormat('yyyy-MM-dd');
-
     try {
-      final response =
-          await _apiService.get(ApiConfig.availability, queryParams: {
-        'trainers': trainerId.toString(),
-        'location_id': locationId.toString(),
-        'from': fmt.format(dateFrom),
-        'to': fmt.format(dateTo),
-      });
+      // NestJS endpoint auto-filters by the authenticated trainer's token.
+      // Optional: pass trainer_id as fallback for non-authed contexts.
+      final response = await _apiService.get(ApiConfig.availability,
+          queryParams: {'trainer_id': trainerId.toString()});
 
       _availabilityMap = {};
       List<dynamic> slots = [];
@@ -213,30 +204,26 @@ class TrainerProvider extends ChangeNotifier {
   Future<void> fetchLocations() async {
     try {
       final response = await _apiService.get(ApiConfig.locationList);
+      List<dynamic> list = [];
       if (response is List) {
-        _locations = response
-            .map((e) => Location.fromJson(e as Map<String, dynamic>))
-            .toList();
+        list = response;
       } else if (response is Map && response.containsKey('data')) {
         final data = response['data'];
-        if (data is List) {
-          _locations = data
-              .map((e) => Location.fromJson(e as Map<String, dynamic>))
-              .toList();
-        }
+        if (data is List) list = data;
       }
+      _locations = list
+          .map((e) => Location.fromJson(e as Map<String, dynamic>))
+          .toList();
       notifyListeners();
     } catch (_) {
-      // Silently fail locations fetch
+      // Silently fail — locations are optional for the calendar view
     }
   }
 
   Future<bool> cancelTraining(int trainingId, {int? trainerId}) async {
     try {
-      await _apiService.post(ApiConfig.cancelTraining, body: {
-        'id': trainingId,
-        if (trainerId != null) 'trainer_id': trainerId,
-      });
+      // NestJS: POST /api/training/:id/cancel
+      await _apiService.post('${ApiConfig.training}/$trainingId/cancel');
       // Update local state
       final index = _trainings.indexWhere((t) => t.id == trainingId);
       if (index != -1) {

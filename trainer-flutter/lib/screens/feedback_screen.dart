@@ -21,21 +21,36 @@ class FeedbackItem {
   });
 
   factory FeedbackItem.fromJson(Map<String, dynamic> json) {
+    // NestJS embeds full client object
+    final clientObj = json['client'] as Map<String, dynamic>?;
+    String clientName = json['client_name']?.toString() ??
+        _buildName(json, 'client_first_name', 'client_last_name') ??
+        '';
+    if (clientName.isEmpty && clientObj != null) {
+      clientName = _buildName(clientObj, 'firstname', 'lastname') ??
+          clientObj['name']?.toString() ??
+          'Unknown';
+    }
+    if (clientName.isEmpty) clientName = 'Unknown';
+
     return FeedbackItem(
       id: _parseInt(json['id'] ?? json['feedback_id'] ?? 0),
-      clientName: json['client_name']?.toString() ??
-          _buildName(json, 'client_first_name', 'client_last_name') ??
-          'Unknown',
+      clientName: clientName,
       date: json['date']?.toString() ??
           json['created_at']?.toString() ??
           json['feedback_date']?.toString() ??
           '',
       rating: _parseInt(json['rating'] ?? json['stars'] ?? 0),
-      comment: json['comment']?.toString() ??
+      // NestJS uses "message" property (maps to "text" DB column)
+      comment: json['message']?.toString() ??
+          json['comment']?.toString() ??
           json['feedback']?.toString() ??
           json['text']?.toString() ??
           '',
-      isRead: json['is_read'] == true ||
+      // NestJS camelCase: readTrainer
+      isRead: json['readTrainer'] == true ||
+          json['readTrainer'] == 1 ||
+          json['is_read'] == true ||
           json['is_read'] == 1 ||
           json['read'] == true ||
           json['read'] == 1,
@@ -117,10 +132,8 @@ class _FeedbackScreenState extends State<FeedbackScreen>
     if (item.isRead || _markingIds.contains(item.id)) return;
     setState(() => _markingIds.add(item.id));
     try {
-      await _apiService.postForm(
-        ApiConfig.markTrainerFeedback,
-        body: {'id': item.id.toString()},
-      );
+      // NestJS: POST /api/feedback/:id/read
+      await _apiService.post('${ApiConfig.feedback}/${item.id}/read');
       setState(() => item.isRead = true);
     } on ApiException catch (e) {
       if (mounted) {
