@@ -27,16 +27,16 @@ export class ReviewService {
 
   /**
    * Find reviews for a client via training → client_id join.
-   * Returns newest first so the Flutter list shows recent workouts on top.
+   * Uses raw SQL sub-query to avoid TypeORM camelCase/snake_case mapping issues.
    */
   async findByClient(clientId: number) {
-    const rows = await this.reviewRepo.find({
-      relations: ['training'],
-      where: {
-        training: { clientId },
-      },
-      order: { id: 'DESC' },
-    });
+    // Get training IDs for this client first, then find reviews
+    const rows = await this.reviewRepo
+      .createQueryBuilder('review')
+      .leftJoinAndSelect('review.training', 'training')
+      .where('training.client_id = :clientId', { clientId })
+      .orderBy('review.id', 'DESC')
+      .getMany();
     return rows;
   }
 

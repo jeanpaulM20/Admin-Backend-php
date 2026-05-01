@@ -19,29 +19,51 @@ export class ReviewController {
     @Query('training_id') trainingId?: string,
     @Query('client_id') clientId?: string,
   ) {
-    if (trainingId) {
-      return this.service.findByTraining(+trainingId);
+    try {
+      if (trainingId) {
+        return await this.service.findByTraining(+trainingId);
+      }
+      if (clientId) {
+        return await this.service.findByClient(+clientId);
+      }
+      return [];
+    } catch (err) {
+      throw new HttpException(
+        { message: err.message, detail: err.sqlMessage ?? null },
+        HttpStatus.BAD_REQUEST,
+      );
     }
-    if (clientId) {
-      return this.service.findByClient(+clientId);
-    }
-    return [];
   }
 
   /** GET /api/review/:id — single review with timeseries + training */
   @Get(':id')
   async findOne(@Param('id', ParseIntPipe) id: number) {
-    const review = await this.service.findOne(id);
-    if (!review) {
-      throw new HttpException('Review not found', HttpStatus.NOT_FOUND);
+    try {
+      const review = await this.service.findOne(id);
+      if (!review) {
+        throw new HttpException('Review not found', HttpStatus.NOT_FOUND);
+      }
+      return review;
+    } catch (err) {
+      if (err instanceof HttpException) throw err;
+      throw new HttpException(
+        { message: err.message, detail: err.sqlMessage ?? null },
+        HttpStatus.BAD_REQUEST,
+      );
     }
-    return review;
   }
 
   /** GET /api/review/:id/timeseries — heart-rate data points for chart */
   @Get(':id/timeseries')
-  getTimeseries(@Param('id', ParseIntPipe) id: number) {
-    return this.service.getTimeseries(id);
+  async getTimeseries(@Param('id', ParseIntPipe) id: number) {
+    try {
+      return await this.service.getTimeseries(id);
+    } catch (err) {
+      throw new HttpException(
+        { message: err.message, detail: err.sqlMessage ?? null },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   /** POST /api/review — create a new review */
