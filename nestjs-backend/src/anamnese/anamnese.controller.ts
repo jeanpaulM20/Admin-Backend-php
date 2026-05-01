@@ -9,9 +9,16 @@ export class AnamneseController {
   /** GET /api/anamnese/:clientId — fetch single anamnese by client ID */
   @Get(':clientId')
   async findByClient(@Param('clientId', ParseIntPipe) clientId: number) {
-    const record = await this.service.findByClient(clientId);
-    // Return empty object if none exists yet (Flutter treats null/empty as "start fresh")
-    return record ?? {};
+    try {
+      const record = await this.service.findByClient(clientId);
+      // Return empty object if none exists yet (Flutter treats null/empty as "start fresh")
+      return record ?? {};
+    } catch (err) {
+      throw new HttpException(
+        { message: err.message, detail: err.sqlMessage ?? null },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   /** POST /api/anamnese — create new anamnese */
