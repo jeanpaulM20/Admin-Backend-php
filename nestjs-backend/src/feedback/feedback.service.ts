@@ -10,12 +10,40 @@ export class FeedbackService {
     private readonly repo: Repository<Feedback>,
   ) {}
 
-  findByClient(clientId: number) {
-    return this.repo.find({
-      where: { clientId },
-      relations: ['trainer'],
+  async findByClient(clientId?: number) {
+    const where: any = {};
+    if (clientId) where.client_id = clientId;
+    const rows = await this.repo.find({
+      where,
+      order: { id: 'ASC' },
+    });
+
+    // Add 'align' field for Flutter chat UI:
+    // read_trainer=1 & read_client=0 → trainer sent it (right)
+    // otherwise → client sent it (left)
+    return rows.map((r) => ({
+      ...r,
+      align: r.read_trainer === 1 && r.read_client === 0 ? 'right' : 'left',
+      // Also include client_name for the Nachrichten thread list
+      client_name: r.client
+        ? `${r.client.firstname ?? ''} ${r.client.lastname ?? ''}`.trim()
+        : undefined,
+    }));
+  }
+
+  async findAll() {
+    const rows = await this.repo.find({
+      relations: ['client'],
       order: { id: 'DESC' },
     });
+
+    return rows.map((r) => ({
+      ...r,
+      align: r.read_trainer === 1 && r.read_client === 0 ? 'right' : 'left',
+      client_name: r.client
+        ? `${r.client.firstname ?? ''} ${r.client.lastname ?? ''}`.trim()
+        : undefined,
+    }));
   }
 
   create(data: Partial<Feedback>) {
@@ -23,8 +51,9 @@ export class FeedbackService {
   }
 
   async markRead(id: number, byClient: boolean) {
-    const update = byClient ? { readClient: 1 } : { readTrainer: 1 };
+    const update = byClient ? { read_client: 1 } : { read_trainer: 1 };
     await this.repo.update(id, update);
+    return { success: true };
   }
 
   async remove(id: number) {

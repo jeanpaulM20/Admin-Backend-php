@@ -2,28 +2,32 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 't
 import { Client } from './client.entity';
 import { Trainer } from './trainer.entity';
 
+/**
+ * Feedback / Chat messages between trainer and client.
+ * Snake_case properties match MySQL columns AND Flutter fromJson keys.
+ */
 @Entity({ name: 'feedback' })
 export class Feedback {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'client_id' })
-  clientId: number;
+  @Column()
+  client_id: number;
 
-  @Column({ name: 'trainer_id', nullable: true })
-  trainerId: number;
+  @Column({ nullable: true })
+  trainer_id: number;
 
-  @Column({ name: 'text', type: 'text', nullable: true })
-  message: string;
+  @Column({ type: 'text', nullable: true })
+  text: string;
 
-  @Column({ name: 'read_client', default: 0 })
-  readClient: number;
+  @Column({ default: 0 })
+  read_client: number;
 
-  @Column({ name: 'read_trainer', default: 0 })
-  readTrainer: number;
+  @Column({ default: 0 })
+  read_trainer: number;
 
-  @Column({ name: 'is_circle', default: 0 })
-  isCircle: number;
+  @Column({ default: 0 })
+  is_circle: number;
 
   @ManyToOne(() => Client)
   @JoinColumn({ name: 'client_id' })
