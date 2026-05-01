@@ -30,13 +30,13 @@ export class ReviewService {
    * Returns newest first so the Flutter list shows recent workouts on top.
    */
   async findByClient(clientId: number) {
-    const rows = await this.reviewRepo
-      .createQueryBuilder('r')
-      .innerJoinAndSelect('r.training', 't')
-      .where('t.client_id = :clientId', { clientId })
-      .orderBy('t.date', 'DESC')
-      .addOrderBy('t.starttime', 'DESC')
-      .getMany();
+    const rows = await this.reviewRepo.find({
+      relations: ['training'],
+      where: {
+        training: { clientId },
+      },
+      order: { id: 'DESC' },
+    });
     return rows;
   }
 
