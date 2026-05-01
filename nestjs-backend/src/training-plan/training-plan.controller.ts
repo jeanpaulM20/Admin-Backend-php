@@ -4,7 +4,7 @@ import { TrainingPlan } from '../entities/training-plan.entity';
 import { CurrentClient } from '../auth/decorators/current-user.decorator';
 import { Client } from '../entities/client.entity';
 
-@Controller('api/trainingplan')
+@Controller('api/training-plan')
 export class TrainingPlanController {
   constructor(private readonly service: TrainingPlanService) {}
 
