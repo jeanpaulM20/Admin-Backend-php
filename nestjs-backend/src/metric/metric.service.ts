@@ -28,6 +28,7 @@ export class MetricService {
 
   async remove(id: number) {
     const m = await this.repo.findOneBy({ id });
+    if (!m) return null;
     return this.repo.remove(m);
   }
 }

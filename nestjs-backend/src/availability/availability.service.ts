@@ -31,6 +31,7 @@ export class AvailabilityService {
 
   async remove(id: number) {
     const a = await this.repo.findOneBy({ id });
+    if (!a) return null;
     return this.repo.remove(a);
   }
 }
