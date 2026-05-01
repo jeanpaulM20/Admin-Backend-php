@@ -137,16 +137,7 @@ export class Offer {
   @Column({ default: 1 }) active: number;
 }
 
-@Entity({ name: 'performance_test' })
-export class PerformanceTest {
-  @PrimaryGeneratedColumn() id: number;
-  @Column({ name: 'client_id' }) clientId: number;
-  @Column({ name: 'trainer_id', nullable: true }) trainerId: number;
-  @Column({ type: 'date', nullable: true }) date: string;
-  @Column({ nullable: true, type: 'text' }) notes: string;
-  @ManyToOne(() => Client) @JoinColumn({ name: 'client_id' }) client: Client;
-  @ManyToOne(() => Trainer) @JoinColumn({ name: 'trainer_id' }) trainer: Trainer;
-}
+// PerformanceTest moved to dedicated file: performance-test.entity.ts
 
 @Entity({ name: 'preference' })
 export class Preference {
