@@ -21,6 +21,10 @@ export class PerformanceTestService {
   }
 
   create(data: Partial<PerformanceTest>) {
+    // Flutter add-dialog doesn't send a date — default to now
+    if (!data.date) {
+      data.date = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    }
     return this.repo.save(this.repo.create(data));
   }
 
