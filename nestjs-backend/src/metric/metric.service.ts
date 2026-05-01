@@ -9,7 +9,7 @@ export class MetricService {
 
   findAll(clientId?: number) {
     const where: any = {};
-    if (clientId) where.clientId = clientId;
+    if (clientId) where.client_id = clientId;
     return this.repo.find({ where, order: { date: 'DESC' } });
   }
 

@@ -1,13 +1,17 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { Client } from './client.entity';
 
+/**
+ * Property names are kept in snake_case to match the MySQL column names
+ * AND the JSON keys expected by the Flutter apps (Metric.fromJson).
+ */
 @Entity({ name: 'metric' })
 export class Metric {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'client_id' })
-  clientId: number;
+  @Column()
+  client_id: number;
 
   @Column({ type: 'date' })
   date: string;
@@ -21,17 +25,17 @@ export class Metric {
   @Column({ type: 'float', nullable: true })
   dia: number;
 
-  @Column({ name: 'calm_pulse', type: 'float', nullable: true })
-  calmPulse: number;
+  @Column({ type: 'float', nullable: true })
+  calm_pulse: number;
 
-  @Column({ name: 'body_fat_kg', type: 'float', nullable: true })
-  bodyFatKg: number;
+  @Column({ type: 'float', nullable: true })
+  body_fat_kg: number;
 
-  @Column({ name: 'body_fat_perc', type: 'float', nullable: true })
-  bodyFatPerc: number;
+  @Column({ type: 'float', nullable: true })
+  body_fat_perc: number;
 
-  @Column({ name: 'waist_circumference', type: 'float', nullable: true })
-  waistCircumference: number;
+  @Column({ type: 'float', nullable: true })
+  waist_circumference: number;
 
   @Column({ type: 'float', nullable: true })
   bcm: number;
