@@ -25,9 +25,6 @@ export class Feedback {
   @Column({ name: 'is_circle', default: 0 })
   isCircle: number;
 
-  @Column({ type: 'date', nullable: true })
-  date: string;
-
   @ManyToOne(() => Client)
   @JoinColumn({ name: 'client_id' })
   client: Client;
