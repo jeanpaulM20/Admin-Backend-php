@@ -15,14 +15,7 @@ export class Abbonement {
   @ManyToOne(() => Client) @JoinColumn({ name: 'client_id' }) client: Client;
 }
 
-@Entity({ name: 'client_anamnese' })
-export class ClientAnamnese {
-  @PrimaryGeneratedColumn() id: number;
-  @Column({ name: 'client_id' }) clientId: number;
-  @Column({ nullable: true, type: 'text' }) content: string;
-  @Column({ name: 'created_at', type: 'datetime', default: () => 'CURRENT_TIMESTAMP' }) createdAt: Date;
-  @ManyToOne(() => Client) @JoinColumn({ name: 'client_id' }) client: Client;
-}
+// ClientAnamnese moved to dedicated file: client-anamnese.entity.ts
 
 @Entity({ name: 'client_credits' })
 export class ClientCredits {
