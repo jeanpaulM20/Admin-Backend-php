@@ -18,12 +18,23 @@ class Trainer {
   });
 
   factory Trainer.fromJson(Map<String, dynamic> json) {
+    // NestJS returns firstname/lastname separately; PHP returns name
+    String name = _parseString(json['name'] ?? json['trainer_name'] ?? '');
+    if (name.isEmpty) {
+      final first = json['firstname']?.toString() ?? '';
+      final last  = json['lastname']?.toString()  ?? '';
+      name = '$first $last'.trim();
+    }
+
     return Trainer(
       id: _parseInt(json['id'] ?? json['trainer_id'] ?? 0),
-      name: _parseString(json['name'] ?? json['trainer_name'] ?? ''),
+      name: name,
       email: json['email']?.toString(),
       phone: json['phone']?.toString() ?? json['mobile']?.toString(),
-      photo: json['photo']?.toString() ?? json['image']?.toString(),
+      // NestJS uses "picture"; PHP uses "photo" / "image"
+      photo: json['photo']?.toString() ??
+          json['image']?.toString() ??
+          json['picture']?.toString(),
       description: json['description']?.toString() ?? json['about']?.toString(),
       passcode: json['passcode']?.toString(),
     );

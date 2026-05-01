@@ -41,7 +41,7 @@ class Training {
     DateTime? startTime;
     DateTime? endTime;
 
-    // Try to parse combined datetime first
+    // Try combined datetime fields first
     final startStr = json['start']?.toString() ??
         json['start_time']?.toString() ??
         json['datetime_from']?.toString();
@@ -49,22 +49,35 @@ class Training {
         json['end_time']?.toString() ??
         json['datetime_to']?.toString();
 
-    if (startStr != null) {
-      startTime = DateTime.tryParse(startStr);
-    }
-    if (endStr != null) {
-      endTime = DateTime.tryParse(endStr);
-    }
+    if (startStr != null) startTime = DateTime.tryParse(startStr);
+    if (endStr != null)   endTime   = DateTime.tryParse(endStr);
 
-    // If no combined datetime, try date + time fields
+    // Fallback: date + separate time field
+    // NestJS uses "starttime" (no underscore); PHP uses "time_from" / "from"
     if (startTime == null) {
       final date = json['date']?.toString() ?? json['training_date']?.toString();
       final timeFrom = json['time_from']?.toString() ??
+          json['starttime']?.toString() ??
           json['from']?.toString() ??
           json['start_time']?.toString();
       if (date != null && timeFrom != null) {
         startTime = DateTime.tryParse('$date $timeFrom');
       }
+    }
+
+    // NestJS embeds full client/trainer objects; PHP uses flat fields
+    final clientObj   = json['client']   as Map<String, dynamic>?;
+    final trainerObj  = json['trainer']  as Map<String, dynamic>?;
+
+    String? clientName = json['client_name']?.toString() ??
+        _buildName(json, 'client_first_name', 'client_last_name');
+    if (clientName == null && clientObj != null) {
+      clientName = _buildName(clientObj, 'firstname', 'lastname');
+    }
+
+    String? trainerName = json['trainer_name']?.toString();
+    if (trainerName == null && trainerObj != null) {
+      trainerName = _buildName(trainerObj, 'firstname', 'lastname');
     }
 
     final statusStr =
@@ -76,14 +89,17 @@ class Training {
       startTime: startTime,
       endTime: endTime,
       date: json['date']?.toString() ?? json['training_date']?.toString(),
-      timeFrom: json['time_from']?.toString() ?? json['from']?.toString(),
+      // NestJS "starttime"; PHP "time_from"
+      timeFrom: json['time_from']?.toString() ??
+          json['starttime']?.toString() ??
+          json['from']?.toString(),
       timeTo: json['time_to']?.toString() ?? json['to']?.toString(),
-      clientId: _parseInt(json['client_id']),
-      clientName: json['client_name']?.toString() ??
-          _buildName(json, 'client_first_name', 'client_last_name'),
-      trainerId: _parseInt(json['trainer_id']),
-      trainerName: json['trainer_name']?.toString(),
-      locationId: _parseInt(json['location_id']),
+      // NestJS camelCase or PHP snake_case
+      clientId:  _parseInt(json['client_id']  ?? json['clientId']),
+      clientName: clientName,
+      trainerId: _parseInt(json['trainer_id'] ?? json['trainerId']),
+      trainerName: trainerName,
+      locationId: _parseInt(json['location_id'] ?? json['locationId']),
       locationName: json['location_name']?.toString() ??
           json['location']?.toString(),
       trainingType: json['training_type']?.toString() ??

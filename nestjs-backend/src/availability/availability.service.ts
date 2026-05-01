@@ -34,4 +34,37 @@ export class AvailabilityService {
     if (!a) return null;
     return this.repo.remove(a);
   }
+
+  async createSerial(params: {
+    trainerId?: number;
+    from: string;
+    to?: string;
+    rStart: string;
+    rEnd: string;
+    days: number[];
+    locationId?: number;
+  }) {
+    const { trainerId, from, to, rStart, rEnd, days, locationId } = params;
+    const start = new Date(rStart);
+    const end = new Date(rEnd);
+    const toInsert: TrainerAvailability[] = [];
+
+    for (const d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const dayOfWeek = d.getDay() === 0 ? 7 : d.getDay(); // 1=Mon … 7=Sun
+      if (days.includes(dayOfWeek)) {
+        const dateStr = d.toISOString().slice(0, 10);
+        const data: Partial<TrainerAvailability> = {
+          trainerId,
+          locationId: locationId ?? 1,
+          date: dateStr,
+          from,
+        };
+        if (to) data.to = to;
+        toInsert.push(this.repo.create(data));
+      }
+    }
+
+    const saved = await this.repo.save(toInsert);
+    return { created: saved.length, entries: saved };
+  }
 }

@@ -118,13 +118,14 @@ class _AvailabilitySerialScreenState extends State<AvailabilitySerialScreen> {
 
     setState(() => _saving = true);
     try {
-      await _apiService.postForm(ApiConfig.availabilitySerial, body: {
-        'trainer_id': widget.trainerId.toString(),
+      // NestJS: POST /api/trainer-availability/serial (JSON body)
+      await _apiService.post(ApiConfig.availabilitySerial, body: {
+        'trainerId': widget.trainerId,
         'from': _formatTime(_fromTime),
         'to': _formatTime(_toTime),
         'rStart': _formatDate(_rangeStart),
         'rEnd': _formatDate(_rangeEnd),
-        'days': _selectedDays.join(','),
+        'days': _selectedDays.toList()..sort(),
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

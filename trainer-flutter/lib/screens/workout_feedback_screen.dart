@@ -10,6 +10,7 @@ import '../config/api_config.dart';
 import '../config/app_colors.dart';
 
 class _FeedbackMessage {
+  final int id;
   final String text;
   final String? author;
   final String? align; // 'right' = trainer, 'left' = client
@@ -17,6 +18,7 @@ class _FeedbackMessage {
   final bool readTrainer;
 
   const _FeedbackMessage({
+    required this.id,
     required this.text,
     this.author,
     this.align,
@@ -35,8 +37,11 @@ class _FeedbackMessage {
     if (align == null && json.containsKey('read_client')) {
       align = (readTrainer && !readClient) ? 'right' : 'left';
     }
+    final rawId = json['id'];
+    final id = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
     return _FeedbackMessage(
-      text: json['text']?.toString() ?? json['comment']?.toString() ?? '',
+      id: id,
+      text: json['text']?.toString() ?? json['message']?.toString() ?? json['comment']?.toString() ?? '',
       author: json['author']?.toString(),
       align: align,
       isCircle: (json['is_circle'] is int ? json['is_circle'] : int.tryParse(json['is_circle']?.toString() ?? '0') ?? 0) == 1,
@@ -122,13 +127,15 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
   }
 
   Future<void> _markAllRead() async {
-    try {
-      await _apiService.postForm(
-        ApiConfig.markTrainerFeedback,
-        body: {'client_id': widget.client.id.toString()},
-      );
-    } catch (_) {
-      // Silently ignore — marking read is best-effort
+    // Best-effort: mark each unread trainer-received message as read
+    for (final msg in _messages) {
+      if (msg.id > 0 && !msg.readTrainer) {
+        try {
+          await _apiService.post('${ApiConfig.feedback}/${msg.id}/read');
+        } catch (_) {
+          // Silently ignore
+        }
+      }
     }
   }
 
@@ -150,13 +157,12 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
     setState(() => _sending = true);
     try {
       final trainerId = context.read<AuthProvider>().trainer?.id ?? 0;
-      await _apiService.postForm(ApiConfig.feedback, body: {
-        'client_id': widget.client.id.toString(),
-        'trainer_id': trainerId.toString(),
-        'text': text,
-        'align': 'right',
-        'read_trainer': '1',
-        'read_client': '0',
+      await _apiService.post(ApiConfig.feedback, body: {
+        'clientId': widget.client.id,
+        'trainerId': trainerId,
+        'message': text,
+        'readTrainer': 1,
+        'readClient': 0,
       });
       _textCtrl.clear();
       await _loadMessages();

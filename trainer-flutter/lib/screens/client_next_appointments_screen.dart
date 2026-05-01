@@ -158,10 +158,7 @@ class _ClientNextAppointmentsScreenState
 
     if (confirmed != true) return;
     try {
-      await _apiService.postForm(
-        ApiConfig.cancelTrainingTrainer,
-        body: {'training_id': appointment.id.toString()},
-      );
+      await _apiService.post('${ApiConfig.training}/${appointment.id}/cancel');
       await _load();
     } on ApiException catch (e) {
       if (mounted) {

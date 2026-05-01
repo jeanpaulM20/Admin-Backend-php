@@ -522,13 +522,7 @@ class _TrainingItemState extends State<_TrainingItem> {
 
     setState(() => _isCancelling = true);
     try {
-      await _apiService.postForm(
-        ApiConfig.cancelTrainingTrainer,
-        body: {
-          'trainer_id': trainer.id.toString(),
-          'id': _training.id.toString(),
-        },
-      );
+      await _apiService.post('${ApiConfig.training}/${_training.id}/cancel');
       if (mounted) {
         setState(() {
           _training = Training(
