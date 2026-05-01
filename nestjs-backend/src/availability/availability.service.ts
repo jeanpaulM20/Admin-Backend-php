@@ -53,13 +53,10 @@ export class AvailabilityService {
       const dayOfWeek = d.getDay() === 0 ? 7 : d.getDay(); // 1=Mon … 7=Sun
       if (days.includes(dayOfWeek)) {
         const dateStr = d.toISOString().slice(0, 10);
-        const entry = this.repo.create({
-          trainerId,
-          locationId,
-          date: dateStr,
-          from,
-          to,
-        });
+        const data: any = { trainerId, date: dateStr, from };
+        if (to) data.to = to;
+        if (locationId) data.locationId = locationId;
+        const entry = this.repo.create(data);
         created.push(await this.repo.save(entry));
       }
     }

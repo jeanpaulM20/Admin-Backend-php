@@ -9,7 +9,7 @@ export class TrainerAvailability {
   @Column({ name: 'trainer_id' })
   trainerId: number;
 
-  @Column({ name: 'location_id', nullable: true })
+  @Column({ name: 'location_id', default: 1 })
   locationId: number;
 
   @Column({ name: 'training_type_id', nullable: true })
