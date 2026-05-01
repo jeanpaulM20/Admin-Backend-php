@@ -33,14 +33,14 @@ jobs:
         working-directory: trainer-flutter
         run: |
           flutter pub get
-          flutter build web --release --base-href /trainer/
+          flutter build web --release --base-href /Admin-Backend-php/trainer/
 
       # ── Build Client App ──────────────────────────────────────
       - name: Build Client Web App
         working-directory: client-flutter
         run: |
           flutter pub get
-          flutter build web --release --base-href /client/
+          flutter build web --release --base-href /Admin-Backend-php/client/
 
       # ── Commit built files to main ────────────────────────────
       - name: Commit built output
@@ -54,8 +54,10 @@ jobs:
           git diff --cached --quiet || git commit -m "chore: rebuild Flutter web apps [skip ci]"
           git push
 
-      # ── Deploy to server via SSH ──────────────────────────────
+      # ── Deploy to server via SSH (optional — skips if secrets missing) ──
       - name: Deploy to Server
+        if: ${{ secrets.SERVER_HOST != '' }}
+        continue-on-error: true
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
