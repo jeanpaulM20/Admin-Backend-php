@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, ParseIntPipe, HttpException, HttpStatus } from '@nestjs/common';
 import { PerformanceTestService } from './performance-test.service';
 import { PerformanceTest } from '../entities/performance-test.entity';
 
@@ -17,13 +17,27 @@ export class PerformanceTestController {
   }
 
   @Post()
-  create(@Body() body: Partial<PerformanceTest>) {
-    return this.service.create(body);
+  async create(@Body() body: Partial<PerformanceTest>) {
+    try {
+      return await this.service.create(body);
+    } catch (err) {
+      throw new HttpException(
+        { message: err.message, detail: err.sqlMessage ?? err.detail ?? null },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() body: Partial<PerformanceTest>) {
-    return this.service.update(id, body);
+  async update(@Param('id', ParseIntPipe) id: number, @Body() body: Partial<PerformanceTest>) {
+    try {
+      return await this.service.update(id, body);
+    } catch (err) {
+      throw new HttpException(
+        { message: err.message, detail: err.sqlMessage ?? err.detail ?? null },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   @Delete(':id')
