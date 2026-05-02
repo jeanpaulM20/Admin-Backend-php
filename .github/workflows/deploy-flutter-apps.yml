@@ -30,7 +30,7 @@ jobs:
         working-directory: trainer-flutter
         run: |
           flutter pub get
-          flutter build web --release --base-href /Admin-Backend-php/trainer/
+          flutter build web --release --base-href /trainer/
 
       - name: Build Client Web App (for apps.sihltraining.ch)
         working-directory: client-flutter

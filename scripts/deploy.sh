@@ -1,8 +1,9 @@
 #!/bin/sh
-# Nach jedem git pull auf dem Server ausführen: sh scripts/deploy.sh
+# Nach jedem git pull auf dem Server ausfuehren: sh scripts/deploy.sh
 set -e
 
-NESTJS_DIR="$(cd "$(dirname "$0")/../nestjs-backend" && pwd)"
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+NESTJS_DIR="$ROOT_DIR/nestjs-backend"
 
 echo "==> Deploying NestJS backend..."
 cd "$NESTJS_DIR"
@@ -17,3 +18,26 @@ if command -v pm2 > /dev/null 2>&1; then
 else
   echo "==> Build fertig. Bitte den NestJS-Prozess manuell neu starten."
 fi
+
+# Flutter Client-App deployen (pre-built im client/ Ordner)
+echo ""
+echo "==> Deploying Flutter client app..."
+CLIENT_SRC="$ROOT_DIR/client"
+# Standard Apache Webroot fuer client
+CLIENT_DEST="/var/www/html/client"
+
+if [ -d "$CLIENT_SRC" ] && [ -f "$CLIENT_SRC/main.dart.js" ]; then
+  if [ -d "$(dirname "$CLIENT_DEST")" ]; then
+    mkdir -p "$CLIENT_DEST"
+    rsync -a --delete "$CLIENT_SRC/" "$CLIENT_DEST/"
+    echo "==> Flutter client deployed to $CLIENT_DEST"
+  else
+    echo "==> SKIP: Zielordner $(dirname "$CLIENT_DEST") existiert nicht."
+    echo "   Bitte manuell kopieren: cp -r $CLIENT_SRC/* /pfad/zum/webroot/client/"
+  fi
+else
+  echo "==> SKIP: Keine gebauten Flutter-Dateien in $CLIENT_SRC gefunden."
+fi
+
+echo ""
+echo "==> Deploy abgeschlossen!"
