@@ -250,18 +250,39 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
         ApiConfig.review,
         queryParams: {'client_id': widget.client.id.toString()},
       );
-      if (data is List && data.isNotEmpty) {
-        final latest = data.first as Map<String, dynamic>;
-        final hr = latest['heart_rate'];
-        final duration = latest['duration'] ?? '–';
-        final kcal = latest['kcal'] ?? '–';
-        final type = latest['training_type'] ?? 'Training';
-        final msg =
-            '[Aufzeichnung] $type\nDauer: $duration | Kcal: $kcal | HR: ${hr ?? "--"} bpm';
-        _textCtrl.text = msg;
-      } else {
+      if (data is! List || data.isEmpty) {
         _showSnack('Keine Aufzeichnungen vorhanden');
+        return;
       }
+      if (!mounted) return;
+      _showPickerSheet(
+        title: 'Aufzeichnung waehlen',
+        items: data.cast<Map<String, dynamic>>(),
+        titleBuilder: (item) {
+          final type = _trainingTypeLabel(item['training_type']?.toString());
+          final training = item['training'] as Map<String, dynamic>?;
+          final date = training?['date']?.toString() ?? '';
+          return '$type${date.isNotEmpty ? " -- $date" : ""}';
+        },
+        subtitleBuilder: (item) {
+          final duration = item['duration'] ?? '--';
+          final kcal = item['kcal'] ?? '--';
+          final hr = item['heart_rate'];
+          return 'Dauer: $duration | Kcal: $kcal | HR: ${hr ?? "--"} bpm';
+        },
+        iconBuilder: (_) => Icons.monitor_heart,
+        colorBuilder: (_) => AppColors.red,
+        onSelect: (item) {
+          final type = _trainingTypeLabel(item['training_type']?.toString());
+          final duration = item['duration'] ?? '--';
+          final kcal = item['kcal'] ?? '--';
+          final hr = item['heart_rate'];
+          final training = item['training'] as Map<String, dynamic>?;
+          final date = training?['date']?.toString() ?? '';
+          _textCtrl.text =
+              '[Aufzeichnung] $type ($date)\nDauer: $duration | Kcal: $kcal | HR: ${hr ?? "--"} bpm';
+        },
+      );
     } catch (e) {
       _showSnack('Daten konnten nicht geladen werden');
     }
@@ -273,16 +294,43 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
         ApiConfig.performance,
         queryParams: {'client_id': widget.client.id.toString()},
       );
-      if (data is List && data.isNotEmpty) {
-        final latest = data.last as Map<String, dynamic>;
-        final date = latest['date'] ?? '–';
-        final points = latest['points'] ?? 0;
-        final msg =
-            '[Performance] Test ($date)\nPunkte: $points';
-        _textCtrl.text = msg;
-      } else {
+      if (data is! List || data.isEmpty) {
         _showSnack('Keine Performance-Daten vorhanden');
+        return;
       }
+      if (!mounted) return;
+      _showPickerSheet(
+        title: 'Performance Test waehlen',
+        items: data.cast<Map<String, dynamic>>(),
+        titleBuilder: (item) {
+          final date = item['date']?.toString() ?? '--';
+          final points = item['points'] ?? 0;
+          return 'Test vom $date';
+        },
+        subtitleBuilder: (item) {
+          final points = item['points'] ?? 0;
+          final parts = <String>['Punkte: $points'];
+          final pushups = item['pushups'];
+          final pullups = item['pullups'];
+          if (pushups != null && pushups != 0) parts.add('Liegestuetz: $pushups');
+          if (pullups != null && pullups != 0) parts.add('Klimmzuege: $pullups');
+          return parts.join(' | ');
+        },
+        iconBuilder: (_) => Icons.show_chart,
+        colorBuilder: (_) => AppColors.green,
+        onSelect: (item) {
+          final date = item['date']?.toString() ?? '--';
+          final points = item['points'] ?? 0;
+          final parts = <String>['Punkte: $points'];
+          final pushups = item['pushups'];
+          final pullups = item['pullups'];
+          final forearm = item['forearm_support'];
+          if (pushups != null && pushups != 0) parts.add('Liegestuetz: $pushups');
+          if (pullups != null && pullups != 0) parts.add('Klimmzuege: $pullups');
+          if (forearm != null && forearm != 0) parts.add('Unterarmstuetz: $forearm');
+          _textCtrl.text = '[Performance] Test ($date)\n${parts.join(" | ")}';
+        },
+      );
     } catch (e) {
       _showSnack('Daten konnten nicht geladen werden');
     }
@@ -294,24 +342,167 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
         ApiConfig.metric,
         queryParams: {'client_id': widget.client.id.toString()},
       );
-      if (data is List && data.isNotEmpty) {
-        final latest = data.last as Map<String, dynamic>;
-        final weight = latest['weight'] ?? latest['gewicht'];
-        final bmi = latest['bmi'];
-        final bodyFat = latest['body_fat'] ?? latest['body_fat_percent'];
-        final date = latest['date'] ?? '–';
-        final parts = <String>[];
-        if (weight != null) parts.add('Gewicht: $weight kg');
-        if (bmi != null) parts.add('BMI: $bmi');
-        if (bodyFat != null) parts.add('KFA: $bodyFat%');
-        final msg = '[Messwerte] $date\n${parts.join(" | ")}';
-        _textCtrl.text = msg;
-      } else {
+      if (data is! List || data.isEmpty) {
         _showSnack('Keine Messwerte vorhanden');
+        return;
       }
+      if (!mounted) return;
+      _showPickerSheet(
+        title: 'Messwerte waehlen',
+        items: data.cast<Map<String, dynamic>>(),
+        titleBuilder: (item) {
+          final date = item['date']?.toString() ?? '--';
+          return 'Messung vom $date';
+        },
+        subtitleBuilder: (item) {
+          final parts = <String>[];
+          final weight = item['weight'] ?? item['gewicht'];
+          final bmi = item['bmi'];
+          if (weight != null) parts.add('$weight kg');
+          if (bmi != null) parts.add('BMI $bmi');
+          return parts.isEmpty ? '--' : parts.join(' | ');
+        },
+        iconBuilder: (_) => Icons.monitor_weight_outlined,
+        colorBuilder: (_) => AppColors.blue,
+        onSelect: (item) {
+          final weight = item['weight'] ?? item['gewicht'];
+          final bmi = item['bmi'];
+          final bodyFat = item['body_fat'] ?? item['body_fat_percent'];
+          final date = item['date']?.toString() ?? '--';
+          final calmPulse = item['calm_pulse'];
+          final parts = <String>[];
+          if (weight != null) parts.add('Gewicht: $weight kg');
+          if (bmi != null) parts.add('BMI: $bmi');
+          if (bodyFat != null) parts.add('KFA: $bodyFat%');
+          if (calmPulse != null) parts.add('Ruhepuls: $calmPulse');
+          _textCtrl.text = '[Messwerte] $date\n${parts.join(" | ")}';
+        },
+      );
     } catch (e) {
       _showSnack('Daten konnten nicht geladen werden');
     }
+  }
+
+  /// Generic picker bottom sheet for selecting an item from a list
+  void _showPickerSheet({
+    required String title,
+    required List<Map<String, dynamic>> items,
+    required String Function(Map<String, dynamic>) titleBuilder,
+    required String Function(Map<String, dynamic>) subtitleBuilder,
+    required IconData Function(Map<String, dynamic>) iconBuilder,
+    required Color Function(Map<String, dynamic>) colorBuilder,
+    required void Function(Map<String, dynamic>) onSelect,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.55,
+        minChildSize: 0.3,
+        maxChildSize: 0.85,
+        expand: false,
+        builder: (_, scrollCtrl) => SafeArea(
+          child: Column(
+            children: [
+              // Handle
+              Container(
+                margin: const EdgeInsets.only(top: 10, bottom: 6),
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.muted.withAlpha(80),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Row(
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${items.length} Eintraege',
+                      style: const TextStyle(
+                          color: AppColors.muted, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(color: AppColors.border, height: 1),
+              Expanded(
+                child: ListView.builder(
+                  controller: scrollCtrl,
+                  itemCount: items.length,
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  itemBuilder: (_, i) {
+                    // Show newest first
+                    final item = items[items.length - 1 - i];
+                    final icon = iconBuilder(item);
+                    final color = colorBuilder(item);
+                    return ListTile(
+                      leading: Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: color.withAlpha(25),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(icon, color: color, size: 18),
+                      ),
+                      title: Text(
+                        titleBuilder(item),
+                        style: const TextStyle(
+                            color: Colors.white, fontSize: 14),
+                      ),
+                      subtitle: Text(
+                        subtitleBuilder(item),
+                        style: const TextStyle(
+                            color: AppColors.muted, fontSize: 12),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: const Icon(Icons.send,
+                          color: AppColors.primary, size: 16),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        onSelect(item);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _trainingTypeLabel(String? type) {
+    const labels = {
+      'cardio': 'Cardio',
+      'endurance': 'Ausdauer',
+      'strenght': 'Kraft',
+      'speed': 'Schnelligkeit',
+      'coordination': 'Koordination',
+      'free': 'Freies Training',
+      'running': 'Laufen',
+      'fitness': 'Fitness Level',
+      'interval': 'Intervall',
+    };
+    return labels[type] ?? type ?? 'Training';
   }
 
   void _showSnack(String msg) {
