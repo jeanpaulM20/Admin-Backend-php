@@ -43,7 +43,7 @@ class ApiService {
   }
 
   Uri _buildUri(String endpoint, [Map<String, String>? queryParams]) {
-    final url = '${ApiConfig.baseUrl}$endpoint';
+    final url = '${ApiConfig.baseUrl}$endpoint'; // baseUrl = Railway NestJS
     if (queryParams != null && queryParams.isNotEmpty) {
       return Uri.parse(url).replace(queryParameters: queryParams);
     }

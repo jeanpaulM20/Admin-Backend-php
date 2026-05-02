@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { randomBytes } from 'crypto';
@@ -56,7 +56,6 @@ export class ClientService {
   // Replaces actionToken() – client login returns an access token
   async login(email: string, passcode: string): Promise<{ token: string }> {
     const client = await this.clientRepo.findOne({
-      // email maps to e_mail column; TypeORM uses the property name in where clauses
       where: { email, clientpasscode: passcode, active: 1 } as any,
       select: { id: true, firstname: true, lastname: true, active: true, clientpasscode: true },
     });
@@ -65,5 +64,40 @@ export class ClientService {
     const token = randomBytes(32).toString('hex');
     await this.tokenRepo.save(this.tokenRepo.create({ clientId: client.id, token }));
     return { token };
+  }
+
+  /**
+   * Client-app login — returns token + client data (matching PHP actionToken response).
+   * Supports login by email+passcode or passcode-only (like PHP).
+   */
+  async loginClient(email: string, passcode: string) {
+    const where: any = { active: 1, clientpasscode: passcode };
+    if (email) {
+      where.email = email;
+    }
+
+    const client = await this.clientRepo.findOne({
+      where,
+      select: {
+        id: true, firstname: true, lastname: true, email: true,
+        phone: true, picture: true, active: true, clientpasscode: true,
+      },
+    });
+    if (!client) throw new UnauthorizedException('Ungültige Anmeldedaten');
+
+    const token = randomBytes(32).toString('hex');
+    await this.tokenRepo.save(this.tokenRepo.create({ clientId: client.id, token }));
+
+    return {
+      token,
+      client: {
+        id: client.id,
+        firstname: client.firstname,
+        lastname: client.lastname,
+        email: client.email,
+        phone: client.phone,
+        photo: client.picture,
+      },
+    };
   }
 }

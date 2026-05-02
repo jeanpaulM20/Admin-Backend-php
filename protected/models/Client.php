@@ -64,8 +64,8 @@ class Client extends ActiveRecord
 		return array(
 			array('id', 'numerical', 'integerOnly' => true),
 			array('clientid, clientpasscode, surname, name, e_mail, phone, mobile', 'length', 'max' => 255),
-			array('trainers, contents, gender, id, clientid, clientpasscode, surname, name, birthday, birthday_range, e_mail, phone, mobile, foto, active, access_token, qrcode_static, door_access, min_heart_rate, max_heart_rate, zip, domicile', 'safe'),
-			array('trainers, contents, gender, id, clientid, clientpasscode, surname, name, birthday, birthday_range, e_mail, phone, mobile, foto, active, access_token, qrcode_static, door_access, min_heart_rate, max_heart_rate, zip, domicile', 'safe', 'on' => 'search'),
+			array('trainers, contents, gender, id, clientid, clientpasscode, surname, name, birthday, birthday_range, e_mail, phone, mobile, foto, active, access_token, qrcode_static, door_access, min_heart_rate, max_heart_rate, zip, domicile, auto_training_notify', 'safe'),
+			array('trainers, contents, gender, id, clientid, clientpasscode, surname, name, birthday, birthday_range, e_mail, phone, mobile, foto, active, access_token, qrcode_static, door_access, min_heart_rate, max_heart_rate, zip, domicile, auto_training_notify', 'safe', 'on' => 'search'),
 		);
 	}
 

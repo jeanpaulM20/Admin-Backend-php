@@ -11,6 +11,9 @@ class Client {
   final int? trainerId;
   final String? trainingType;
   final String? locationName;
+  final int? minHeartRate;
+  final int? maxHeartRate;
+  final bool autoTrainingNotify;
 
   const Client({
     required this.id,
@@ -25,6 +28,9 @@ class Client {
     this.trainerId,
     this.trainingType,
     this.locationName,
+    this.minHeartRate,
+    this.maxHeartRate,
+    this.autoTrainingNotify = false,
   });
 
   factory Client.fromJson(Map<String, dynamic> json) {
@@ -52,6 +58,10 @@ class Client {
           json['type']?.toString(),
       locationName: json['location_name']?.toString() ??
           json['location']?.toString(),
+      minHeartRate: _parseNullableInt(json['min_heart_rate'] ?? json['minHeartRate']),
+      maxHeartRate: _parseNullableInt(json['max_heart_rate'] ?? json['maxHeartRate']),
+      autoTrainingNotify: (json['auto_training_notify'] ?? json['autoTrainingNotify'] ?? 0) == 1 ||
+          (json['auto_training_notify'] ?? json['autoTrainingNotify'] ?? false) == true,
     );
   }
 
@@ -94,6 +104,13 @@ class Client {
     if (value is int) return value;
     if (value is String) return int.tryParse(value) ?? 0;
     return 0;
+  }
+
+  static int? _parseNullableInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value == 0 ? null : value;
+    if (value is String) return int.tryParse(value);
+    return null;
   }
 
   String get initials {

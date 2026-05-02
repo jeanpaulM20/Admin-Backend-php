@@ -540,6 +540,7 @@ class Review extends ActiveRecord {
 	protected function afterSave() {
 		if ($this->isNewRecord && $this->create_feedback) {
 			$this->createFeedbackCircle();
+			$this->createTrainerNotification();
 		}
 		parent::afterSave();
 	}
@@ -563,6 +564,78 @@ class Review extends ActiveRecord {
 		$feedback->read_trainer = 1;
 		$feedback->is_circle = 1;
 		$feedback->save();
+	}
+
+	/**
+	 * Create a [TRAINING_REPORT] chat message for the trainer
+	 * when a client completes a workout (if auto_training_notify is enabled).
+	 */
+	public function createTrainerNotification() {
+		$training = $this->training;
+		if (!$training) return;
+
+		$client_id = $training->client_id;
+		if (!$client_id) return;
+
+		// Check if auto_training_notify is enabled for this client
+		$client = Client::model()->findByPk($client_id);
+		if (!$client || !$client->auto_training_notify) return;
+
+		// Build report data
+		$duration = $this->duration ?? '--';
+		$hr = $this->heart_rate ? round($this->heart_rate) : null;
+		$maxHr = $this->max_heart_rate ? round($this->max_heart_rate) : null;
+		$kcal = $this->kcal;
+		$distance = $this->distance;
+		$speed = $this->speed;
+		$trainingType = $this->training_type ?? 'training';
+
+		// Build the report text
+		$parts = array();
+		$parts[] = 'Dauer: ' . $duration;
+		if ($hr) $parts[] = 'Avg HR: ' . $hr . ' bpm';
+		if ($maxHr) $parts[] = 'Max HR: ' . $maxHr . ' bpm';
+		if ($kcal) $parts[] = 'Kcal: ' . $kcal;
+		if ($distance && $distance > 0) $parts[] = 'Distanz: ' . round($distance) . ' m';
+		if ($speed && $speed > 0) $parts[] = 'Speed: ' . round($speed, 1) . ' km/h';
+
+		$date = $training->date ? date('d.m.Y', strtotime($training->date)) : date('d.m.Y');
+
+		$feedback = new Feedback();
+		$feedback->client_id = $client_id;
+		$feedback->text = '[TRAINING_REPORT] ' . ucfirst($trainingType) . ' (' . $date . ')' . "\n" . implode(' | ', $parts);
+		$feedback->read_client = 1;
+		$feedback->read_trainer = 0;
+		$feedback->is_circle = 0;
+		$feedback->save();
+
+		// Ping Firebase to notify trainer in real-time
+		$this->_pingFirebaseTrainer($client_id);
+	}
+
+	/**
+	 * Ping Firebase Realtime DB for trainer notifications
+	 */
+	private function _pingFirebaseTrainer($client_id) {
+		$baseUrl = isset(Yii::app()->params['firebaseDatabaseUrl'])
+			? rtrim(Yii::app()->params['firebaseDatabaseUrl'], '/')
+			: null;
+		if (!$baseUrl) return;
+
+		// Ping the chat path so trainer chat screen refreshes
+		$url = $baseUrl . '/chat_pings/client_' . (int)$client_id . '.json';
+		$payload = json_encode(array('ts' => time(), 'cid' => (int)$client_id, 'type' => 'training_report'));
+
+		$ctx = stream_context_create(array(
+			'http' => array(
+				'method'  => 'PUT',
+				'header'  => 'Content-Type: application/json',
+				'content' => $payload,
+				'timeout' => 3,
+			),
+			'ssl' => array('verify_peer' => false),
+		));
+		@file_get_contents($url, false, $ctx);
 	}
 
 	public function getMediane() {

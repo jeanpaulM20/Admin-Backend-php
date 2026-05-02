@@ -10,8 +10,11 @@ export class ClientController {
 
   @Public()
   @Post('token')
-  login(@Body() body: { email: string; passcode: string }) {
-    return this.service.login(body.email, body.passcode);
+  login(@Body() body: any) {
+    // Accept both NestJS-style (email/passcode) and PHP-style (e_mail/clientpasscode)
+    const email = body.email ?? body.e_mail ?? '';
+    const passcode = body.passcode ?? body.clientpasscode ?? '';
+    return this.service.loginClient(email, passcode);
   }
 
   @Get()

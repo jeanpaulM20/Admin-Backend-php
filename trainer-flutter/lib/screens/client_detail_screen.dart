@@ -14,11 +14,65 @@ import 'performance_screen.dart';
 import 'client_files_screen.dart';
 import 'workout_feedback_screen.dart';
 import 'client_next_appointments_screen.dart';
+import 'training_recording_screen.dart';
 
-class ClientDetailScreen extends StatelessWidget {
+class ClientDetailScreen extends StatefulWidget {
   final Client client;
 
   const ClientDetailScreen({super.key, required this.client});
+
+  @override
+  State<ClientDetailScreen> createState() => _ClientDetailScreenState();
+}
+
+class _ClientDetailScreenState extends State<ClientDetailScreen> {
+  final ApiService _apiService = ApiService();
+  late bool _autoNotify;
+  bool _togglingNotify = false;
+
+  Client get client => widget.client;
+
+  @override
+  void initState() {
+    super.initState();
+    _autoNotify = widget.client.autoTrainingNotify;
+    _loadNotifySetting();
+  }
+
+  Future<void> _loadNotifySetting() async {
+    try {
+      final resp = await _apiService.get(
+        '${ApiConfig.client}/${widget.client.id}/auto-notify',
+      );
+      if (resp is Map && mounted) {
+        setState(() {
+          _autoNotify = (resp['enabled'] ?? 0) == 1;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _toggleAutoNotify(bool value) async {
+    setState(() => _togglingNotify = true);
+    try {
+      await _apiService.put(
+        '${ApiConfig.client}/${widget.client.id}/auto-notify',
+        body: {'enabled': value ? 1 : 0},
+      );
+      if (mounted) setState(() => _autoNotify = value);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fehler: $e'),
+            backgroundColor: AppColors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _togglingNotify = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,6 +129,7 @@ class ClientDetailScreen extends StatelessWidget {
                       ),
                     ),
                   ),
+                _buildAutoNotifyToggle(),
                 _buildQuickActions(context),
                 const SizedBox(height: 40),
               ],
@@ -270,6 +325,88 @@ class ClientDetailScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildAutoNotifyToggle() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: _autoNotify
+                ? AppColors.primary.withAlpha(60)
+                : AppColors.border,
+            width: 0.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: _autoNotify
+                    ? AppColors.primary.withAlpha(30)
+                    : AppColors.border.withAlpha(50),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                Icons.notifications_active_outlined,
+                color: _autoNotify ? AppColors.primary : AppColors.muted,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Auto-Benachrichtigung',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _autoNotify
+                        ? 'Training-Report nach jedem Workout'
+                        : 'Benachrichtigungen deaktiviert',
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (_togglingNotify)
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.primary,
+                ),
+              )
+            else
+              Switch(
+                value: _autoNotify,
+                onChanged: _toggleAutoNotify,
+                activeColor: AppColors.primary,
+                activeTrackColor: AppColors.primary.withAlpha(80),
+                inactiveThumbColor: AppColors.muted,
+                inactiveTrackColor: AppColors.border,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildQuickActions(BuildContext context) {
     final actions = [
       _QuickAction(
@@ -301,6 +438,17 @@ class ClientDetailScreen extends StatelessWidget {
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => PerformanceScreen(client: client)),
+        ),
+      ),
+      _QuickAction(
+        icon: Icons.monitor_heart_outlined,
+        label: 'Aufzeichnung',
+        subtitle: 'Herzfrequenz',
+        color: AppColors.red,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => TrainingRecordingScreen(client: client)),
         ),
       ),
       _QuickAction(
