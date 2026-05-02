@@ -1,113 +1,76 @@
-import { Controller, All, Req, Res } from '@nestjs/common';
-import { Request, Response } from 'express';
+import {
+  Controller, Get, Post, Delete, Param, Body, Query,
+  ParseIntPipe, NotFoundException,
+} from '@nestjs/common';
+import { ClientAppService } from './client-app.service';
 import { Public } from '../auth/decorators/public.decorator';
 
 /**
- * Proxies client-app-specific routes to the PHP backend.
+ * Client-app specific endpoints.
  *
- * These endpoints only exist in PHP (Yii) and haven't been migrated to NestJS yet.
- * The proxy forwards the request (incl. X-Auth-Token) to apps.sihltraining.ch
- * and streams the PHP response back to the client.
- *
- * Routes handled:
- *   /api/client/start/:id
- *   /api/client/calendar/:id
- *   /api/client/profile/:id
- *   /api/client/credits/:id
- *   /api/client/invoices/:id
- *   /api/client/tests/:id
- *   /api/client/appointment/:id (GET, POST, DELETE)
- *   /api/token  (legacy PHP login)
+ * These mirror the PHP endpoints the Flutter client-app calls:
+ *   /api/client/start/:id    — dashboard data (credits + upcoming trainings)
+ *   /api/client/calendar/:id — calendar data (trainers, types, availability, appointments)
+ *   /api/client/profile/:id  — client profile
+ *   /api/client/credits/:id  — credit packs
+ *   /api/client/appointment  — book / cancel
  */
-const PHP_BACKEND = process.env.PHP_BACKEND_URL ?? 'https://apps.sihltraining.ch';
+@Controller('api/client')
+export class ClientAppController {
 
-@Controller()
-export class ClientPhpProxyController {
+  constructor(private readonly appService: ClientAppService) {}
 
-  @Public()
-  @All('api/client/start/*')
-  proxyStart(@Req() req: Request, @Res() res: Response) {
-    return this.proxy(req, res);
+  /** Dashboard — credits + upcoming trainings */
+  @Get('start/:clientId')
+  start(@Param('clientId', ParseIntPipe) clientId: number) {
+    return this.appService.getStartData(clientId);
   }
 
-  @Public()
-  @All('api/client/calendar/*')
-  proxyCalendar(@Req() req: Request, @Res() res: Response) {
-    return this.proxy(req, res);
+  /** Calendar — trainers, types, availability, appointments */
+  @Get('calendar/:clientId')
+  calendar(@Param('clientId', ParseIntPipe) clientId: number) {
+    return this.appService.getCalendarData(clientId);
   }
 
-  @Public()
-  @All('api/client/profile/*')
-  proxyProfile(@Req() req: Request, @Res() res: Response) {
-    return this.proxy(req, res);
+  /** Profile */
+  @Get('profile/:clientId')
+  profile(@Param('clientId', ParseIntPipe) clientId: number) {
+    return this.appService.getProfile(clientId);
   }
 
-  @Public()
-  @All('api/client/credits/*')
-  proxyCredits(@Req() req: Request, @Res() res: Response) {
-    return this.proxy(req, res);
+  /** Credits */
+  @Get('credits/:clientId')
+  credits(@Param('clientId', ParseIntPipe) clientId: number) {
+    return this.appService.getCredits(clientId);
   }
 
-  @Public()
-  @All('api/client/invoices/*')
-  proxyInvoices(@Req() req: Request, @Res() res: Response) {
-    return this.proxy(req, res);
+  /** Invoices (stub — returns empty for now) */
+  @Get('invoices/:clientId')
+  invoices(@Param('clientId', ParseIntPipe) clientId: number) {
+    return [];
   }
 
-  @Public()
-  @All('api/client/tests/*')
-  proxyTests(@Req() req: Request, @Res() res: Response) {
-    return this.proxy(req, res);
+  /** Tests (stub — redirect to performance_test) */
+  @Get('tests/:clientId')
+  tests(@Param('clientId', ParseIntPipe) clientId: number) {
+    return this.appService.getTests(clientId);
   }
 
-  @Public()
-  @All('api/client/appointment/*')
-  proxyAppointment(@Req() req: Request, @Res() res: Response) {
-    return this.proxy(req, res);
+  /** Book appointment */
+  @Post('appointment/:clientId')
+  book(
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Body() body: any,
+  ) {
+    return this.appService.bookAppointment(clientId, body);
   }
 
-  @Public()
-  @All('api/client/appointment')
-  proxyAppointmentBase(@Req() req: Request, @Res() res: Response) {
-    return this.proxy(req, res);
-  }
-
-  @Public()
-  @All('api/token')
-  proxyLegacyToken(@Req() req: Request, @Res() res: Response) {
-    return this.proxy(req, res);
-  }
-
-  private async proxy(req: Request, res: Response) {
-    const url = `${PHP_BACKEND}/${req.originalUrl.replace(/^\//, '')}`;
-    const headers: Record<string, string> = {
-      'Content-Type': req.headers['content-type'] ?? 'application/json',
-      'Accept': 'application/json',
-    };
-    // Forward auth token
-    const authToken = req.headers['x-auth-token'];
-    if (authToken) headers['X-Auth-Token'] = String(authToken);
-
-    try {
-      const fetchOpts: RequestInit = {
-        method: req.method,
-        headers,
-      };
-      if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.body) {
-        fetchOpts.body = JSON.stringify(req.body);
-      }
-
-      const phpRes = await fetch(url, fetchOpts);
-      const body = await phpRes.text();
-
-      // Forward status + content-type
-      res.status(phpRes.status);
-      const ct = phpRes.headers.get('content-type');
-      if (ct) res.setHeader('Content-Type', ct);
-      res.send(body);
-    } catch (err: any) {
-      console.error(`[PHP-PROXY] ${req.method} ${url} →`, err.message);
-      res.status(502).json({ error: 'PHP backend unreachable', detail: err.message });
-    }
+  /** Cancel appointment */
+  @Delete('appointment/:clientId/:appointmentId')
+  cancel(
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Param('appointmentId', ParseIntPipe) appointmentId: number,
+  ) {
+    return this.appService.cancelAppointment(clientId, appointmentId);
   }
 }
