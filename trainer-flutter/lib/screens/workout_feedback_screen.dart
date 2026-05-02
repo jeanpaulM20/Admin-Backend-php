@@ -257,7 +257,7 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
         final kcal = latest['kcal'] ?? '–';
         final type = latest['training_type'] ?? 'Training';
         final msg =
-            '\u{1F4CA} Letzte Aufzeichnung ($type)\nDauer: $duration | Kcal: $kcal | HR: ${hr ?? "–"} bpm';
+            '[Aufzeichnung] $type\nDauer: $duration | Kcal: $kcal | HR: ${hr ?? "--"} bpm';
         _textCtrl.text = msg;
       } else {
         _showSnack('Keine Aufzeichnungen vorhanden');
@@ -278,7 +278,7 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
         final date = latest['date'] ?? '–';
         final points = latest['points'] ?? 0;
         final msg =
-            '\u{1F3CB} Performance Test ($date)\nPunkte: $points';
+            '[Performance] Test ($date)\nPunkte: $points';
         _textCtrl.text = msg;
       } else {
         _showSnack('Keine Performance-Daten vorhanden');
@@ -304,7 +304,7 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
         if (weight != null) parts.add('Gewicht: $weight kg');
         if (bmi != null) parts.add('BMI: $bmi');
         if (bodyFat != null) parts.add('KFA: $bodyFat%');
-        final msg = '\u{1F4CF} Messwerte ($date)\n${parts.join(" | ")}';
+        final msg = '[Messwerte] $date\n${parts.join(" | ")}';
         _textCtrl.text = msg;
       } else {
         _showSnack('Keine Messwerte vorhanden');
@@ -720,10 +720,10 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
   Widget _buildBubble(_FeedbackMessage msg) {
     final isTrainer = msg.isTrainer;
 
-    // Detect data messages (starts with emoji + keyword)
-    final isDataMsg = msg.text.contains('\u{1F4CA}') ||
-        msg.text.contains('\u{1F3CB}') ||
-        msg.text.contains('\u{1F4CF}');
+    // Detect data messages (starts with [Tag])
+    final isDataMsg = msg.text.startsWith('[Aufzeichnung]') ||
+        msg.text.startsWith('[Performance]') ||
+        msg.text.startsWith('[Messwerte]');
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
