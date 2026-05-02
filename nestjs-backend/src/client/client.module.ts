@@ -9,6 +9,7 @@ import { Location } from '../entities/location.entity';
 import {
   ClientCredits, TrainingType, PerformanceTest, File as ClientFile,
 } from '../entities/remaining.entities';
+import { ReviewModule } from '../review/review.module';
 import { ClientService } from './client.service';
 import { ClientAppService } from './client-app.service';
 import { ClientController } from './client.controller';
@@ -28,6 +29,7 @@ import { ClientAppController } from './client-php-proxy.controller';
       PerformanceTest,
       ClientFile,
     ]),
+    ReviewModule,
   ],
   providers: [ClientService, ClientAppService],
   controllers: [ClientAppController, ClientController],
