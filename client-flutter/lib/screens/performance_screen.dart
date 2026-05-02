@@ -171,7 +171,7 @@ class TrainingReviewSectionTile extends StatelessWidget {
   const TrainingReviewSectionTile({super.key, required this.reviews});
 
   String _formatDate(DateTime dt) {
-    const months = ['Jan','Feb','MÃ¤r','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+    const months = ['Jan','Feb','Mar','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
     return '${dt.day}. ${months[dt.month - 1]} ${dt.year}';
   }
 

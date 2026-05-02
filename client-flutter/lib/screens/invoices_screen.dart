@@ -77,7 +77,7 @@ class InvoiceCard extends StatelessWidget {
   const InvoiceCard({super.key, required this.invoice});
 
   String _formatDate(DateTime? dt) {
-    if (dt == null) return 'â€“';
+    if (dt == null) return '-';
     return DateFormat('dd.MM.yyyy').format(dt);
   }
 
@@ -181,7 +181,7 @@ class InvoiceCard extends StatelessWidget {
                     size: 14, color: AppColors.muted),
                 const SizedBox(width: 6),
                 Text(
-                  'FÃ¤llig am ${_formatDate(invoice.dueDate)}',
+                  'Fällig am ${_formatDate(invoice.dueDate)}',
                   style: const TextStyle(
                     color: AppColors.muted,
                     fontSize: 12,

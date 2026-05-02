@@ -18,7 +18,7 @@ class TrainingCompareScreen extends StatelessWidget {
   const TrainingCompareScreen({super.key, required this.reviews});
 
   String _formatDate(DateTime dt) {
-    const months = ['Jan','Feb','MÃ¤r','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+    const months = ['Jan','Feb','Mar','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
     return '${dt.day}. ${months[dt.month - 1]} ${dt.year}';
   }
 
@@ -170,11 +170,11 @@ class TrainingCompareScreen extends StatelessWidget {
                                   ],
                                 ),
                               ),
-                              Expanded(flex: 2, child: Text(r.hrMax != null ? '${r.hrMax}' : 'â€“',
+                              Expanded(flex: 2, child: Text(r.hrMax != null ? '${r.hrMax}' : '-',
                                   style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w700), textAlign: TextAlign.center)),
-                              Expanded(flex: 2, child: Text(r.hrAvg != null ? '${r.hrAvg}' : 'â€“',
+                              Expanded(flex: 2, child: Text(r.hrAvg != null ? '${r.hrAvg}' : '-',
                                   style: const TextStyle(color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w700), textAlign: TextAlign.center)),
-                              Expanded(flex: 2, child: Text(r.hrr != null ? '${r.hrr}' : 'â€“',
+                              Expanded(flex: 2, child: Text(r.hrr != null ? '${r.hrr}' : '-',
                                   style: const TextStyle(color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w700), textAlign: TextAlign.center)),
                             ],
                           ),
@@ -236,7 +236,7 @@ class TrainingCompareScreen extends StatelessWidget {
         final pts = e.value.chart;
         final n = pts.length;
         return LineChartBarData(
-          // Normalize x to 0â€“100%
+          // Normalize x to 0-100%
           spots: pts.asMap().entries.map((p) =>
               FlSpot(p.key / (n - 1) * 100, p.value.value)).toList(),
           isCurved: true, curveSmoothness: 0.2,
