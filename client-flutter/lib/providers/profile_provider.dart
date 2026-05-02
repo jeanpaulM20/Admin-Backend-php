@@ -34,7 +34,7 @@ class ProfileProvider extends ChangeNotifier {
       _error = e.toString().replaceFirst('Exception: ', '');
     }
 
-    // Load invoices independently â€” failure does not block the rest
+    // Load invoices independently - failure does not block the rest
     await Future(() async {
       try {
         final data = await apiClient.get('api/client/invoices/$clientId');
@@ -47,7 +47,7 @@ class ProfileProvider extends ChangeNotifier {
       } catch (_) {}
     });
 
-    // Load files independently â€” failure does not block the rest
+    // Load files independently - failure does not block the rest
     await Future(() async {
       try {
         final data = await apiClient.get('api/client/files/$clientId');

@@ -26,7 +26,7 @@ class TrainingReviewDetailScreen extends StatelessWidget {
   }
 
   String _formatDate(DateTime dt) {
-    const months = ['Jan','Feb','MÃ¤r','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+    const months = ['Jan','Feb','Mar','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
     return '${dt.day}. ${months[dt.month - 1]} ${dt.year}';
   }
 
@@ -61,16 +61,16 @@ class TrainingReviewDetailScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          // Stat cards â€” row of 3
+          // Stat cards - row of 3
           Row(children: [
-            _StatCard(label: 'Max HF', value: review.hrMax != null ? '${review.hrMax}' : 'â€“', unit: 'bpm', color: AppColors.red),
+            _StatCard(label: 'Max HF', value: review.hrMax != null ? '${review.hrMax}' : '-', unit: 'bpm', color: AppColors.red),
             const SizedBox(width: 10),
-            _StatCard(label: 'Avg HF', value: review.hrAvg != null ? '${review.hrAvg}' : 'â€“', unit: 'bpm', color: AppColors.primary),
+            _StatCard(label: 'Avg HF', value: review.hrAvg != null ? '${review.hrAvg}' : '-', unit: 'bpm', color: AppColors.primary),
             const SizedBox(width: 10),
             _StatCard(
               label: 'HRR',
-              value: review.hrr != null ? '${review.hrr}' : 'â€“',
-              unit: review.hrr != null ? 'bpm Â· ${_hrrLabel(review.hrr)}' : 'bpm',
+              value: review.hrr != null ? '${review.hrr}' : '-',
+              unit: review.hrr != null ? 'bpm · ${_hrrLabel(review.hrr)}' : 'bpm',
               color: _hrrColor(review.hrr),
             ),
           ]),
