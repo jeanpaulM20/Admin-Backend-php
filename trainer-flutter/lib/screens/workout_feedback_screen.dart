@@ -8,9 +8,9 @@ import '../models/client.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../config/api_config.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../config/app_colors.dart';
-import 'training_recording_screen.dart';
-import 'performance_screen.dart';
+import '../models/review.dart';
 
 class _FeedbackMessage {
   final int id;
@@ -1071,27 +1071,76 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
     );
   }
 
-  /// Navigate to the full detail screen matching the data type
+  /// Extract date string (dd.MM.yyyy) from message text
+  String? _extractDate(String text) {
+    final match = RegExp(r'(\d{2}\.\d{2}\.\d{4})').firstMatch(text);
+    return match?.group(1);
+  }
+
+  /// Show the specific data entry that was shared in the chat
   void _showDataPopup(String text) {
     final header = text.split('\n').first;
+    final dateStr = _extractDate(text);
 
-    if (header.startsWith('[Aufzeichnung]') || header.startsWith('[Messwerte]')) {
-      // Open TrainingRecordingScreen (Aufzeichnungen with HR charts)
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => TrainingRecordingScreen(client: widget.client),
-        ),
-      );
+    if (header.startsWith('[Aufzeichnung]')) {
+      _showReviewDetail(dateStr);
     } else if (header.startsWith('[Performance]')) {
-      // Open PerformanceScreen (Leistungstests + Koerperwerte)
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => PerformanceScreen(client: widget.client),
-        ),
-      );
+      _showPerformanceDetail(dateStr);
+    } else if (header.startsWith('[Messwerte]')) {
+      _showMetricDetail(dateStr);
     }
+  }
+
+  /// Show single review with HR chart in a bottom sheet
+  Future<void> _showReviewDetail(String? dateStr) async {
+    if (!mounted) return;
+    // Show loading sheet immediately
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _ReviewDetailSheet(
+        client: widget.client,
+        matchDate: dateStr,
+      ),
+    );
+  }
+
+  /// Show single performance test detail
+  Future<void> _showPerformanceDetail(String? dateStr) async {
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _PerformanceDetailSheet(
+        clientId: widget.client.id,
+        matchDate: dateStr,
+      ),
+    );
+  }
+
+  /// Show single metric detail
+  Future<void> _showMetricDetail(String? dateStr) async {
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _MetricDetailSheet(
+        clientId: widget.client.id,
+        matchDate: dateStr,
+      ),
+    );
   }
 
   Widget _buildInput() {
@@ -1289,4 +1338,837 @@ class _WheelSectorPainter extends CustomPainter {
   @override
   bool shouldRepaint(_WheelSectorPainter old) =>
       old.isActive != isActive || old.sectorIndex != sectorIndex;
+}
+
+// =====================================================================
+// DETAIL SHEETS — show a single data entry from the chat
+// =====================================================================
+
+/// Match a dd.MM.yyyy date string against a raw ISO/yyyy-MM-dd value
+bool _dateMatches(String? rawDbDate, String? ddMMyyyy) {
+  if (rawDbDate == null || ddMMyyyy == null) return false;
+  try {
+    final db = DateTime.parse(rawDbDate);
+    final formatted = DateFormat('dd.MM.yyyy').format(db);
+    return formatted == ddMMyyyy;
+  } catch (_) {
+    return rawDbDate.contains(ddMMyyyy);
+  }
+}
+
+// ─── Review detail (Aufzeichnung with HR chart) ─────────────────────
+class _ReviewDetailSheet extends StatefulWidget {
+  final Client client;
+  final String? matchDate;
+
+  const _ReviewDetailSheet({required this.client, this.matchDate});
+
+  @override
+  State<_ReviewDetailSheet> createState() => _ReviewDetailSheetState();
+}
+
+class _ReviewDetailSheetState extends State<_ReviewDetailSheet> {
+  final _api = ApiService();
+  bool _loading = true;
+  Map<String, dynamic>? _review;
+  List<HeartRatePoint> _timeseries = [];
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final data = await _api.get(
+        ApiConfig.review,
+        queryParams: {'client_id': widget.client.id.toString()},
+      );
+      if (data is List && data.isNotEmpty) {
+        // Find matching entry by date
+        Map<String, dynamic>? match;
+        for (final item in data) {
+          final training = item['training'] as Map<String, dynamic>?;
+          final tDate = training?['date']?.toString();
+          if (_dateMatches(tDate, widget.matchDate)) {
+            match = item as Map<String, dynamic>;
+            break;
+          }
+        }
+        match ??= data.first as Map<String, dynamic>;
+        _review = match;
+
+        // Load timeseries
+        final reviewId = match['id'];
+        if (reviewId != null) {
+          try {
+            final tsData =
+                await _api.get('${ApiConfig.review}/$reviewId/timeseries');
+            if (tsData is List) {
+              _timeseries = tsData
+                  .map((e) =>
+                      HeartRatePoint.fromJson(e as Map<String, dynamic>))
+                  .toList();
+            }
+          } catch (_) {}
+        }
+      }
+    } catch (e) {
+      _error = 'Daten konnten nicht geladen werden';
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.75,
+      child: _loading
+          ? const Center(
+              child: CircularProgressIndicator(
+                  color: AppColors.primary, strokeWidth: 2))
+          : _error != null
+              ? Center(
+                  child: Text(_error!,
+                      style: const TextStyle(color: AppColors.muted)))
+              : _review == null
+                  ? const Center(
+                      child: Text('Nicht gefunden',
+                          style: TextStyle(color: AppColors.muted)))
+                  : _buildContent(),
+    );
+  }
+
+  Widget _buildContent() {
+    final r = _review!;
+    final training = r['training'] as Map<String, dynamic>?;
+    final type = r['training_type']?.toString();
+    final date = training?['date']?.toString();
+    final time = training?['starttime']?.toString();
+    final hr = r['heart_rate'];
+    final duration = r['duration']?.toString() ?? '--';
+    final kcal = r['kcal'];
+    final speed = r['speed'];
+    final distance = r['distance'];
+    final feedbackClient = r['feedback_client']?.toString();
+    final feedbackTrainer = r['feedback_trainer']?.toString();
+    final intensity = r['type']?.toString();
+
+    String dateLabel = '--';
+    if (date != null) {
+      try {
+        final dt = DateTime.parse(date);
+        dateLabel = DateFormat('dd.MM.yyyy').format(dt);
+        if (time != null) dateLabel += '  $time';
+      } catch (_) {
+        dateLabel = date;
+      }
+    }
+
+    const typeLabels = {
+      'cardio': 'Cardio',
+      'endurance': 'Ausdauer',
+      'strenght': 'Kraft',
+      'speed': 'Schnelligkeit',
+      'coordination': 'Koordination',
+      'free': 'Freies Training',
+      'running': 'Laufen',
+      'fitness': 'Fitness Level',
+      'interval': 'Intervall',
+    };
+    final typeLabel = typeLabels[type] ?? type ?? 'Training';
+
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        // Handle bar
+        Center(
+          child: Container(
+            width: 36,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: AppColors.muted.withAlpha(80),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+        // Header
+        Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.red.withAlpha(25),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.monitor_heart,
+                  color: AppColors.red, size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(typeLabel,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(dateLabel,
+                      style: const TextStyle(
+                          color: AppColors.muted, fontSize: 13)),
+                ],
+              ),
+            ),
+            if (hr != null) ...[
+              const Icon(Icons.favorite, color: AppColors.red, size: 16),
+              const SizedBox(width: 4),
+              Text('${_toNum(hr).round()} bpm',
+                  style: const TextStyle(
+                      color: AppColors.red,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600)),
+            ],
+          ],
+        ),
+        const SizedBox(height: 20),
+        // Stats row
+        Row(
+          children: [
+            _buildStatCard(Icons.timer_outlined, 'Dauer', duration,
+                AppColors.blue),
+            const SizedBox(width: 10),
+            _buildStatCard(Icons.local_fire_department, 'Kcal',
+                '${kcal ?? "--"}', const Color(0xFFFFA726)),
+            if (distance != null && _toNum(distance) > 0) ...[
+              const SizedBox(width: 10),
+              _buildStatCard(Icons.straighten, 'Distanz',
+                  '${_toNum(distance).toStringAsFixed(0)} m', AppColors.green),
+            ],
+            if (speed != null && _toNum(speed) > 0) ...[
+              const SizedBox(width: 10),
+              _buildStatCard(Icons.speed, 'Speed',
+                  '${_toNum(speed).toStringAsFixed(1)} km/h', AppColors.blue),
+            ],
+          ],
+        ),
+        const SizedBox(height: 20),
+        // Heart rate chart
+        _buildHrChart(),
+        // Details
+        if (intensity != null) ...[
+          const SizedBox(height: 16),
+          _buildInfoRow('Intensitaet', _intensityLabel(intensity)),
+        ],
+        if (feedbackClient != null && feedbackClient.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          _buildInfoRow('Kunden-Feedback', feedbackClient),
+        ],
+        if (feedbackTrainer != null && feedbackTrainer.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          _buildInfoRow('Trainer-Feedback', feedbackTrainer),
+        ],
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(IconData icon, String label, String value, Color c) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: c, size: 18),
+            const SizedBox(height: 6),
+            Text(value,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600)),
+            Text(label,
+                style: const TextStyle(color: AppColors.muted, fontSize: 11)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 130,
+          child: Text(label,
+              style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+        ),
+        Expanded(
+          child: Text(value,
+              style: const TextStyle(color: AppColors.text, fontSize: 13)),
+        ),
+      ],
+    );
+  }
+
+  String _intensityLabel(String type) {
+    const m = {
+      'maximum': 'Maximal',
+      'hard': 'Intensiv',
+      'moderate': 'Moderat',
+      'light': 'Leicht',
+      'very_light': 'Sehr Leicht',
+    };
+    return m[type] ?? type;
+  }
+
+  double _toNum(dynamic v) {
+    if (v is double) return v;
+    if (v is int) return v.toDouble();
+    return double.tryParse(v?.toString() ?? '') ?? 0;
+  }
+
+  Widget _buildHrChart() {
+    if (_timeseries.isEmpty) {
+      return Container(
+        height: 60,
+        alignment: Alignment.center,
+        child: const Text('Keine Herzfrequenz-Daten vorhanden',
+            style: TextStyle(color: AppColors.muted, fontSize: 13)),
+      );
+    }
+
+    final validPts =
+        _timeseries.where((p) => p.value != null && p.value! > 0).toList();
+    if (validPts.isEmpty) return const SizedBox.shrink();
+
+    final spots = validPts
+        .asMap()
+        .entries
+        .map((e) => FlSpot(e.key.toDouble(), e.value.value!))
+        .toList();
+
+    final minHr =
+        validPts.map((p) => p.value!).reduce((a, b) => a < b ? a : b);
+    final maxHr =
+        validPts.map((p) => p.value!).reduce((a, b) => a > b ? a : b);
+
+    final clientMaxHr = widget.client.maxHeartRate?.toDouble();
+    final clientMinHr = widget.client.minHeartRate?.toDouble();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.monitor_heart, color: AppColors.red, size: 16),
+            const SizedBox(width: 6),
+            const Text('Herzfrequenz',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600)),
+            const Spacer(),
+            Text('Min ${minHr.round()}  /  Max ${maxHr.round()} bpm',
+                style: const TextStyle(color: AppColors.muted, fontSize: 11)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 200,
+          child: LineChart(
+            LineChartData(
+              backgroundColor: Colors.transparent,
+              minY: (minHr - 10).clamp(40, double.infinity),
+              maxY: maxHr + 10,
+              gridData: FlGridData(
+                show: true,
+                drawVerticalLine: false,
+                getDrawingHorizontalLine: (_) => const FlLine(
+                    color: AppColors.border, strokeWidth: 0.5),
+              ),
+              titlesData: FlTitlesData(
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 36,
+                    interval: 20,
+                    getTitlesWidget: (value, _) => Text(
+                        value.toInt().toString(),
+                        style: const TextStyle(
+                            color: AppColors.muted, fontSize: 10)),
+                  ),
+                ),
+                bottomTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false)),
+                rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false)),
+                topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false)),
+              ),
+              borderData: FlBorderData(show: false),
+              extraLinesData: ExtraLinesData(
+                horizontalLines: [
+                  if (clientMaxHr != null)
+                    HorizontalLine(
+                      y: clientMaxHr,
+                      color: const Color(0xFFC2234D),
+                      strokeWidth: 1,
+                      dashArray: [4, 4],
+                      label: HorizontalLineLabel(
+                        show: true,
+                        alignment: Alignment.topLeft,
+                        style: const TextStyle(
+                            color: Color(0xFFC2234D), fontSize: 10),
+                        labelResolver: (_) => 'Max',
+                      ),
+                    ),
+                  if (clientMinHr != null)
+                    HorizontalLine(
+                      y: clientMinHr,
+                      color: const Color(0xFF03A4B6),
+                      strokeWidth: 1,
+                      dashArray: [4, 4],
+                      label: HorizontalLineLabel(
+                        show: true,
+                        alignment: Alignment.topLeft,
+                        style: const TextStyle(
+                            color: Color(0xFF03A4B6), fontSize: 10),
+                        labelResolver: (_) => 'Min',
+                      ),
+                    ),
+                ],
+              ),
+              lineTouchData: LineTouchData(
+                touchTooltipData: LineTouchTooltipData(
+                  getTooltipColor: (_) => AppColors.surface2,
+                  getTooltipItems: (spots) => spots
+                      .map((s) => LineTooltipItem('${s.y.round()} bpm',
+                          const TextStyle(color: Colors.white, fontSize: 12)))
+                      .toList(),
+                ),
+              ),
+              lineBarsData: [
+                LineChartBarData(
+                  spots: spots,
+                  isCurved: true,
+                  curveSmoothness: 0.2,
+                  preventCurveOverShooting: true,
+                  color: AppColors.red,
+                  barWidth: 2,
+                  isStrokeCapRound: true,
+                  dotData: const FlDotData(show: false),
+                  belowBarData: BarAreaData(
+                    show: true,
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.red.withAlpha(60),
+                        AppColors.red.withAlpha(0),
+                      ],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        // Zone legend
+        if (clientMaxHr != null && clientMinHr != null) ...[
+          const SizedBox(height: 10),
+          _buildZoneLegend(clientMinHr, clientMaxHr),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildZoneLegend(double minHr, double maxHr) {
+    final step = ((maxHr - minHr) * 0.25).toInt();
+    final zones = [
+      ('Maximal', const Color(0xFFC2234D), maxHr.round()),
+      ('Intensiv', const Color(0xFFD18B37), (maxHr - step).round()),
+      ('Moderat', const Color(0xFF839C4D), (maxHr - step * 2).round()),
+      ('Leicht', const Color(0xFF03A4B6), (maxHr - step * 3).round()),
+      ('Sehr Leicht', const Color(0xFF9E9E9E), (maxHr - step * 4).round()),
+    ];
+    return Wrap(
+      spacing: 12,
+      runSpacing: 4,
+      children: zones
+          .map((z) => Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                          color: z.$2, shape: BoxShape.circle)),
+                  const SizedBox(width: 4),
+                  Text('${z.$1} (${z.$3}+)',
+                      style: const TextStyle(
+                          color: AppColors.muted, fontSize: 10)),
+                ],
+              ))
+          .toList(),
+    );
+  }
+}
+
+// ─── Performance test detail ────────────────────────────────────────
+class _PerformanceDetailSheet extends StatefulWidget {
+  final int clientId;
+  final String? matchDate;
+
+  const _PerformanceDetailSheet({required this.clientId, this.matchDate});
+
+  @override
+  State<_PerformanceDetailSheet> createState() =>
+      _PerformanceDetailSheetState();
+}
+
+class _PerformanceDetailSheetState extends State<_PerformanceDetailSheet> {
+  final _api = ApiService();
+  bool _loading = true;
+  Map<String, dynamic>? _test;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final data = await _api.get(ApiConfig.performance,
+          queryParams: {'client_id': widget.clientId.toString()});
+      if (data is List && data.isNotEmpty) {
+        Map<String, dynamic>? match;
+        for (final item in data) {
+          if (_dateMatches(item['date']?.toString(), widget.matchDate)) {
+            match = item as Map<String, dynamic>;
+            break;
+          }
+        }
+        match ??= (data.last as Map<String, dynamic>);
+        _test = match;
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.7,
+      child: _loading
+          ? const Center(
+              child: CircularProgressIndicator(
+                  color: AppColors.primary, strokeWidth: 2))
+          : _test == null
+              ? const Center(
+                  child: Text('Nicht gefunden',
+                      style: TextStyle(color: AppColors.muted)))
+              : _buildContent(),
+    );
+  }
+
+  Widget _buildContent() {
+    final t = _test!;
+    String dateLabel = '--';
+    try {
+      dateLabel =
+          DateFormat('dd.MM.yyyy').format(DateTime.parse(t['date'].toString()));
+    } catch (_) {
+      dateLabel = t['date']?.toString() ?? '--';
+    }
+
+    // All test fields
+    final fields = <_PerfField>[
+      _PerfField('Punkte', t['points'], Icons.star, AppColors.primary),
+      _PerfField(
+          'Liegestuetz', t['pushups'], Icons.fitness_center, AppColors.blue),
+      _PerfField('Klimmzuege', t['pullups'], Icons.fitness_center,
+          AppColors.green),
+      _PerfField('Unterarmstuetz', t['forearm_support'], Icons.timer,
+          const Color(0xFFFFA726)),
+      _PerfField('Seitstuetz', t['side_support'], Icons.timer,
+          const Color(0xFFFFA726)),
+      _PerfField(
+          'Kniebeuge', t['squat_on_wall'], Icons.accessibility, AppColors.blue),
+      _PerfField('Rumpfbeuge', t['trunk_bending'], Icons.accessibility,
+          AppColors.green),
+      _PerfField('Hamstrings', t['hamstrings'], Icons.accessibility,
+          const Color(0xFF9C27B0)),
+      _PerfField('Waden', t['calfs'], Icons.accessibility,
+          const Color(0xFF9C27B0)),
+      _PerfField('Adduktoren', t['adductors'], Icons.accessibility,
+          const Color(0xFF9C27B0)),
+      _PerfField('Oberschenkel', t['straight_thigh_extensors'],
+          Icons.accessibility, const Color(0xFF9C27B0)),
+      _PerfField(
+          'Sensomotorik', t['sensomotoric'], Icons.psychology, AppColors.blue),
+      _PerfField(
+          'Symmetrie', t['symmetry'], Icons.balance, AppColors.green),
+      _PerfField(
+          'Reaktion', t['reaction'], Icons.flash_on, const Color(0xFFFFA726)),
+      _PerfField('CMJ', t['counter_movement_jump'], Icons.arrow_upward,
+          AppColors.red),
+      _PerfField('Tapping', t['tapping'], Icons.touch_app, AppColors.blue),
+      _PerfField('Sprint 10m', t['sprint_10'], Icons.directions_run,
+          AppColors.green),
+      _PerfField('Sprint 20m', t['sprint_20'], Icons.directions_run,
+          AppColors.green),
+      _PerfField('Sprint 30m', t['sprint_30'], Icons.directions_run,
+          AppColors.green),
+    ];
+
+    // Only show fields with values
+    final active = fields.where((f) => f.value != null && f.value != 0).toList();
+
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        Center(
+          child: Container(
+            width: 36, height: 4,
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: AppColors.muted.withAlpha(80),
+              borderRadius: BorderRadius.circular(2)),
+          ),
+        ),
+        Row(
+          children: [
+            Container(
+              width: 48, height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.green.withAlpha(25),
+                borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.show_chart,
+                  color: AppColors.green, size: 24),
+            ),
+            const SizedBox(width: 14),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Performance Test',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600)),
+                Text(dateLabel,
+                    style: const TextStyle(
+                        color: AppColors.muted, fontSize: 13)),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        ...active.map((f) => Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Icon(f.icon, color: f.color, size: 18),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(f.label,
+                        style: const TextStyle(
+                            color: AppColors.text, fontSize: 14)),
+                  ),
+                  Text('${f.value}',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600)),
+                ],
+              ),
+            )),
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+}
+
+class _PerfField {
+  final String label;
+  final dynamic value;
+  final IconData icon;
+  final Color color;
+  const _PerfField(this.label, this.value, this.icon, this.color);
+}
+
+// ─── Metric detail ──────────────────────────────────────────────────
+class _MetricDetailSheet extends StatefulWidget {
+  final int clientId;
+  final String? matchDate;
+
+  const _MetricDetailSheet({required this.clientId, this.matchDate});
+
+  @override
+  State<_MetricDetailSheet> createState() => _MetricDetailSheetState();
+}
+
+class _MetricDetailSheetState extends State<_MetricDetailSheet> {
+  final _api = ApiService();
+  bool _loading = true;
+  Map<String, dynamic>? _metric;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final data = await _api.get(ApiConfig.metric,
+          queryParams: {'client_id': widget.clientId.toString()});
+      if (data is List && data.isNotEmpty) {
+        Map<String, dynamic>? match;
+        for (final item in data) {
+          if (_dateMatches(item['date']?.toString(), widget.matchDate)) {
+            match = item as Map<String, dynamic>;
+            break;
+          }
+        }
+        match ??= (data.last as Map<String, dynamic>);
+        _metric = match;
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.65,
+      child: _loading
+          ? const Center(
+              child: CircularProgressIndicator(
+                  color: AppColors.primary, strokeWidth: 2))
+          : _metric == null
+              ? const Center(
+                  child: Text('Nicht gefunden',
+                      style: TextStyle(color: AppColors.muted)))
+              : _buildContent(),
+    );
+  }
+
+  Widget _buildContent() {
+    final m = _metric!;
+    String dateLabel = '--';
+    try {
+      dateLabel =
+          DateFormat('dd.MM.yyyy').format(DateTime.parse(m['date'].toString()));
+    } catch (_) {
+      dateLabel = m['date']?.toString() ?? '--';
+    }
+
+    final fields = <_PerfField>[
+      _PerfField('Gewicht', m['weight'] ?? m['gewicht'], Icons.monitor_weight,
+          AppColors.blue),
+      _PerfField('BMI', m['bmi'], Icons.speed, AppColors.green),
+      _PerfField('Koerperfett %', m['body_fat'] ?? m['body_fat_percent'],
+          Icons.water_drop, const Color(0xFFFFA726)),
+      _PerfField(
+          'Koerperfett kg',
+          m['body_fat_kg'],
+          Icons.water_drop,
+          const Color(0xFFFFA726)),
+      _PerfField('Ruhepuls', m['calm_pulse'], Icons.favorite, AppColors.red),
+      _PerfField('Blutdruck sys', m['blood_pressure_sys'],
+          Icons.monitor_heart, AppColors.red),
+      _PerfField('Blutdruck dia', m['blood_pressure_dia'],
+          Icons.monitor_heart, AppColors.red),
+      _PerfField('Bauchumfang', m['belly'], Icons.straighten, AppColors.blue),
+      _PerfField('Brustumfang', m['chest'], Icons.straighten, AppColors.blue),
+      _PerfField('Huefte', m['hip'], Icons.straighten, AppColors.blue),
+      _PerfField('Oberschenkel', m['thigh'], Icons.straighten, AppColors.blue),
+      _PerfField('Oberarm', m['arm'], Icons.straighten, AppColors.blue),
+    ];
+
+    final active = fields.where((f) => f.value != null && f.value != 0).toList();
+
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        Center(
+          child: Container(
+            width: 36, height: 4,
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: AppColors.muted.withAlpha(80),
+              borderRadius: BorderRadius.circular(2)),
+          ),
+        ),
+        Row(
+          children: [
+            Container(
+              width: 48, height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.blue.withAlpha(25),
+                borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.monitor_weight_outlined,
+                  color: AppColors.blue, size: 24),
+            ),
+            const SizedBox(width: 14),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Koerperwerte',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600)),
+                Text(dateLabel,
+                    style: const TextStyle(
+                        color: AppColors.muted, fontSize: 13)),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        ...active.map((f) => Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Icon(f.icon, color: f.color, size: 18),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(f.label,
+                        style: const TextStyle(
+                            color: AppColors.text, fontSize: 14)),
+                  ),
+                  Text('${f.value}',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600)),
+                ],
+              ),
+            )),
+        const SizedBox(height: 20),
+      ],
+    );
+  }
 }
