@@ -1,24 +1,14 @@
+/// API configuration pointing to Railway NestJS backend
 class ApiConfig {
   ApiConfig._();
 
-  /// Railway NestJS backend (nginx proxies client-specific routes to PHP)
+  /// Railway NestJS backend
   static const String baseUrl =
       'https://admin-backend-php-production.up.railway.app/';
 
+  /// Auth header name (token-based auth)
   static const String authHeader = 'X-Auth-Token';
 
-  // Auth (NestJS endpoint)
-  static const String token = 'api/client/token';
-
-  // Client endpoints (all require X-Auth-Token)
-  static String start(int clientId)        => 'api/client/start/$clientId';
-  static String calendar(int clientId)     => 'api/client/calendar/$clientId';
-  static String profile(int clientId)      => 'api/client/profile/$clientId';
-  static String credits(int clientId)      => 'api/client/credits/$clientId';
-  static String invoices(int clientId)     => 'api/client/invoices/$clientId';
-  static String tests(int clientId)        => 'api/client/tests/$clientId';
-  static String bookAppointment(int clientId) => 'api/client/appointment/$clientId';
-  static String updateAppointment(int appointmentId) => 'api/client/appointment/$appointmentId';
-  static String cancelAppointment(int clientId, int appointmentId) =>
-      'api/client/appointment/$clientId/$appointmentId';
+  /// Request timeout
+  static const Duration timeout = Duration(seconds: 15);
 }

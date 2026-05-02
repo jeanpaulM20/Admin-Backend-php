@@ -1,74 +1,98 @@
 class Appointment {
-  final int id;
-  final String date;
-  final String timeFrom;
-  final String? timeTo;
+  final String id;
+  final DateTime startDate;
+  final int duration;
+  final String text;
+  final String trainingTypeId;
+  final String trainingTypeName;
+  final String locationId;
+  final String locationName;
+  final String trainerId;
   final String trainerName;
-  final String? trainerPhoto;
-  final String typeName;
-  final String? location;
-  final String? notes;
+  final int creditsCharged;
   final String status;
 
   Appointment({
     required this.id,
-    required this.date,
-    required this.timeFrom,
-    this.timeTo,
+    required this.startDate,
+    required this.duration,
+    required this.text,
+    required this.trainingTypeId,
+    required this.trainingTypeName,
+    required this.locationId,
+    required this.locationName,
+    required this.trainerId,
     required this.trainerName,
-    this.trainerPhoto,
-    required this.typeName,
-    this.location,
-    this.notes,
-    this.status = 'active',
+    required this.creditsCharged,
+    required this.status,
   });
 
-  bool get isCancelled => status == 'cancelled' || status == 'storniert';
-
-  factory Appointment.fromJson(Map<String, dynamic> j) {
-    final trainerObj = j['trainer'] as Map<String, dynamic>?;
-    String tName = '';
-    String? tPhoto;
-    if (trainerObj != null) {
-      final tf = trainerObj['firstname']?.toString() ?? trainerObj['surname']?.toString() ?? '';
-      final tl = trainerObj['lastname']?.toString() ?? trainerObj['name']?.toString() ?? '';
-      tName = '$tf $tl'.trim();
-      tPhoto = trainerObj['photo']?.toString() ?? trainerObj['picture']?.toString();
-    }
-    if (tName.isEmpty) {
-      tName = j['trainer_name']?.toString() ?? '';
+  factory Appointment.fromJson(Map<String, dynamic> json) {
+    // Combine date + starttime from NestJS backend
+    DateTime parseDate() {
+      final date = json['date']?.toString() ?? '';
+      final time = json['starttime'] ?? json['time_from'] ?? '00:00';
+      try {
+        return DateTime.parse('${date}T$time');
+      } catch (_) {
+        return DateTime.tryParse(date) ?? DateTime.now();
+      }
     }
 
-    final typeObj = j['training_type'] as Map<String, dynamic>?;
-    final typeName = typeObj?['name']?.toString() ??
-        j['type_name']?.toString() ??
-        j['training_type_name']?.toString() ?? 'Training';
-
-    final locObj = j['location'] as Map<String, dynamic>?;
-    final location = locObj?['name']?.toString() ??
-        j['location_name']?.toString() ??
-        j['location']?.toString();
+    final trainer = json['trainer'];
+    String trainerName = '';
+    if (trainer is Map<String, dynamic>) {
+      trainerName =
+          '${trainer['firstname'] ?? ''} ${trainer['lastname'] ?? ''}'.trim();
+    }
 
     return Appointment(
-      id: _parseInt(j['id'] ?? j['appointment_id'] ?? j['training_id'] ?? 0),
-      date: j['date']?.toString() ?? '',
-      timeFrom: j['time_from']?.toString() ??
-          j['starttime']?.toString() ??
-          j['from']?.toString() ?? '',
-      timeTo: j['time_to']?.toString() ?? j['endtime']?.toString() ?? j['to']?.toString(),
-      trainerName: tName,
-      trainerPhoto: tPhoto,
-      typeName: typeName,
-      location: location,
-      notes: j['notes']?.toString() ?? j['comment']?.toString(),
-      status: j['status']?.toString() ?? 'active',
+      id: json['id']?.toString() ?? '',
+      startDate: parseDate(),
+      duration: int.tryParse(json['duration']?.toString() ?? '60') ?? 60,
+      text: json['notes']?.toString() ?? json['text']?.toString() ?? '',
+      trainingTypeId: json['training_type_id']?.toString() ?? '',
+      trainingTypeName: json['training_type_name']?.toString() ?? '',
+      locationId: json['location_id']?.toString() ?? '',
+      locationName: json['location_name']?.toString() ?? '',
+      trainerId: json['trainer_id']?.toString() ?? '',
+      trainerName: trainerName,
+      creditsCharged:
+          int.tryParse(json['credits_charged']?.toString() ?? '0') ?? 0,
+      status: json['status']?.toString() ?? '',
     );
   }
+}
 
-  static int _parseInt(dynamic v) {
-    if (v == null) return 0;
-    if (v is int) return v;
-    if (v is String) return int.tryParse(v) ?? 0;
-    return 0;
+/// Data returned by /api/client/start/:id
+class StartData {
+  final String firstName;
+  final String lastName;
+  final int totalCredits;
+  final List<Appointment> appointments;
+
+  StartData({
+    required this.firstName,
+    required this.lastName,
+    this.totalCredits = 0,
+    required this.appointments,
+  });
+
+  factory StartData.fromJson(Map<String, dynamic> json) {
+    final rawAppts = json['appointments'];
+    final appointments = <Appointment>[];
+    if (rawAppts is List) {
+      for (final a in rawAppts) {
+        if (a is Map<String, dynamic>) {
+          appointments.add(Appointment.fromJson(a));
+        }
+      }
+    }
+    return StartData(
+      firstName: json['firstName']?.toString() ?? json['firstname']?.toString() ?? '',
+      lastName: json['lastName']?.toString() ?? json['lastname']?.toString() ?? '',
+      totalCredits: int.tryParse(json['credits']?.toString() ?? '0') ?? 0,
+      appointments: appointments,
+    );
   }
 }

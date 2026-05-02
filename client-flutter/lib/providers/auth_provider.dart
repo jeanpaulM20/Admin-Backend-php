@@ -1,76 +1,89 @@
 import 'package:flutter/foundation.dart';
-import '../models/client_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/auth_token.dart';
 import '../services/auth_service.dart';
-import '../services/api_service.dart';
-
-enum AuthStatus { unknown, authenticated, unauthenticated }
+import '../services/api_client.dart';
 
 class AuthProvider extends ChangeNotifier {
-  final AuthService _auth = AuthService();
+  final AuthService _authService = AuthService();
 
-  AuthStatus _status = AuthStatus.unknown;
-  ClientModel? _client;
+  String? _clientId;
+  String? _token;
+  bool _isLoading = false;
   String? _error;
-  bool _loading = false;
 
-  AuthStatus get status  => _status;
-  ClientModel? get client => _client;
-  String? get error      => _error;
-  bool get isLoading     => _loading;
-  bool get isAuthenticated => _status == AuthStatus.authenticated;
-  int? get clientId      => _client?.id;
+  String? get clientId => _clientId;
+  String? get token => _token;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+  bool get isAuthenticated => _token != null && _token!.isNotEmpty;
 
-  Future<void> initialize() async {
-    _loading = true;
-    notifyListeners();
+  AuthProvider() {
+    _loadSavedAuth();
+  }
+
+  Future<void> _loadSavedAuth() async {
     try {
-      final ok = await _auth.restoreSession();
-      if (ok) {
-        final c = await _auth.getStoredClient();
-        if (c != null) {
-          _client = c;
-          _status = AuthStatus.authenticated;
-        } else {
-          _status = AuthStatus.unauthenticated;
-        }
-      } else {
-        _status = AuthStatus.unauthenticated;
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString('auth_token');
+      _clientId = prefs.getString('client_id');
+      if (_token != null) {
+        apiClient.setToken(_token);
       }
-    } catch (_) {
-      _status = AuthStatus.unauthenticated;
-    } finally {
-      _loading = false;
       notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> _saveAuth() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (_token != null) {
+        await prefs.setString('auth_token', _token!);
+      } else {
+        await prefs.remove('auth_token');
+      }
+      if (_clientId != null) {
+        await prefs.setString('client_id', _clientId!);
+      } else {
+        await prefs.remove('client_id');
+      }
+    } catch (_) {}
+  }
+
+  Future<bool> login(String email, String password) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final authToken = await _authService.login(email, password);
+      _token = authToken.token;
+      _clientId = authToken.clientId;
+      apiClient.setToken(_token);
+      await _saveAuth();
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString().replaceFirst('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
     }
   }
 
-  Future<bool> login(String phone, String passcode) async {
-    _loading = true;
-    _error = null;
+  /// Demo/preview login
+  void loginDemo() {
+    _token = 'demo-token-preview';
+    _clientId = 'demo';
     notifyListeners();
-    try {
-      _client = await _auth.login(phone, passcode);
-      _status = AuthStatus.authenticated;
-      return true;
-    } on ApiException catch (e) {
-      _error = e.message;
-      _status = AuthStatus.unauthenticated;
-      return false;
-    } catch (e) {
-      _error = 'Anmeldung fehlgeschlagen.';
-      _status = AuthStatus.unauthenticated;
-      return false;
-    } finally {
-      _loading = false;
-      notifyListeners();
-    }
   }
 
   Future<void> logout() async {
-    await _auth.logout();
-    _client = null;
-    _status = AuthStatus.unauthenticated;
-    _error = null;
+    _token = null;
+    _clientId = null;
+    apiClient.setToken(null);
+    await _saveAuth();
     notifyListeners();
   }
 

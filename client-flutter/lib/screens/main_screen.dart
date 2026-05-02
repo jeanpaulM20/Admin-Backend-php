@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../config/app_colors.dart';
-import 'dashboard_screen.dart';
+import '../providers/auth_provider.dart';
+import '../providers/appointment_provider.dart';
+import '../providers/profile_provider.dart';
+import '../providers/credits_provider.dart';
+import '../providers/invoice_provider.dart';
+import '../providers/performance_provider.dart';
+import 'start_screen.dart';
 import 'calendar_screen.dart';
 import 'profile_screen.dart';
+import 'credits_screen.dart';
+import 'performance_screen.dart';
+import 'invoices_screen.dart';
+import 'login_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -13,54 +25,230 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  bool _mockLoaded = false;
 
-  static const _screens = [
-    DashboardScreen(),
+  final List<_NavItem> _navItems = const [
+    _NavItem(icon: Icons.home_rounded, label: 'Start'),
+    _NavItem(icon: Icons.calendar_month_rounded, label: 'Kalender'),
+    _NavItem(icon: Icons.person_rounded, label: 'Profil'),
+    _NavItem(icon: Icons.credit_card_rounded, label: 'Credits'),
+    _NavItem(icon: Icons.show_chart_rounded, label: 'Leistung'),
+    _NavItem(icon: Icons.receipt_long_rounded, label: 'Rechnungen'),
+  ];
+
+  final List<Widget> _screens = const [
+    StartScreen(),
     CalendarScreen(),
     ProfileScreen(),
+    CreditsScreen(),
+    PerformanceScreen(),
+    InvoicesScreen(),
   ];
+
+  String get _currentTitle {
+    switch (_currentIndex) {
+      case 0:
+        return 'Start';
+      case 1:
+        return 'Kalender';
+      case 2:
+        return 'Profil';
+      case 3:
+        return 'Credits';
+      case 4:
+        return 'Leistungsdaten';
+      case 5:
+        return 'Rechnungen';
+      default:
+        return 'Sihl Training';
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_mockLoaded) {
+      final token = context.read<AuthProvider>().token;
+      if (token == 'demo-token-preview') {
+        _mockLoaded = true;
+        _loadMockData();
+      }
+    }
+  }
+
+  void _loadMockData() {
+    context.read<AppointmentProvider>().loadMockData();
+    context.read<ProfileProvider>().loadMockData();
+    context.read<CreditsProvider>().loadMockData();
+    context.read<InvoiceProvider>().loadMockData();
+    context.read<PerformanceProvider>().loadMockData();
+  }
+
+  Future<void> _logout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Abmelden',
+            style: TextStyle(color: AppColors.text)),
+        content: const Text('Moechtest du dich wirklich abmelden?',
+            style: TextStyle(color: AppColors.muted)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen',
+                style: TextStyle(color: AppColors.muted)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.red,
+              foregroundColor: AppColors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Abmelden'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await context.read<AuthProvider>().logout();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(60),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            border: Border(bottom: BorderSide(color: AppColors.border)),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: Text(
+                        'ST',
+                        style: GoogleFonts.montserrat(
+                          color: AppColors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    _currentTitle,
+                    style: GoogleFonts.montserrat(
+                      color: AppColors.text,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: _logout,
+                    icon: const Icon(Icons.logout_rounded,
+                        color: AppColors.muted, size: 22),
+                    tooltip: 'Abmelden',
+                    padding: EdgeInsets.zero,
+                    constraints:
+                        const BoxConstraints(minWidth: 40, minHeight: 40),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
       body: IndexedStack(
         index: _currentIndex,
         children: _screens,
       ),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: AppColors.border, width: 0.5)),
+          color: AppColors.surface,
+          border: Border(top: BorderSide(color: AppColors.border)),
         ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (i) => setState(() => _currentIndex = i),
-          backgroundColor: AppColors.surface,
-          selectedItemColor: AppColors.primary,
-          unselectedItemColor: AppColors.muted,
-          type: BottomNavigationBarType.fixed,
-          elevation: 0,
-          selectedLabelStyle:
-              const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-          unselectedLabelStyle: const TextStyle(fontSize: 11),
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: 'Start',
+        child: SafeArea(
+          child: SizedBox(
+            height: 60,
+            child: Row(
+              children: List.generate(_navItems.length, (index) {
+                final item = _navItems[index];
+                final isSelected = index == _currentIndex;
+                return Expanded(
+                  child: InkWell(
+                    onTap: () => setState(() => _currentIndex = index),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(item.icon,
+                            size: 22,
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.muted),
+                        const SizedBox(height: 3),
+                        Text(
+                          item.label,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: isSelected
+                                ? FontWeight.w700
+                                : FontWeight.w400,
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.muted,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: isSelected ? 16 : 0,
+                          height: 2,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(1),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_month_outlined),
-              activeIcon: Icon(Icons.calendar_month),
-              label: 'Kalender',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
-              label: 'Profil',
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
+}
+
+class _NavItem {
+  final IconData icon;
+  final String label;
+  const _NavItem({required this.icon, required this.label});
 }

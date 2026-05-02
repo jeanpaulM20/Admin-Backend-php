@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../config/app_colors.dart';
 import '../providers/auth_provider.dart';
-import '../providers/client_provider.dart';
+import '../providers/profile_provider.dart';
+import '../models/credit_pack.dart';
+import '../models/invoice.dart';
+import '../models/client_file.dart';
+import '../services/api_client.dart';
+import '../widgets/loading_indicator.dart';
+import '../widgets/error_view.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -12,270 +19,513 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  bool _polarConnected = false;
+  bool _polarLoading = false;
+  String? _polarConnectUrl;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
   }
 
-  Future<void> _load() async {
-    final clientId = context.read<AuthProvider>().clientId;
-    if (clientId != null) {
-      await context.read<ClientProvider>().fetchProfile(clientId);
+  Future<void> _loadData() async {
+    final auth = context.read<AuthProvider>();
+    if (auth.clientId != null) {
+      await context.read<ProfileProvider>().fetch(auth.clientId!);
+      await _loadPolarStatus(auth.clientId!);
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final auth   = context.watch<AuthProvider>();
-    final prov   = context.watch<ClientProvider>();
-    final client = prov.profile ?? auth.client;
-
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        title: const Text('Mein Profil',
-            style: TextStyle(color: AppColors.text, fontWeight: FontWeight.bold)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: AppColors.muted),
-            onPressed: () => _confirmLogout(context),
-            tooltip: 'Abmelden',
-          ),
-        ],
-      ),
-      body: prov.isLoading
-          ? const Center(
-              child: CircularProgressIndicator(
-                  color: AppColors.primary, strokeWidth: 2))
-          : RefreshIndicator(
-              color: AppColors.primary,
-              backgroundColor: AppColors.surface,
-              onRefresh: _load,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  // Avatar + name
-                  Center(
-                    child: Column(
-                      children: [
-                        CircleAvatar(
-                          radius: 44,
-                          backgroundColor: AppColors.primary.withOpacity(0.2),
-                          child: Text(
-                            client != null && client.firstname.isNotEmpty
-                                ? client.firstname[0].toUpperCase()
-                                : '?',
-                            style: const TextStyle(
-                              color: AppColors.primary,
-                              fontSize: 32,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          client?.fullName ?? '',
-                          style: const TextStyle(
-                            color: AppColors.text,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        if (client?.email.isNotEmpty ?? false)
-                          Text(
-                            client!.email,
-                            style: const TextStyle(
-                                color: AppColors.muted, fontSize: 13),
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-
-                  // Info tiles
-                  _InfoCard(
-                    items: [
-                      if (client?.phone.isNotEmpty ?? false)
-                        _InfoRow(
-                          icon: Icons.phone_outlined,
-                          label: 'Telefon',
-                          value: client!.phone,
-                        ),
-                      if (client?.email.isNotEmpty ?? false)
-                        _InfoRow(
-                          icon: Icons.email_outlined,
-                          label: 'E-Mail',
-                          value: client!.email,
-                        ),
-                      _InfoRow(
-                        icon: Icons.credit_card_outlined,
-                        label: 'Credits',
-                        value: '${prov.credits}',
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Credit packs
-                  if (prov.creditPacks.isNotEmpty) ...[
-                    const Text(
-                      'Abbonnemente',
-                      style: TextStyle(
-                        color: AppColors.text,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    ...prov.creditPacks.map((p) => _PackCard(pack: p)),
-                    const SizedBox(height: 20),
-                  ],
-
-                  // Logout button
-                  OutlinedButton.icon(
-                    onPressed: () => _confirmLogout(context),
-                    icon: const Icon(Icons.logout, color: AppColors.red),
-                    label: const Text('Abmelden',
-                        style: TextStyle(color: AppColors.red)),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.red),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                ],
-              ),
-            ),
-    );
+  Future<void> _loadPolarStatus(String clientId) async {
+    try {
+      final data = await apiClient.get('api/client/polar/status/$clientId');
+      if (data != null && mounted) {
+        setState(() {
+          _polarConnected = data['connected'] == true;
+          _polarConnectUrl = data['connectUrl'];
+        });
+      }
+    } catch (_) {}
   }
 
-  Future<void> _confirmLogout(BuildContext context) async {
-    final ok = await showDialog<bool>(
+  Future<void> _syncPolar(String clientId) async {
+    setState(() => _polarLoading = true);
+    try {
+      await apiClient.post('api/client/polar/sync/$clientId', body: {});
+      await _loadPolarStatus(clientId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Polar-Trainings synchronisiert!')),
+        );
+      }
+    } catch (_) {} finally {
+      if (mounted) setState(() => _polarLoading = false);
+    }
+  }
+
+  Future<void> _disconnectPolar(String clientId) async {
+    final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Abmelden', style: TextStyle(color: AppColors.text)),
-        content: const Text('Wirklich abmelden?',
-            style: TextStyle(color: AppColors.muted)),
+        title: const Text('Polar trennen', style: TextStyle(color: AppColors.text)),
+        content: const Text('Polar-Verbindung wirklich trennen?', style: TextStyle(color: AppColors.muted)),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Abbrechen'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Abbrechen')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Abmelden',
-                style: TextStyle(color: AppColors.red)),
+            child: const Text('Trennen', style: TextStyle(color: AppColors.red)),
           ),
         ],
       ),
     );
-    if (ok == true && context.mounted) {
-      await context.read<AuthProvider>().logout();
+    if (confirm != true) return;
+    setState(() => _polarLoading = true);
+    try {
+      await apiClient.post('api/client/polar/disconnect/$clientId', body: {});
+      setState(() => _polarConnected = false);
+    } catch (_) {} finally {
+      if (mounted) setState(() => _polarLoading = false);
     }
   }
-}
-
-class _InfoCard extends StatelessWidget {
-  final List<_InfoRow> items;
-  const _InfoCard({required this.items});
 
   @override
   Widget build(BuildContext context) {
-    if (items.isEmpty) return const SizedBox.shrink();
+    final profile = context.watch<ProfileProvider>();
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: RefreshIndicator(
+          color: AppColors.primary,
+          backgroundColor: AppColors.surface,
+          onRefresh: _loadData,
+          child: profile.isLoading
+              ? const LoadingIndicator(message: 'Lade Profil...')
+              : profile.error != null
+                  ? ErrorView(message: profile.error!, onRetry: _loadData)
+                  : CustomScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      slivers: [
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+                          sliver: SliverToBoxAdapter(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Avatar + name
+                                Center(
+                                  child: Column(
+                                    children: [
+                                      Container(
+                                        width: 90,
+                                        height: 90,
+                                        decoration: const BoxDecoration(
+                                          color: AppColors.primary,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            profile.data?.initials ?? '?',
+                                            style: const TextStyle(
+                                              color: AppColors.white,
+                                              fontSize: 32,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        profile.data?.fullName ?? '',
+                                        style: const TextStyle(
+                                          color: AppColors.text,
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      const Text('Mitglied',
+                                          style: TextStyle(color: AppColors.muted, fontSize: 14)),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 28),
+
+                                // Credits section
+                                _SectionTile(
+                                  icon: Icons.credit_score_rounded,
+                                  title: 'Meine Credits',
+                                  subtitle: _creditsSubtitle(profile.data?.creditPacks),
+                                  children: [
+                                    if (profile.data?.creditPacks.isEmpty ?? true)
+                                      _emptyHint('Keine Credit-Pakete vorhanden')
+                                    else
+                                      ...profile.data!.creditPacks
+                                          .map((pack) => _CreditPackCard(pack: pack)),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+
+                                // Invoices section
+                                _SectionTile(
+                                  icon: Icons.receipt_long_rounded,
+                                  title: 'Rechnungen',
+                                  subtitle: _countLabel(profile.invoices.length, 'Rechnung', 'Rechnungen'),
+                                  children: [
+                                    if (profile.invoices.isEmpty)
+                                      _emptyHint('Keine Rechnungen vorhanden')
+                                    else
+                                      ...profile.invoices.map((inv) => Padding(
+                                            padding: const EdgeInsets.only(bottom: 10),
+                                            child: _InvoiceCard(invoice: inv),
+                                          )),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+
+                                // Files section
+                                _SectionTile(
+                                  icon: Icons.folder_rounded,
+                                  title: 'Files',
+                                  subtitle: _countLabel(profile.files.length, 'Datei', 'Dateien'),
+                                  children: [
+                                    if (profile.files.isEmpty)
+                                      _emptyHint('Keine Dateien vorhanden')
+                                    else
+                                      ...profile.files.map((f) => _FileRow(file: f)),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+
+                                // Polar section
+                                Builder(builder: (ctx) {
+                                  final auth = ctx.read<AuthProvider>();
+                                  final clientId = auth.clientId ?? '';
+                                  return _SectionTile(
+                                    icon: Icons.link_rounded,
+                                    title: 'Verbindungen',
+                                    subtitle: _polarConnected ? 'Polar verbunden' : 'Keine Verbindung',
+                                    children: [
+                                      _PolarCard(
+                                        connected: _polarConnected,
+                                        loading: _polarLoading,
+                                        onSync: () => _syncPolar(clientId),
+                                        onDisconnect: () => _disconnectPolar(clientId),
+                                      ),
+                                    ],
+                                  );
+                                }),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+        ),
+      ),
+    );
+  }
+
+  String _creditsSubtitle(List<CreditPack>? packs) {
+    if (packs == null || packs.isEmpty) return 'Keine Credits';
+    return _countLabel(packs.length, 'Paket', 'Pakete');
+  }
+
+  String _countLabel(int n, String s, String p) =>
+      n == 0 ? 'Keine $p' : '$n ${n == 1 ? s : p}';
+
+  Widget _emptyHint(String text) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Center(child: Text(text, style: const TextStyle(color: AppColors.muted, fontSize: 14))),
+      );
+}
+
+// ── Section tile
+class _SectionTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final List<Widget> children;
+
+  const _SectionTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        border: Border.all(color: AppColors.border),
       ),
-      child: Column(
-        children: items.asMap().entries.map((e) {
-          final row = e.value;
-          final isLast = e.key == items.length - 1;
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                child: Row(
-                  children: [
-                    Icon(row.icon, color: AppColors.muted, size: 18),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(row.label,
-                            style: const TextStyle(
-                                color: AppColors.muted, fontSize: 11)),
-                        Text(row.value,
-                            style: const TextStyle(
-                                color: AppColors.text, fontSize: 14)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              if (!isLast)
-                const Divider(
-                    height: 1, color: AppColors.border, indent: 16),
-            ],
-          );
-        }).toList(),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          leading: Icon(icon, color: AppColors.primary, size: 22),
+          title: Text(title,
+              style: const TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
+          subtitle: Text(subtitle, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+          iconColor: AppColors.muted,
+          collapsedIconColor: AppColors.muted,
+          childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          children: children,
+        ),
       ),
     );
   }
 }
 
-class _InfoRow {
-  final IconData icon;
-  final String label;
-  final String value;
-  const _InfoRow({required this.icon, required this.label, required this.value});
-}
-
-class _PackCard extends StatelessWidget {
-  final Map<String, dynamic> pack;
-  const _PackCard({required this.pack});
+// ── Credit pack card
+class _CreditPackCard extends StatelessWidget {
+  final CreditPack pack;
+  const _CreditPackCard({required this.pack});
 
   @override
   Widget build(BuildContext context) {
-    final name = pack['name']?.toString() ?? 'Abbonnement';
-    final credits = pack['credits']?.toString() ?? '';
-    final price = pack['price']?.toString() ?? '';
+    final remaining = pack.remainingCredits.clamp(0, pack.prepaidCredits);
+    final fraction = pack.prepaidCredits > 0 ? remaining / pack.prepaidCredits : 0.0;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        color: AppColors.surface2,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.credit_card_rounded, size: 18, color: AppColors.primary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(pack.title,
+                    style: const TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text('$remaining / ${pack.prepaidCredits}',
+                    style: const TextStyle(color: AppColors.primary, fontSize: 13, fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: fraction.toDouble(),
+              minHeight: 6,
+              backgroundColor: AppColors.surface,
+              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Invoice card
+class _InvoiceCard extends StatelessWidget {
+  final Invoice invoice;
+  const _InvoiceCard({required this.invoice});
+
+  @override
+  Widget build(BuildContext context) {
+    final isPaid = invoice.isPaid;
+    final statusColor = isPaid ? AppColors.green : AppColors.primary;
+    final statusBg = isPaid ? AppColors.green.withOpacity(0.12) : AppColors.primary.withOpacity(0.12);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface2,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
-          const Icon(Icons.card_membership_outlined,
-              color: AppColors.primary, size: 20),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.receipt_rounded, color: AppColors.primary, size: 20),
+          ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(name,
-                style: const TextStyle(color: AppColors.text, fontSize: 14)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Rechnung ${invoice.invoiceNumber}',
+                    style: const TextStyle(color: AppColors.text, fontSize: 14, fontWeight: FontWeight.w700)),
+                if (invoice.transactionDate != null)
+                  Text(DateFormat('dd.MM.yyyy').format(invoice.transactionDate!),
+                      style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+              ],
+            ),
           ),
-          if (credits.isNotEmpty)
-            Text('$credits Credits',
-                style: const TextStyle(color: AppColors.muted, fontSize: 12)),
-          if (price.isNotEmpty) ...[
-            const SizedBox(width: 8),
-            Text('CHF $price',
-                style: const TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13)),
-          ],
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text('${invoice.currency} ${invoice.amount.toStringAsFixed(2)}',
+                  style: const TextStyle(color: AppColors.text, fontSize: 16, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(6)),
+                child: Text(isPaid ? 'Bezahlt' : 'Offen',
+                    style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── File row
+class _FileRow extends StatelessWidget {
+  final ClientFile file;
+  const _FileRow({required this.file});
+
+  @override
+  Widget build(BuildContext context) {
+    final dateStr = file.date != null ? DateFormat('dd.MM.yyyy').format(file.date!) : '-';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface2,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.insert_drive_file_rounded, size: 20, color: AppColors.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(file.name,
+                    style: const TextStyle(color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w600)),
+                Text(dateStr, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Polar card
+class _PolarCard extends StatelessWidget {
+  final bool connected;
+  final bool loading;
+  final VoidCallback onSync;
+  final VoidCallback onDisconnect;
+
+  const _PolarCard({
+    required this.connected,
+    required this.loading,
+    required this.onSync,
+    required this.onDisconnect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface2,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFFD4002A).withOpacity(0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Center(
+              child: Text('P',
+                  style: TextStyle(color: Color(0xFFD4002A), fontSize: 22, fontWeight: FontWeight.w900)),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Polar',
+                    style: TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
+                Text(connected ? 'Verbunden' : 'Nicht verbunden',
+                    style: TextStyle(color: connected ? AppColors.green : AppColors.muted, fontSize: 12)),
+              ],
+            ),
+          ),
+          if (loading)
+            const SizedBox(
+                width: 20, height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary))
+          else if (connected)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextButton.icon(
+                  onPressed: onSync,
+                  icon: const Icon(Icons.sync_rounded, size: 16),
+                  label: const Text('Sync', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  style: TextButton.styleFrom(
+                    backgroundColor: AppColors.primary.withOpacity(0.15),
+                    foregroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: onDisconnect,
+                  icon: const Icon(Icons.link_off_rounded, size: 16),
+                  label: const Text('Trennen', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  style: TextButton.styleFrom(
+                    backgroundColor: AppColors.red.withOpacity(0.12),
+                    foregroundColor: AppColors.red,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              ],
+            )
+          else
+            const Text('Nicht konfiguriert',
+                style: TextStyle(color: AppColors.muted, fontSize: 12)),
         ],
       ),
     );
