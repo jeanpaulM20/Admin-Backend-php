@@ -80661,7 +80661,7 @@ A.NC.prototype={
 am(){this.aI()
 $.a2.k3$.push(new A.aez(this))},
 I(a){var s=null
-switch(A.e4(a,!0,t.d).b.a){case 0:return A.A2(s,B.cq,A.eL(A.e0(A.a([A.dL(s,B.NW,B.v,s,s,new A.bR(B.I,s,s,A.cX(18),s,s,B.ah),s,72,s,s,s,s,72),B.a42,B.oj],t.p),B.a3,B.fL,B.a7),s,s),s)
+switch(A.e4(a,!0,t.d).b.a){case 0:return A.A2(s,B.cq,A.eL(A.e0(A.a([A.dL(s,B.NV,B.v,s,s,new A.bR(B.I,s,s,A.cX(18),s,s,B.ah),s,72,s,s,s,s,72),B.a42,B.oj],t.p),B.a3,B.fL,B.a7),s,s),s)
 case 1:return B.YR
 case 2:return B.YN}}}
 A.aez.prototype={
@@ -80996,7 +80996,7 @@ L3(a,b){var s=A.Y(b).i("aG<1>")
 return A.a0(new A.aG(b,new A.afw(A.aDK("yyyy-MM-dd",null).lX(a)),s),!0,s.i("r.E"))},
 I(a){var s,r,q,p,o,n,m,l=this,k=null,j=A.e4(a,!0,t.rd),i=l.e,h=l.L3(i,j.x)
 i=t.p
-s=A.apd(A.a([A.xN(k,B.NR,k,k,l.ga1a(),k,k)],i),k,!0,B.cq,k,1,k,k,k,!1,k,!1,k,k,k,k,!0,k,k,k,k,k,B.a9L,k,k,k,1,k)
+s=A.apd(A.a([A.xN(k,B.NQ,k,k,l.ga1a(),k,k)],i),k,!0,B.cq,k,1,k,k,k,!1,k,!1,k,k,k,k,!0,k,k,k,k,k,B.a9L,k,k,k,1,k)
 if(j.b)i=B.kB
 else{r=new A.bs(Date.now(),0,!1).ex(-15552e9)
 q=new A.bs(Date.now(),0,!1).ex(31536e9)
@@ -81077,7 +81077,7 @@ I(a){var s,r=null,q=A.e4(a,!0,t.d),p=A.e4(a,!0,t.rd),o=q.c,n=this.ga2b(),m=o==nu
 m=A.a([new A.AA(new A.xs(A.e0(A.a([A.bm("Hallo, "+(m==null?"":m)+"!",r,r,r,B.HQ,r,r)],l),B.bP,B.fK,B.a7),B.MJ,r),B.cq,130,!0,r)],l)
 if(p.b)m.push(B.a47)
 else{s=p.c
-if(s!=null)m.push(new A.AC(A.eL(A.e0(A.a([B.O2,B.Hc,A.bm(s,r,r,r,B.eM,r,r),B.mV,A.tw(B.a9Q,n,r)],l),B.a3,B.fL,B.a7),r,r),r))
+if(s!=null)m.push(new A.AC(A.eL(A.e0(A.a([B.O1,B.Hc,A.bm(s,r,r,r,B.eM,r,r),B.mV,A.tw(B.a9Q,n,r)],l),B.a3,B.fL,B.a7),r,r),r))
 else{l=A.a([new A.py(new A.Op(p.e,r),r),B.a4a],l)
 s=p.d.length
 if(s===0)l.push(B.a48)
@@ -81146,9 +81146,9 @@ return null},
 $S:0}
 A.Op.prototype={
 I(a){var s=null,r=A.a([B.I,B.KP],t.t_),q=A.cX(16),p=A.a([new A.dp(0,B.dQ,A.aB(B.d.aG(76.5),B.I.gm()>>>16&255,B.I.gm()>>>8&255,B.I.gm()&255),B.a0a,20)],t.sq),o=t.p
-return A.dL(s,A.fj(A.a([B.NU,B.a4_,A.e0(A.a([B.a9V,A.bm(""+this.c,s,s,s,B.a6P,s,s)],o),B.bP,B.X,B.a7)],o),B.a3,B.X,B.a7),B.v,s,s,new A.bR(s,s,s,q,p,new A.rm(B.dN,B.nI,B.jX,r,s,s),B.ah),s,s,B.MQ,B.p7,s,s,s)}}
+return A.dL(s,A.fj(A.a([B.NT,B.a4_,A.e0(A.a([B.a9V,A.bm(""+this.c,s,s,s,B.a6P,s,s)],o),B.bP,B.X,B.a7)],o),B.a3,B.X,B.a7),B.v,s,s,new A.bR(s,s,s,q,p,new A.rm(B.dN,B.nI,B.jX,r,s,s),B.ah),s,s,B.MQ,B.p7,s,s,s)}}
 A.u_.prototype={
-I(a){var s,r=null,q=this.c,p=A.cX(14),o=A.w4(B.cp,0.5),n=A.dL(r,B.NP,B.v,r,r,new A.bR(A.aB(38,B.I.gm()>>>16&255,B.I.gm()>>>8&255,B.I.gm()&255),r,r,A.cX(12),r,r,B.ah),r,46,r,r,r,r,46),m=A.bm(q.r,r,r,r,B.HP,r,r),l=q.d
+I(a){var s,r=null,q=this.c,p=A.cX(14),o=A.w4(B.cp,0.5),n=A.dL(r,B.NO,B.v,r,r,new A.bR(A.aB(38,B.I.gm()>>>16&255,B.I.gm()>>>8&255,B.I.gm()&255),r,r,A.cX(12),r,r,B.ah),r,46,r,r,r,r,46),m=A.bm(q.r,r,r,r,B.HP,r,r),l=q.d
 l=l!=null?" \u2013 "+l:""
 s=t.p
 l=A.a([m,B.a43,A.bm(q.b+"  "+q.c+l,r,r,r,B.d2,r,r)],s)
@@ -81156,11 +81156,11 @@ m=q.e
 if(m.length!==0)l.push(A.bm("Trainer: "+m,r,r,r,B.d2,r,r))
 n=A.a([n,B.h2,A.o2(A.e0(l,B.bP,B.X,B.a7),1)],s)
 m=q.y
-if(!(m==="cancelled"||m==="storniert"))n.push(A.xN(r,B.O1,r,r,this.d,r,"Absagen"))
+if(!(m==="cancelled"||m==="storniert"))n.push(A.xN(r,B.O0,r,r,this.d,r,"Absagen"))
 return A.dL(r,A.fj(n,B.a3,B.X,B.a7),B.v,r,r,new A.bR(B.b7,r,o,p,r,r,B.ah),r,r,B.MP,B.fk,r,r,r)}}
 A.Pe.prototype={
 I(a){var s=null,r=A.cX(14),q=A.w4(B.cp,0.5)
-return A.dL(s,A.fj(A.a([A.IX(B.NE,B.aL,s,28),B.h2,A.bm("Keine bevorstehenden Trainings",s,s,s,B.a7L,s,s)],t.p),B.a3,B.X,B.a7),B.v,s,s,new A.bR(B.b7,s,q,r,s,s,B.ah),s,s,s,B.MT,s,s,s)}}
+return A.dL(s,A.fj(A.a([A.IX(B.ND,B.aL,s,28),B.h2,A.bm("Keine bevorstehenden Trainings",s,s,s,B.a7L,s,s)],t.p),B.a3,B.X,B.a7),B.v,s,s,new A.bR(B.b7,s,q,r,s,s,B.ah),s,s,s,B.MT,s,s,s)}}
 A.ys.prototype={
 aa(){var s=$.ao()
 return new A.Db(new A.Bc(B.n2,s),new A.Bc(B.n2,s),new A.bu(null,t.am))}}
@@ -81190,14 +81190,14 @@ if(n==null)n="Anmeldung fehlgeschlagen."
 p.c.ac(t.Pu).f.Im(A.aqD(null,null,null,B.bO,null,B.P,null,A.bm(n,null,null,null,null,null,null),null,B.p3,null,null,null,null,null,null,null,null,null))}case 1:return A.I(q,r)}})
 return A.J($async$rk,r)},
 I(a){var s,r,q=this,p=null,o=A.e4(a,!0,t.d).e,n=A.awm(q.d,B.O7,B.a5g,!1,p,B.dC,new A.ais()),m=q.r
-m=A.awm(q.e,A.aup(p,p,p,p,p,p,p,p,!0,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,"Passcode",!0,p,B.NS,p,p,p,p,p,p,A.xN(B.aL,A.IX(m?B.NH:B.NG,p,p,p),p,p,new A.ait(q),p,p),p,p,p,p),p,m,new A.aiu(q,o),B.dC,new A.aiv())
+m=A.awm(q.e,A.aup(p,p,p,p,p,p,p,p,!0,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,"Passcode",!0,p,B.NR,p,p,p,p,p,p,A.xN(B.aL,A.IX(m?B.NH:B.NG,p,p,p),p,p,new A.ait(q),p,p),p,p,p,p),p,m,new A.aiu(q,o),B.dC,new A.aiv())
 s=o?p:q.ga7S()
 r=t.p
 s=A.e0(A.a([n,B.mV,m,B.He,A.dj(new A.Ih(s,p,p,p,p,p,p,!1,p,!0,p,o?B.a40:B.a9X,p),50,p)],r),B.df,B.X,B.a7)
 return A.A2(p,B.cq,A.Le(!0,A.eL(A.aHW(A.e0(A.a([new A.Qb(p),B.a44,new A.xE(s,B.nP,q.f),B.mW,A.bm("Noch kein Konto? Bitte wende dich an deinen Trainer.",p,p,p,B.d2,B.h5,p)],r),B.a3,B.fL,B.a7),B.MU),p,p),!0),p)}}
 A.ais.prototype={
 $1(a){var s=B.c.h8(a)
-return s.length===0?"Telefonnummer eingeben":null},
+return s.length===0?"E-Mail eingeben":null},
 $S:194}
 A.ait.prototype={
 $0(){var s=this.a
@@ -81216,7 +81216,7 @@ $1(a){return this.b?null:this.a.rk()},
 $S:49}
 A.Qb.prototype={
 I(a){var s=null
-return A.e0(A.a([A.dL(s,B.NX,B.v,s,s,new A.bR(B.I,s,s,A.cX(20),A.a([new A.dp(0,B.dQ,A.aB(89,B.I.gm()>>>16&255,B.I.gm()>>>8&255,B.I.gm()&255),B.Cq,24)],t.sq),s,B.ah),s,80,s,s,s,s,80),B.mV,A.bm("SIHL TRAINING",s,s,s,A.arS().$4$color$fontSize$fontWeight$letterSpacing(B.bh,20,B.e8,2),s,s),B.Hf,A.bm("Mein Konto",s,s,s,A.arT().$2$color$fontSize(B.aL,13),s,s)],t.p),B.a3,B.X,B.a7)}}
+return A.e0(A.a([A.dL(s,B.NW,B.v,s,s,new A.bR(B.I,s,s,A.cX(20),A.a([new A.dp(0,B.dQ,A.aB(89,B.I.gm()>>>16&255,B.I.gm()>>>8&255,B.I.gm()&255),B.Cq,24)],t.sq),s,B.ah),s,80,s,s,s,s,80),B.mV,A.bm("SIHL TRAINING",s,s,s,A.arS().$4$color$fontSize$fontWeight$letterSpacing(B.bh,20,B.e8,2),s,s),B.Hf,A.bm("Mein Konto",s,s,s,A.arT().$2$color$fontSize(B.aL,13),s,s)],t.p),B.a3,B.X,B.a7)}}
 A.yu.prototype={
 aa(){return new A.Qd()}}
 A.Qd.prototype={
@@ -81251,7 +81251,7 @@ return A.J($async$rj,r)},
 I(a){var s,r,q,p,o,n,m=null,l=A.e4(a,!0,t.d),k=A.e4(a,!0,t.rd),j=k.y
 if(j==null)j=l.c
 s=t.p
-r=A.apd(A.a([A.xN(m,B.NQ,m,m,new A.ajy(this,a),m,"Abmelden")],s),m,!0,B.cq,m,1,m,m,m,!1,m,!1,m,m,m,m,!0,m,m,m,m,m,B.a9N,m,m,m,1,m)
+r=A.apd(A.a([A.xN(m,B.NP,m,m,new A.ajy(this,a),m,"Abmelden")],s),m,!0,B.cq,m,1,m,m,m,!1,m,!1,m,m,m,m,!0,m,m,m,m,m,B.a9N,m,m,m,1,m)
 if(k.b)s=B.kB
 else{q=A.aB(51,B.I.gm()>>>16&255,B.I.gm()>>>8&255,B.I.gm()&255)
 p=j==null
@@ -81263,9 +81263,9 @@ if(o===!0)q.push(A.bm(j.d,m,m,m,B.a7J,m,m))
 q=A.eL(A.e0(q,B.a3,B.X,B.a7),m,m)
 o=A.a([],t.fs)
 n=p?m:j.e.length!==0
-if(n===!0)o.push(new A.mS(B.pN,"Telefon",j.e))
+if(n===!0)o.push(new A.mS(B.NF,"Telefon",j.e))
 p=p?m:j.d.length!==0
-if(p===!0)o.push(new A.mS(B.ND,"E-Mail",j.d))
+if(p===!0)o.push(new A.mS(B.pN,"E-Mail",j.d))
 o.push(new A.mS(B.NC,"Credits",""+k.e))
 q=A.a([q,B.He,new A.PR(o,m),B.Hd],s)
 if(k.z.length!==0){s=A.a([B.a9O,B.a41],s)
@@ -81337,7 +81337,7 @@ if(r==null)r=""
 n=A.cX(12)
 m=A.w4(B.cp,0.5)
 q=t.p
-p=A.a([B.NT,B.h2,A.o2(A.bm(l,o,o,o,B.HL,o,o),1)],q)
+p=A.a([B.NS,B.h2,A.o2(A.bm(l,o,o,o,B.HL,o,o),1)],q)
 if(s.length!==0)p.push(A.bm(s+" Credits",o,o,o,B.d2,o,o))
 if(r.length!==0)B.b.P(p,A.a([B.Hb,A.bm("CHF "+r,o,o,o,B.HT,o,o)],q))
 return A.dL(o,A.fj(p,B.a3,B.X,B.a7),B.v,o,o,new A.bR(B.b7,o,m,n,o,o,B.ah),o,o,B.MD,B.p6,o,o,o)}}
@@ -81349,7 +81349,7 @@ gCo(){var s="application/json",r=t.N,q=A.ak(["Content-Type",s,"Accept",s],r,r)
 r=this.a
 if(r!=null)q.n(0,"X-Auth-Token",r)
 return q},
-Q5(a,b){return A.h0("https://apps.sihltraining.ch/"+a,0,null)},
+Q5(a,b){return A.h0("https://admin-backend-php-production.up.railway.app/"+a,0,null)},
 Q4(a){return this.Q5(a,null)},
 dM(a){var s=null
 return this.Vp(a)},
@@ -81460,7 +81460,7 @@ s=p}while(true)switch(s){case 0:b=n.a
 a=t.N
 a0=t.z
 s=3
-return A.G(b.zt("api/token",A.ak(["phone",a3,"passcode",a4],a,a0)),$async$hq)
+return A.G(b.zt("api/token",A.ak(["e_mail",a3,"clientpasscode",a4],a,a0)),$async$hq)
 case 3:a1=a6
 if(a1==null)throw A.f(A.hM("Keine Antwort vom Server",null))
 if(!t.a.b(a1))throw A.f(A.hM("Ung\xfcltiges Antwortformat",null))
@@ -86195,8 +86195,8 @@ B.a7N=new A.i(!0,null,null,null,null,null,14,null,null,null,null,null,null,null,
 B.Nq=new A.ch(57694,!0)
 B.NN=new A.d0(B.Nq,null,B.aL,null,null)
 B.Nr=new A.ch(57695,!0)
-B.O3=new A.d0(B.Nr,null,B.aL,null,null)
-B.No=new A.a1T(!0,!1,B.a7h,B.NN,B.O3)
+B.O2=new A.d0(B.Nr,null,B.aL,null,null)
+B.No=new A.a1T(!0,!1,B.a7h,B.NN,B.O2)
 B.e9=new A.r8(0,"push")
 B.ea=new A.r8(1,"pop")
 B.bR=new A.xL(0,"deferToChild")
@@ -86208,9 +86208,9 @@ B.pK=new A.ch(57490,!0)
 B.pM=new A.ch(58332,!1)
 B.Nx=new A.ch(58372,!1)
 B.NC=new A.ch(61327,!1)
-B.ND=new A.ch(61464,!1)
-B.NE=new A.ch(61484,!1)
-B.pN=new A.ch(62096,!1)
+B.pN=new A.ch(61464,!1)
+B.ND=new A.ch(61484,!1)
+B.NF=new A.ch(62096,!1)
 B.NG=new A.ch(62624,!1)
 B.NH=new A.ch(62625,!1)
 B.NL=new A.cG(null,null,null,null,null,B.n,null,null,null)
@@ -86219,28 +86219,28 @@ B.pO=new A.cG(24,0,400,0,48,B.n,1,null,!1)
 B.pL=new A.ch(58291,!1)
 B.NM=new A.d0(B.pL,null,B.bO,null,null)
 B.lg=new A.ch(57997,!1)
-B.NP=new A.d0(B.lg,22,B.I,null,null)
-B.NQ=new A.d0(B.pL,null,B.aL,null,null)
+B.NO=new A.d0(B.lg,22,B.I,null,null)
+B.NP=new A.d0(B.pL,null,B.aL,null,null)
 B.NA=new A.ch(58644,!1)
-B.NR=new A.d0(B.NA,null,B.aL,null,null)
+B.NQ=new A.d0(B.NA,null,B.aL,null,null)
 B.Nw=new A.ch(58289,!1)
-B.NS=new A.d0(B.Nw,null,null,null,null)
+B.NR=new A.d0(B.Nw,null,null,null,null)
 B.NB=new A.ch(61230,!1)
-B.NT=new A.d0(B.NB,20,B.I,null,null)
+B.NS=new A.d0(B.NB,20,B.I,null,null)
 B.Nt=new A.ch(57759,!1)
-B.NU=new A.d0(B.Nt,32,B.m,null,null)
-B.NW=new A.d0(B.lg,36,B.m,null,null)
-B.NX=new A.d0(B.lg,40,B.m,null,null)
+B.NT=new A.d0(B.Nt,32,B.m,null,null)
+B.NV=new A.d0(B.lg,36,B.m,null,null)
+B.NW=new A.d0(B.lg,40,B.m,null,null)
 B.Ns=new A.ch(57706,!1)
-B.O1=new A.d0(B.Ns,18,B.bO,null,null)
+B.O0=new A.d0(B.Ns,18,B.bO,null,null)
 B.Nu=new A.ch(57912,!1)
-B.O2=new A.d0(B.Nu,40,B.aL,null,null)
+B.O1=new A.d0(B.Nu,40,B.aL,null,null)
 B.aN=A.a(s([]),t.oU)
 B.O5=new A.k7("\ufffc",null,null,!0,!0,B.aN)
 B.O6=new A.rf(null,null,null,null,!1,null,null,null,null,null)
-B.NO=new A.d0(B.pN,null,null,null,null)
-B.O7=new A.re(null,null,null,"Telefonnummer",null,null,null,null,null,null,"+41 79 000 00 00",null,null,null,null,!0,null,null,null,null,null,null,null,null,null,B.NO,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null)
 B.ad_=new A.re(null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null)
+B.O3=new A.d0(B.pN,null,null,null,null)
+B.O7=new A.re(null,null,null,"E-Mail",null,null,null,null,null,null,"name@beispiel.ch",null,null,null,null,!0,null,null,null,null,null,null,null,null,null,B.O3,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null)
 B.O9=new A.e1(0.4,1,B.al)
 B.Oa=new A.e1(0.0825,0.2075,B.al)
 B.Oc=new A.e1(0,0.5,B.as)
@@ -86802,21 +86802,21 @@ B.T_=A.a(s(["prie\u0161piet","popiet"]),t.s)
 B.tO=A.a(s(["\u0a10\u0a24","\u0a38\u0a4b\u0a2e","\u0a2e\u0a70\u0a17\u0a32","\u0a2c\u0a41\u0a71\u0a27","\u0a35\u0a40\u0a30","\u0a38\u0a3c\u0a41\u0a71\u0a15\u0a30","\u0a38\u0a3c\u0a28\u0a3f\u0a71\u0a1a\u0a30"]),t.s)
 B.bD=A.a(s(["a.m.","p.m."]),t.s)
 B.T0=A.a(s(["sije\u010dnja","velja\u010de","o\u017eujka","travnja","svibnja","lipnja","srpnja","kolovoza","rujna","listopada","studenoga","prosinca"]),t.s)
-B.NF=new A.ch(61703,!1)
-B.O0=new A.d0(B.NF,null,null,null,null)
+B.NE=new A.ch(61703,!1)
+B.O_=new A.d0(B.NE,null,null,null,null)
 B.Nv=new A.ch(58136,!1)
-B.NV=new A.d0(B.Nv,null,null,null,null)
-B.J4=new A.qr(B.O0,B.NV,"Start")
+B.NU=new A.d0(B.Nv,null,null,null,null)
+B.J4=new A.qr(B.O_,B.NU,"Start")
 B.NI=new A.ch(984351,!1)
 B.O4=new A.d0(B.NI,null,null,null,null)
 B.NJ=new A.ch(984763,!1)
-B.O_=new A.d0(B.NJ,null,null,null,null)
-B.J5=new A.qr(B.O4,B.O_,"Kalender")
+B.NZ=new A.d0(B.NJ,null,null,null,null)
+B.J5=new A.qr(B.O4,B.NZ,"Kalender")
 B.Nz=new A.ch(58519,!1)
-B.NY=new A.d0(B.Nz,null,null,null,null)
+B.NX=new A.d0(B.Nz,null,null,null,null)
 B.Ny=new A.ch(58513,!1)
-B.NZ=new A.d0(B.Ny,null,null,null,null)
-B.J6=new A.qr(B.NY,B.NZ,"Profil")
+B.NY=new A.d0(B.Ny,null,null,null,null)
+B.J6=new A.qr(B.NX,B.NY,"Profil")
 B.T1=A.a(s([B.J4,B.J5,B.J6]),A.au("x<qr>"))
 B.T3=A.a(s(["S1","S2","S3","S4"]),t.s)
 B.T4=A.a(s(["prie\u0161 Krist\u0173","po Kristaus"]),t.s)
@@ -88924,7 +88924,7 @@ B.a5d=new A.eV(9,"join")
 B.a5e=new A.pE(0,null,null)
 B.a5f=new A.pE(10,null,null)
 B.n4=new A.pE(1,null,null)
-B.a5g=new A.pE(3,null,null)
+B.a5g=new A.pE(5,null,null)
 B.C=new A.MD(1,"even")
 B.aU=new A.Bi(2,"ellipsis")
 B.a5h=new A.Bi(3,"visible")
