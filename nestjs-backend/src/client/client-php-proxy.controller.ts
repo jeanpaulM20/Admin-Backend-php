@@ -21,6 +21,28 @@ export class ClientAppController {
 
   constructor(private readonly appService: ClientAppService) {}
 
+  /** Debug endpoint — surface actual DB errors (remove after debugging) */
+  @Get('debug/:clientId')
+  async debug(@Param('clientId', ParseIntPipe) clientId: number) {
+    const results: Record<string, any> = {};
+    try {
+      results.start = await this.appService.getStartData(clientId);
+    } catch (e: any) {
+      results.startError = { message: e.message, query: e.query, sql: e.sql };
+    }
+    try {
+      results.profile = await this.appService.getProfile(clientId);
+    } catch (e: any) {
+      results.profileError = { message: e.message, query: e.query, sql: e.sql };
+    }
+    try {
+      results.files = await this.appService.getFiles(clientId);
+    } catch (e: any) {
+      results.filesError = { message: e.message, query: e.query, sql: e.sql };
+    }
+    return results;
+  }
+
   /** Dashboard — credits + upcoming trainings */
   @Get('start/:clientId')
   start(@Param('clientId', ParseIntPipe) clientId: number) {
