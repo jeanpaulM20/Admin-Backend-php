@@ -57,10 +57,10 @@ export class ClientAppController {
     return this.appService.getTests(clientId);
   }
 
-  /** Training reviews (stub — to be connected to review module) */
+  /** Training reviews — HR data + charts from review module */
   @Get('reviews/:clientId')
   reviews(@Param('clientId', ParseIntPipe) clientId: number) {
-    return [];
+    return this.appService.getReviews(clientId);
   }
 
   /** Client files */

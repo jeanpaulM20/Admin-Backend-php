@@ -7,6 +7,7 @@ import { TrainerAvailability } from '../entities/trainer-availability.entity';
 import { Trainer } from '../entities/trainer.entity';
 import { ClientCredits, TrainingType, PerformanceTest, File as ClientFile } from '../entities/remaining.entities';
 import { Location } from '../entities/location.entity';
+import { ReviewService } from '../review/review.service';
 
 @Injectable()
 export class ClientAppService {
@@ -20,6 +21,7 @@ export class ClientAppService {
     @InjectRepository(Location) private readonly locationRepo: Repository<Location>,
     @InjectRepository(PerformanceTest) private readonly perfTestRepo: Repository<PerformanceTest>,
     @InjectRepository(ClientFile) private readonly fileRepo: Repository<ClientFile>,
+    private readonly reviewService: ReviewService,
   ) {}
 
   /** Dashboard: credits + upcoming appointments */
@@ -359,6 +361,52 @@ export class ClientAppService {
       file: f.file,
       date: f.date,
     }));
+  }
+
+  /** Training reviews — transformed for Flutter TrainingReview model */
+  async getReviews(clientId: number) {
+    const reviews = await this.reviewService.findByClient(clientId);
+
+    // For each review, load timeseries and compute HR stats
+    const results = await Promise.all(
+      reviews.map(async (review) => {
+        const timeseries = await this.reviewService.getTimeseries(review.id);
+
+        // Build chart data: { t: timestamp, v: heart rate value }
+        const chart = timeseries
+          .filter((ts) => ts.value != null)
+          .map((ts) => ({
+            t: ts.timestamp ?? '',
+            v: ts.value,
+          }));
+
+        // Compute HR stats from timeseries
+        const hrValues = chart.map((p) => p.v).filter((v) => v > 0);
+        const hrMax = hrValues.length ? Math.max(...hrValues) : null;
+        const hrAvg = review.heart_rate
+          ? Math.round(review.heart_rate)
+          : hrValues.length
+            ? Math.round(hrValues.reduce((a, b) => a + b, 0) / hrValues.length)
+            : null;
+
+        // Get training date from the relation
+        const trainingDate = review.training?.date ?? '';
+
+        return {
+          id: review.id,
+          date: trainingDate,
+          trainingType: review.training_type ?? review.type ?? '',
+          duration: review.duration,
+          hrMax,
+          hrAvg,
+          hrr: null, // Heart Rate Recovery – requires specific protocol data
+          hrv: null, // Heart Rate Variability – requires R-R interval data
+          chart,
+        };
+      }),
+    );
+
+    return results;
   }
 
   /** Polar status (stub – Polar integration to be migrated) */
