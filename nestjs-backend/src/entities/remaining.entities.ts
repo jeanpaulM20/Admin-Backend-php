@@ -15,7 +15,8 @@ export class Abbonement {
   @ManyToOne(() => Client) @JoinColumn({ name: 'client_id' }) client: Client;
 }
 
-// ClientAnamnese moved to dedicated file: client-anamnese.entity.ts
+// Re-export from dedicated file so that modules importing from remaining.entities still work
+export { ClientAnamnese } from './client-anamnese.entity';
 
 @Entity({ name: 'client_credits' })
 export class ClientCredits {
@@ -130,7 +131,8 @@ export class Offer {
   @Column({ default: 1 }) active: number;
 }
 
-// PerformanceTest moved to dedicated file: performance-test.entity.ts
+// Re-export from dedicated file so that modules importing from remaining.entities still work
+export { PerformanceTest } from './performance-test.entity';
 
 @Entity({ name: 'preference' })
 export class Preference {

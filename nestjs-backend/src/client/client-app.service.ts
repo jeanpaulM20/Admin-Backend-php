@@ -144,7 +144,7 @@ export class ClientAppService {
   /** Performance tests */
   async getTests(clientId: number) {
     return this.perfTestRepo.find({
-      where: { clientId },
+      where: { client_id: clientId },
       order: { date: 'DESC' },
     });
   }
