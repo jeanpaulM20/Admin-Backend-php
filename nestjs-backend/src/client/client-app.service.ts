@@ -304,12 +304,13 @@ export class ClientAppService {
 
     for (const section of sectionOrder) {
       const metrics = sectionMap.get(section)!;
-      const hasData = metrics.some((m) => m.hasAnyValue);
-      if (!hasData) continue;
+      // Only include metrics that have at least one value
+      const withData = metrics.filter((m) => m.hasAnyValue);
+      if (!withData.length) continue;
 
       result.push({
         section,
-        data: metrics.map(({ hasAnyValue: _, ...rest }) => rest),
+        data: withData.map(({ hasAnyValue: _, ...rest }) => rest),
       });
     }
 
