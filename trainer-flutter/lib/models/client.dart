@@ -13,6 +13,7 @@ class Client {
   final String? locationName;
   final int? minHeartRate;
   final int? maxHeartRate;
+  final bool autoTrainingNotify;
 
   const Client({
     required this.id,
@@ -29,6 +30,7 @@ class Client {
     this.locationName,
     this.minHeartRate,
     this.maxHeartRate,
+    this.autoTrainingNotify = false,
   });
 
   factory Client.fromJson(Map<String, dynamic> json) {
@@ -58,6 +60,8 @@ class Client {
           json['location']?.toString(),
       minHeartRate: _parseNullableInt(json['min_heart_rate'] ?? json['minHeartRate']),
       maxHeartRate: _parseNullableInt(json['max_heart_rate'] ?? json['maxHeartRate']),
+      autoTrainingNotify: (json['auto_training_notify'] ?? json['autoTrainingNotify'] ?? 0) == 1 ||
+          (json['auto_training_notify'] ?? json['autoTrainingNotify'] ?? false) == true,
     );
   }
 

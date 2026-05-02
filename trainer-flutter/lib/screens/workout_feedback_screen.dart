@@ -927,7 +927,8 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
     // Detect data messages (starts with [Tag])
     final isDataMsg = msg.text.startsWith('[Aufzeichnung]') ||
         msg.text.startsWith('[Performance]') ||
-        msg.text.startsWith('[Messwerte]');
+        msg.text.startsWith('[Messwerte]') ||
+        msg.text.startsWith('[TRAINING_REPORT]');
 
     final bubble = Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1002,7 +1003,11 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
     IconData icon = Icons.info_outline;
     Color tagColor = AppColors.blue;
     String tagLabel = '';
-    if (header.startsWith('[Aufzeichnung]')) {
+    if (header.startsWith('[TRAINING_REPORT]')) {
+      icon = Icons.fitness_center;
+      tagColor = const Color(0xFFFFA726);
+      tagLabel = header.replaceFirst('[TRAINING_REPORT] ', '');
+    } else if (header.startsWith('[Aufzeichnung]')) {
       icon = Icons.monitor_heart;
       tagColor = AppColors.red;
       tagLabel = header.replaceFirst('[Aufzeichnung] ', '');
@@ -1082,7 +1087,9 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
     final header = text.split('\n').first;
     final dateStr = _extractDate(text);
 
-    if (header.startsWith('[Aufzeichnung]')) {
+    if (header.startsWith('[TRAINING_REPORT]')) {
+      _showReviewDetail(dateStr);
+    } else if (header.startsWith('[Aufzeichnung]')) {
       _showReviewDetail(dateStr);
     } else if (header.startsWith('[Performance]')) {
       _showPerformanceDetail(dateStr);
