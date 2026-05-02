@@ -1,36 +1,93 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-  -->
-  <base href="/Admin-Backend-php/client/">
-
+  <base href="/client/">
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Sihl Training – Client Portal">
+  <meta name="description" content="Sihl Training - Client App">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <!-- iOS meta tags & icons -->
-  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Sihl Client">
-
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="icons/Icon-192.png"/>
-
-  <title>Sihl Training – Mein Konto</title>
+  <meta name="apple-mobile-web-app-title" content="Sihl Training">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0F0F14">
+  <title>Sihl Training</title>
   <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icons/Icon-192.png"/>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: #0F0F14;
+      height: 100%;
+      width: 100%;
+    }
+    body { overflow: hidden; }
+    #loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .logo-box {
+      width: 72px;
+      height: 72px;
+      background: #6C5CE7;
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 28px rgba(108,92,231,0.45);
+    }
+    .logo-text {
+      color: #ffffff;
+      font-family: sans-serif;
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: 1px;
+    }
+    .app-title {
+      color: #F0F0F5;
+      font-family: sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+    }
+    .app-sub {
+      color: #8E8EA0;
+      font-family: sans-serif;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+      margin-top: -14px;
+    }
+    .spinner {
+      width: 28px;
+      height: 28px;
+      border: 2.5px solid #2A2A38;
+      border-top-color: #6C5CE7;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
 <body>
+  <div id="loading">
+    <div class="logo-box"><span class="logo-text">ST</span></div>
+    <div class="app-title">Sihl Training</div>
+    <div class="app-sub">Outdoor Personal Training Zuerich</div>
+    <div class="spinner"></div>
+  </div>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var loading = document.getElementById('loading');
+      if (loading) loading.style.display = 'none';
+    });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
