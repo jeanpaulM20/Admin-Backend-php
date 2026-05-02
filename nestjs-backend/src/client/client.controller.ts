@@ -10,8 +10,11 @@ export class ClientController {
 
   @Public()
   @Post('token')
-  login(@Body() body: { email: string; passcode: string }) {
-    return this.service.login(body.email, body.passcode);
+  login(@Body() body: any) {
+    // Accept both NestJS-style (email/passcode) and PHP-style (e_mail/clientpasscode)
+    const email = body.email ?? body.e_mail ?? '';
+    const passcode = body.passcode ?? body.clientpasscode ?? '';
+    return this.service.loginClient(email, passcode);
   }
 
   @Get()
@@ -22,6 +25,21 @@ export class ClientController {
   @Get('me')
   getMe(@CurrentClient() client: Client) {
     return client;
+  }
+
+  /** GET /api/client/:id/auto-notify — get auto-notify state */
+  @Get(':id/auto-notify')
+  getAutoNotify(@Param('id', ParseIntPipe) id: number) {
+    return this.service.getAutoNotify(id);
+  }
+
+  /** PUT /api/client/:id/auto-notify — toggle auto-notify { enabled: 0|1 } */
+  @Put(':id/auto-notify')
+  setAutoNotify(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { enabled: number },
+  ) {
+    return this.service.setAutoNotify(id, body.enabled ? 1 : 0);
   }
 
   @Get(':id')

@@ -42,10 +42,20 @@ export class ClientService {
     return this.clientRepo.remove(client);
   }
 
+  async getAutoNotify(id: number) {
+    const client = await this.clientRepo.findOne({ where: { id }, select: { id: true, auto_training_notify: true } });
+    if (!client) throw new NotFoundException(`Client ${id} not found`);
+    return { enabled: client.auto_training_notify ?? 0 };
+  }
+
+  async setAutoNotify(id: number, enabled: number) {
+    await this.clientRepo.update(id, { auto_training_notify: enabled });
+    return { enabled };
+  }
+
   // Replaces actionToken() – client login returns an access token
   async login(email: string, passcode: string): Promise<{ token: string }> {
     const client = await this.clientRepo.findOne({
-      // email maps to e_mail column; TypeORM uses the property name in where clauses
       where: { email, clientpasscode: passcode, active: 1 } as any,
       select: { id: true, firstname: true, lastname: true, active: true, clientpasscode: true },
     });
@@ -54,5 +64,40 @@ export class ClientService {
     const token = randomBytes(32).toString('hex');
     await this.tokenRepo.save(this.tokenRepo.create({ clientId: client.id, token }));
     return { token };
+  }
+
+  /**
+   * Client-app login — returns token + client data (matching PHP actionToken response).
+   * Supports login by email+passcode or passcode-only (like PHP).
+   */
+  async loginClient(email: string, passcode: string) {
+    const where: any = { active: 1, clientpasscode: passcode };
+    if (email) {
+      where.email = email;
+    }
+
+    const client = await this.clientRepo.findOne({
+      where,
+      select: {
+        id: true, firstname: true, lastname: true, email: true,
+        phone: true, picture: true, active: true, clientpasscode: true,
+      },
+    });
+    if (!client) throw new NotFoundException('Invalid credentials');
+
+    const token = randomBytes(32).toString('hex');
+    await this.tokenRepo.save(this.tokenRepo.create({ clientId: client.id, token }));
+
+    return {
+      token,
+      client: {
+        id: client.id,
+        firstname: client.firstname,
+        lastname: client.lastname,
+        email: client.email,
+        phone: client.phone,
+        photo: client.picture,
+      },
+    };
   }
 }

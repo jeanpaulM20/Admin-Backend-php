@@ -7,8 +7,8 @@ class ApiConfig {
 
   static const String authHeader = 'X-Auth-Token';
 
-  // Auth
-  static const String token = 'api/token';
+  // Auth (NestJS endpoint)
+  static const String token = 'api/client/token';
 
   // Client endpoints (all require X-Auth-Token)
   static String start(int clientId)        => 'api/client/start/$clientId';
