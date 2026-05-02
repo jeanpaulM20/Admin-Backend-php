@@ -8,8 +8,10 @@ import '../providers/profile_provider.dart';
 import '../providers/credits_provider.dart';
 import '../providers/invoice_provider.dart';
 import '../providers/performance_provider.dart';
+import '../providers/chat_provider.dart';
 import 'start_screen.dart';
 import 'calendar_screen.dart';
+import 'chat_screen.dart';
 import 'profile_screen.dart';
 import 'credits_screen.dart';
 import 'performance_screen.dart';
@@ -30,6 +32,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<_NavItem> _navItems = const [
     _NavItem(icon: Icons.home_rounded, label: 'Start'),
     _NavItem(icon: Icons.calendar_month_rounded, label: 'Kalender'),
+    _NavItem(icon: Icons.chat_bubble_outline_rounded, label: 'Chat'),
     _NavItem(icon: Icons.person_rounded, label: 'Profil'),
     _NavItem(icon: Icons.credit_card_rounded, label: 'Credits'),
     _NavItem(icon: Icons.show_chart_rounded, label: 'Leistung'),
@@ -39,6 +42,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _screens = const [
     StartScreen(),
     CalendarScreen(),
+    ChatScreen(),
     ProfileScreen(),
     CreditsScreen(),
     PerformanceScreen(),
@@ -52,12 +56,14 @@ class _MainScreenState extends State<MainScreen> {
       case 1:
         return 'Kalender';
       case 2:
-        return 'Profil';
+        return 'Chat';
       case 3:
-        return 'Credits';
+        return 'Profil';
       case 4:
-        return 'Leistungsdaten';
+        return 'Credits';
       case 5:
+        return 'Leistungsdaten';
+      case 6:
         return 'Rechnungen';
       default:
         return 'Sihl Training';
@@ -82,6 +88,7 @@ class _MainScreenState extends State<MainScreen> {
     context.read<CreditsProvider>().loadMockData();
     context.read<InvoiceProvider>().loadMockData();
     context.read<PerformanceProvider>().loadMockData();
+    context.read<ChatProvider>().loadMockData();
   }
 
   Future<void> _logout() async {
@@ -121,6 +128,45 @@ class _MainScreenState extends State<MainScreen> {
         (route) => false,
       );
     }
+  }
+
+  Widget _buildNavIcon(BuildContext context, IconData icon, int index, bool isSelected) {
+    final widget = Icon(icon, size: 22,
+        color: isSelected ? AppColors.primary : AppColors.muted);
+    // Chat tab (index 2) — show unread badge
+    if (index == 2) {
+      final unread = context.watch<ChatProvider>().totalUnreadCount;
+      if (unread > 0) {
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            widget,
+            Positioned(
+              right: -6,
+              top: -4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(
+                  color: AppColors.red,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+                child: Text(
+                  unread > 9 ? '9+' : '$unread',
+                  style: const TextStyle(
+                    color: AppColors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ],
+        );
+      }
+    }
+    return widget;
   }
 
   @override
@@ -206,11 +252,7 @@ class _MainScreenState extends State<MainScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(item.icon,
-                            size: 22,
-                            color: isSelected
-                                ? AppColors.primary
-                                : AppColors.muted),
+                        _buildNavIcon(context, item.icon, index, isSelected),
                         const SizedBox(height: 3),
                         Text(
                           item.label,

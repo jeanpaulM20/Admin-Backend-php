@@ -8,6 +8,7 @@ import 'providers/profile_provider.dart';
 import 'providers/credits_provider.dart';
 import 'providers/invoice_provider.dart';
 import 'providers/performance_provider.dart';
+import 'providers/chat_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_screen.dart';
 
@@ -28,6 +29,7 @@ class SihlClientApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CreditsProvider()),
         ChangeNotifierProvider(create: (_) => InvoiceProvider()),
         ChangeNotifierProvider(create: (_) => PerformanceProvider()),
+        ChangeNotifierProvider(create: (_) => ChatProvider()),
       ],
       child: MaterialApp(
         title: 'Sihl Training',
