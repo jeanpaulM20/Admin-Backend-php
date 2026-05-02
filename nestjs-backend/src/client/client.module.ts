@@ -7,7 +7,7 @@ import { Trainer } from '../entities/trainer.entity';
 import { TrainerAvailability } from '../entities/trainer-availability.entity';
 import { Location } from '../entities/location.entity';
 import {
-  ClientCredits, TrainingType, PerformanceTest,
+  ClientCredits, TrainingType, PerformanceTest, File as ClientFile,
 } from '../entities/remaining.entities';
 import { ClientService } from './client.service';
 import { ClientAppService } from './client-app.service';
@@ -26,6 +26,7 @@ import { ClientAppController } from './client-php-proxy.controller';
       ClientCredits,
       TrainingType,
       PerformanceTest,
+      ClientFile,
     ]),
   ],
   providers: [ClientService, ClientAppService],

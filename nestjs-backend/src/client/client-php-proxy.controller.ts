@@ -45,16 +45,46 @@ export class ClientAppController {
     return this.appService.getCredits(clientId);
   }
 
-  /** Invoices (stub — returns empty for now) */
+  /** Invoices (stub — Bexio integration to be migrated) */
   @Get('invoices/:clientId')
   invoices(@Param('clientId', ParseIntPipe) clientId: number) {
     return [];
   }
 
-  /** Tests (stub — redirect to performance_test) */
+  /** Tests / Performance data */
   @Get('tests/:clientId')
   tests(@Param('clientId', ParseIntPipe) clientId: number) {
     return this.appService.getTests(clientId);
+  }
+
+  /** Training reviews (stub — to be connected to review module) */
+  @Get('reviews/:clientId')
+  reviews(@Param('clientId', ParseIntPipe) clientId: number) {
+    return [];
+  }
+
+  /** Client files */
+  @Get('files/:clientId')
+  files(@Param('clientId', ParseIntPipe) clientId: number) {
+    return this.appService.getFiles(clientId);
+  }
+
+  /** Polar status */
+  @Get('polar/status/:clientId')
+  polarStatus(@Param('clientId', ParseIntPipe) clientId: number) {
+    return this.appService.getPolarStatus(clientId);
+  }
+
+  /** Polar sync (stub) */
+  @Post('polar/sync/:clientId')
+  polarSync(@Param('clientId', ParseIntPipe) clientId: number) {
+    return { success: true, message: 'Polar sync not yet migrated' };
+  }
+
+  /** Polar disconnect (stub) */
+  @Post('polar/disconnect/:clientId')
+  polarDisconnect(@Param('clientId', ParseIntPipe) clientId: number) {
+    return { success: true };
   }
 
   /** Book appointment */

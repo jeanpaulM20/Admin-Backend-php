@@ -5,7 +5,7 @@ import { Client } from '../entities/client.entity';
 import { Training, TrainingStatus } from '../entities/training.entity';
 import { TrainerAvailability } from '../entities/trainer-availability.entity';
 import { Trainer } from '../entities/trainer.entity';
-import { ClientCredits, TrainingType, PerformanceTest } from '../entities/remaining.entities';
+import { ClientCredits, TrainingType, PerformanceTest, File as ClientFile } from '../entities/remaining.entities';
 import { Location } from '../entities/location.entity';
 
 @Injectable()
@@ -19,6 +19,7 @@ export class ClientAppService {
     @InjectRepository(TrainingType) private readonly typeRepo: Repository<TrainingType>,
     @InjectRepository(Location) private readonly locationRepo: Repository<Location>,
     @InjectRepository(PerformanceTest) private readonly perfTestRepo: Repository<PerformanceTest>,
+    @InjectRepository(ClientFile) private readonly fileRepo: Repository<ClientFile>,
   ) {}
 
   /** Dashboard: credits + upcoming appointments */
@@ -179,6 +180,25 @@ export class ClientAppService {
     training.cancelledByClientId = clientId;
     await this.trainingRepo.save(training);
     return { success: true };
+  }
+
+  /** Client files */
+  async getFiles(clientId: number) {
+    const files = await this.fileRepo.find({
+      where: { clientId },
+      order: { createdAt: 'DESC' },
+    });
+    return files.map((f) => ({
+      id: f.id,
+      filename: f.filename,
+      path: f.path,
+      created_at: f.createdAt,
+    }));
+  }
+
+  /** Polar status (stub – Polar integration to be migrated) */
+  getPolarStatus(_clientId: number) {
+    return { connected: false, connectUrl: null };
   }
 
   // ── Helpers ──────────────────────────────────────────────────────
