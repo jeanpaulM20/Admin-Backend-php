@@ -1,4 +1,4 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import '../models/buyable_credit.dart';
 import '../services/credits_service.dart';
 import '../services/mock_data.dart';
@@ -8,12 +8,12 @@ class CreditsProvider extends ChangeNotifier {
 
   bool _isLoading = false;
   String? _error;
-  List<BuyableCredit> _data = [];
+  List<ClientCredit> _data = [];
   bool _isMock = false;
 
   bool get isLoading => _isLoading;
   String? get error => _error;
-  List<BuyableCredit> get data => _data;
+  List<ClientCredit> get data => _data;
 
   Future<void> fetch(String clientId) async {
     if (_isMock) return;
@@ -22,23 +22,12 @@ class CreditsProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _data = await _service.listBuyableCredits(clientId);
+      _data = await _service.listClientCredits(clientId);
     } catch (e) {
       _error = e.toString().replaceFirst('Exception: ', '');
     } finally {
       _isLoading = false;
       notifyListeners();
-    }
-  }
-
-  Future<bool> buy(String clientId, String creditId) async {
-    if (_isMock) return true;
-    try {
-      return await _service.buyCredits(clientId, creditId);
-    } catch (e) {
-      _error = e.toString().replaceFirst('Exception: ', '');
-      notifyListeners();
-      return false;
     }
   }
 
@@ -49,7 +38,7 @@ class CreditsProvider extends ChangeNotifier {
 
   void loadMockData() {
     _isMock = true;
-    _data = MockData.buyableCredits;
+    _data = MockData.clientCredits;
     _isLoading = false;
     _error = null;
     notifyListeners();

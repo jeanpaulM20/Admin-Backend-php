@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../config/app_colors.dart';
 import '../providers/auth_provider.dart';
 import '../providers/credits_provider.dart';
 import '../models/buyable_credit.dart';
 import '../widgets/loading_indicator.dart';
 import '../widgets/error_view.dart';
+import '../widgets/empty_view.dart';
 
 class CreditsScreen extends StatefulWidget {
   const CreditsScreen({super.key});
@@ -28,55 +30,6 @@ class _CreditsScreenState extends State<CreditsScreen> {
     }
   }
 
-  Future<void> _buyCreditPack(BuyableCredit credit) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Credit-Paket kaufen',
-            style: TextStyle(color: AppColors.text)),
-        content: Text(
-          '${credit.name}\n${credit.desc}\n\nPreis: CHF ${credit.price.toStringAsFixed(2)}',
-          style: const TextStyle(color: AppColors.muted),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Abbrechen',
-                style: TextStyle(color: AppColors.muted)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.white,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text('Kaufen'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && mounted) {
-      final auth = context.read<AuthProvider>();
-      final success = await context
-          .read<CreditsProvider>()
-          .buy(auth.clientId!, credit.creditId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                success ? 'Paket gekauft!' : 'Kauf fehlgeschlagen'),
-            backgroundColor: success ? AppColors.green : AppColors.red,
-          ),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final credits = context.watch<CreditsProvider>();
@@ -93,27 +46,17 @@ class _CreditsScreenState extends State<CreditsScreen> {
               : credits.error != null
                   ? ErrorView(message: credits.error!, onRetry: _loadData)
                   : credits.data.isEmpty
-                      ? ListView(
-                          children: [
-                            const SizedBox(height: 100),
-                            const Center(
-                              child: Text(
-                                'Keine Credit-Pakete verfuegbar',
-                                style: TextStyle(
-                                    color: AppColors.muted, fontSize: 14),
-                              ),
-                            ),
-                          ],
+                      ? const EmptyView(
+                          icon: Icons.credit_card_rounded,
+                          title: 'Keine Credits',
+                          subtitle: 'Noch keine Credit-Pakete vorhanden.',
                         )
                       : ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
                           padding: const EdgeInsets.all(20),
                           itemCount: credits.data.length,
                           itemBuilder: (ctx, i) {
-                            final credit = credits.data[i];
-                            return _CreditPackTile(
-                              credit: credit,
-                              onBuy: () => _buyCreditPack(credit),
-                            );
+                            return _CreditPackCard(credit: credits.data[i]);
                           },
                         ),
         ),
@@ -122,14 +65,27 @@ class _CreditsScreenState extends State<CreditsScreen> {
   }
 }
 
-class _CreditPackTile extends StatelessWidget {
-  final BuyableCredit credit;
-  final VoidCallback onBuy;
+class _CreditPackCard extends StatelessWidget {
+  final ClientCredit credit;
 
-  const _CreditPackTile({required this.credit, required this.onBuy});
+  const _CreditPackCard({required this.credit});
+
+  String _formatDate(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return '';
+    try {
+      final dt = DateTime.parse(dateStr);
+      return DateFormat('dd.MM.yyyy').format(dt);
+    } catch (_) {
+      return dateStr;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final fraction = credit.paid > 0 ? credit.remaining / credit.paid : 0.0;
+    final isExpired = credit.expires != null &&
+        DateTime.tryParse(credit.expires!)?.isBefore(DateTime.now()) == true;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -159,7 +115,7 @@ class _CreditPackTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      credit.name,
+                      credit.title,
                       style: const TextStyle(
                         color: AppColors.text,
                         fontSize: 15,
@@ -168,46 +124,79 @@ class _CreditPackTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      credit.unit,
+                      '${credit.remaining} von ${credit.paid} verbleibend',
                       style:
                           const TextStyle(color: AppColors.muted, fontSize: 12),
                     ),
                   ],
                 ),
               ),
-              Text(
-                'CHF ${credit.price.toStringAsFixed(0)}',
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isExpired
+                      ? AppColors.red.withOpacity(0.15)
+                      : AppColors.primary.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${credit.remaining} / ${credit.paid}',
+                  style: TextStyle(
+                    color: isExpired ? AppColors.red : AppColors.primary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
           ),
-          if (credit.desc.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(
-              credit.desc,
-              style: const TextStyle(color: AppColors.muted, fontSize: 13),
-            ),
-          ],
           const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: onBuy,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-              child: const Text('Paket kaufen',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: fraction.clamp(0.0, 1.0).toDouble(),
+              minHeight: 6,
+              backgroundColor: AppColors.surface2,
+              valueColor:
+                  AlwaysStoppedAnimation<Color>(
+                      isExpired ? AppColors.red : AppColors.primary),
             ),
           ),
+          if (credit.startdate != null || credit.expires != null) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                if (credit.startdate != null) ...[
+                  const Icon(Icons.calendar_today_rounded,
+                      size: 12, color: AppColors.muted),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Ab ${_formatDate(credit.startdate)}',
+                    style:
+                        const TextStyle(color: AppColors.muted, fontSize: 11),
+                  ),
+                ],
+                if (credit.startdate != null && credit.expires != null)
+                  const SizedBox(width: 12),
+                if (credit.expires != null) ...[
+                  Icon(Icons.event_busy_rounded,
+                      size: 12,
+                      color: isExpired ? AppColors.red : AppColors.muted),
+                  const SizedBox(width: 4),
+                  Text(
+                    isExpired
+                        ? 'Abgelaufen ${_formatDate(credit.expires)}'
+                        : 'Gueltig bis ${_formatDate(credit.expires)}',
+                    style: TextStyle(
+                      color: isExpired ? AppColors.red : AppColors.muted,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
         ],
       ),
     );

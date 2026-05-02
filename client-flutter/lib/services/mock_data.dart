@@ -102,6 +102,27 @@ class MockData {
         ],
       );
 
+  static List<ClientCredit> get clientCredits => [
+        ClientCredit(
+          id: '1',
+          title: '10er Abo Personal Training',
+          paid: 10,
+          attended: 7,
+          remaining: 3,
+          startdate: '2026-01-01',
+          expires: '2026-06-30',
+        ),
+        ClientCredit(
+          id: '2',
+          title: '5er Abo Kraft & Ausdauer',
+          paid: 5,
+          attended: 2,
+          remaining: 3,
+          startdate: '2026-02-01',
+          expires: '2026-12-31',
+        ),
+      ];
+
   static List<BuyableCredit> get buyableCredits => [
         BuyableCredit(
           creditId: 'ST-10',
@@ -109,27 +130,6 @@ class MockData {
           desc: '10 Einheiten a 60 Minuten Personal Training',
           unit: '10 Einheiten',
           price: 990.00,
-        ),
-        BuyableCredit(
-          creditId: 'ST-5',
-          name: '5er Abo Kraft & Ausdauer',
-          desc: '5 Einheiten Kraft- & Ausdauertraining',
-          unit: '5 Einheiten',
-          price: 420.00,
-        ),
-        BuyableCredit(
-          creditId: 'ST-YG',
-          name: '8er Abo Yoga & Mobility',
-          desc: '8 Einheiten Yoga & Mobilitaet',
-          unit: '8 Einheiten',
-          price: 560.00,
-        ),
-        BuyableCredit(
-          creditId: 'ST-1',
-          name: 'Einzelstunde Personal Training',
-          desc: 'Flexibel buchbare Einzelstunde',
-          unit: '1 Einheit',
-          price: 120.00,
         ),
       ];
 
