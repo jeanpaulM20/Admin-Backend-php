@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, ParseIntPipe, HttpException, HttpStatus } from '@nestjs/common';
 import { AnamneseService } from './anamnese.service';
-import { ClientAnamnese } from '../entities/client-anamnese.entity';
+import { ClientAnamnese } from '../entities/remaining.entities';
 
 @Controller('api/anamnese')
 export class AnamneseController {

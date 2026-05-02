@@ -2,15 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Review } from '../entities/review.entity';
-import { ReviewHeartRateTimeseries } from '../entities/review-heartrate-timeseries.entity';
+import { Reviewheartratetimeseries } from '../entities/review-heartrate-timeseries.entity';
 
 @Injectable()
 export class ReviewService {
   constructor(
     @InjectRepository(Review)
     private readonly reviewRepo: Repository<Review>,
-    @InjectRepository(ReviewHeartRateTimeseries)
-    private readonly timeseriesRepo: Repository<ReviewHeartRateTimeseries>,
+    @InjectRepository(Reviewheartratetimeseries)
+    private readonly timeseriesRepo: Repository<Reviewheartratetimeseries>,
   ) {}
 
   /**
@@ -19,8 +19,8 @@ export class ReviewService {
    */
   async findByTraining(trainingId: number) {
     return this.reviewRepo.find({
-      where: { training_id: trainingId },
-      relations: ['timeseries'],
+      where: { trainingId },
+      relations: ['heartRateTimeseries'],
       order: { id: 'ASC' },
     });
   }
@@ -44,15 +44,15 @@ export class ReviewService {
   async findOne(id: number) {
     return this.reviewRepo.findOne({
       where: { id },
-      relations: ['timeseries', 'training'],
+      relations: ['heartRateTimeseries', 'training'],
     });
   }
 
   /** Heart-rate timeseries for one review, ordered by sort */
   async getTimeseries(reviewId: number) {
     return this.timeseriesRepo.find({
-      where: { review_id: reviewId },
-      order: { sort: 'ASC' },
+      where: { reviewId },
+      order: { timestamp: 'ASC' },
     });
   }
 

@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, Query, ParseIntPipe, HttpException, HttpStatus } from '@nestjs/common';
 import { PerformanceTestService } from './performance-test.service';
-import { PerformanceTest } from '../entities/performance-test.entity';
+import { PerformanceTest } from '../entities/remaining.entities';
 
 @Controller('api/performance_test')
 export class PerformanceTestController {

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { PerformanceTest } from '../entities/performance-test.entity';
+import { PerformanceTest } from '../entities/remaining.entities';
 
 @Injectable()
 export class PerformanceTestService {
@@ -12,7 +12,7 @@ export class PerformanceTestService {
 
   findAll(clientId?: number) {
     const where: any = {};
-    if (clientId) where.client_id = clientId;
+    if (clientId) where.clientId = clientId;
     return this.repo.find({ where, order: { date: 'DESC' } });
   }
 
