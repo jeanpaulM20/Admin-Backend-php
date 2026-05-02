@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:html' as html show EventSource, MessageEvent;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../models/client.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
@@ -261,8 +262,8 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
         titleBuilder: (item) {
           final type = _trainingTypeLabel(item['training_type']?.toString());
           final training = item['training'] as Map<String, dynamic>?;
-          final date = training?['date']?.toString() ?? '';
-          return '$type${date.isNotEmpty ? " -- $date" : ""}';
+          final date = _fmtDate(training?['date']?.toString());
+          return '$type -- $date';
         },
         subtitleBuilder: (item) {
           final duration = item['duration'] ?? '--';
@@ -278,7 +279,7 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
           final kcal = item['kcal'] ?? '--';
           final hr = item['heart_rate'];
           final training = item['training'] as Map<String, dynamic>?;
-          final date = training?['date']?.toString() ?? '';
+          final date = _fmtDate(training?['date']?.toString());
           _textCtrl.text =
               '[Aufzeichnung] $type ($date)\nDauer: $duration | Kcal: $kcal | HR: ${hr ?? "--"} bpm';
         },
@@ -303,8 +304,7 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
         title: 'Performance Test waehlen',
         items: data.cast<Map<String, dynamic>>(),
         titleBuilder: (item) {
-          final date = item['date']?.toString() ?? '--';
-          final points = item['points'] ?? 0;
+          final date = _fmtDate(item['date']?.toString());
           return 'Test vom $date';
         },
         subtitleBuilder: (item) {
@@ -319,7 +319,7 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
         iconBuilder: (_) => Icons.show_chart,
         colorBuilder: (_) => AppColors.green,
         onSelect: (item) {
-          final date = item['date']?.toString() ?? '--';
+          final date = _fmtDate(item['date']?.toString());
           final points = item['points'] ?? 0;
           final parts = <String>['Punkte: $points'];
           final pushups = item['pushups'];
@@ -351,7 +351,7 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
         title: 'Messwerte waehlen',
         items: data.cast<Map<String, dynamic>>(),
         titleBuilder: (item) {
-          final date = item['date']?.toString() ?? '--';
+          final date = _fmtDate(item['date']?.toString());
           return 'Messung vom $date';
         },
         subtitleBuilder: (item) {
@@ -368,7 +368,7 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
           final weight = item['weight'] ?? item['gewicht'];
           final bmi = item['bmi'];
           final bodyFat = item['body_fat'] ?? item['body_fat_percent'];
-          final date = item['date']?.toString() ?? '--';
+          final date = _fmtDate(item['date']?.toString());
           final calmPulse = item['calm_pulse'];
           final parts = <String>[];
           if (weight != null) parts.add('Gewicht: $weight kg');
@@ -503,6 +503,17 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
       'interval': 'Intervall',
     };
     return labels[type] ?? type ?? 'Training';
+  }
+
+  /// Format any date string (ISO, yyyy-MM-dd, etc.) to dd.MM.yyyy
+  String _fmtDate(String? raw) {
+    if (raw == null || raw.isEmpty) return '--';
+    try {
+      final dt = DateTime.parse(raw);
+      return DateFormat('dd.MM.yyyy').format(dt);
+    } catch (_) {
+      return raw;
+    }
   }
 
   void _showSnack(String msg) {
@@ -916,6 +927,50 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
         msg.text.startsWith('[Performance]') ||
         msg.text.startsWith('[Messwerte]');
 
+    final bubble = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: isTrainer ? AppColors.primary : AppColors.surface,
+        borderRadius: BorderRadius.only(
+          topLeft: const Radius.circular(16),
+          topRight: const Radius.circular(16),
+          bottomLeft: Radius.circular(isTrainer ? 16 : 4),
+          bottomRight: Radius.circular(isTrainer ? 4 : 16),
+        ),
+        border: isTrainer
+            ? null
+            : Border.all(color: AppColors.border, width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment:
+            isTrainer ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          if (!isTrainer) ...[
+            Text(
+              msg.author ?? widget.client.name,
+              style: const TextStyle(
+                color: AppColors.muted,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 3),
+          ],
+          if (isDataMsg)
+            _buildDataCard(msg.text, isTrainer)
+          else
+            Text(
+              msg.text,
+              style: TextStyle(
+                color: isTrainer ? Colors.white : AppColors.text,
+                fontSize: 14,
+                height: 1.4,
+              ),
+            ),
+        ],
+      ),
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Align(
@@ -924,76 +979,225 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
           constraints: BoxConstraints(
             maxWidth: MediaQuery.of(context).size.width * 0.78,
           ),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: isTrainer ? AppColors.primary : AppColors.surface,
-              borderRadius: BorderRadius.only(
-                topLeft: const Radius.circular(16),
-                topRight: const Radius.circular(16),
-                bottomLeft: Radius.circular(isTrainer ? 16 : 4),
-                bottomRight: Radius.circular(isTrainer ? 4 : 16),
-              ),
-              border: isTrainer
-                  ? null
-                  : Border.all(color: AppColors.border, width: 0.5),
-            ),
-            child: Column(
-              crossAxisAlignment:
-                  isTrainer ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-              children: [
-                if (!isTrainer) ...[
-                  Text(
-                    msg.author ?? widget.client.name,
-                    style: const TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                ],
-                if (isDataMsg)
-                  _buildDataMessage(msg.text, isTrainer)
-                else
-                  Text(
-                    msg.text,
-                    style: TextStyle(
-                      color: isTrainer ? Colors.white : AppColors.text,
-                      fontSize: 14,
-                      height: 1.4,
-                    ),
-                  ),
-              ],
-            ),
-          ),
+          child: isDataMsg
+              ? GestureDetector(
+                  onTap: () => _showDataPopup(msg.text),
+                  child: bubble,
+                )
+              : bubble,
         ),
       ),
     );
   }
 
-  /// Render data messages with special formatting
-  Widget _buildDataMessage(String text, bool isTrainer) {
+  /// Compact inline data card inside a chat bubble
+  Widget _buildDataCard(String text, bool isTrainer) {
     final lines = text.split('\n');
+    final header = lines.isNotEmpty ? lines[0] : '';
+    final details = lines.length > 1 ? lines.sublist(1).join('\n') : '';
+
+    // Determine icon and color from tag
+    IconData icon = Icons.info_outline;
+    Color tagColor = AppColors.blue;
+    String tagLabel = '';
+    if (header.startsWith('[Aufzeichnung]')) {
+      icon = Icons.monitor_heart;
+      tagColor = AppColors.red;
+      tagLabel = header.replaceFirst('[Aufzeichnung] ', '');
+    } else if (header.startsWith('[Performance]')) {
+      icon = Icons.show_chart;
+      tagColor = AppColors.green;
+      tagLabel = header.replaceFirst('[Performance] ', '');
+    } else if (header.startsWith('[Messwerte]')) {
+      icon = Icons.monitor_weight_outlined;
+      tagColor = AppColors.blue;
+      tagLabel = header.replaceFirst('[Messwerte] ', '');
+    }
+
+    final textColor = isTrainer ? Colors.white : AppColors.text;
+    final mutedColor = isTrainer ? Colors.white70 : AppColors.muted;
+
     return Column(
       crossAxisAlignment:
           isTrainer ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-      children: lines.asMap().entries.map((entry) {
-        final line = entry.value;
-        final isHeader = entry.key == 0;
-        return Padding(
-          padding: EdgeInsets.only(bottom: isHeader ? 4 : 0),
-          child: Text(
-            line,
-            style: TextStyle(
-              color: isTrainer ? Colors.white : AppColors.text,
-              fontSize: isHeader ? 14 : 13,
-              fontWeight: isHeader ? FontWeight.w600 : FontWeight.normal,
-              height: 1.5,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: tagColor.withAlpha(isTrainer ? 60 : 30),
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: Icon(icon, size: 15, color: isTrainer ? Colors.white : tagColor),
             ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                tagLabel,
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (details.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(
+            details,
+            style: TextStyle(color: mutedColor, fontSize: 12, height: 1.4),
           ),
-        );
-      }).toList(),
+        ],
+        const SizedBox(height: 4),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.touch_app, size: 11, color: mutedColor),
+            const SizedBox(width: 3),
+            Text(
+              'Antippen fuer Details',
+              style: TextStyle(color: mutedColor, fontSize: 10),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// WhatsApp-style popup showing data details
+  void _showDataPopup(String text) {
+    final lines = text.split('\n');
+    final header = lines.isNotEmpty ? lines[0] : '';
+    final detailLines = lines.length > 1 ? lines.sublist(1) : <String>[];
+
+    IconData icon = Icons.info_outline;
+    Color tagColor = AppColors.blue;
+    String title = '';
+
+    if (header.startsWith('[Aufzeichnung]')) {
+      icon = Icons.monitor_heart;
+      tagColor = AppColors.red;
+      title = header.replaceFirst('[Aufzeichnung] ', '');
+    } else if (header.startsWith('[Performance]')) {
+      icon = Icons.show_chart;
+      tagColor = AppColors.green;
+      title = header.replaceFirst('[Performance] ', '');
+    } else if (header.startsWith('[Messwerte]')) {
+      icon = Icons.monitor_weight_outlined;
+      tagColor = AppColors.blue;
+      title = header.replaceFirst('[Messwerte] ', '');
+    }
+
+    // Parse detail line into key-value pairs
+    final pairs = <MapEntry<String, String>>[];
+    for (final line in detailLines) {
+      final segments = line.split(' | ');
+      for (final seg in segments) {
+        final colonIdx = seg.indexOf(':');
+        if (colonIdx > 0) {
+          pairs.add(MapEntry(
+            seg.substring(0, colonIdx).trim(),
+            seg.substring(colonIdx + 1).trim(),
+          ));
+        } else {
+          pairs.add(MapEntry('', seg.trim()));
+        }
+      }
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icon header
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: tagColor.withAlpha(25),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: tagColor, size: 28),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              // Data rows
+              ...pairs.map((p) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      children: [
+                        if (p.key.isNotEmpty) ...[
+                          Expanded(
+                            flex: 2,
+                            child: Text(
+                              p.key,
+                              style: const TextStyle(
+                                  color: AppColors.muted, fontSize: 14),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 3,
+                            child: Text(
+                              p.value,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              textAlign: TextAlign.right,
+                            ),
+                          ),
+                        ] else
+                          Expanded(
+                            child: Text(
+                              p.value,
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 15),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                      ],
+                    ),
+                  )),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: TextButton.styleFrom(
+                    backgroundColor: AppColors.primary.withAlpha(25),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Text('Schliessen',
+                      style: TextStyle(color: AppColors.primary, fontSize: 14)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
