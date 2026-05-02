@@ -24,7 +24,7 @@ class ClientFile {
     return ClientFile(
       id: json['id']?.toString() ?? '',
       name: json['filename']?.toString() ?? json['name']?.toString() ?? '',
-      url: json['url']?.toString() ?? json['path']?.toString(),
+      url: json['url']?.toString() ?? json['file']?.toString() ?? json['path']?.toString(),
       date: parseDate(json['created_at'] ?? json['createdAt'] ?? json['date']),
     );
   }

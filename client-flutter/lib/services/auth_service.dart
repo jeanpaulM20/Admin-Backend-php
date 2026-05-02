@@ -3,9 +3,9 @@ import 'api_client.dart';
 
 class AuthService {
   Future<AuthToken> login(String email, String password) async {
-    final data = await apiClient.post('api/token', body: {
+    final data = await apiClient.post('api/client/token', body: {
       'email': email,
-      'password': password,
+      'passcode': password,
     });
     if (data == null || data is! Map<String, dynamic>) {
       throw ApiException(401, 'Login fehlgeschlagen');
