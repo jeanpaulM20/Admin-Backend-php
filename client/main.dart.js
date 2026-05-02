@@ -882,7 +882,7 @@ s.a2P()
 return s},
 aMU(a){return new A.a4A($.av,a)},
 axl(){var s,r,q,p,o,n=A.aMv(self.window.navigator)
-if(n==null||n.length===0)return B.pn
+if(n==null||n.length===0)return B.po
 s=A.b([],t.ss)
 for(r=n.length,q=0;q<n.length;n.length===r||(0,A.G)(n),++q){p=n[q]
 o=p.split("-")
@@ -6053,7 +6053,7 @@ s+=j
 r=s
 p=!0}else if(o<127&&(B.Ku[o>>>4]&1<<(o&15))!==0){if(p&&65<=o&&90>=o){if(q==null)q=new A.cQ("")
 if(r<s){q.a+=B.d.T(a,r,s)
-r=s}p=!1}++s}else if(o<=93&&(B.pt[o>>>4]&1<<(o&15))!==0)A.xm(a,s,"Invalid character")
+r=s}p=!1}++s}else if(o<=93&&(B.pu[o>>>4]&1<<(o&15))!==0)A.xm(a,s,"Invalid character")
 else{j=1
 if((o&64512)===55296&&s+1<c){i=a.charCodeAt(s+1)
 if((i&64512)===56320){o=(o&1023)<<10|i&1023|65536
@@ -6074,7 +6074,7 @@ ayZ(a,b,c){var s,r,q
 if(b===c)return""
 if(!A.aFr(a.charCodeAt(b)))A.xm(a,b,"Scheme not starting with alphabetic character")
 for(s=b,r=!1;s<c;++s){q=a.charCodeAt(s)
-if(!(q<128&&(B.pm[q>>>4]&1<<(q&15))!==0))A.xm(a,s,"Illegal scheme character")
+if(!(q<128&&(B.pn[q>>>4]&1<<(q&15))!==0))A.xm(a,s,"Illegal scheme character")
 if(65<=q&&q<=90)r=!0}a=B.d.T(a,b,c)
 return A.aSx(r?a.toLowerCase():a)},
 aSx(a){if(a==="http")return"http"
@@ -6086,7 +6086,7 @@ aFw(a,b,c){if(a==null)return""
 return A.Ia(a,b,c,B.K6,!1,!1)},
 aFu(a,b,c,d,e,f){var s,r=e==="file",q=r||f
 if(a==null)return r?"/":""
-else s=A.Ia(a,b,c,B.po,!0,!0)
+else s=A.Ia(a,b,c,B.pp,!0,!0)
 if(s.length===0){if(r)return"/"}else if(q&&!B.d.bT(s,"/"))s="/"+s
 return A.aSF(s,e,f)},
 aSF(a,b,c){var s=b.length===0
@@ -6136,7 +6136,7 @@ if(o===37){m=A.az_(a,r,!1)
 if(m==null){r+=3
 continue}if("%"===m)m="%25"
 else n=3}else if(o===92&&f)m="/"
-else if(s&&o<=93&&(B.pt[o>>>4]&1<<(o&15))!==0){A.xm(a,r,"Invalid character")
+else if(s&&o<=93&&(B.pu[o>>>4]&1<<(o&15))!==0){A.xm(a,r,"Invalid character")
 n=i
 m=n}else{if((o&64512)===55296){l=r+1
 if(l<c){k=a.charCodeAt(l)
@@ -6177,7 +6177,7 @@ return B.b.c3(s,"/")},
 aFq(a){var s,r,q=a.length
 if(q>=2&&A.aFr(a.charCodeAt(0)))for(s=1;s<q;++s){r=a.charCodeAt(s)
 if(r===58)return B.d.T(a,0,s)+"%3A"+B.d.co(a,s+1)
-if(r>127||(B.pm[r>>>4]&1<<(r&15))===0)break}return a},
+if(r>127||(B.pn[r>>>4]&1<<(r&15))===0)break}return a},
 aSH(a,b){if(a.ao6("package")&&a.c==null)return A.aGq(b,0,b.length)
 return-1},
 aSB(){return A.b([],t.s)},
@@ -39217,7 +39217,7 @@ r=B.d.jD(m,"?",s)
 q=m.length
 if(r>=0){p=A.Ia(m,r+1,q,B.i8,!1,!1)
 q=r}else p=n
-m=o.c=new A.SB("data","",n,n,A.Ia(m,s,q,B.po,!1,!1),p,n)}return m},
+m=o.c=new A.SB("data","",n,n,A.Ia(m,s,q,B.pp,!1,!1),p,n)}return m},
 k(a){var s=this.a
 return this.b[0]===-1?"data:"+s:s}}
 A.auv.prototype={
@@ -45842,7 +45842,7 @@ n=o.e
 o=o.cx
 r=q.gabK()
 q.a.toString
-return new A.Ee(p,p,p,new A.apk(),p,p,p,p,p,n,B.O_,p,p,p,B.LD,q.gabV(),o,p,B.VL,s,p,r,p,p,B.pn,!1,!1,p,p,p,new A.pH(q,t.bT))},
+return new A.Ee(p,p,p,new A.apk(),p,p,p,p,p,n,B.O_,p,p,p,B.LD,q.gabV(),o,p,B.VL,s,p,r,p,p,B.po,!1,!1,p,p,p,new A.pH(q,t.bT))},
 E(a){var s,r=null,q=A.mX(!1,!1,this.a47(a),r,r,r,r,!0,r,r,r,new A.apl(),r,r)
 this.a.toString
 s=this.d
@@ -55367,7 +55367,7 @@ q!==$&&A.aa()
 q=this.e=new A.v5(s,r)}return q},
 glW(){var s,r,q,p=this,o=p.w
 if(o===$){s=p.a.Q
-r=A.iT(B.pq,t.Md)
+r=A.iT(B.pr,t.Md)
 q=$.ae()
 p.w!==$&&A.aa()
 o=p.w=new A.nI(s,r,q,t.iw)}return o},
@@ -55530,12 +55530,12 @@ if(s==null)s=B.dO
 return A.Pv(A.Pv(A.kA(j,A.bu(A.b([A.cw(new A.A_(new A.HO(p,o,n,r,"time_picker",m,q,f.gxv(),l,f.ga8x(),j),s,f.f),1),k.d],t.p),B.a4,B.o,B.r),B.cJ,j,B.J,g,j,j,h),j,"time_picker_scroll_view_vertical",B.an),j,"time_picker_scroll_view_horizontal",B.aI)},
 $S:270}
 A.HO.prototype={
-a7(){var s=null,r=t._d,q=A.iT(B.pk,r),p=$.ae()
-return new A.HU(new A.lC(B.dI,q,p,t.qD),new A.nI(s,A.iT(B.pk,r),p,t.Bv),new A.Cu(s,p),new A.Cu(s,p),new A.ie(!1,p),s,A.A(t.yb,t.M),s,!0,s)}}
+a7(){var s=null,r=t._d,q=A.iT(B.pl,r),p=$.ae()
+return new A.HU(new A.lC(B.dI,q,p,t.qD),new A.nI(s,A.iT(B.pl,r),p,t.Bv),new A.Cu(s,p),new A.Cu(s,p),new A.ie(!1,p),s,A.A(t.yb,t.M),s,!0,s)}}
 A.HU.prototype={
 glW(){var s,r,q,p=this,o=p.z
 if(o===$){s=p.a.as
-r=A.iT(B.pq,t.Md)
+r=A.iT(B.pr,t.Md)
 q=$.ae()
 p.z!==$&&A.aa()
 o=p.z=new A.nI(s,r,q,t.iw)}return o},
@@ -87840,12 +87840,12 @@ A.aoD.prototype={
 $2(a,b){return new A.ua(J.he(this.a.d,b),null)},
 $S:561}
 A.ua.prototype={
-Nv(a){if(a==null)return"\xe2\u20ac\u201c"
+Nv(a){if(a==null)return"-"
 return A.hh("dd.MM.yyyy",null).ey(a)},
 E(a){var s=null,r=this.c,q=r.gVU(),p=q?B.aQ:B.p,o=q?A.ah(31,B.aQ.gl()>>>16&255,B.aQ.gl()>>>8&255,B.aQ.gl()&255):A.ah(31,B.p.gl()>>>16&255,B.p.gl()>>>8&255,B.p.gl()&255),n=q?"Bezahlt":"Offen",m=A.b6(14),l=A.dh(B.aa),k=A.b3(s,B.p3,B.n,s,s,new A.aJ(A.ah(31,B.p.gl()>>>16&255,B.p.gl()>>>8&255,B.p.gl()&255),s,s,A.b6(10),s,s,B.w),s,40,s,s,s,s,s,40),j=t.p,i=A.cw(A.bu(A.b([A.a8("Rechnung "+r.a,s,s,s,B.fT,s,s,s),B.cW,A.a8(this.Nv(r.c),s,s,s,B.bk,s,s,s)],j),B.a4,B.o,B.r),1),h=A.a8(r.e+" "+B.c.ab(r.f,2),s,s,s,B.Bi,s,s,s),g=A.b6(6)
 g=A.b([A.bS(A.b([k,B.fN,i,A.bu(A.b([h,B.dz,A.b3(s,A.a8(n,s,s,s,A.ek(s,s,p,s,s,s,s,s,s,s,s,11,s,s,B.ai,s,s,!0,s,s,s,s,s,s,s,s),s,s,s),B.n,s,s,new A.aJ(o,s,s,g,s,s,B.w),s,s,s,s,B.ok,s,s,s)],j),B.cH,B.o,B.r)],j),B.x,B.o,B.r,s)],j)
 r=r.d
-if(r!=null)B.b.M(g,A.b([B.dx,B.hC,B.dx,A.bS(A.b([B.Jk,B.SH,A.a8("F\xc3\xa4llig am "+this.Nv(r),s,s,s,B.bk,s,s,s)],j),B.x,B.o,B.r,s)],j))
+if(r!=null)B.b.M(g,A.b([B.dx,B.hC,B.dx,A.bS(A.b([B.Jk,B.SH,A.a8("F\xe4llig am "+this.Nv(r),s,s,s,B.bk,s,s,s)],j),B.x,B.o,B.r,s)],j))
 return A.b3(s,A.bu(g,B.a4,B.o,B.r),B.n,s,s,new A.aJ(B.V,s,l,m,s,s,B.w),s,s,s,s,B.cM,s,s,s)}}
 A.q5.prototype={
 a7(){var s=$.ae()
@@ -88187,7 +88187,7 @@ s=l?o:B.jL
 r=A.a8(n.c,o,o,o,B.Bj,o,o,o)
 q=n.b
 p=t.p
-p=A.b([A.cw(A.bu(A.b([r,B.cW,A.a8(""+A.e_(q)+". "+B.pu[A.bj(q)-1]+" "+A.bR(q),o,o,o,B.m7,o,o,o)],p),B.a4,B.o,B.r),1)],p)
+p=A.b([A.cw(A.bu(A.b([r,B.cW,A.a8(""+A.e_(q)+". "+B.pj[A.bj(q)-1]+" "+A.bR(q),o,o,o,B.m7,o,o,o)],p),B.a4,B.o,B.r),1)],p)
 r=n.e
 if(r!=null)p.push(A.a8(A.m(r)+" bpm",o,o,o,B.Yb,o,o,o))
 p.push(B.AK)
@@ -88535,15 +88535,15 @@ if(a>=25)return"Gut"
 if(a>=15)return"Durchschnitt"
 return"Schwach"},
 E(a){var s,r,q,p,o,n,m=null,l=this.c,k=l.x,j=k.length,i=l.b,h=t.p
-i=A.aAy(B.V,B.Q9,0,m,A.Aa(m,m,B.J4,m,m,new A.aj3(a),m,m,m),A.bu(A.b([A.a8(l.c,m,m,m,A.xE().$3$color$fontSize$fontWeight(B.aT,15,B.ai),m,m,m),A.a8(""+A.e_(i)+". "+B.pu[A.bj(i)-1]+" "+A.bR(i),m,m,m,B.m7,m,m,m)],h),B.a4,B.o,B.r))
+i=A.aAy(B.V,B.Q9,0,m,A.Aa(m,m,B.J4,m,m,new A.aj3(a),m,m,m),A.bu(A.b([A.a8(l.c,m,m,m,A.xE().$3$color$fontSize$fontWeight(B.aT,15,B.ai),m,m,m),A.a8(""+A.e_(i)+". "+B.pj[A.bj(i)-1]+" "+A.bR(i),m,m,m,B.m7,m,m,m)],h),B.a4,B.o,B.r))
 s=l.e
-s=s!=null?A.m(s):"\xe2\u20ac\u201c"
+s=s!=null?A.m(s):"-"
 r=l.f
-r=r!=null?A.m(r):"\xe2\u20ac\u201c"
+r=r!=null?A.m(r):"-"
 q=l.r
 p=q!=null
-o=p?A.m(q):"\xe2\u20ac\u201c"
-p=p?"bpm \xc2\xb7 "+this.ab9(q):"bpm"
+o=p?A.m(q):"-"
+p=p?"bpm \xb7 "+this.ab9(q):"bpm"
 q=A.b([A.bS(A.b([new A.x9("Max HF",s,"bpm",B.a1,m),B.er,new A.x9("Avg HF",r,"bpm",B.p,m),B.er,new A.x9("HRR",o,p,this.ab8(q),m)],h),B.x,B.o,B.r,m)],h)
 l=l.d
 if(l!=null)B.b.M(q,A.b([B.es,A.dp(A.a8("Dauer: "+l,m,m,m,B.cu,m,m,m),m,m)],h))
@@ -89398,7 +89398,7 @@ $S:214}
 A.ast.prototype={
 $2(a,b){var s,r,q=null,p=this.a,o=p.a,n=A.aLP(o.c).ey(b)
 p.a.toString
-s=B.b.q(B.pj,A.lx(b))
+s=B.b.q(B.pk,A.lx(b))
 p=p.a
 r=A.dp(new A.hk(!0,A.a8(n,q,q,q,s?p.k3.d:p.k3.c,q,q,q),q),q,q)
 return r},
@@ -89426,7 +89426,7 @@ o=A.a_o(q,c)
 n=A.a_o(q,r.a.x)
 m=r.Eg(q)
 r.a.toString
-l=B.b.q(B.pj,A.lx(q))
+l=B.b.q(B.pk,A.lx(q))
 k=r.a
 j=k.k4
 k=k.p4.$1(q)
@@ -93912,6 +93912,7 @@ B.a0a=new A.m3(6,0.11)
 B.a07=new A.m3(8,0.12)
 B.a0b=new A.m3(12,0.14)
 B.pi=A.b(s([B.a06,B.a09,B.a08,B.a0a,B.a07,B.a0b]),A.ao("v<m3>"))
+B.pj=A.b(s(["Jan","Feb","Mar","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"]),t.s)
 B.Tb=new A.Dl(null)
 B.EK=new A.yu(null)
 B.Qa=new A.BP(null)
@@ -93920,7 +93921,7 @@ B.Po=new A.BF(null)
 B.JO=new A.Ap(null)
 B.KF=A.b(s([B.Tb,B.EK,B.Qa,B.Gf,B.Po,B.JO]),t.p)
 B.KG=A.b(s([65533]),t.t)
-B.pj=A.b(s([6,7]),t.t)
+B.pk=A.b(s([6,7]),t.t)
 B.DK=new A.mv()
 B.fB=new A.P8(1,"page")
 B.iJ=new A.ee(B.T,B.fB)
@@ -93932,10 +93933,10 @@ B.KT=A.b(s(["AM","PM"]),t.s)
 B.KU=A.b(s([B.jF,B.jG]),A.ao("v<y8>"))
 B.dI=new A.kl(0,"hour")
 B.fY=new A.kl(1,"minute")
-B.pk=A.b(s([B.dI,B.fY]),A.ao("v<kl>"))
+B.pl=A.b(s([B.dI,B.fY]),A.ao("v<kl>"))
 B.KV=A.b(s(["BC","AD"]),t.s)
-B.pl=A.b(s(["J","F","M","A","M","J","J","A","S","O","N","D"]),t.s)
-B.pm=A.b(s([0,0,26624,1023,65534,2047,65534,2047]),t.t)
+B.pm=A.b(s(["J","F","M","A","M","J","J","A","S","O","N","D"]),t.s)
+B.pn=A.b(s([0,0,26624,1023,65534,2047,65534,2047]),t.t)
 B.fd=A.b(s([B.d3,B.cE,B.h3,B.h4,B.jE]),t.QP)
 B.cy=new A.jp(0,"leading")
 B.bB=new A.jp(1,"title")
@@ -93943,14 +93944,14 @@ B.cz=new A.jp(2,"subtitle")
 B.dJ=new A.jp(3,"trailing")
 B.L0=A.b(s([B.cy,B.bB,B.cz,B.dJ]),A.ao("v<jp>"))
 B.Mh=new A.jP("en","US")
-B.pn=A.b(s([B.Mh]),t.ss)
-B.po=A.b(s([0,0,65490,12287,65535,34815,65534,18431]),t.t)
+B.po=A.b(s([B.Mh]),t.ss)
+B.pp=A.b(s([0,0,65490,12287,65535,34815,65534,18431]),t.t)
 B.L1=A.b(s(["1st quarter","2nd quarter","3rd quarter","4th quarter"]),t.s)
-B.pp=A.b(s(["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]),t.s)
+B.pq=A.b(s(["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]),t.s)
 B.L2=A.b(s(["Before Christ","Anno Domini"]),t.s)
 B.eh=new A.qo(0,"portrait")
 B.fs=new A.qo(1,"landscape")
-B.pq=A.b(s([B.eh,B.fs]),A.ao("v<qo>"))
+B.pr=A.b(s([B.eh,B.fs]),A.ao("v<qo>"))
 B.Bm=new A.bg(0,0)
 B.Bq=new A.bg(1,0)
 B.Br=new A.bg(2,0)
@@ -93985,11 +93986,10 @@ B.Li=A.b(s([B.av,B.k]),A.ao("v<DF>"))
 B.aW=new A.DJ(0,"rtl")
 B.a0=new A.DJ(1,"ltr")
 B.kL=A.b(s([B.aW,B.a0]),A.ao("v<DJ>"))
-B.pr=A.b(s(["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]),t.s)
-B.ps=A.b(s(["January","February","March","April","May","June","July","August","September","October","November","December"]),t.s)
-B.pt=A.b(s([0,0,32776,33792,1,10240,0,0]),t.t)
+B.ps=A.b(s(["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]),t.s)
+B.pt=A.b(s(["January","February","March","April","May","June","July","August","September","October","November","December"]),t.s)
+B.pu=A.b(s([0,0,32776,33792,1,10240,0,0]),t.t)
 B.Lj=A.b(s([47,47,47,47,72,97,122,147]),t.t)
-B.pu=A.b(s(["Jan","Feb","M\xc3\xa4r","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"]),t.s)
 B.Zd=new A.bg(0,5)
 B.Z5=new A.bg(0,10)
 B.Z6=new A.bg(0,15)
@@ -96802,7 +96802,7 @@ s($,"b05","aJR",()=>A.cz('"(?:[^"\\x00-\\x1F\\x7F\\\\]|\\\\.)*"',!0,!1))
 s($,"b04","aJQ",()=>A.cz("\\\\(.)",!0,!1))
 s($,"b0W","aKk",()=>A.cz('[()<>@,;:"\\\\/\\[\\]?={} \\t\\x00-\\x1F\\x7F]',!0,!1))
 s($,"b15","aKp",()=>A.cz("(?:"+$.aJO().a+")*",!0,!1))
-s($,"b0M","aKf",()=>new A.L3("en_US",B.KV,B.L2,B.pl,B.pl,B.ps,B.ps,B.pr,B.pr,B.pD,B.pD,B.pp,B.pp,B.pF,B.pF,B.L8,B.L1,B.KT))
+s($,"b0M","aKf",()=>new A.L3("en_US",B.KV,B.L2,B.pm,B.pm,B.pt,B.pt,B.ps,B.ps,B.pD,B.pD,B.pq,B.pq,B.pF,B.pF,B.L8,B.L1,B.KT))
 r($,"b_s","aws",()=>A.aEw("initializeDateFormatting(<locale>)",$.aKf(),A.ao("L3")))
 r($,"b0J","aAg",()=>A.aEw("initializeDateFormatting(<locale>)",B.NU,t.GU))
 s($,"b0z","aKb",()=>48)
