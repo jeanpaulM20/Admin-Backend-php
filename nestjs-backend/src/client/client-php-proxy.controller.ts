@@ -2,7 +2,6 @@ import {
   Controller, Get, Post, Delete, Param, Body, Query,
   ParseIntPipe, NotFoundException,
 } from '@nestjs/common';
-import { DataSource } from 'typeorm';
 import { ClientAppService } from './client-app.service';
 import { Public } from '../auth/decorators/public.decorator';
 
@@ -20,21 +19,7 @@ import { Public } from '../auth/decorators/public.decorator';
 @Controller('api/client')
 export class ClientAppController {
 
-  constructor(
-    private readonly appService: ClientAppService,
-    private readonly dataSource: DataSource,
-  ) {}
-
-  /** Debug: list all tables in the database (remove after debugging) */
-  @Get('debug/tables')
-  async debugTables() {
-    try {
-      const tables = await this.dataSource.query('SHOW TABLES');
-      return tables;
-    } catch (e: any) {
-      return { error: e.message };
-    }
-  }
+  constructor(private readonly appService: ClientAppService) {}
 
   /** Dashboard — credits + upcoming trainings */
   @Get('start/:clientId')
