@@ -15,6 +15,7 @@ import { Public } from '../auth/decorators/public.decorator';
  *   /api/client/credits/:id  — credit packs
  *   /api/client/appointment  — book / cancel
  */
+@Public()
 @Controller('api/client')
 export class ClientAppController {
 
