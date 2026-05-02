@@ -9,6 +9,8 @@ import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../config/api_config.dart';
 import '../config/app_colors.dart';
+import 'training_recording_screen.dart';
+import 'performance_screen.dart';
 
 class _FeedbackMessage {
   final int id;
@@ -1069,136 +1071,27 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
     );
   }
 
-  /// WhatsApp-style popup showing data details
+  /// Navigate to the full detail screen matching the data type
   void _showDataPopup(String text) {
-    final lines = text.split('\n');
-    final header = lines.isNotEmpty ? lines[0] : '';
-    final detailLines = lines.length > 1 ? lines.sublist(1) : <String>[];
+    final header = text.split('\n').first;
 
-    IconData icon = Icons.info_outline;
-    Color tagColor = AppColors.blue;
-    String title = '';
-
-    if (header.startsWith('[Aufzeichnung]')) {
-      icon = Icons.monitor_heart;
-      tagColor = AppColors.red;
-      title = header.replaceFirst('[Aufzeichnung] ', '');
-    } else if (header.startsWith('[Performance]')) {
-      icon = Icons.show_chart;
-      tagColor = AppColors.green;
-      title = header.replaceFirst('[Performance] ', '');
-    } else if (header.startsWith('[Messwerte]')) {
-      icon = Icons.monitor_weight_outlined;
-      tagColor = AppColors.blue;
-      title = header.replaceFirst('[Messwerte] ', '');
-    }
-
-    // Parse detail line into key-value pairs
-    final pairs = <MapEntry<String, String>>[];
-    for (final line in detailLines) {
-      final segments = line.split(' | ');
-      for (final seg in segments) {
-        final colonIdx = seg.indexOf(':');
-        if (colonIdx > 0) {
-          pairs.add(MapEntry(
-            seg.substring(0, colonIdx).trim(),
-            seg.substring(colonIdx + 1).trim(),
-          ));
-        } else {
-          pairs.add(MapEntry('', seg.trim()));
-        }
-      }
-    }
-
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Icon header
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: tagColor.withAlpha(25),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: tagColor, size: 28),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              // Data rows
-              ...pairs.map((p) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Row(
-                      children: [
-                        if (p.key.isNotEmpty) ...[
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              p.key,
-                              style: const TextStyle(
-                                  color: AppColors.muted, fontSize: 14),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 3,
-                            child: Text(
-                              p.value,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              textAlign: TextAlign.right,
-                            ),
-                          ),
-                        ] else
-                          Expanded(
-                            child: Text(
-                              p.value,
-                              style: const TextStyle(
-                                  color: Colors.white, fontSize: 15),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                      ],
-                    ),
-                  )),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  style: TextButton.styleFrom(
-                    backgroundColor: AppColors.primary.withAlpha(25),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: const Text('Schliessen',
-                      style: TextStyle(color: AppColors.primary, fontSize: 14)),
-                ),
-              ),
-            ],
-          ),
+    if (header.startsWith('[Aufzeichnung]') || header.startsWith('[Messwerte]')) {
+      // Open TrainingRecordingScreen (Aufzeichnungen with HR charts)
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => TrainingRecordingScreen(client: widget.client),
         ),
-      ),
-    );
+      );
+    } else if (header.startsWith('[Performance]')) {
+      // Open PerformanceScreen (Leistungstests + Koerperwerte)
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PerformanceScreen(client: widget.client),
+        ),
+      );
+    }
   }
 
   Widget _buildInput() {
