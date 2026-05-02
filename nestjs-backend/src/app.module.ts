@@ -14,7 +14,6 @@ import { PerformanceTestModule } from './performance-test/performance-test.modul
 import { AnamneseModule } from './anamnese/anamnese.module';
 import { ReviewModule } from './review/review.module';
 import { StartupMigrationService } from './common/startup-migration.service';
-import { TblNamingStrategy } from './common/tbl-naming-strategy';
 
 const isSqlite = process.env.DB_TYPE === 'sqlite';
 
@@ -25,7 +24,6 @@ const dbConfig: any = isSqlite
       entities: [__dirname + '/entities/*.{entity,entities}{.ts,.js}'],
       synchronize: true,
       logging: false,
-      namingStrategy: new TblNamingStrategy(),
     }
   : {
       type: 'mysql',
@@ -37,7 +35,6 @@ const dbConfig: any = isSqlite
       entities: [__dirname + '/entities/*.{entity,entities}{.ts,.js}'],
       synchronize: false,
       logging: process.env.NODE_ENV === 'development',
-      namingStrategy: new TblNamingStrategy(),
     };
 
 @Module({

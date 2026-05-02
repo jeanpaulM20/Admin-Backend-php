@@ -66,7 +66,7 @@ export class Training {
 
   @ManyToMany(() => Exerciseset)
   @JoinTable({
-    name: 'tbl_training_exerciseset',
+    name: 'training_exerciseset',
     joinColumn: { name: 'training_id', referencedColumnName: 'id' },
     inverseJoinColumn: { name: 'exerciseset_id', referencedColumnName: 'id' },
   })

@@ -2,6 +2,7 @@ import {
   Controller, Get, Post, Delete, Param, Body, Query,
   ParseIntPipe, NotFoundException,
 } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { ClientAppService } from './client-app.service';
 import { Public } from '../auth/decorators/public.decorator';
 
@@ -19,28 +20,20 @@ import { Public } from '../auth/decorators/public.decorator';
 @Controller('api/client')
 export class ClientAppController {
 
-  constructor(private readonly appService: ClientAppService) {}
+  constructor(
+    private readonly appService: ClientAppService,
+    private readonly dataSource: DataSource,
+  ) {}
 
-  /** Debug endpoint — surface actual DB errors (remove after debugging) */
-  @Get('debug/:clientId')
-  async debug(@Param('clientId', ParseIntPipe) clientId: number) {
-    const results: Record<string, any> = {};
+  /** Debug: list all tables in the database (remove after debugging) */
+  @Get('debug/tables')
+  async debugTables() {
     try {
-      results.start = await this.appService.getStartData(clientId);
+      const tables = await this.dataSource.query('SHOW TABLES');
+      return tables;
     } catch (e: any) {
-      results.startError = { message: e.message, query: e.query, sql: e.sql };
+      return { error: e.message };
     }
-    try {
-      results.profile = await this.appService.getProfile(clientId);
-    } catch (e: any) {
-      results.profileError = { message: e.message, query: e.query, sql: e.sql };
-    }
-    try {
-      results.files = await this.appService.getFiles(clientId);
-    } catch (e: any) {
-      results.filesError = { message: e.message, query: e.query, sql: e.sql };
-    }
-    return results;
   }
 
   /** Dashboard — credits + upcoming trainings */
