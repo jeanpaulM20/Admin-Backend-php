@@ -4,11 +4,12 @@ import { Client } from '../entities/client.entity';
 import { Clientaccesstoken } from '../entities/client-access-token.entity';
 import { ClientService } from './client.service';
 import { ClientController } from './client.controller';
+import { ClientPhpProxyController } from './client-php-proxy.controller';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Client, Clientaccesstoken])],
   providers: [ClientService],
-  controllers: [ClientController],
+  controllers: [ClientPhpProxyController, ClientController],
   exports: [ClientService],
 })
 export class ClientModule {}
