@@ -90,8 +90,7 @@ export class ClientAppService {
       })),
       training_types: trainingTypes.map((tt) => ({
         id: tt.id,
-        name: tt.name,
-        color: tt.color,
+        name: tt.nameDe ?? tt.nameEn ?? '',
         duration: tt.duration,
       })),
       availability: availability.map((a) => ({
@@ -136,8 +135,11 @@ export class ClientAppService {
     const credits = await this.creditsRepo.find({ where: { clientId } });
     return credits.map((c) => ({
       id: c.id,
-      amount: c.amount,
-      updated_at: c.updatedAt,
+      paid: c.paid,
+      attended: c.attended,
+      remaining: (c.paid ?? 0) - (c.attended ?? 0),
+      startdate: c.startdate,
+      expires: c.expires,
     }));
   }
 
@@ -183,7 +185,7 @@ export class ClientAppService {
 
   private async getTotalCredits(clientId: number): Promise<number> {
     const rows = await this.creditsRepo.find({ where: { clientId } });
-    return rows.reduce((sum, r) => sum + (r.amount ?? 0), 0);
+    return rows.reduce((sum, r) => sum + ((r.paid ?? 0) - (r.attended ?? 0)), 0);
   }
 
   private mapTraining(t: Training) {

@@ -22,8 +22,14 @@ export { ClientAnamnese } from './client-anamnese.entity';
 export class ClientCredits {
   @PrimaryGeneratedColumn() id: number;
   @Column({ name: 'client_id' }) clientId: number;
-  @Column({ default: 0 }) amount: number;
-  @Column({ name: 'updated_at', type: 'datetime', default: () => 'CURRENT_TIMESTAMP' }) updatedAt: Date;
+  @Column({ name: 'training_type_id', nullable: true }) trainingTypeId: number;
+  @Column({ default: 0 }) paid: number;
+  @Column({ default: 0 }) attended: number;
+  @Column({ name: 'abbonement_id', nullable: true }) abbonementId: number;
+  @Column({ name: 'sold_by_id', nullable: true }) soldById: number;
+  @Column({ type: 'date', nullable: true }) startdate: string;
+  @Column({ type: 'date', nullable: true }) expires: string;
+  @Column({ name: 'sell_date', type: 'date', nullable: true }) sellDate: string;
   @ManyToOne(() => Client) @JoinColumn({ name: 'client_id' }) client: Client;
 }
 
@@ -174,9 +180,12 @@ export class Service {
 @Entity({ name: 'training_type' })
 export class TrainingType {
   @PrimaryGeneratedColumn() id: number;
-  @Column() name: string;
-  @Column({ nullable: true }) color: string;
+  @Column({ name: 'name_de', nullable: true }) nameDe: string;
+  @Column({ name: 'name_en', nullable: true }) nameEn: string;
   @Column({ default: 60 }) duration: number;
+  @Column({ nullable: true }) participants: number;
+  @Column({ nullable: true }) sort: number;
+  @Column({ nullable: true }) abbr: string;
 }
 
 @Entity({ name: 'translation' })
