@@ -1,8 +1,9 @@
 class ApiConfig {
   ApiConfig._();
 
-  /// PHP production backend
-  static const String baseUrl = 'https://apps.sihltraining.ch/';
+  /// Railway NestJS backend (nginx proxies client-specific routes to PHP)
+  static const String baseUrl =
+      'https://admin-backend-php-production.up.railway.app/';
 
   static const String authHeader = 'X-Auth-Token';
 

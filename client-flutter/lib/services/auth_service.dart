@@ -15,8 +15,8 @@ class AuthService {
   /// PHP returns { token: "...", client: { id: ... } }
   Future<ClientModel> login(String phone, String passcode) async {
     final response = await _api.post(ApiConfig.token, body: {
-      'phone': phone,
-      'passcode': passcode,
+      'e_mail': phone,
+      'clientpasscode': passcode,
     });
 
     if (response == null) throw ApiException('Keine Antwort vom Server');

@@ -59,15 +59,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       TextFormField(
                         controller: _phoneCtrl,
-                        keyboardType: TextInputType.phone,
+                        keyboardType: TextInputType.emailAddress,
                         style: const TextStyle(color: AppColors.text),
                         decoration: const InputDecoration(
-                          labelText: 'Telefonnummer',
-                          hintText: '+41 79 000 00 00',
-                          prefixIcon: Icon(Icons.phone_outlined),
+                          labelText: 'E-Mail',
+                          hintText: 'name@beispiel.ch',
+                          prefixIcon: Icon(Icons.email_outlined),
                         ),
                         validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Telefonnummer eingeben' : null,
+                            ? 'E-Mail eingeben' : null,
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
