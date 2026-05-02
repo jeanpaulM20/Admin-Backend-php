@@ -1,5 +1,6 @@
 import '../models/appointment.dart';
 import '../models/calendar_data.dart';
+import '../models/chat_message.dart';
 import '../models/profile_data.dart';
 import '../models/credit_pack.dart';
 import '../models/buyable_credit.dart';
@@ -165,6 +166,44 @@ class MockData {
           dueDate: DateTime(2025, 12, 15),
           currency: 'CHF',
           amount: 990.00,
+        ),
+      ];
+
+  static List<ChatConversation> get chatConversations => [
+        ChatConversation(
+          trainerId: '7',
+          trainerName: 'Stefan Meier',
+          lastMessage: 'Perfekt, bis Mittwoch!',
+          lastMessageAt: DateTime.now().subtract(const Duration(hours: 2)),
+          unreadCount: 1,
+        ),
+        ChatConversation(
+          trainerId: '8',
+          trainerName: 'Anna Keller',
+          lastMessage: 'Fokus auf Mobilitaet naechste Woche',
+          lastMessageAt: DateTime.now().subtract(const Duration(days: 1)),
+          unreadCount: 0,
+        ),
+      ];
+
+  static List<ChatMessage> get chatMessages => [
+        ChatMessage(
+          id: '1',
+          text: 'Hallo Stefan, ich wollte fragen ob wir am Mittwoch den Fokus auf Oberkörper legen können?',
+          senderType: 'client',
+          createdAt: DateTime.now().subtract(const Duration(hours: 3)),
+        ),
+        ChatMessage(
+          id: '2',
+          text: 'Klar, das passt gut! Bring bitte dein Theraband mit.',
+          senderType: 'trainer',
+          createdAt: DateTime.now().subtract(const Duration(hours: 2, minutes: 45)),
+        ),
+        ChatMessage(
+          id: '3',
+          text: 'Perfekt, bis Mittwoch!',
+          senderType: 'trainer',
+          createdAt: DateTime.now().subtract(const Duration(hours: 2)),
         ),
       ];
 

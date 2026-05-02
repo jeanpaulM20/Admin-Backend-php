@@ -17,6 +17,7 @@ export class StartupMigrationService implements OnApplicationBootstrap {
 
     const migrations: string[] = [
       `ALTER TABLE client ADD COLUMN auto_training_notify TINYINT(1) NOT NULL DEFAULT 0`,
+      `ALTER TABLE feedback ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP`,
     ];
 
     for (const sql of migrations) {

@@ -3,6 +3,7 @@ import {
   ParseIntPipe, NotFoundException,
 } from '@nestjs/common';
 import { ClientAppService } from './client-app.service';
+import { ClientChatService } from './client-chat.service';
 import { Public } from '../auth/decorators/public.decorator';
 
 /**
@@ -19,7 +20,10 @@ import { Public } from '../auth/decorators/public.decorator';
 @Controller('api/client')
 export class ClientAppController {
 
-  constructor(private readonly appService: ClientAppService) {}
+  constructor(
+    private readonly appService: ClientAppService,
+    private readonly chatService: ClientChatService,
+  ) {}
 
   /** Dashboard — credits + upcoming trainings */
   @Get('start/:clientId')
@@ -103,5 +107,41 @@ export class ClientAppController {
     @Param('appointmentId', ParseIntPipe) appointmentId: number,
   ) {
     return this.appService.cancelAppointment(clientId, appointmentId);
+  }
+
+  // ── Chat ──────────────────────────────────────────────────────────
+
+  /** Chat conversations list (one per trainer) */
+  @Get('chat/:clientId/conversations')
+  chatConversations(@Param('clientId', ParseIntPipe) clientId: number) {
+    return this.chatService.getConversations(clientId);
+  }
+
+  /** Chat messages for a specific trainer */
+  @Get('chat/:clientId/messages/:trainerId')
+  chatMessages(
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Param('trainerId', ParseIntPipe) trainerId: number,
+  ) {
+    return this.chatService.getMessages(clientId, trainerId);
+  }
+
+  /** Send a chat message to a trainer */
+  @Post('chat/:clientId/messages/:trainerId')
+  chatSend(
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Param('trainerId', ParseIntPipe) trainerId: number,
+    @Body() body: { text: string },
+  ) {
+    return this.chatService.sendMessage(clientId, trainerId, body.text);
+  }
+
+  /** Mark messages from trainer as read */
+  @Post('chat/:clientId/messages/:trainerId/read')
+  chatMarkRead(
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Param('trainerId', ParseIntPipe) trainerId: number,
+  ) {
+    return this.chatService.markAsRead(clientId, trainerId);
   }
 }

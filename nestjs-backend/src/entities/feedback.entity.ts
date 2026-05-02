@@ -29,6 +29,9 @@ export class Feedback {
   @Column({ default: 0 })
   is_circle: number;
 
+  @Column({ type: 'datetime', nullable: true, default: () => 'CURRENT_TIMESTAMP' })
+  created_at: Date;
+
   @ManyToOne(() => Client)
   @JoinColumn({ name: 'client_id' })
   client: Client;
