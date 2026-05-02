@@ -186,13 +186,13 @@ export class ClientAppService {
   async getFiles(clientId: number) {
     const files = await this.fileRepo.find({
       where: { clientId },
-      order: { createdAt: 'DESC' },
+      order: { date: 'DESC' },
     });
     return files.map((f) => ({
       id: f.id,
-      filename: f.filename,
-      path: f.path,
-      created_at: f.createdAt,
+      name: f.name,
+      file: f.file,
+      date: f.date,
     }));
   }
 

@@ -16,7 +16,7 @@ export class StartupMigrationService implements OnApplicationBootstrap {
     if (this.dataSource.options.type === 'better-sqlite3') return;
 
     const migrations: string[] = [
-      `ALTER TABLE client ADD COLUMN auto_training_notify TINYINT(1) NOT NULL DEFAULT 0`,
+      `ALTER TABLE tbl_client ADD COLUMN auto_training_notify TINYINT(1) NOT NULL DEFAULT 0`,
     ];
 
     for (const sql of migrations) {

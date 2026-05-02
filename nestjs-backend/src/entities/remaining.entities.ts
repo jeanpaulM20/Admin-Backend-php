@@ -87,11 +87,10 @@ export class DoorLog {
 @Entity({ name: 'file' })
 export class File {
   @PrimaryGeneratedColumn() id: number;
-  @Column() filename: string;
-  @Column({ nullable: true }) path: string;
-  @Column({ name: 'client_id', nullable: true }) clientId: number;
-  @Column({ name: 'trainer_id', nullable: true }) trainerId: number;
-  @Column({ name: 'created_at', type: 'datetime', default: () => 'CURRENT_TIMESTAMP' }) createdAt: Date;
+  @Column({ nullable: true }) name: string;
+  @Column({ type: 'datetime', nullable: true }) date: Date;
+  @Column({ nullable: true }) file: string;
+  @Column({ name: 'client_id' }) clientId: number;
 }
 
 @Entity({ name: 'goal' })

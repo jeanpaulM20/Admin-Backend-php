@@ -55,7 +55,7 @@ export class Trainer {
 
   @ManyToMany(() => Client, (client) => client.trainers)
   @JoinTable({
-    name: 'trainer_client',
+    name: 'tbl_trainer_client',
     joinColumn: { name: 'trainer_id', referencedColumnName: 'id' },
     inverseJoinColumn: { name: 'client_id', referencedColumnName: 'id' },
   })
@@ -63,7 +63,7 @@ export class Trainer {
 
   @ManyToMany(() => Location)
   @JoinTable({
-    name: 'trainer_location',
+    name: 'tbl_trainer_location',
     joinColumn: { name: 'trainer_id', referencedColumnName: 'id' },
     inverseJoinColumn: { name: 'location_id', referencedColumnName: 'id' },
   })
