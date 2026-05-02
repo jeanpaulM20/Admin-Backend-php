@@ -119,7 +119,11 @@ export class ClientAppService {
     });
     if (!client) throw new NotFoundException(`Client ${clientId} not found`);
 
-    const credits = await this.getTotalCredits(clientId);
+    const creditRows = await this.creditsRepo.find({ where: { clientId } });
+    const totalCredits = creditRows.reduce(
+      (sum, r) => sum + ((r.paid ?? 0) - (r.attended ?? 0)),
+      0,
+    );
 
     return {
       id: client.id,
@@ -130,29 +134,186 @@ export class ClientAppService {
       photo: client.picture,
       birthday: client.birthday,
       gender: client.gender,
-      credits,
+      credits: totalCredits,
+      creditPacks: creditRows.map((c) => ({
+        title: `Credit-Paket #${c.id}`,
+        prepaidCredits: c.paid ?? 0,
+        spentCredits: c.attended ?? 0,
+        startdate: c.startdate,
+        expiryDate: c.expires,
+      })),
     };
   }
 
-  /** Credits list */
+  /** Credits list – returns client's credit packs with remaining balances */
   async getCredits(clientId: number) {
     const credits = await this.creditsRepo.find({ where: { clientId } });
     return credits.map((c) => ({
       id: c.id,
-      paid: c.paid,
-      attended: c.attended,
+      title: `Credit-Paket #${c.id}`,
+      paid: c.paid ?? 0,
+      attended: c.attended ?? 0,
       remaining: (c.paid ?? 0) - (c.attended ?? 0),
       startdate: c.startdate,
       expires: c.expires,
     }));
   }
 
-  /** Performance tests */
+  /** Performance tests – transformed into sectioned format for Flutter */
   async getTests(clientId: number) {
-    return this.perfTestRepo.find({
+    const rows = await this.perfTestRepo.find({
       where: { client_id: clientId },
       order: { date: 'DESC' },
     });
+
+    if (!rows.length) return [];
+
+    // Metric definitions: column → { label, unit, section }
+    const metricDefs: Record<
+      string,
+      { label: string; unit: string; section: string }
+    > = {
+      pushups: { label: 'Liegestütze', unit: 'Wdh.', section: 'Kraft' },
+      pullups: { label: 'Klimmzüge', unit: 'Wdh.', section: 'Kraft' },
+      trunk_bending: { label: 'Rumpfbeuge', unit: 'cm', section: 'Kraft' },
+      forearm_support: {
+        label: 'Unterarmstütz',
+        unit: 'Sek.',
+        section: 'Kraft',
+      },
+      squat_on_wall: { label: 'Wandhocke', unit: 'Sek.', section: 'Kraft' },
+      sprint_10: { label: 'Sprint 10m', unit: 'Sek.', section: 'Ausdauer' },
+      sprint_20: { label: 'Sprint 20m', unit: 'Sek.', section: 'Ausdauer' },
+      sprint_30: { label: 'Sprint 30m', unit: 'Sek.', section: 'Ausdauer' },
+      tapping: { label: 'Tapping', unit: 'Wdh.', section: 'Ausdauer' },
+      hamstrings: {
+        label: 'Oberschenkelrückseite',
+        unit: '°',
+        section: 'Beweglichkeit',
+      },
+      calfs: { label: 'Waden', unit: '°', section: 'Beweglichkeit' },
+      adductors: {
+        label: 'Adduktoren',
+        unit: '°',
+        section: 'Beweglichkeit',
+      },
+      straight_thigh_extensors: {
+        label: 'Oberschenkelstrecker',
+        unit: '°',
+        section: 'Beweglichkeit',
+      },
+      sensomotoric: {
+        label: 'Sensomotorik',
+        unit: 'Pkt.',
+        section: 'Koordination',
+      },
+      symmetry: { label: 'Symmetrie', unit: 'Pkt.', section: 'Koordination' },
+      reaction: { label: 'Reaktion', unit: 'ms', section: 'Koordination' },
+      counter_movement_jump: {
+        label: 'CMJ',
+        unit: 'cm',
+        section: 'Koordination',
+      },
+      side_support: {
+        label: 'Seitstütz',
+        unit: 'Sek.',
+        section: 'Koordination',
+      },
+      points: {
+        label: 'Gesamtpunkte',
+        unit: 'Pkt.',
+        section: 'Gesamtbewertung',
+      },
+    };
+
+    // Ordered section names
+    const sectionOrder = [
+      'Kraft',
+      'Ausdauer',
+      'Beweglichkeit',
+      'Koordination',
+      'Gesamtbewertung',
+    ];
+
+    // Build per-metric data (latest, previous, history)
+    const sectionMap = new Map<
+      string,
+      {
+        key: string;
+        value: string | null;
+        previousValue: string | null;
+        change: string;
+        unit: string;
+        history: { date: string; value: string }[];
+        hasAnyValue: boolean;
+      }[]
+    >();
+
+    for (const section of sectionOrder) {
+      sectionMap.set(section, []);
+    }
+
+    for (const [column, def] of Object.entries(metricDefs)) {
+      // Collect all non-null values (rows are sorted DESC by date)
+      const history: { date: string; value: string }[] = [];
+      for (const row of rows) {
+        const raw = row[column];
+        if (raw != null) {
+          const formatted = this.formatMetricValue(Number(raw));
+          history.push({ date: row.date, value: formatted });
+        }
+      }
+
+      const latest = history.length > 0 ? history[0].value : null;
+      const previous = history.length > 1 ? history[1].value : null;
+
+      let change = '';
+      if (latest != null && previous != null) {
+        const diff = Number(latest) - Number(previous);
+        change = diff > 0 ? `+${this.formatMetricValue(diff)}` : this.formatMetricValue(diff);
+      } else if (latest != null) {
+        change = 'neu';
+      }
+
+      // History for charts should be chronological (oldest first)
+      const chronological = [...history].reverse();
+
+      sectionMap.get(def.section)!.push({
+        key: def.label,
+        value: latest,
+        previousValue: previous,
+        change,
+        unit: def.unit,
+        history: chronological,
+        hasAnyValue: history.length > 0,
+      });
+    }
+
+    // Build result, skipping sections where ALL metrics have no data
+    const result: {
+      section: string;
+      data: {
+        key: string;
+        value: string | null;
+        previousValue: string | null;
+        change: string;
+        unit: string;
+        history: { date: string; value: string }[];
+      }[];
+    }[] = [];
+
+    for (const section of sectionOrder) {
+      const metrics = sectionMap.get(section)!;
+      const hasData = metrics.some((m) => m.hasAnyValue);
+      if (!hasData) continue;
+
+      result.push({
+        section,
+        data: metrics.map(({ hasAnyValue: _, ...rest }) => rest),
+      });
+    }
+
+    return result;
   }
 
   /** Book a training appointment */
@@ -209,6 +370,15 @@ export class ClientAppService {
   private async getTotalCredits(clientId: number): Promise<number> {
     const rows = await this.creditsRepo.find({ where: { clientId } });
     return rows.reduce((sum, r) => sum + ((r.paid ?? 0) - (r.attended ?? 0)), 0);
+  }
+
+  /** Format a numeric metric: strip trailing .00 decimals for clean display */
+  private formatMetricValue(val: number): string {
+    // If the value is an integer, return without decimals
+    if (Number.isInteger(val)) return String(val);
+    // Otherwise keep up to 2 decimal places, trimming trailing zeros
+    const fixed = val.toFixed(2).replace(/\.?0+$/, '');
+    return fixed;
   }
 
   private mapTraining(t: Training) {
