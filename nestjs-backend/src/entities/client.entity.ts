@@ -69,6 +69,9 @@ export class Client {
   @Column({ name: 'max_heart_rate', nullable: true })
   maxHeartRate: number;
 
+  @Column({ name: 'auto_training_notify', default: 0 })
+  auto_training_notify: number;
+
   @ManyToMany(() => Trainer, (t) => t.clients)
   trainers: Trainer[];
 

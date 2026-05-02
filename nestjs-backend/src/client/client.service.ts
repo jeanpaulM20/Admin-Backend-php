@@ -42,6 +42,17 @@ export class ClientService {
     return this.clientRepo.remove(client);
   }
 
+  async getAutoNotify(id: number) {
+    const client = await this.clientRepo.findOne({ where: { id }, select: { id: true, auto_training_notify: true } });
+    if (!client) throw new NotFoundException(`Client ${id} not found`);
+    return { enabled: client.auto_training_notify ?? 0 };
+  }
+
+  async setAutoNotify(id: number, enabled: number) {
+    await this.clientRepo.update(id, { auto_training_notify: enabled });
+    return { enabled };
+  }
+
   // Replaces actionToken() – client login returns an access token
   async login(email: string, passcode: string): Promise<{ token: string }> {
     const client = await this.clientRepo.findOne({
