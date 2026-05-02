@@ -81460,7 +81460,7 @@ s=p}while(true)switch(s){case 0:b=n.a
 a=t.N
 a0=t.z
 s=3
-return A.G(b.zt("api/token",A.ak(["e_mail",a3,"clientpasscode",a4],a,a0)),$async$hq)
+return A.G(b.zt("api/client/token",A.ak(["e_mail",a3,"clientpasscode",a4],a,a0)),$async$hq)
 case 3:a1=a6
 if(a1==null)throw A.f(A.hM("Keine Antwort vom Server",null))
 if(!t.a.b(a1))throw A.f(A.hM("Ung\xfcltiges Antwortformat",null))
