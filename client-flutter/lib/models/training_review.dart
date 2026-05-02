@@ -11,6 +11,7 @@ class TrainingReview {
   final String? duration;
   final int? hrMax;
   final int? hrAvg;
+  final int? hrr;
   final double? hrv;
   final List<HrPoint> chart;
 
@@ -21,6 +22,7 @@ class TrainingReview {
     this.duration,
     this.hrMax,
     this.hrAvg,
+    this.hrr,
     this.hrv,
     this.chart = const [],
   });
@@ -43,6 +45,7 @@ class TrainingReview {
       duration: json['duration']?.toString(),
       hrMax: json['hrMax'] != null ? int.tryParse(json['hrMax'].toString()) : null,
       hrAvg: json['hrAvg'] != null ? int.tryParse(json['hrAvg'].toString()) : null,
+      hrr: json['hrr'] != null ? int.tryParse(json['hrr'].toString()) : null,
       hrv: json['hrv'] != null ? double.tryParse(json['hrv'].toString()) : null,
       chart: chart,
     );
