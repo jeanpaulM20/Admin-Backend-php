@@ -26,7 +26,8 @@ export class ClientAppService {
   async getStartData(clientId: number) {
     const today = new Date().toISOString().slice(0, 10);
 
-    const [credits, trainings] = await Promise.all([
+    const [client, credits, trainings] = await Promise.all([
+      this.clientRepo.findOne({ where: { id: clientId } }),
       this.getTotalCredits(clientId),
       this.trainingRepo.find({
         where: {
@@ -41,6 +42,8 @@ export class ClientAppService {
     ]);
 
     return {
+      firstname: client?.firstname ?? '',
+      lastname: client?.lastname ?? '',
       credits,
       appointments: trainings.map((t) => this.mapTraining(t)),
     };
