@@ -29,10 +29,14 @@ class _FeedbackMessage {
   bool get isTrainer => align == 'right';
 
   factory _FeedbackMessage.fromJson(Map<String, dynamic> json) {
-    final readTrainer = json['read_trainer'] == true || json['read_trainer'] == 1 || json['read_trainer'] == '1';
-    final readClient  = json['read_client']  == true || json['read_client']  == 1 || json['read_client']  == '1';
-    // Determine align: prefer explicit 'align' field (new server).
-    // Fallback: read_trainer=true AND read_client=false → trainer sent it.
+    final readTrainer =
+        json['read_trainer'] == true ||
+        json['read_trainer'] == 1 ||
+        json['read_trainer'] == '1';
+    final readClient =
+        json['read_client'] == true ||
+        json['read_client'] == 1 ||
+        json['read_client'] == '1';
     String? align = json['align']?.toString();
     if (align == null && json.containsKey('read_client')) {
       align = (readTrainer && !readClient) ? 'right' : 'left';
@@ -41,10 +45,16 @@ class _FeedbackMessage {
     final id = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
     return _FeedbackMessage(
       id: id,
-      text: json['text']?.toString() ?? json['message']?.toString() ?? json['comment']?.toString() ?? '',
+      text: json['text']?.toString() ??
+          json['message']?.toString() ??
+          json['comment']?.toString() ??
+          '',
       author: json['author']?.toString(),
       align: align,
-      isCircle: (json['is_circle'] is int ? json['is_circle'] : int.tryParse(json['is_circle']?.toString() ?? '0') ?? 0) == 1,
+      isCircle: (json['is_circle'] is int
+              ? json['is_circle']
+              : int.tryParse(json['is_circle']?.toString() ?? '0') ?? 0) ==
+          1,
       readTrainer: readTrainer,
     );
   }
@@ -79,18 +89,15 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
 
   void _subscribeFirebase() {
     try {
-      // Firebase Realtime DB SSE-Stream — kein SDK nötig, nur REST
-      const dbUrl = 'https://sihltraining-3ce40-default-rtdb.europe-west1.firebasedatabase.app';
+      const dbUrl =
+          'https://sihltraining-3ce40-default-rtdb.europe-west1.firebasedatabase.app';
       final url = '$dbUrl/chat_pings/client_${widget.client.id}.json';
       _eventSource = html.EventSource(url);
-      _esSubscription = _eventSource!.onMessage
-          .cast<html.MessageEvent>()
-          .listen((_) {
+      _esSubscription =
+          _eventSource!.onMessage.cast<html.MessageEvent>().listen((_) {
         if (mounted && !_loading) _loadMessages();
       });
-    } catch (_) {
-      // Echtzeit nicht verfügbar — manuelles Refresh weiterhin möglich
-    }
+    } catch (_) {}
   }
 
   Future<void> _loadMessages() async {
@@ -112,12 +119,11 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
       _messages = list
           .map((e) => _FeedbackMessage.fromJson(e as Map<String, dynamic>))
           .toList();
-      // Mark all client messages as read for this trainer
       _markAllRead();
     } on ApiException catch (e) {
       _error = e.message;
     } catch (e) {
-      _error = 'Failed to load messages';
+      _error = 'Nachrichten konnten nicht geladen werden';
     } finally {
       if (mounted) {
         setState(() => _loading = false);
@@ -127,14 +133,11 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
   }
 
   Future<void> _markAllRead() async {
-    // Best-effort: mark each unread trainer-received message as read
     for (final msg in _messages) {
       if (msg.id > 0 && !msg.readTrainer) {
         try {
           await _apiService.post('${ApiConfig.feedback}/${msg.id}/read');
-        } catch (_) {
-          // Silently ignore
-        }
+        } catch (_) {}
       }
     }
   }
@@ -177,16 +180,167 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
     }
   }
 
+  /// Share data card: send a special message with data info
+  void _showAttachMenu() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Text(
+                  'Daten teilen',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const Divider(color: AppColors.border, height: 1),
+              _AttachOption(
+                icon: Icons.monitor_heart,
+                label: 'Letzte Herzfrequenz',
+                subtitle: 'Training-Aufzeichnung teilen',
+                color: AppColors.red,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _shareReviewData();
+                },
+              ),
+              _AttachOption(
+                icon: Icons.show_chart,
+                label: 'Performance Daten',
+                subtitle: 'Leistungstest-Ergebnisse teilen',
+                color: AppColors.green,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _sharePerformanceData();
+                },
+              ),
+              _AttachOption(
+                icon: Icons.monitor_weight_outlined,
+                label: 'Körperwerte',
+                subtitle: 'Aktuelle Messwerte teilen',
+                color: AppColors.blue,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _shareMetricData();
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _shareReviewData() async {
+    try {
+      final data = await _apiService.get(
+        ApiConfig.review,
+        queryParams: {'client_id': widget.client.id.toString()},
+      );
+      if (data is List && data.isNotEmpty) {
+        final latest = data.first as Map<String, dynamic>;
+        final hr = latest['heart_rate'];
+        final duration = latest['duration'] ?? '–';
+        final kcal = latest['kcal'] ?? '–';
+        final type = latest['training_type'] ?? 'Training';
+        final msg =
+            '\u{1F4CA} Letzte Aufzeichnung ($type)\nDauer: $duration | Kcal: $kcal | HR: ${hr ?? "–"} bpm';
+        _textCtrl.text = msg;
+      } else {
+        _showSnack('Keine Aufzeichnungen vorhanden');
+      }
+    } catch (e) {
+      _showSnack('Daten konnten nicht geladen werden');
+    }
+  }
+
+  Future<void> _sharePerformanceData() async {
+    try {
+      final data = await _apiService.get(
+        ApiConfig.performance,
+        queryParams: {'client_id': widget.client.id.toString()},
+      );
+      if (data is List && data.isNotEmpty) {
+        final latest = data.last as Map<String, dynamic>;
+        final date = latest['date'] ?? '–';
+        final points = latest['points'] ?? 0;
+        final msg =
+            '\u{1F3CB} Performance Test ($date)\nPunkte: $points';
+        _textCtrl.text = msg;
+      } else {
+        _showSnack('Keine Performance-Daten vorhanden');
+      }
+    } catch (e) {
+      _showSnack('Daten konnten nicht geladen werden');
+    }
+  }
+
+  Future<void> _shareMetricData() async {
+    try {
+      final data = await _apiService.get(
+        ApiConfig.metric,
+        queryParams: {'client_id': widget.client.id.toString()},
+      );
+      if (data is List && data.isNotEmpty) {
+        final latest = data.last as Map<String, dynamic>;
+        final weight = latest['weight'] ?? latest['gewicht'];
+        final bmi = latest['bmi'];
+        final bodyFat = latest['body_fat'] ?? latest['body_fat_percent'];
+        final date = latest['date'] ?? '–';
+        final parts = <String>[];
+        if (weight != null) parts.add('Gewicht: $weight kg');
+        if (bmi != null) parts.add('BMI: $bmi');
+        if (bodyFat != null) parts.add('KFA: $bodyFat%');
+        final msg = '\u{1F4CF} Messwerte ($date)\n${parts.join(" | ")}';
+        _textCtrl.text = msg;
+      } else {
+        _showSnack('Keine Messwerte vorhanden');
+      }
+    } catch (e) {
+      _showSnack('Daten konnten nicht geladen werden');
+    }
+  }
+
+  void _showSnack(String msg) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: AppColors.surface2,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   void _showCircleDetail(String value) {
     final intVal = int.tryParse(value) ?? 0;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.black87,
+        backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Trainingsintensität',
+          style: TextStyle(color: Colors.white, fontSize: 16),
+          textAlign: TextAlign.center,
+        ),
         content: SizedBox(
-          width: 260,
-          height: 260,
+          width: 240,
+          height: 240,
           child: Stack(
             alignment: Alignment.center,
             children: [
@@ -204,18 +358,18 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
                 );
               }),
               Container(
-                width: 80,
-                height: 80,
+                width: 72,
+                height: 72,
                 decoration: const BoxDecoration(
-                  color: Colors.black,
+                  color: AppColors.background,
                   shape: BoxShape.circle,
                 ),
                 child: Center(
                   child: Text(
-                    '$intVal',
+                    '$intVal/10',
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 28,
+                      fontSize: 22,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -227,7 +381,8 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close', style: TextStyle(color: AppColors.primary)),
+            child: const Text('Schliessen',
+                style: TextStyle(color: AppColors.primary)),
           ),
         ],
       ),
@@ -248,13 +403,15 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        elevation: 0,
         title: Row(
           children: [
             Container(
-              width: 34,
-              height: 34,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.18),
+                color: AppColors.primary.withAlpha(46),
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -270,20 +427,36 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                widget.client.name,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.client.name,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    _getStatusText(),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.muted,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadMessages),
+          IconButton(
+            icon: const Icon(Icons.refresh, size: 20),
+            onPressed: _loadMessages,
+            tooltip: 'Aktualisieren',
+          ),
         ],
       ),
       body: Column(
@@ -291,7 +464,8 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
           Expanded(
             child: _loading
                 ? const Center(
-                    child: CircularProgressIndicator(color: AppColors.primary))
+                    child:
+                        CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2))
                 : _error != null
                     ? _buildError()
                     : _buildMessages(),
@@ -302,16 +476,29 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
     );
   }
 
+  String _getStatusText() {
+    final msgCount = _messages.where((m) => !m.isCircle).length;
+    final circleCount = _messages.where((m) => m.isCircle).length;
+    final parts = <String>[];
+    if (msgCount > 0) parts.add('$msgCount Nachrichten');
+    if (circleCount > 0) parts.add('$circleCount Workouts');
+    return parts.isEmpty ? 'Chat' : parts.join(' · ');
+  }
+
   Widget _buildError() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline, color: AppColors.primary, size: 48),
+          const Icon(Icons.error_outline, color: AppColors.red, size: 48),
           const SizedBox(height: 12),
           Text(_error!, style: const TextStyle(color: AppColors.muted)),
           const SizedBox(height: 16),
-          TextButton(onPressed: _loadMessages, child: const Text('Retry')),
+          ElevatedButton(
+            onPressed: _loadMessages,
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            child: const Text('Erneut versuchen'),
+          ),
         ],
       ),
     );
@@ -319,104 +506,116 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
 
   Widget _buildMessages() {
     if (_messages.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.chat_bubble_outline, color: AppColors.muted, size: 56),
-            SizedBox(height: 16),
-            Text('No messages yet',
-                style: TextStyle(color: AppColors.muted, fontSize: 15)),
+            Icon(Icons.chat_bubble_outline,
+                color: AppColors.muted.withAlpha(100), size: 56),
+            const SizedBox(height: 16),
+            const Text('Noch keine Nachrichten',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500)),
+            const SizedBox(height: 6),
+            const Text('Starte eine Unterhaltung oder teile Daten',
+                style: TextStyle(color: AppColors.muted, fontSize: 13)),
           ],
         ),
       );
     }
 
+    // Group consecutive circles together
+    final grouped = _groupMessages(_messages);
+
     return ListView.builder(
       controller: _scrollCtrl,
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-      itemCount: _messages.length,
-      itemBuilder: (_, i) => _buildBubble(_messages[i]),
+      itemCount: grouped.length,
+      itemBuilder: (_, i) => grouped[i],
     );
   }
 
-  Widget _buildBubble(_FeedbackMessage msg) {
-    final isTrainer = msg.isTrainer;
-
-    if (msg.isCircle) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Center(
-          child: GestureDetector(
-            onTap: () => _showCircleDetail(msg.text),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.primary, width: 0.8),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.radio_button_checked,
-                      color: AppColors.primary, size: 18),
-                  const SizedBox(width: 8),
-                  Text('Workout intensity: ${msg.text}/10',
-                      style: const TextStyle(color: Colors.white, fontSize: 13)),
-                  const SizedBox(width: 6),
-                  const Icon(Icons.info_outline,
-                      color: AppColors.muted, size: 14),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
+  List<Widget> _groupMessages(List<_FeedbackMessage> messages) {
+    final widgets = <Widget>[];
+    int i = 0;
+    while (i < messages.length) {
+      if (messages[i].isCircle) {
+        // Collect consecutive circles
+        final circles = <_FeedbackMessage>[];
+        while (i < messages.length && messages[i].isCircle) {
+          circles.add(messages[i]);
+          i++;
+        }
+        widgets.add(_buildCircleGroup(circles));
+      } else {
+        widgets.add(_buildBubble(messages[i]));
+        i++;
+      }
     }
+    return widgets;
+  }
+
+  /// Collapsed group of consecutive workout intensity circles
+  Widget _buildCircleGroup(List<_FeedbackMessage> circles) {
+    // Show a compact summary
+    final values = circles.map((c) => int.tryParse(c.text) ?? 0).toList();
+    final avg =
+        values.isEmpty ? 0 : (values.reduce((a, b) => a + b) / values.length);
+    final maxVal = values.isEmpty ? 0 : values.reduce((a, b) => a > b ? a : b);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Align(
-        alignment: isTrainer ? Alignment.centerRight : Alignment.centerLeft,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.72,
-          ),
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Center(
+        child: GestureDetector(
+          onTap: () => _showCirclesExpanded(circles),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: isTrainer
-                  ? AppColors.primary
-                  : AppColors.surface,
-              borderRadius: BorderRadius.only(
-                topLeft: const Radius.circular(16),
-                topRight: const Radius.circular(16),
-                bottomLeft: Radius.circular(isTrainer ? 16 : 4),
-                bottomRight: Radius.circular(isTrainer ? 4 : 16),
-              ),
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: AppColors.primary.withAlpha(60), width: 0.5),
             ),
-            child: Column(
-              crossAxisAlignment: isTrainer
-                  ? CrossAxisAlignment.end
-                  : CrossAxisAlignment.start,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                if (msg.author != null && !isTrainer) ...[
-                  Text(msg.author!,
-                      style: const TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 3),
-                ],
-                Text(
-                  msg.text,
-                  style: TextStyle(
-                    color: isTrainer ? Colors.white : const Color(0xFFDDDDDD),
-                    fontSize: 14,
-                    height: 1.4,
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: _intensityColor(avg.round()).withAlpha(30),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.fitness_center,
+                    size: 16,
+                    color: _intensityColor(avg.round()),
                   ),
                 ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${circles.length} Trainingseinheiten',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      'Intensität: Ø ${avg.toStringAsFixed(1)}/10 · Max ${maxVal}/10',
+                      style: const TextStyle(
+                          color: AppColors.muted, fontSize: 11),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.chevron_right,
+                    color: AppColors.muted, size: 18),
               ],
             ),
           ),
@@ -425,50 +624,247 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
     );
   }
 
+  void _showCirclesExpanded(List<_FeedbackMessage> circles) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.fitness_center,
+                      color: AppColors.primary, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Trainingsintensitäten (${circles.length})',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: circles.length > 6 ? 240 : null,
+                child: SingleChildScrollView(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: circles.map((c) {
+                      final val = int.tryParse(c.text) ?? 0;
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _showCircleDetail(c.text);
+                        },
+                        child: Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            color: _intensityColor(val).withAlpha(25),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: _intensityColor(val).withAlpha(80),
+                                width: 0.5),
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                '$val',
+                                style: TextStyle(
+                                  color: _intensityColor(val),
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                '/10',
+                                style: TextStyle(
+                                  color:
+                                      _intensityColor(val).withAlpha(150),
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _intensityColor(int val) {
+    if (val <= 3) return AppColors.green;
+    if (val <= 6) return const Color(0xFFFFA726);
+    return AppColors.red;
+  }
+
+  Widget _buildBubble(_FeedbackMessage msg) {
+    final isTrainer = msg.isTrainer;
+
+    // Detect data messages (starts with emoji + keyword)
+    final isDataMsg = msg.text.contains('\u{1F4CA}') ||
+        msg.text.contains('\u{1F3CB}') ||
+        msg.text.contains('\u{1F4CF}');
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Align(
+        alignment: isTrainer ? Alignment.centerRight : Alignment.centerLeft,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.78,
+          ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: isTrainer ? AppColors.primary : AppColors.surface,
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(16),
+                topRight: const Radius.circular(16),
+                bottomLeft: Radius.circular(isTrainer ? 16 : 4),
+                bottomRight: Radius.circular(isTrainer ? 4 : 16),
+              ),
+              border: isTrainer
+                  ? null
+                  : Border.all(color: AppColors.border, width: 0.5),
+            ),
+            child: Column(
+              crossAxisAlignment:
+                  isTrainer ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                if (!isTrainer) ...[
+                  Text(
+                    msg.author ?? widget.client.name,
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                ],
+                if (isDataMsg)
+                  _buildDataMessage(msg.text, isTrainer)
+                else
+                  Text(
+                    msg.text,
+                    style: TextStyle(
+                      color: isTrainer ? Colors.white : AppColors.text,
+                      fontSize: 14,
+                      height: 1.4,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Render data messages with special formatting
+  Widget _buildDataMessage(String text, bool isTrainer) {
+    final lines = text.split('\n');
+    return Column(
+      crossAxisAlignment:
+          isTrainer ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: lines.asMap().entries.map((entry) {
+        final line = entry.value;
+        final isHeader = entry.key == 0;
+        return Padding(
+          padding: EdgeInsets.only(bottom: isHeader ? 4 : 0),
+          child: Text(
+            line,
+            style: TextStyle(
+              color: isTrainer ? Colors.white : AppColors.text,
+              fontSize: isHeader ? 14 : 13,
+              fontWeight: isHeader ? FontWeight.w600 : FontWeight.normal,
+              height: 1.5,
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
   Widget _buildInput() {
     return Container(
       padding: EdgeInsets.only(
-        left: 12,
-        right: 12,
+        left: 8,
+        right: 8,
         top: 8,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 12,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 8,
       ),
       decoration: const BoxDecoration(
         color: AppColors.surface,
         border: Border(top: BorderSide(color: AppColors.border, width: 0.5)),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
+          // Attach button
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline,
+                color: AppColors.primary, size: 24),
+            onPressed: _showAttachMenu,
+            tooltip: 'Daten teilen',
+            padding: const EdgeInsets.all(8),
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+          ),
+          // Text input
           Expanded(
-            child: TextField(
-              controller: _textCtrl,
-              style: const TextStyle(color: Colors.white, fontSize: 14),
-              maxLines: null,
-              textInputAction: TextInputAction.newline,
-              decoration: InputDecoration(
-                hintText: 'Write a message…',
-                hintStyle: const TextStyle(color: AppColors.muted),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                filled: true,
-                fillColor: AppColors.surface,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(22),
-                  borderSide: BorderSide.none,
+            child: Container(
+              constraints: const BoxConstraints(maxHeight: 120),
+              child: TextField(
+                controller: _textCtrl,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+                maxLines: null,
+                textInputAction: TextInputAction.newline,
+                decoration: InputDecoration(
+                  hintText: 'Nachricht schreiben...',
+                  hintStyle: const TextStyle(color: AppColors.muted, fontSize: 14),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  filled: true,
+                  fillColor: AppColors.background,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(22),
+                    borderSide: BorderSide.none,
+                  ),
+                  isDense: true,
                 ),
-                isDense: true,
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
+          // Send button
           GestureDetector(
             onTap: _sending ? null : _send,
             child: Container(
-              width: 42,
-              height: 42,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: AppColors.primary,
-                borderRadius: BorderRadius.circular(21),
+                borderRadius: BorderRadius.circular(20),
               ),
               child: _sending
                   ? const Padding(
@@ -476,7 +872,8 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white),
                     )
-                  : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                  : const Icon(Icons.send_rounded,
+                      color: Colors.white, size: 18),
             ),
           ),
         ],
@@ -485,6 +882,44 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
   }
 }
 
+// ─── Attach option tile ─────────────────────────────────────────────
+class _AttachOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _AttachOption({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: color.withAlpha(25),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: color, size: 20),
+      ),
+      title: Text(label,
+          style: const TextStyle(color: Colors.white, fontSize: 14)),
+      subtitle: Text(subtitle,
+          style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+      onTap: onTap,
+    );
+  }
+}
+
+// ─── Wheel sector painter ───────────────────────────────────────────
 class _WheelSectorPainter extends CustomPainter {
   final int sectorCount;
   final int sectorIndex;
@@ -510,8 +945,9 @@ class _WheelSectorPainter extends CustomPainter {
     final innerRadius = radius * 0.35;
     const gapAngle = 0.04;
     final sweepAngle = (2 * 3.14159 / sectorCount) - gapAngle;
-    final startAngle =
-        -3.14159 / 2 + sectorIndex * (2 * 3.14159 / sectorCount) + gapAngle / 2;
+    final startAngle = -3.14159 / 2 +
+        sectorIndex * (2 * 3.14159 / sectorCount) +
+        gapAngle / 2;
 
     final path = Path()
       ..moveTo(center.dx + innerRadius * _cos(startAngle),
@@ -541,7 +977,6 @@ class _WheelSectorPainter extends CustomPainter {
   double _sin(double angle) => _sine(angle);
 
   static double _cosine(double a) {
-    // dart:math import-free approximation via inline computation
     double x = a % (2 * 3.14159265);
     double result = 1.0;
     double term = 1.0;
