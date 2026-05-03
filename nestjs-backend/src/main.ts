@@ -6,6 +6,21 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Rewrite PHP-style URLs from Flutter client app:
+  //   /index.php/api/... → /api/...
+  //   /api/token         → /api/client/token  (PHP login route)
+  app.use((req, _res, next) => {
+    if (req.url.startsWith('/index.php/')) {
+      req.url = req.url.replace('/index.php/', '/');
+      req.originalUrl = req.url;
+    }
+    if (req.url === '/api/token' || req.url.startsWith('/api/token?')) {
+      req.url = '/api/client/token' + req.url.slice('/api/token'.length);
+      req.originalUrl = req.url;
+    }
+    next();
+  });
+
   // Health check for Railway
   app.getHttpAdapter().get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 
