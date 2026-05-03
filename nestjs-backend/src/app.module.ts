@@ -43,11 +43,18 @@ const dbConfig: any = isSqlite
 @Module({
   imports: [
     TypeOrmModule.forRoot(dbConfig),
-    ServeStaticModule.forRoot({
-      rootPath: join(__dirname, 'public'),
-      serveRoot: '/client',
-      serveStaticOptions: { index: ['index.html'] },
-    }),
+    ServeStaticModule.forRoot(
+      {
+        rootPath: join(__dirname, 'public'),
+        serveRoot: '/client',
+        serveStaticOptions: { index: ['index.html'] },
+      },
+      {
+        rootPath: join(__dirname, 'public-trainer'),
+        serveRoot: '/trainer',
+        serveStaticOptions: { index: ['index.html'] },
+      },
+    ),
     AuthModule,
     TrainerModule,
     ClientModule,

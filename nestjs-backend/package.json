@@ -4,7 +4,7 @@
   "description": "Sihl Training Admin Backend - NestJS Migration",
   "private": true,
   "scripts": {
-    "build": "nest build && cp -r public dist/public",
+    "build": "nest build && cp -r public dist/public && cp -r public-trainer dist/public-trainer",
     "start": "node dist/main",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
