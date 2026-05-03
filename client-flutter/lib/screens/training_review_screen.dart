@@ -9,20 +9,34 @@ class TrainingReviewDetailScreen extends StatelessWidget {
 
   const TrainingReviewDetailScreen({super.key, required this.review});
 
-  Color _hrrColor(int? hrr) {
-    if (hrr == null) return AppColors.muted;
-    if (hrr > 40) return AppColors.green;
-    if (hrr >= 25) return const Color(0xFF9CCC4A);
-    if (hrr >= 15) return const Color(0xFFFFB300);
-    return AppColors.red;
-  }
-
-  String _hrrLabel(int? hrr) {
-    if (hrr == null) return '';
-    if (hrr > 40) return 'Exzellent';
-    if (hrr >= 25) return 'Gut';
-    if (hrr >= 15) return 'Durchschnitt';
-    return 'Schwach';
+  Widget _buildTrainingLoadCard(double? trimp) {
+    final value = trimp != null ? trimp.round().toString() : '--';
+    final color = trimp != null ? TrainingReview.trimpColor(trimp) : AppColors.muted;
+    final rating = trimp != null ? TrainingReview.trimpRating(trimp) : '';
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(children: [
+          Text(value,
+              style: GoogleFonts.montserrat(color: color, fontSize: 18, fontWeight: FontWeight.w800),
+              textAlign: TextAlign.center),
+          const Text('Load', style: TextStyle(color: AppColors.muted, fontSize: 10)),
+          if (rating.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(rating, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600),
+                textAlign: TextAlign.center),
+          ] else
+            const SizedBox(height: 2),
+          const Text('Training Load', style: TextStyle(color: AppColors.muted, fontSize: 10),
+              textAlign: TextAlign.center),
+        ]),
+      ),
+    );
   }
 
   String _formatDate(DateTime dt) {
@@ -67,12 +81,7 @@ class TrainingReviewDetailScreen extends StatelessWidget {
             const SizedBox(width: 10),
             _StatCard(label: 'Avg HF', value: review.hrAvg != null ? '${review.hrAvg}' : '-', unit: 'bpm', color: AppColors.primary),
             const SizedBox(width: 10),
-            _StatCard(
-              label: 'HRR',
-              value: review.hrr != null ? '${review.hrr}' : '-',
-              unit: review.hrr != null ? 'bpm · ${_hrrLabel(review.hrr)}' : 'bpm',
-              color: _hrrColor(review.hrr),
-            ),
+            _buildTrainingLoadCard(review.edwardsTrimp),
           ]),
 
           if (review.duration != null) ...[
