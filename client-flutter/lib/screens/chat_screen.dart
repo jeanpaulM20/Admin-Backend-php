@@ -9,6 +9,7 @@ import '../config/app_colors.dart';
 import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../models/chat_message.dart';
+import '../models/training_review.dart';
 import '../services/api_client.dart';
 import '../widgets/loading_indicator.dart';
 import '../widgets/error_view.dart';
@@ -472,28 +473,24 @@ class _ChatThreadState extends State<_ChatThread> {
         title: 'Aufzeichnung waehlen',
         items: data.cast<Map<String, dynamic>>(),
         titleBuilder: (item) {
-          final type = _trainingTypeLabel(item['training_type']?.toString());
-          final training = item['training'] as Map<String, dynamic>?;
-          final date = _fmtDate(training?['date']?.toString());
+          final type = _trainingTypeLabel(item['trainingType']?.toString());
+          final date = _fmtDate(item['date']?.toString());
           return '$type -- $date';
         },
         subtitleBuilder: (item) {
           final duration = item['duration'] ?? '--';
-          final kcal = item['kcal'] ?? '--';
-          final hr = item['heart_rate'];
-          return 'Dauer: $duration | Kcal: $kcal | HR: ${hr ?? "--"} bpm';
+          final hr = item['hrAvg'];
+          return 'Dauer: $duration | HR: ${hr ?? "--"} bpm';
         },
         iconBuilder: (_) => Icons.monitor_heart,
         colorBuilder: (_) => AppColors.red,
         onSelect: (item) {
-          final type = _trainingTypeLabel(item['training_type']?.toString());
+          final type = _trainingTypeLabel(item['trainingType']?.toString());
           final duration = item['duration'] ?? '--';
-          final kcal = item['kcal'] ?? '--';
-          final hr = item['heart_rate'];
-          final training = item['training'] as Map<String, dynamic>?;
-          final date = _fmtDate(training?['date']?.toString());
+          final hr = item['hrAvg'];
+          final date = _fmtDate(item['date']?.toString());
           _controller.text =
-              '[Aufzeichnung] $type ($date)\nDauer: $duration | Kcal: $kcal | HR: ${hr ?? "--"} bpm';
+              '[Aufzeichnung] $type ($date)\nDauer: $duration | HR: ${hr ?? "--"} bpm';
         },
       );
     } catch (e) {
@@ -1480,8 +1477,7 @@ class _ReviewDetailSheetState extends State<_ReviewDetailSheet> {
       if (data is List && data.isNotEmpty) {
         Map<String, dynamic>? match;
         for (final item in data) {
-          final training = item['training'] as Map<String, dynamic>?;
-          final tDate = training?['date']?.toString();
+          final tDate = item['date']?.toString();
           if (_dateMatches(tDate, widget.matchDate)) {
             match = item as Map<String, dynamic>;
             break;
@@ -1518,22 +1514,44 @@ class _ReviewDetailSheetState extends State<_ReviewDetailSheet> {
 
   Widget _buildContent() {
     final r = _review!;
-    final training = r['training'] as Map<String, dynamic>?;
-    final type = r['training_type']?.toString();
-    final date = training?['date']?.toString();
-    final time = training?['starttime']?.toString();
-    final hr = r['heart_rate'];
+    final type = r['trainingType']?.toString();
+    final date = r['date']?.toString();
+    final hrAvg = r['hrAvg'];
+    final hrMax = r['hrMax'];
     final duration = r['duration']?.toString() ?? '--';
-    final kcal = r['kcal'];
-    final speed = r['speed'];
-    final distance = r['distance'];
+    final chart = r['chart'] as List<dynamic>? ?? [];
+
+    // Compute TRIMP from chart data
+    double? trimp;
+    if (chart.isNotEmpty && hrMax != null) {
+      final hrMaxInt = (hrMax is int) ? hrMax : int.tryParse(hrMax.toString()) ?? 0;
+      if (hrMaxInt > 0) {
+        final hrPoints = <HrPoint>[];
+        for (final p in chart) {
+          if (p is Map<String, dynamic>) {
+            final v = double.tryParse(p['v']?.toString() ?? '');
+            if (v != null && v > 0) hrPoints.add(HrPoint(time: p['t']?.toString(), value: v));
+          }
+        }
+        if (hrPoints.isNotEmpty) {
+          final review = TrainingReview(
+            id: r['id']?.toString() ?? '',
+            date: DateTime.tryParse(date ?? '') ?? DateTime.now(),
+            trainingType: type ?? '',
+            duration: duration,
+            hrMax: hrMaxInt,
+            chart: hrPoints,
+          );
+          trimp = review.edwardsTrimp;
+        }
+      }
+    }
 
     String dateLabel = '--';
     if (date != null) {
       try {
         final dt = DateTime.parse(date);
         dateLabel = DateFormat('dd.MM.yyyy').format(dt);
-        if (time != null) dateLabel += '  $time';
       } catch (_) {
         dateLabel = date;
       }
@@ -1551,6 +1569,12 @@ class _ReviewDetailSheetState extends State<_ReviewDetailSheet> {
       'interval': 'Intervall',
     };
     final typeLabel = typeLabels[type] ?? type ?? 'Training';
+
+    final trimpValue = trimp != null ? trimp.round().toString() : '--';
+    final trimpColor = trimp != null
+        ? TrainingReview.trimpColor(trimp)
+        : const Color(0xFFFFA726);
+    final trimpRating = trimp != null ? TrainingReview.trimpRating(trimp) : '';
 
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -1595,10 +1619,10 @@ class _ReviewDetailSheetState extends State<_ReviewDetailSheet> {
                 ],
               ),
             ),
-            if (hr != null) ...[
+            if (hrAvg != null) ...[
               const Icon(Icons.favorite, color: AppColors.red, size: 16),
               const SizedBox(width: 4),
-              Text('${_toNum(hr).round()} bpm',
+              Text('${_toNum(hrAvg).round()} bpm',
                   style: const TextStyle(
                       color: AppColors.red,
                       fontSize: 15,
@@ -1612,18 +1636,9 @@ class _ReviewDetailSheetState extends State<_ReviewDetailSheet> {
             _buildStatCard(
                 Icons.timer_outlined, 'Dauer', duration, AppColors.blue),
             const SizedBox(width: 10),
-            _buildStatCard(Icons.local_fire_department, 'Kcal',
-                '${kcal ?? "--"}', const Color(0xFFFFA726)),
-            if (distance != null && _toNum(distance) > 0) ...[
-              const SizedBox(width: 10),
-              _buildStatCard(Icons.straighten, 'Distanz',
-                  '${_toNum(distance).toStringAsFixed(0)} m', AppColors.green),
-            ],
-            if (speed != null && _toNum(speed) > 0) ...[
-              const SizedBox(width: 10),
-              _buildStatCard(Icons.speed, 'Speed',
-                  '${_toNum(speed).toStringAsFixed(1)} km/h', AppColors.blue),
-            ],
+            _buildStatCard(Icons.fitness_center,
+                trimpRating.isNotEmpty ? 'Load · $trimpRating' : 'Training Load',
+                trimpValue, trimpColor),
           ],
         ),
         const SizedBox(height: 20),
