@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'config/app_colors.dart';
 import 'providers/auth_provider.dart';
 import 'providers/appointment_provider.dart';
@@ -12,7 +13,9 @@ import 'providers/chat_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('de_DE', null);
   runApp(const SihlClientApp());
 }
 
