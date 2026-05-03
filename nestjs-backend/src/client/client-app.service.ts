@@ -343,7 +343,7 @@ export class ClientAppService {
     if (!training) throw new NotFoundException('Training not found');
 
     training.status = TrainingStatus.CANCELLED;
-    training.cancelledAt = new Date().toISOString();
+    training.cancelledAt = new Date().toISOString().slice(0, 10);
     training.cancelledByClientId = clientId;
     await this.trainingRepo.save(training);
     return { success: true };

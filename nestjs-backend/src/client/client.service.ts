@@ -71,6 +71,9 @@ export class ClientService {
    * Supports login by email+passcode or passcode-only (like PHP).
    */
   async loginClient(email: string, passcode: string) {
+    // Reject empty passcode — otherwise it matches clients with empty clientpasscode
+    if (!passcode) throw new UnauthorizedException('Ungültige Anmeldedaten');
+
     const where: any = { active: 1, clientpasscode: passcode };
     if (email) {
       where.email = email;
