@@ -38,6 +38,11 @@ jobs:
           flutter pub get
           flutter build web --release --base-href /client/
 
+      - name: Copy push notification files into client build
+        run: |
+          cp client-flutter/web/push-sw.js client-flutter/build/web/push-sw.js
+          cp client-flutter/web/push-notifications.js client-flutter/build/web/push-notifications.js
+
       - name: Commit built output
         run: |
           rm -rf trainer client

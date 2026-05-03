@@ -13,6 +13,7 @@ import { AvailabilityModule } from './availability/availability.module';
 import { PerformanceTestModule } from './performance-test/performance-test.module';
 import { AnamneseModule } from './anamnese/anamnese.module';
 import { ReviewModule } from './review/review.module';
+import { PushModule } from './push/push.module';
 import { StartupMigrationService } from './common/startup-migration.service';
 
 const isSqlite = process.env.DB_TYPE === 'sqlite';
@@ -53,6 +54,7 @@ const dbConfig: any = isSqlite
     PerformanceTestModule,
     AnamneseModule,
     ReviewModule,
+    PushModule,
   ],
   providers: [StartupMigrationService],
 })

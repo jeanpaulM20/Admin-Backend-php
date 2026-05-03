@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -8,6 +9,8 @@ import '../models/credit_pack.dart';
 import '../models/invoice.dart';
 import '../models/client_file.dart';
 import '../services/api_client.dart';
+import '../services/push_notification_service.dart';
+import '../services/push_notification_stub.dart' if (dart.library.html) '../services/push_notification_web.dart' as push_js;
 import '../widgets/loading_indicator.dart';
 import '../widgets/error_view.dart';
 
@@ -22,6 +25,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _polarConnected = false;
   bool _polarLoading = false;
   String? _polarConnectUrl;
+  bool _pushSupported = false;
+  bool _pushEnabled = false;
+  bool _pushLoading = false;
 
   @override
   void initState() {
@@ -34,6 +40,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (auth.clientId != null) {
       await context.read<ProfileProvider>().fetch(auth.clientId!);
       await _loadPolarStatus(auth.clientId!);
+      await _loadPushStatus();
+    }
+  }
+
+  Future<void> _loadPushStatus() async {
+    if (!kIsWeb) return;
+    try {
+      final supported = push_js.isPushSupported();
+      final permission = await push_js.getNotificationPermission();
+      final existing = await push_js.getExistingPushSubscription();
+      if (mounted) {
+        setState(() {
+          _pushSupported = supported;
+          _pushEnabled = permission == 'granted' && existing != null;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _togglePush(bool enable) async {
+    final auth = context.read<AuthProvider>();
+    final clientId = auth.clientId ?? '';
+    if (clientId.isEmpty) return;
+
+    setState(() => _pushLoading = true);
+    try {
+      if (enable) {
+        final ok = await PushNotificationService.instance.subscribe(clientId);
+        if (mounted) setState(() => _pushEnabled = ok);
+      } else {
+        await PushNotificationService.instance.unsubscribe(clientId);
+        if (mounted) setState(() => _pushEnabled = false);
+      }
+    } catch (_) {} finally {
+      if (mounted) setState(() => _pushLoading = false);
     }
   }
 
@@ -198,6 +239,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ],
                                 ),
                                 const SizedBox(height: 10),
+
+                                // Push notifications section
+                                if (_pushSupported && kIsWeb)
+                                  _SectionTile(
+                                    icon: Icons.notifications_rounded,
+                                    title: 'Benachrichtigungen',
+                                    subtitle: _pushEnabled ? 'Aktiviert' : 'Deaktiviert',
+                                    children: [
+                                      _PushNotificationCard(
+                                        enabled: _pushEnabled,
+                                        loading: _pushLoading,
+                                        onToggle: _togglePush,
+                                      ),
+                                    ],
+                                  ),
+                                if (_pushSupported && kIsWeb)
+                                  const SizedBox(height: 10),
 
                                 // Polar section
                                 Builder(builder: (ctx) {
@@ -526,6 +584,72 @@ class _PolarCard extends StatelessWidget {
           else
             const Text('Nicht konfiguriert',
                 style: TextStyle(color: AppColors.muted, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Push notification card
+class _PushNotificationCard extends StatelessWidget {
+  final bool enabled;
+  final bool loading;
+  final ValueChanged<bool> onToggle;
+
+  const _PushNotificationCard({
+    required this.enabled,
+    required this.loading,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface2,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.notifications_active_rounded,
+                color: AppColors.primary, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Push-Benachrichtigungen',
+                    style: TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
+                Text(
+                  enabled ? 'Aktiv - du erhaeltst Benachrichtigungen' : 'Deaktiviert',
+                  style: TextStyle(color: enabled ? AppColors.green : AppColors.muted, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          if (loading)
+            const SizedBox(
+                width: 20, height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary))
+          else
+            Switch(
+              value: enabled,
+              onChanged: onToggle,
+              activeColor: AppColors.primary,
+              activeTrackColor: AppColors.primary.withOpacity(0.3),
+              inactiveTrackColor: AppColors.surface,
+              inactiveThumbColor: AppColors.muted,
+            ),
         ],
       ),
     );
