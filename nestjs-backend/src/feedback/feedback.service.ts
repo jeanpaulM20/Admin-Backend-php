@@ -19,16 +19,19 @@ export class FeedbackService {
     });
 
     // Add 'align' field for Flutter chat UI:
-    // read_trainer=1 & read_client=0 → trainer sent it (right)
-    // otherwise → client sent it (left)
-    return rows.map((r) => ({
-      ...r,
-      align: r.read_trainer === 1 && r.read_client === 0 ? 'right' : 'left',
-      // Also include client_name for the Nachrichten thread list
-      client_name: r.client
-        ? `${r.client.firstname ?? ''} ${r.client.lastname ?? ''}`.trim()
-        : undefined,
-    }));
+    // trainer-sent → right, client-sent → left
+    // Prefer sender_type column, fall back to read-flag heuristic for legacy data
+    return rows.map((r) => {
+      const sender = r.sender_type ?? (r.read_trainer === 1 && r.read_client === 0 ? 'trainer' : 'client');
+      return {
+        ...r,
+        sender_type: sender,
+        align: sender === 'trainer' ? 'right' : 'left',
+        client_name: r.client
+          ? `${r.client.firstname ?? ''} ${r.client.lastname ?? ''}`.trim()
+          : undefined,
+      };
+    });
   }
 
   async findAll() {
@@ -37,13 +40,17 @@ export class FeedbackService {
       order: { id: 'DESC' },
     });
 
-    return rows.map((r) => ({
-      ...r,
-      align: r.read_trainer === 1 && r.read_client === 0 ? 'right' : 'left',
-      client_name: r.client
-        ? `${r.client.firstname ?? ''} ${r.client.lastname ?? ''}`.trim()
-        : undefined,
-    }));
+    return rows.map((r) => {
+      const sender = r.sender_type ?? (r.read_trainer === 1 && r.read_client === 0 ? 'trainer' : 'client');
+      return {
+        ...r,
+        sender_type: sender,
+        align: sender === 'trainer' ? 'right' : 'left',
+        client_name: r.client
+          ? `${r.client.firstname ?? ''} ${r.client.lastname ?? ''}`.trim()
+          : undefined,
+      };
+    });
   }
 
   create(data: Partial<Feedback>) {

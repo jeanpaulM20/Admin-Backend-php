@@ -45,8 +45,10 @@ export class ClientChatService {
         });
       }
 
-      // Count unread: trainer sent it (read_trainer=1) but client hasn't read (read_client=0)
-      if (row.read_trainer === 1 && row.read_client === 0) {
+      // Count unread: trainer-sent messages the client hasn't read yet
+      const isTrainerMsg = row.sender_type === 'trainer'
+        || (!row.sender_type && row.read_trainer === 1 && row.read_client === 0);
+      if (isTrainerMsg && row.read_client === 0) {
         trainerMap.get(tid)!.unreadCount++;
       }
     }
@@ -93,8 +95,9 @@ export class ClientChatService {
     return rows.map((row) => ({
       id: row.id,
       text: row.text ?? '',
-      // Sender logic: read_trainer=1 & read_client=0 means trainer sent it
-      sender_type: row.read_trainer === 1 && row.read_client === 0 ? 'trainer' : 'client',
+      // Prefer explicit sender_type column; fall back to read-flag heuristic for legacy data
+      sender_type: row.sender_type
+        ?? (row.read_trainer === 1 && row.read_client === 0 ? 'trainer' : 'client'),
       created_at: row.created_at ?? null,
       read_client: row.read_client,
       read_trainer: row.read_trainer,
@@ -109,6 +112,7 @@ export class ClientChatService {
       client_id: clientId,
       trainer_id: trainerId,
       text,
+      sender_type: 'client',
       read_client: 1,   // Client has seen their own message
       read_trainer: 0,   // Trainer hasn't read it yet
       is_circle: 0,

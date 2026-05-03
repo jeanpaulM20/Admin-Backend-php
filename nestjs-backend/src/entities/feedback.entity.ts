@@ -29,6 +29,9 @@ export class Feedback {
   @Column({ default: 0 })
   is_circle: number;
 
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  sender_type: string;
+
   @Column({ type: 'datetime', nullable: true, default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
 

@@ -30,12 +30,17 @@ export class FeedbackController {
   @Post()
   async create(@Body() body: any) {
     try {
+      const readTrainer = body.read_trainer ?? body.readTrainer ?? 0;
+      const readClient = body.read_client ?? body.readClient ?? 0;
+      // Determine sender: trainer-sent = read_trainer=1 & read_client=0
+      const senderType = (readTrainer === 1 && readClient === 0) ? 'trainer' : 'client';
       const data: Partial<Feedback> = {
         client_id: body.client_id ?? body.clientId,
         trainer_id: body.trainer_id ?? body.trainerId,
         text: body.text ?? body.message,
-        read_trainer: body.read_trainer ?? body.readTrainer ?? 0,
-        read_client: body.read_client ?? body.readClient ?? 0,
+        sender_type: body.sender_type ?? senderType,
+        read_trainer: readTrainer,
+        read_client: readClient,
         is_circle: body.is_circle ?? body.isCircle ?? 0,
       };
       const saved = await this.service.create(data);
