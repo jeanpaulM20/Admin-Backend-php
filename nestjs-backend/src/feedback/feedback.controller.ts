@@ -1,10 +1,14 @@
 import { Controller, Get, Post, Delete, Param, Body, Query, ParseIntPipe, HttpException, HttpStatus } from '@nestjs/common';
 import { FeedbackService } from './feedback.service';
+import { PushService } from '../push/push.service';
 import { Feedback } from '../entities/feedback.entity';
 
 @Controller('api/feedback')
 export class FeedbackController {
-  constructor(private readonly service: FeedbackService) {}
+  constructor(
+    private readonly service: FeedbackService,
+    private readonly pushService: PushService,
+  ) {}
 
   /**
    * GET /api/feedback?client_id=123  — messages for one client (chat view)
@@ -34,7 +38,18 @@ export class FeedbackController {
         read_client: body.read_client ?? body.readClient ?? 0,
         is_circle: body.is_circle ?? body.isCircle ?? 0,
       };
-      return await this.service.create(data);
+      const saved = await this.service.create(data);
+
+      // If trainer sent message to client → push notification
+      if (saved.read_trainer === 1 && saved.read_client === 0 && saved.client_id) {
+        this.pushService.sendToClient(saved.client_id, {
+          title: 'Neue Nachricht',
+          body: (saved.text ?? '').substring(0, 120),
+          url: '/client/',
+        }).catch(() => {}); // fire-and-forget
+      }
+
+      return saved;
     } catch (err) {
       throw new HttpException(
         { message: err.message, detail: err.sqlMessage ?? null },

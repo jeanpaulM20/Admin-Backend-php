@@ -20,6 +20,25 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       `ALTER TABLE feedback ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP`,
     ];
 
+    // Create push_subscription table if it doesn't exist
+    const createTableSql = `
+      CREATE TABLE IF NOT EXISTS push_subscription (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        client_id INT NOT NULL,
+        endpoint TEXT NOT NULL,
+        p256dh TEXT NOT NULL,
+        auth TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_push_client (client_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `;
+    try {
+      await this.dataSource.query(createTableSql);
+      this.logger.log('push_subscription table ready');
+    } catch (err: any) {
+      this.logger.warn(`push_subscription table creation: ${err.message}`);
+    }
+
     for (const sql of migrations) {
       try {
         await this.dataSource.query(sql);

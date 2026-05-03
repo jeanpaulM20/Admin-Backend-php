@@ -9,6 +9,7 @@ import '../providers/credits_provider.dart';
 import '../providers/invoice_provider.dart';
 import '../providers/performance_provider.dart';
 import '../providers/chat_provider.dart';
+import '../services/push_notification_service.dart';
 import 'start_screen.dart';
 import 'calendar_screen.dart';
 import 'chat_screen.dart';
@@ -74,11 +75,24 @@ class _MainScreenState extends State<MainScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_mockLoaded) {
-      final token = context.read<AuthProvider>().token;
+      final auth = context.read<AuthProvider>();
+      final token = auth.token;
       if (token == 'demo-token-preview') {
         _mockLoaded = true;
         _loadMockData();
+      } else if (auth.clientId != null) {
+        _mockLoaded = true;
+        _initPushNotifications(auth.clientId!);
       }
+    }
+  }
+
+  Future<void> _initPushNotifications(String clientId) async {
+    try {
+      await PushNotificationService.instance.init(clientId);
+      await PushNotificationService.instance.subscribe(clientId);
+    } catch (e) {
+      debugPrint('Push init failed: $e');
     }
   }
 
