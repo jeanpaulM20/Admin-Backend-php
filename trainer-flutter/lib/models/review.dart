@@ -153,10 +153,9 @@ class Review {
     if (valid.isEmpty) return null;
 
     // Determine interval per data point (in minutes)
-    double intervalMin;
+    double intervalMin = 0;
 
     // Try timestamps first
-    bool hasTimestamps = false;
     if (valid.length >= 2 &&
         valid.first.timestamp != null &&
         valid.last.timestamp != null) {
@@ -166,13 +165,12 @@ class Review {
         final totalSec = dt2.difference(dt1).inSeconds;
         if (totalSec > 0) {
           intervalMin = (totalSec / (valid.length - 1)) / 60.0;
-          hasTimestamps = true;
         }
       } catch (_) {}
     }
 
     // Fallback: use duration string or estimate from data point count
-    if (!hasTimestamps) {
+    if (intervalMin <= 0) {
       double totalMinutes = 0;
       if (durationStr != null && durationStr.isNotEmpty) {
         final parts = durationStr.split(':');
