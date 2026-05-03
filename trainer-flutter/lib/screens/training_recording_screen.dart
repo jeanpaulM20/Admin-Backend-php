@@ -168,9 +168,6 @@ class _TrainingRecordingScreenState extends State<TrainingRecordingScreen> {
         ? (avgHr.fold<double>(0, (s, r) => s + r.heartRate!) / avgHr.length)
             .round()
         : 0;
-    final totalKcal =
-        _reviews.fold<int>(0, (s, r) => s + (r.kcal ?? 0));
-
     return Row(
       children: [
         Expanded(
@@ -193,9 +190,9 @@ class _TrainingRecordingScreenState extends State<TrainingRecordingScreen> {
         const SizedBox(width: 10),
         Expanded(
           child: _MiniStat(
-            icon: Icons.local_fire_department,
-            label: 'Gesamt kcal',
-            value: totalKcal > 0 ? totalKcal.toString() : '–',
+            icon: Icons.trending_up,
+            label: 'Training Load',
+            value: '–',
             color: const Color(0xFFFFA726),
           ),
         ),
@@ -400,7 +397,20 @@ class _ReviewCardState extends State<_ReviewCard> {
                     icon: Icons.timer_outlined,
                     text: r.durationLabel,
                     color: AppColors.blue),
-                if (r.kcal != null && r.kcal! > 0) ...[
+                if (_timeseries != null && _timeseries!.isNotEmpty) ...[
+                  Builder(builder: (_) {
+                    final trimp = Review.edwardsTrimp(
+                        _timeseries!, widget.client.maxHeartRate ?? 220);
+                    if (trimp == null) return const SizedBox.shrink();
+                    return Row(children: [
+                      const SizedBox(width: 10),
+                      _StatChip(
+                          icon: Icons.fitness_center,
+                          text: 'Load ${trimp.round()}',
+                          color: const Color(0xFFFFA726)),
+                    ]);
+                  }),
+                ] else if (r.kcal != null && r.kcal! > 0) ...[
                   const SizedBox(width: 10),
                   _StatChip(
                       icon: Icons.local_fire_department,

@@ -1,3 +1,5 @@
+import 'dart:math' show exp;
+
 /// A single training recording (workout result) with heart rate data.
 class Review {
   final int id;
@@ -132,6 +134,116 @@ class Review {
     if (v is double) return v;
     if (v is int) return v.toDouble();
     return double.tryParse(v.toString());
+  }
+
+  /// Edwards' TRIMP — time-in-zone × zone factor.
+  /// Requires timeseries data and client's maxHeartRate.
+  static double? edwardsTrimp(List<HeartRatePoint> ts, int hrMax) {
+    if (ts.length < 2 || hrMax <= 0) return null;
+
+    // Sort by timestamp to compute intervals
+    final sorted = List<HeartRatePoint>.from(ts)
+      ..sort((a, b) => (a.sort).compareTo(b.sort));
+
+    double trimp = 0;
+    for (int i = 0; i < sorted.length - 1; i++) {
+      final hr = sorted[i].value;
+      if (hr == null || hr <= 0) continue;
+
+      // Interval in minutes between consecutive data points
+      double intervalMin;
+      final t1 = sorted[i].timestamp;
+      final t2 = sorted[i + 1].timestamp;
+      if (t1 != null && t2 != null) {
+        try {
+          final dt1 = DateTime.parse(t1);
+          final dt2 = DateTime.parse(t2);
+          intervalMin = dt2.difference(dt1).inSeconds / 60.0;
+          if (intervalMin <= 0 || intervalMin > 10) continue; // skip bad gaps
+        } catch (_) {
+          continue;
+        }
+      } else {
+        continue;
+      }
+
+      // Determine HR zone (percentage of HRmax)
+      final pct = hr / hrMax;
+      int factor;
+      if (pct >= 0.9) {
+        factor = 5; // Zone 5: 90-100%
+      } else if (pct >= 0.8) {
+        factor = 4; // Zone 4: 80-90%
+      } else if (pct >= 0.7) {
+        factor = 3; // Zone 3: 70-80%
+      } else if (pct >= 0.6) {
+        factor = 2; // Zone 2: 60-70%
+      } else if (pct >= 0.5) {
+        factor = 1; // Zone 1: 50-60%
+      } else {
+        factor = 0; // Below Zone 1
+      }
+
+      trimp += intervalMin * factor;
+    }
+    return trimp > 0 ? trimp : null;
+  }
+
+  /// Banister's TRIMP — exponential HR reserve model.
+  /// More scientifically accurate than Edwards.
+  /// gender: 'm' for male, 'f' for female.
+  static double? banisterTrimp(
+    List<HeartRatePoint> ts, int hrMax, int hrRest, String gender,
+  ) {
+    if (ts.length < 2 || hrMax <= hrRest || hrMax <= 0) return null;
+
+    final sorted = List<HeartRatePoint>.from(ts)
+      ..sort((a, b) => (a.sort).compareTo(b.sort));
+
+    // Calculate total duration in minutes and average HR
+    double totalMinutes = 0;
+    double hrSum = 0;
+    int hrCount = 0;
+
+    for (int i = 0; i < sorted.length - 1; i++) {
+      final hr = sorted[i].value;
+      if (hr == null || hr <= 0) continue;
+
+      final t1 = sorted[i].timestamp;
+      final t2 = sorted[i + 1].timestamp;
+      if (t1 == null || t2 == null) continue;
+
+      try {
+        final dt1 = DateTime.parse(t1);
+        final dt2 = DateTime.parse(t2);
+        final intervalMin = dt2.difference(dt1).inSeconds / 60.0;
+        if (intervalMin <= 0 || intervalMin > 10) continue;
+        totalMinutes += intervalMin;
+        hrSum += hr * intervalMin;
+        hrCount++;
+      } catch (_) {
+        continue;
+      }
+    }
+
+    if (totalMinutes <= 0 || hrCount == 0) return null;
+
+    final avgHr = hrSum / totalMinutes;
+    final hrR = (avgHr - hrRest) / (hrMax - hrRest);
+    if (hrR <= 0 || hrR > 1) return null;
+
+    // Gender-specific coefficients
+    final double a, b;
+    if (gender == 'f') {
+      a = 0.86;
+      b = 1.67;
+    } else {
+      a = 0.64;
+      b = 1.92;
+    }
+
+    // TRIMP = T × HRr × a × e^(b × HRr)
+    return totalMinutes * hrR * a * exp(b * hrR);
   }
 }
 

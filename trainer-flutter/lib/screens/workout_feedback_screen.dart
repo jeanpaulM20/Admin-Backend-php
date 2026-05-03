@@ -269,21 +269,19 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
         },
         subtitleBuilder: (item) {
           final duration = item['duration'] ?? '--';
-          final kcal = item['kcal'] ?? '--';
           final hr = item['heart_rate'];
-          return 'Dauer: $duration | Kcal: $kcal | HR: ${hr ?? "--"} bpm';
+          return 'Dauer: $duration | HR: ${hr ?? "--"} bpm';
         },
         iconBuilder: (_) => Icons.monitor_heart,
         colorBuilder: (_) => AppColors.red,
         onSelect: (item) {
           final type = _trainingTypeLabel(item['training_type']?.toString());
           final duration = item['duration'] ?? '--';
-          final kcal = item['kcal'] ?? '--';
           final hr = item['heart_rate'];
           final training = item['training'] as Map<String, dynamic>?;
           final date = _fmtDate(training?['date']?.toString());
           _textCtrl.text =
-              '[Aufzeichnung] $type ($date)\nDauer: $duration | Kcal: $kcal | HR: ${hr ?? "--"} bpm';
+              '[Aufzeichnung] $type ($date)\nDauer: $duration | HR: ${hr ?? "--"} bpm';
         },
       );
     } catch (e) {
@@ -1456,9 +1454,12 @@ class _ReviewDetailSheetState extends State<_ReviewDetailSheet> {
     final time = training?['starttime']?.toString();
     final hr = r['heart_rate'];
     final duration = r['duration']?.toString() ?? '--';
-    final kcal = r['kcal'];
     final speed = r['speed'];
     final distance = r['distance'];
+
+    // Calculate Training Load (Edwards TRIMP)
+    final clientHrMax = widget.client.maxHeartRate ?? 220;
+    final trimp = Review.edwardsTrimp(_timeseries, clientHrMax);
     final feedbackClient = r['feedback_client']?.toString();
     final feedbackTrainer = r['feedback_trainer']?.toString();
     final intensity = r['type']?.toString();
@@ -1550,8 +1551,8 @@ class _ReviewDetailSheetState extends State<_ReviewDetailSheet> {
             _buildStatCard(Icons.timer_outlined, 'Dauer', duration,
                 AppColors.blue),
             const SizedBox(width: 10),
-            _buildStatCard(Icons.local_fire_department, 'Kcal',
-                '${kcal ?? "--"}', const Color(0xFFFFA726)),
+            _buildStatCard(Icons.fitness_center, 'Load',
+                trimp != null ? '${trimp.round()}' : '--', const Color(0xFFFFA726)),
             if (distance != null && _toNum(distance) > 0) ...[
               const SizedBox(width: 10),
               _buildStatCard(Icons.straighten, 'Distanz',
