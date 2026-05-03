@@ -6,7 +6,6 @@ import '../providers/auth_provider.dart';
 import '../providers/appointment_provider.dart';
 import '../providers/profile_provider.dart';
 import '../providers/credits_provider.dart';
-import '../providers/invoice_provider.dart';
 import '../providers/performance_provider.dart';
 import '../providers/chat_provider.dart';
 import '../services/push_notification_service.dart';
@@ -16,7 +15,6 @@ import 'chat_screen.dart';
 import 'profile_screen.dart';
 import 'credits_screen.dart';
 import 'performance_screen.dart';
-import 'invoices_screen.dart';
 import 'login_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -34,20 +32,18 @@ class _MainScreenState extends State<MainScreen> {
     _NavItem(icon: Icons.home_rounded, label: 'Start'),
     _NavItem(icon: Icons.calendar_month_rounded, label: 'Kalender'),
     _NavItem(icon: Icons.chat_bubble_outline_rounded, label: 'Chat'),
-    _NavItem(icon: Icons.person_rounded, label: 'Profil'),
     _NavItem(icon: Icons.credit_card_rounded, label: 'Credits'),
-    _NavItem(icon: Icons.show_chart_rounded, label: 'Leistung'),
-    _NavItem(icon: Icons.receipt_long_rounded, label: 'Rechnungen'),
+    _NavItem(icon: Icons.show_chart_rounded, label: 'Analytics'),
+    _NavItem(icon: Icons.person_rounded, label: 'Profil'),
   ];
 
   final List<Widget> _screens = const [
     StartScreen(),
     CalendarScreen(),
     ChatScreen(),
-    ProfileScreen(),
     CreditsScreen(),
     PerformanceScreen(),
-    InvoicesScreen(),
+    ProfileScreen(),
   ];
 
   String get _currentTitle {
@@ -59,13 +55,11 @@ class _MainScreenState extends State<MainScreen> {
       case 2:
         return 'Chat';
       case 3:
-        return 'Profil';
-      case 4:
         return 'Credits';
+      case 4:
+        return 'Analytics';
       case 5:
-        return 'Leistungsdaten';
-      case 6:
-        return 'Rechnungen';
+        return 'Profil';
       default:
         return 'Sihl Training';
     }
@@ -100,7 +94,6 @@ class _MainScreenState extends State<MainScreen> {
     context.read<AppointmentProvider>().loadMockData();
     context.read<ProfileProvider>().loadMockData();
     context.read<CreditsProvider>().loadMockData();
-    context.read<InvoiceProvider>().loadMockData();
     context.read<PerformanceProvider>().loadMockData();
     context.read<ChatProvider>().loadMockData();
   }

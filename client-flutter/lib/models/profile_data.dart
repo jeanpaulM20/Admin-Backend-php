@@ -21,9 +21,9 @@ class ProfileData {
     this.creditPacks = const [],
   });
 
-  String get fullName => '$firstName $lastName';
+  String get fullName => '$lastName $firstName';
   String get initials =>
-      '${firstName.isNotEmpty ? firstName[0] : ''}${lastName.isNotEmpty ? lastName[0] : ''}'
+      '${lastName.isNotEmpty ? lastName[0] : ''}${firstName.isNotEmpty ? firstName[0] : ''}'
           .toUpperCase();
 
   factory ProfileData.fromJson(Map<String, dynamic> json) {

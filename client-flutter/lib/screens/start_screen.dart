@@ -33,7 +33,14 @@ class _StartScreenState extends State<StartScreen> {
   Widget build(BuildContext context) {
     final appt = context.watch<AppointmentProvider>();
     final auth = context.watch<AuthProvider>();
-    final firstName = appt.startData?.firstName ?? '';
+    final lastName = appt.startData?.lastName ?? '';
+    final appointments = appt.startData?.appointments ?? [];
+
+    // Find the next appointment
+    final now = DateTime.now();
+    final upcoming = appointments.where((a) => a.startDate.isAfter(now)).toList()
+      ..sort((a, b) => a.startDate.compareTo(b.startDate));
+    final nextAppt = upcoming.isNotEmpty ? upcoming.first : null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -56,73 +63,92 @@ class _StartScreenState extends State<StartScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 // Greeting
-                                Text(
-                                  firstName.isNotEmpty
-                                      ? 'Hallo, $firstName!'
-                                      : 'Willkommen!',
-                                  style: const TextStyle(
-                                    color: AppColors.text,
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w800,
+                                const Text(
+                                  'Guten Tag,',
+                                  style: TextStyle(
+                                    color: AppColors.muted,
+                                    fontSize: 16,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  DateFormat('EEEE, d. MMMM yyyy', 'de_DE')
-                                      .format(DateTime.now()),
+                                  lastName.isNotEmpty
+                                      ? '$lastName!'
+                                      : 'Willkommen!',
                                   style: const TextStyle(
-                                    color: AppColors.muted,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-
-                                // Credits summary
-                                if (appt.startData != null)
-                                  _CreditsSummaryCard(
-                                    credits: appt.startData!.totalCredits,
-                                  ),
-                                const SizedBox(height: 24),
-
-                                // Upcoming appointments
-                                const Text(
-                                  'Naechste Termine',
-                                  style: TextStyle(
                                     color: AppColors.text,
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w700,
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.w800,
                                   ),
                                 ),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 24),
 
-                                if (appt.startData?.appointments.isEmpty ??
-                                    true)
-                                  Container(
-                                    padding: const EdgeInsets.all(24),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.surface,
-                                      borderRadius: BorderRadius.circular(14),
-                                      border:
-                                          Border.all(color: AppColors.border),
-                                    ),
-                                    child: const Center(
-                                      child: Text(
-                                        'Keine anstehenden Termine',
-                                        style: TextStyle(
-                                          color: AppColors.muted,
-                                          fontSize: 14,
-                                        ),
+                                // Two summary cards side by side
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 3,
+                                      child: _SummaryCard(
+                                        icon: Icons.calendar_today_outlined,
+                                        value: nextAppt != null
+                                            ? DateFormat('dd.MM.yyyy').format(nextAppt.startDate)
+                                            : '–',
+                                        label: 'Nächster Termin',
                                       ),
                                     ),
-                                  )
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      flex: 2,
+                                      child: _SummaryCard(
+                                        icon: Icons.check_box_outlined,
+                                        value: '${appointments.length}',
+                                        label: 'Termine gesamt',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 28),
+
+                                // Section header with green accent
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 3,
+                                      height: 20,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary,
+                                        borderRadius: BorderRadius.circular(2),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    const Text(
+                                      'Nächste Termine',
+                                      style: TextStyle(
+                                        color: AppColors.text,
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      '${upcoming.length}',
+                                      style: const TextStyle(
+                                        color: AppColors.muted,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+
+                                if (upcoming.isEmpty)
+                                  _EmptyState()
                                 else
-                                  ...appt.startData!.appointments
-                                      .map((a) => Padding(
-                                            padding: const EdgeInsets.only(
-                                                bottom: 10),
-                                            child: _AppointmentCard(
-                                                appointment: a),
-                                          )),
+                                  ...upcoming.map((a) => Padding(
+                                        padding: const EdgeInsets.only(bottom: 10),
+                                        child: _AppointmentCard(appointment: a),
+                                      )),
                               ],
                             ),
                           ),
@@ -135,50 +161,90 @@ class _StartScreenState extends State<StartScreen> {
   }
 }
 
-class _CreditsSummaryCard extends StatelessWidget {
-  final int credits;
-  const _CreditsSummaryCard({required this.credits});
+class _SummaryCard extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+
+  const _SummaryCard({
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.primary,
-            AppColors.primary.withOpacity(0.7),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.credit_score_rounded,
-              color: AppColors.white, size: 36),
-          const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Verfuegbare Credits',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '$credits',
-                style: const TextStyle(
-                  color: AppColors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
+          Icon(icon, color: AppColors.muted, size: 24),
+          const SizedBox(height: 12),
+          Text(
+            value,
+            style: const TextStyle(
+              color: AppColors.text,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.muted,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        children: [
+          const SizedBox(height: 40),
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: AppColors.surface2,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.event_busy_rounded,
+              color: AppColors.muted,
+              size: 36,
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Keine bevorstehenden Termine',
+            style: TextStyle(
+              color: AppColors.text,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Buche einen Termin im Kalender, um loszulegen.',
+            style: TextStyle(
+              color: AppColors.muted,
+              fontSize: 14,
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),

@@ -12,6 +12,8 @@
   });
 
   int get remainingCredits => prepaidCredits - spentCredits;
+  bool get isExpired =>
+      expiryDate != null && expiryDate!.isBefore(DateTime.now());
 
   factory CreditPack.fromJson(Map<String, dynamic> json) {
     DateTime? parseDate(dynamic val) {

@@ -199,12 +199,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   icon: Icons.credit_score_rounded,
                                   title: 'Meine Credits',
                                   subtitle: _creditsSubtitle(profile.data?.creditPacks),
+                                  initiallyExpanded: true,
                                   children: [
-                                    if (profile.data?.creditPacks.isEmpty ?? true)
-                                      _emptyHint('Keine Credit-Pakete vorhanden')
+                                    if (_activePacks(profile.data?.creditPacks).isEmpty)
+                                      _emptyHint('Keine aktiven Credit-Pakete')
                                     else
-                                      ...profile.data!.creditPacks
+                                      ..._activePacks(profile.data?.creditPacks)
                                           .map((pack) => _CreditPackCard(pack: pack)),
+                                    if (_expiredPacks(profile.data?.creditPacks).isNotEmpty) ...[
+                                      const SizedBox(height: 8),
+                                      _SectionTile(
+                                        icon: Icons.archive_rounded,
+                                        title: 'Archiv',
+                                        subtitle: '${_expiredPacks(profile.data?.creditPacks).length} abgelaufene Pakete',
+                                        children: [
+                                          ..._expiredPacks(profile.data?.creditPacks)
+                                              .map((pack) => _CreditPackCard(pack: pack)),
+                                        ],
+                                      ),
+                                    ],
                                   ],
                                 ),
                                 const SizedBox(height: 10),
@@ -286,9 +299,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  List<CreditPack> _activePacks(List<CreditPack>? packs) {
+    if (packs == null) return [];
+    return packs.where((p) => !p.isExpired).toList();
+  }
+
+  List<CreditPack> _expiredPacks(List<CreditPack>? packs) {
+    if (packs == null) return [];
+    return packs.where((p) => p.isExpired).toList();
+  }
+
   String _creditsSubtitle(List<CreditPack>? packs) {
     if (packs == null || packs.isEmpty) return 'Keine Credits';
-    return _countLabel(packs.length, 'Paket', 'Pakete');
+    final active = _activePacks(packs);
+    if (active.isEmpty) return 'Keine aktiven Credits';
+    return _countLabel(active.length, 'aktives Paket', 'aktive Pakete');
   }
 
   String _countLabel(int n, String s, String p) =>
@@ -311,12 +336,14 @@ class _SectionTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final List<Widget> children;
+  final bool initiallyExpanded;
 
   const _SectionTile({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.children,
+    this.initiallyExpanded = false,
   });
 
   @override
@@ -330,6 +357,7 @@ class _SectionTile extends StatelessWidget {
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
+          initiallyExpanded: initiallyExpanded,
           leading: Icon(icon, color: AppColors.primary, size: 22),
           title: Text(title,
               style: const TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
