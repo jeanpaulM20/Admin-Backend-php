@@ -1551,8 +1551,7 @@ class _ReviewDetailSheetState extends State<_ReviewDetailSheet> {
             _buildStatCard(Icons.timer_outlined, 'Dauer', duration,
                 AppColors.blue),
             const SizedBox(width: 10),
-            _buildStatCard(Icons.fitness_center, 'Load',
-                trimp != null ? '${trimp.round()}' : '--', const Color(0xFFFFA726)),
+            _buildTrimpCard(trimp),
             if (distance != null && _toNum(distance) > 0) ...[
               const SizedBox(width: 10),
               _buildStatCard(Icons.straighten, 'Distanz',
@@ -1605,6 +1604,42 @@ class _ReviewDetailSheetState extends State<_ReviewDetailSheet> {
                     fontWeight: FontWeight.w600)),
             Text(label,
                 style: const TextStyle(color: AppColors.muted, fontSize: 11)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTrimpCard(double? trimp) {
+    final value = trimp != null ? '${trimp.round()}' : '--';
+    final rating = trimp != null ? Review.trimpRating(trimp) : '';
+    final c = trimp != null
+        ? Color(Review.trimpColorValue(trimp))
+        : const Color(0xFFFFA726);
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Icon(Icons.fitness_center, color: c, size: 18),
+            const SizedBox(height: 6),
+            Text(value,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600)),
+            const Text('Load',
+                style: TextStyle(color: AppColors.muted, fontSize: 11)),
+            if (rating.isNotEmpty) ...[
+              const SizedBox(height: 3),
+              Text(rating,
+                  style: TextStyle(
+                      color: c, fontSize: 10, fontWeight: FontWeight.w600)),
+            ],
           ],
         ),
       ),

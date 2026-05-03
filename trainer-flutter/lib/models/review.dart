@@ -213,6 +213,26 @@ class Review {
     return trimp > 0 ? trimp : null;
   }
 
+  /// Training Load rating text based on Edwards TRIMP value.
+  static String trimpRating(double trimp) {
+    if (trimp < 50) return 'Leicht';
+    if (trimp < 100) return 'Moderat';
+    if (trimp < 150) return 'Mittel';
+    if (trimp < 200) return 'Hart';
+    if (trimp < 300) return 'Sehr Hart';
+    return 'Extrem';
+  }
+
+  /// Color for TRIMP rating
+  static int trimpColorValue(double trimp) {
+    if (trimp < 50) return 0xFF4CAF50;   // green
+    if (trimp < 100) return 0xFF8BC34A;  // light green
+    if (trimp < 150) return 0xFFFFC107;  // amber
+    if (trimp < 200) return 0xFFFF9800;  // orange
+    if (trimp < 300) return 0xFFFF5722;  // deep orange
+    return 0xFFF44336;                    // red
+  }
+
   /// Banister's TRIMP — exponential HR reserve model.
   /// More scientifically accurate than Edwards.
   /// gender: 'm' for male, 'f' for female.
