@@ -44,7 +44,7 @@ const dbConfig: any = isSqlite
   imports: [
     TypeOrmModule.forRoot(dbConfig),
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', '..', 'client'),
+      rootPath: join(__dirname, 'client'),
       serveRoot: '/client',
       serveStaticOptions: { index: ['index.html'] },
     }),
