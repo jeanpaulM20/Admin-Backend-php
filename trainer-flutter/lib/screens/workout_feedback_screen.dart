@@ -1457,9 +1457,9 @@ class _ReviewDetailSheetState extends State<_ReviewDetailSheet> {
     final speed = r['speed'];
     final distance = r['distance'];
 
-    // Calculate Training Load (Edwards TRIMP)
+    // Calculate Training Load (Edwards TRIMP) — pass duration for timestamp-less data
     final clientHrMax = widget.client.maxHeartRate ?? 220;
-    final trimp = Review.edwardsTrimp(_timeseries, clientHrMax);
+    final trimp = Review.edwardsTrimp(_timeseries, clientHrMax, duration);
     final feedbackClient = r['feedback_client']?.toString();
     final feedbackTrainer = r['feedback_trainer']?.toString();
     final intensity = r['type']?.toString();

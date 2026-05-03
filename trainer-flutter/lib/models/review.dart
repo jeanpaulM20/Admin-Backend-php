@@ -138,37 +138,63 @@ class Review {
 
   /// Edwards' TRIMP — time-in-zone × zone factor.
   /// Requires timeseries data and client's maxHeartRate.
-  static double? edwardsTrimp(List<HeartRatePoint> ts, int hrMax) {
-    if (ts.length < 2 || hrMax <= 0) return null;
+  /// Optionally pass the review duration string (e.g. "00:57:41") to
+  /// distribute time evenly across data points when timestamps are null.
+  static double? edwardsTrimp(List<HeartRatePoint> ts, int hrMax,
+      [String? durationStr]) {
+    if (ts.isEmpty || hrMax <= 0) return null;
 
-    // Sort by timestamp to compute intervals
+    // Sort by sort index
     final sorted = List<HeartRatePoint>.from(ts)
       ..sort((a, b) => (a.sort).compareTo(b.sort));
 
-    double trimp = 0;
-    for (int i = 0; i < sorted.length - 1; i++) {
-      final hr = sorted[i].value;
-      if (hr == null || hr <= 0) continue;
+    // Filter valid HR points
+    final valid = sorted.where((p) => p.value != null && p.value! > 0).toList();
+    if (valid.isEmpty) return null;
 
-      // Interval in minutes between consecutive data points
-      double intervalMin;
-      final t1 = sorted[i].timestamp;
-      final t2 = sorted[i + 1].timestamp;
-      if (t1 != null && t2 != null) {
-        try {
-          final dt1 = DateTime.parse(t1);
-          final dt2 = DateTime.parse(t2);
-          intervalMin = dt2.difference(dt1).inSeconds / 60.0;
-          if (intervalMin <= 0 || intervalMin > 10) continue; // skip bad gaps
-        } catch (_) {
-          continue;
+    // Determine interval per data point (in minutes)
+    double intervalMin;
+
+    // Try timestamps first
+    bool hasTimestamps = false;
+    if (valid.length >= 2 &&
+        valid.first.timestamp != null &&
+        valid.last.timestamp != null) {
+      try {
+        final dt1 = DateTime.parse(valid.first.timestamp!);
+        final dt2 = DateTime.parse(valid.last.timestamp!);
+        final totalSec = dt2.difference(dt1).inSeconds;
+        if (totalSec > 0) {
+          intervalMin = (totalSec / (valid.length - 1)) / 60.0;
+          hasTimestamps = true;
         }
-      } else {
-        continue;
-      }
+      } catch (_) {}
+    }
 
-      // Determine HR zone (percentage of HRmax)
-      final pct = hr / hrMax;
+    // Fallback: use duration string or estimate from data point count
+    if (!hasTimestamps) {
+      double totalMinutes = 0;
+      if (durationStr != null && durationStr.isNotEmpty) {
+        final parts = durationStr.split(':');
+        if (parts.length >= 2) {
+          final h = int.tryParse(parts[0]) ?? 0;
+          final m = int.tryParse(parts[1]) ?? 0;
+          final s = parts.length >= 3 ? (int.tryParse(parts[2]) ?? 0) : 0;
+          totalMinutes = h * 60.0 + m + s / 60.0;
+        }
+      }
+      if (totalMinutes <= 0) {
+        // Estimate: assume ~1 data point per second (common for HR monitors)
+        totalMinutes = valid.length / 60.0;
+      }
+      intervalMin = totalMinutes / valid.length;
+    }
+
+    if (intervalMin <= 0) return null;
+
+    double trimp = 0;
+    for (final p in valid) {
+      final pct = p.value! / hrMax;
       int factor;
       if (pct >= 0.9) {
         factor = 5; // Zone 5: 90-100%
@@ -194,41 +220,29 @@ class Review {
   /// gender: 'm' for male, 'f' for female.
   static double? banisterTrimp(
     List<HeartRatePoint> ts, int hrMax, int hrRest, String gender,
+    [String? durationStr]
   ) {
-    if (ts.length < 2 || hrMax <= hrRest || hrMax <= 0) return null;
+    if (ts.isEmpty || hrMax <= hrRest || hrMax <= 0) return null;
 
-    final sorted = List<HeartRatePoint>.from(ts)
-      ..sort((a, b) => (a.sort).compareTo(b.sort));
+    final valid = ts.where((p) => p.value != null && p.value! > 0).toList();
+    if (valid.isEmpty) return null;
 
-    // Calculate total duration in minutes and average HR
+    // Calculate weighted average HR
+    final avgHr = valid.fold<double>(0, (s, p) => s + p.value!) / valid.length;
+
+    // Determine total duration in minutes
     double totalMinutes = 0;
-    double hrSum = 0;
-    int hrCount = 0;
-
-    for (int i = 0; i < sorted.length - 1; i++) {
-      final hr = sorted[i].value;
-      if (hr == null || hr <= 0) continue;
-
-      final t1 = sorted[i].timestamp;
-      final t2 = sorted[i + 1].timestamp;
-      if (t1 == null || t2 == null) continue;
-
-      try {
-        final dt1 = DateTime.parse(t1);
-        final dt2 = DateTime.parse(t2);
-        final intervalMin = dt2.difference(dt1).inSeconds / 60.0;
-        if (intervalMin <= 0 || intervalMin > 10) continue;
-        totalMinutes += intervalMin;
-        hrSum += hr * intervalMin;
-        hrCount++;
-      } catch (_) {
-        continue;
+    if (durationStr != null && durationStr.isNotEmpty) {
+      final parts = durationStr.split(':');
+      if (parts.length >= 2) {
+        final h = int.tryParse(parts[0]) ?? 0;
+        final m = int.tryParse(parts[1]) ?? 0;
+        final s = parts.length >= 3 ? (int.tryParse(parts[2]) ?? 0) : 0;
+        totalMinutes = h * 60.0 + m + s / 60.0;
       }
     }
+    if (totalMinutes <= 0) totalMinutes = valid.length / 60.0;
 
-    if (totalMinutes <= 0 || hrCount == 0) return null;
-
-    final avgHr = hrSum / totalMinutes;
     final hrR = (avgHr - hrRest) / (hrMax - hrRest);
     if (hrR <= 0 || hrR > 1) return null;
 
