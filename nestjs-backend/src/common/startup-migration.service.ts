@@ -1,5 +1,6 @@
 import { Injectable, OnApplicationBootstrap, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import * as mysql2 from 'mysql2/promise';
 
 /**
  * Runs safe ALTER TABLE statements on startup to add missing columns.
@@ -51,6 +52,84 @@ export class StartupMigrationService implements OnApplicationBootstrap {
         } else {
           this.logger.warn(`Migration failed: ${err.message}`);
         }
+      }
+    }
+
+    // Copy missing file records from old PHP database
+    await this.copyMissingFiles();
+  }
+
+  /**
+   * Copies file records that are in the old PHP DB but missing in Railway.
+   * Only runs when the old DB is reachable (i.e. inside Railway network).
+   */
+  private async copyMissingFiles() {
+    let oldConn: mysql2.Connection | null = null;
+    try {
+      oldConn = await mysql2.createConnection({
+        host: 'sihltrai.mysql.db.internal',
+        user: 'sihltrai_admin',
+        password: 'sihltrai_admin',
+        database: 'sihltrai_admin',
+        connectTimeout: 5000,
+      });
+
+      // Find IDs that exist in old DB but not in Railway
+      const [oldRows]: any = await oldConn.execute(
+        'SELECT id, name, date, file, client_id FROM file ORDER BY id',
+      );
+
+      const [existingRows]: any = await this.dataSource.query(
+        'SELECT id FROM file',
+      );
+      const existingIds = new Set(existingRows.map((r: any) => r.id));
+
+      let inserted = 0;
+      for (const row of oldRows) {
+        if (existingIds.has(row.id)) continue;
+
+        // Fix invalid dates (0000-00-00 00:00:00)
+        let dateVal = row.date;
+        if (
+          dateVal &&
+          (dateVal.toString().startsWith('0000') ||
+            dateVal.toString() === 'Invalid Date')
+        ) {
+          dateVal = null;
+        }
+
+        try {
+          await this.dataSource.query(
+            'INSERT INTO file (id, name, date, file, client_id) VALUES (?, ?, ?, ?, ?)',
+            [row.id, row.name, dateVal, row.file, row.client_id],
+          );
+          inserted++;
+        } catch (err: any) {
+          this.logger.warn(`Failed to copy file ${row.id}: ${err.message}`);
+        }
+      }
+
+      if (inserted > 0) {
+        this.logger.log(`Copied ${inserted} missing file records from old DB`);
+      } else {
+        this.logger.log('All file records already present');
+      }
+    } catch (err: any) {
+      // Old DB not reachable (e.g. running locally) — skip silently
+      if (
+        err.code === 'ENOTFOUND' ||
+        err.code === 'ECONNREFUSED' ||
+        err.code === 'ETIMEDOUT'
+      ) {
+        this.logger.log('Old PHP DB not reachable, skipping file sync');
+      } else {
+        this.logger.warn(`File sync error: ${err.message}`);
+      }
+    } finally {
+      if (oldConn) {
+        try {
+          await oldConn.end();
+        } catch (_) {}
       }
     }
   }
