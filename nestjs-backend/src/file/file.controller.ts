@@ -29,7 +29,7 @@ export class FileController {
       return files.map((f: any) => ({
         ...f,
         file: f.file ? `/api/file/${f.id}/download` : null,
-        file_original: f.file, // Keep original for backward compatibility during transition
+        // file_original intentionally omitted — original URLs must not be exposed
       }));
     } catch (err) {
       throw new HttpException(
@@ -94,14 +94,57 @@ export class FileController {
 
     // Proxy the file from the original server
     try {
+      const parsedUrl = new URL(fileUrl);
       const mod = fileUrl.startsWith('https') ? https : http;
-      const proxyReq = mod.get(fileUrl, (proxyRes) => {
-        if (proxyRes.statusCode !== 200) {
-          res.status(proxyRes.statusCode || 502).json({
-            message: 'File could not be retrieved from storage',
-          });
-          return;
-        }
+      const proxyReq = mod.get(
+        {
+          hostname: parsedUrl.hostname,
+          path: parsedUrl.pathname + parsedUrl.search,
+          headers: {
+            'User-Agent': 'SihlTraining/1.0',
+            Accept: '*/*',
+          },
+        },
+        (proxyRes) => {
+          // Follow redirects (301/302)
+          if (
+            (proxyRes.statusCode === 301 || proxyRes.statusCode === 302) &&
+            proxyRes.headers.location
+          ) {
+            const redirectMod = proxyRes.headers.location.startsWith('https')
+              ? https
+              : http;
+            redirectMod.get(proxyRes.headers.location, (redirectRes) => {
+              if (redirectRes.statusCode !== 200) {
+                res
+                  .status(redirectRes.statusCode || 502)
+                  .json({ message: 'File redirect failed' });
+                return;
+              }
+              res.setHeader('Content-Type', contentType);
+              res.setHeader(
+                'Content-Disposition',
+                `inline; filename="${filename}"`,
+              );
+              if (redirectRes.headers['content-length']) {
+                res.setHeader(
+                  'Content-Length',
+                  redirectRes.headers['content-length'],
+                );
+              }
+              res.setHeader('X-Content-Type-Options', 'nosniff');
+              res.setHeader('Cache-Control', 'private, max-age=3600');
+              redirectRes.pipe(res);
+            });
+            return;
+          }
+
+          if (proxyRes.statusCode !== 200) {
+            res.status(proxyRes.statusCode || 502).json({
+              message: `File could not be retrieved from storage (${proxyRes.statusCode})`,
+            });
+            return;
+          }
 
         res.setHeader('Content-Type', contentType);
         res.setHeader(
