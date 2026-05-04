@@ -67,7 +67,15 @@ export class FileController {
       throw new HttpException('No file URL available', HttpStatus.NOT_FOUND);
     }
 
-    const fileUrl = file.file;
+    // Normalize URL: old records use http://www.sihltraining.ch which 301→403
+    // All files are accessible via https://apps.sihltraining.ch
+    let fileUrl = file.file;
+    if (fileUrl.includes('www.sihltraining.ch')) {
+      fileUrl = fileUrl.replace(
+        /https?:\/\/www\.sihltraining\.ch/,
+        'https://apps.sihltraining.ch',
+      );
+    }
 
     // Determine filename for Content-Disposition
     const urlPath = new URL(fileUrl).pathname;
