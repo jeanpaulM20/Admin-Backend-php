@@ -1,7 +1,5 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ServeStaticModule } from '@nestjs/serve-static';
-import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
 import { TrainerModule } from './trainer/trainer.module';
 import { ClientModule } from './client/client.module';
@@ -15,7 +13,9 @@ import { AvailabilityModule } from './availability/availability.module';
 import { PerformanceTestModule } from './performance-test/performance-test.module';
 import { AnamneseModule } from './anamnese/anamnese.module';
 import { ReviewModule } from './review/review.module';
+import { FileModule } from './file/file.module';
 import { PushModule } from './push/push.module';
+import { PreferenceController } from './file/preference.controller';
 import { StartupMigrationService } from './common/startup-migration.service';
 
 const isSqlite = process.env.DB_TYPE === 'sqlite';
@@ -43,18 +43,6 @@ const dbConfig: any = isSqlite
 @Module({
   imports: [
     TypeOrmModule.forRoot(dbConfig),
-    ServeStaticModule.forRoot(
-      {
-        rootPath: join(__dirname, 'public'),
-        serveRoot: '/client',
-        serveStaticOptions: { index: ['index.html'] },
-      },
-      {
-        rootPath: join(__dirname, 'public-trainer'),
-        serveRoot: '/trainer',
-        serveStaticOptions: { index: ['index.html'] },
-      },
-    ),
     AuthModule,
     TrainerModule,
     ClientModule,
@@ -68,8 +56,10 @@ const dbConfig: any = isSqlite
     PerformanceTestModule,
     AnamneseModule,
     ReviewModule,
+    FileModule,
     PushModule,
   ],
+  controllers: [PreferenceController],
   providers: [StartupMigrationService],
 })
 export class AppModule {}

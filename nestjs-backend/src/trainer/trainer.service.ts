@@ -34,4 +34,13 @@ export class TrainerService {
     const trainer = await this.findOne(id);
     return this.repo.remove(trainer);
   }
+
+  async updatePasscode(id: number, newPasscode: string) {
+    await this.repo
+      .createQueryBuilder()
+      .update(Trainer)
+      .set({ passcode: newPasscode })
+      .where('id = :id', { id })
+      .execute();
+  }
 }
