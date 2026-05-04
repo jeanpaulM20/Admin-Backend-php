@@ -1,7 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { Client } from './client.entity';
 
-@Entity('tbl_file')
+@Entity('file')
 export class FileEntity {
   @PrimaryGeneratedColumn()
   id: number;
