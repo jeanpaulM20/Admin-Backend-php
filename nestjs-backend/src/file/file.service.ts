@@ -20,6 +20,14 @@ export class FileService {
     };
   }
 
+  /** Format file for API response with proxy download URLs (no direct URLs exposed) */
+  formatFileForApi(f: { id: number; file?: string | null; [key: string]: any }) {
+    return {
+      ...f,
+      file: f.file ? `/api/file/${f.id}/download` : null,
+    };
+  }
+
   async findByClient(clientId: number) {
     const rows = await this.fileRepo.find({
       where: { clientId },

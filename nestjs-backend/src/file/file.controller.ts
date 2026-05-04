@@ -26,11 +26,7 @@ export class FileController {
         files = await this.service.findAll();
       }
       // Replace direct file URLs with proxied URLs
-      return files.map((f: any) => ({
-        ...f,
-        file: f.file ? `/api/file/${f.id}/download` : null,
-        // file_original intentionally omitted — original URLs must not be exposed
-      }));
+      return files.map((f: any) => this.service.formatFileForApi(f));
     } catch (err) {
       throw new HttpException(
         { message: err.message },
