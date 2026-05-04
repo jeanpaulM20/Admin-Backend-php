@@ -35,10 +35,7 @@ export class ClientController {
   @Get('files/:clientId')
   async getClientFiles(@Param('clientId', ParseIntPipe) clientId: number) {
     const files = await this.fileService.findByClient(clientId);
-    return files.map((f: any) => ({
-      ...f,
-      file: f.file ? `/api/file/${f.id}/download` : null,
-    }));
+    return files.map((f: any) => this.fileService.formatFileForApi(f));
   }
 
   /** GET /api/client/:id/auto-notify — get auto-notify state */
