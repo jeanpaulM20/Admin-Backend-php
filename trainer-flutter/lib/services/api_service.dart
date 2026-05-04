@@ -23,6 +23,8 @@ class ApiService {
     return _instance!;
   }
 
+  String? get authToken => _authToken;
+
   void setAuthToken(String token) {
     _authToken = token;
   }

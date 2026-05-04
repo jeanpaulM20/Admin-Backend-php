@@ -24,7 +24,9 @@ export class AuthGuard implements CanActivate {
     if (isPublic) return true;
 
     const request = context.switchToHttp().getRequest();
-    const token = request.headers['x-auth-token'];
+    // Accept token from header or query parameter (needed for file downloads
+    // opened in new browser tabs where custom headers can't be sent)
+    const token = request.headers['x-auth-token'] || request.query?.token;
     if (!token) throw new UnauthorizedException();
 
     const result = await this.authService.validateToken(token);
