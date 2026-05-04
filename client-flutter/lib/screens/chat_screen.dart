@@ -3,6 +3,7 @@ import 'dart:math' as math;
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html show EventSource, MessageEvent;
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../config/app_colors.dart';
@@ -1521,30 +1522,28 @@ class _ReviewDetailSheetState extends State<_ReviewDetailSheet> {
     final duration = r['duration']?.toString() ?? '--';
     final chart = r['chart'] as List<dynamic>? ?? [];
 
+    // Parse chart data for HR chart + TRIMP
+    final hrMaxInt = (hrMax is int) ? hrMax : int.tryParse(hrMax?.toString() ?? '') ?? 0;
+    final hrPoints = <HrPoint>[];
+    for (final p in chart) {
+      if (p is Map<String, dynamic>) {
+        final v = double.tryParse(p['v']?.toString() ?? '');
+        if (v != null && v > 0) hrPoints.add(HrPoint(time: p['t']?.toString(), value: v));
+      }
+    }
+
     // Compute TRIMP from chart data
     double? trimp;
-    if (chart.isNotEmpty && hrMax != null) {
-      final hrMaxInt = (hrMax is int) ? hrMax : int.tryParse(hrMax.toString()) ?? 0;
-      if (hrMaxInt > 0) {
-        final hrPoints = <HrPoint>[];
-        for (final p in chart) {
-          if (p is Map<String, dynamic>) {
-            final v = double.tryParse(p['v']?.toString() ?? '');
-            if (v != null && v > 0) hrPoints.add(HrPoint(time: p['t']?.toString(), value: v));
-          }
-        }
-        if (hrPoints.isNotEmpty) {
-          final review = TrainingReview(
-            id: r['id']?.toString() ?? '',
-            date: DateTime.tryParse(date ?? '') ?? DateTime.now(),
-            trainingType: type ?? '',
-            duration: duration,
-            hrMax: hrMaxInt,
-            chart: hrPoints,
-          );
-          trimp = review.edwardsTrimp;
-        }
-      }
+    if (hrPoints.isNotEmpty && hrMaxInt > 0) {
+      final review = TrainingReview(
+        id: r['id']?.toString() ?? '',
+        date: DateTime.tryParse(date ?? '') ?? DateTime.now(),
+        trainingType: type ?? '',
+        duration: duration,
+        hrMax: hrMaxInt,
+        chart: hrPoints,
+      );
+      trimp = review.edwardsTrimp;
     }
 
     String dateLabel = '--';
@@ -1642,7 +1641,178 @@ class _ReviewDetailSheetState extends State<_ReviewDetailSheet> {
           ],
         ),
         const SizedBox(height: 20),
+        // Heart rate chart
+        _buildHrChart(hrPoints, hrMaxInt),
+        const SizedBox(height: 20),
       ],
+    );
+  }
+
+  Widget _buildHrChart(List<HrPoint> points, int clientHrMax) {
+    if (points.isEmpty) {
+      return Container(
+        height: 60,
+        alignment: Alignment.center,
+        child: const Text('Keine Herzfrequenz-Daten vorhanden',
+            style: TextStyle(color: AppColors.muted, fontSize: 13)),
+      );
+    }
+
+    final validPts = points.where((p) => p.value > 0).toList();
+    if (validPts.isEmpty) return const SizedBox.shrink();
+
+    final spots = validPts
+        .asMap()
+        .entries
+        .map((e) => FlSpot(e.key.toDouble(), e.value.value))
+        .toList();
+
+    final minHr = validPts.map((p) => p.value).reduce((a, b) => a < b ? a : b);
+    final maxHr = validPts.map((p) => p.value).reduce((a, b) => a > b ? a : b);
+
+    final double? clientMaxHr = clientHrMax > 0 ? clientHrMax.toDouble() : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.monitor_heart, color: AppColors.red, size: 16),
+            const SizedBox(width: 6),
+            const Text('Herzfrequenz',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600)),
+            const Spacer(),
+            Text('Min ${minHr.round()}  /  Max ${maxHr.round()} bpm',
+                style: const TextStyle(color: AppColors.muted, fontSize: 11)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 200,
+          child: LineChart(
+            LineChartData(
+              backgroundColor: Colors.transparent,
+              minY: (minHr - 10).clamp(40, double.infinity),
+              maxY: maxHr + 10,
+              gridData: FlGridData(
+                show: true,
+                drawVerticalLine: false,
+                getDrawingHorizontalLine: (_) => const FlLine(
+                    color: AppColors.border, strokeWidth: 0.5),
+              ),
+              titlesData: FlTitlesData(
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 36,
+                    interval: 20,
+                    getTitlesWidget: (value, _) => Text(
+                        value.toInt().toString(),
+                        style: const TextStyle(
+                            color: AppColors.muted, fontSize: 10)),
+                  ),
+                ),
+                bottomTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false)),
+                rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false)),
+                topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false)),
+              ),
+              borderData: FlBorderData(show: false),
+              extraLinesData: ExtraLinesData(
+                horizontalLines: [
+                  if (clientMaxHr != null)
+                    HorizontalLine(
+                      y: clientMaxHr,
+                      color: const Color(0xFFC2234D),
+                      strokeWidth: 1,
+                      dashArray: [4, 4],
+                      label: HorizontalLineLabel(
+                        show: true,
+                        alignment: Alignment.topLeft,
+                        style: const TextStyle(
+                            color: Color(0xFFC2234D), fontSize: 10),
+                        labelResolver: (_) => 'Max',
+                      ),
+                    ),
+                ],
+              ),
+              lineTouchData: LineTouchData(
+                touchTooltipData: LineTouchTooltipData(
+                  getTooltipColor: (_) => AppColors.surface,
+                  getTooltipItems: (spots) => spots
+                      .map((s) => LineTooltipItem('${s.y.round()} bpm',
+                          const TextStyle(color: Colors.white, fontSize: 12)))
+                      .toList(),
+                ),
+              ),
+              lineBarsData: [
+                LineChartBarData(
+                  spots: spots,
+                  isCurved: true,
+                  curveSmoothness: 0.2,
+                  preventCurveOverShooting: true,
+                  color: AppColors.red,
+                  barWidth: 2,
+                  isStrokeCapRound: true,
+                  dotData: const FlDotData(show: false),
+                  belowBarData: BarAreaData(
+                    show: true,
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.red.withAlpha(60),
+                        AppColors.red.withAlpha(0),
+                      ],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        // Zone legend
+        if (clientMaxHr != null) ...[
+          const SizedBox(height: 10),
+          _buildZoneLegend(clientMaxHr),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildZoneLegend(double maxHr) {
+    final step = (maxHr * 0.1).toInt();
+    final zones = [
+      ('Maximal', const Color(0xFFC2234D), (maxHr * 0.9).round()),
+      ('Intensiv', const Color(0xFFD18B37), (maxHr * 0.8).round()),
+      ('Moderat', const Color(0xFF839C4D), (maxHr * 0.7).round()),
+      ('Leicht', const Color(0xFF03A4B6), (maxHr * 0.6).round()),
+      ('Sehr Leicht', const Color(0xFF9E9E9E), (maxHr * 0.5).round()),
+    ];
+    return Wrap(
+      spacing: 12,
+      runSpacing: 4,
+      children: zones
+          .map((z) => Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                          color: z.$2, shape: BoxShape.circle)),
+                  const SizedBox(width: 4),
+                  Text('${z.$1} (${z.$3}+)',
+                      style: const TextStyle(
+                          color: AppColors.muted, fontSize: 10)),
+                ],
+              ))
+          .toList(),
     );
   }
 
