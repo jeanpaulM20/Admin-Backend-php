@@ -10,20 +10,34 @@ export class TrainingService {
     private readonly repo: Repository<Training>,
   ) {}
 
-  findAll(clientId?: number, trainerId?: number) {
+  private formatTraining(t: Training) {
+    const typeName = t.trainingType?.name_de ?? t.trainingType?.name_en ?? null;
+    return {
+      ...t,
+      training_type: typeName,
+      type_name: typeName,
+      type_abbr: t.trainingType?.abbr ?? null,
+    };
+  }
+
+  async findAll(clientId?: number, trainerId?: number) {
     const where: any = {};
     if (clientId) where.clientId = clientId;
     if (trainerId) where.trainerId = trainerId;
-    return this.repo.find({ where, relations: ['trainer', 'client', 'exercisesets'] });
+    const rows = await this.repo.find({
+      where,
+      relations: ['trainer', 'client', 'exercisesets', 'trainingType'],
+    });
+    return rows.map((t) => this.formatTraining(t));
   }
 
   async findOne(id: number) {
     const training = await this.repo.findOne({
       where: { id },
-      relations: ['trainer', 'client', 'exercisesets'],
+      relations: ['trainer', 'client', 'exercisesets', 'trainingType'],
     });
     if (!training) throw new NotFoundException(`Training ${id} not found`);
-    return training;
+    return this.formatTraining(training);
   }
 
   create(data: Partial<Training>) {
@@ -49,7 +63,11 @@ export class TrainingService {
   }
 
   async remove(id: number) {
-    const training = await this.findOne(id);
-    return this.repo.remove(training);
+    const raw = await this.repo.findOne({
+      where: { id },
+      relations: ['trainer', 'client', 'exercisesets', 'trainingType'],
+    });
+    if (!raw) throw new NotFoundException(`Training ${id} not found`);
+    return this.repo.remove(raw);
   }
 }

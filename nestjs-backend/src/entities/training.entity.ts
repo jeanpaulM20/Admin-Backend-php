@@ -4,6 +4,7 @@ import {
 import { Trainer } from './trainer.entity';
 import { Client } from './client.entity';
 import { Exerciseset } from './exercise-set.entity';
+import { TrainingType } from './training-type.entity';
 
 export enum TrainingStatus {
   BOOKED = 'booked',
@@ -55,6 +56,10 @@ export class Training {
 
   @Column({ name: 'credits_charged', nullable: true })
   creditsCharged: number;
+
+  @ManyToOne(() => TrainingType)
+  @JoinColumn({ name: 'type_id' })
+  trainingType: TrainingType;
 
   @ManyToOne(() => Trainer, (t) => t.trainings)
   @JoinColumn({ name: 'trainer_id' })
