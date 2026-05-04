@@ -1,12 +1,16 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, ParseIntPipe } from '@nestjs/common';
 import { ClientService } from './client.service';
+import { FileService } from '../file/file.service';
 import { Client } from '../entities/client.entity';
 import { Public } from '../auth/decorators/public.decorator';
 import { CurrentClient } from '../auth/decorators/current-user.decorator';
 
 @Controller('api/client')
 export class ClientController {
-  constructor(private readonly service: ClientService) {}
+  constructor(
+    private readonly service: ClientService,
+    private readonly fileService: FileService,
+  ) {}
 
   @Public()
   @Post('token')
@@ -25,6 +29,12 @@ export class ClientController {
   @Get('me')
   getMe(@CurrentClient() client: Client) {
     return client;
+  }
+
+  /** GET /api/client/files/:clientId — files for a client (used by client Flutter app) */
+  @Get('files/:clientId')
+  getClientFiles(@Param('clientId', ParseIntPipe) clientId: number) {
+    return this.fileService.findByClient(clientId);
   }
 
   /** GET /api/client/:id/auto-notify — get auto-notify state */

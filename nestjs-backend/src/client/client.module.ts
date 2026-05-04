@@ -11,6 +11,7 @@ import {
 } from '../entities/remaining.entities';
 import { Feedback } from '../entities/feedback.entity';
 import { ReviewModule } from '../review/review.module';
+import { FileModule } from '../file/file.module';
 import { ClientService } from './client.service';
 import { ClientAppService } from './client-app.service';
 import { ClientChatService } from './client-chat.service';
@@ -33,6 +34,7 @@ import { ClientAppController } from './client-php-proxy.controller';
       Feedback,
     ]),
     ReviewModule,
+    FileModule,
   ],
   providers: [ClientService, ClientAppService, ClientChatService],
   controllers: [ClientAppController, ClientController],
