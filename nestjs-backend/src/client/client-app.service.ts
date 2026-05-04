@@ -349,7 +349,7 @@ export class ClientAppService {
     return { success: true };
   }
 
-  /** Client files */
+  /** Client files — returns proxy download URLs (no direct URLs exposed) */
   async getFiles(clientId: number) {
     const files = await this.fileRepo.find({
       where: { clientId },
@@ -358,8 +358,9 @@ export class ClientAppService {
     return files.map((f) => ({
       id: f.id,
       name: f.name,
-      file: f.file,
+      file: f.file ? `/api/file/${f.id}/download` : null,
       date: f.date,
+      client_id: f.clientId,
     }));
   }
 
