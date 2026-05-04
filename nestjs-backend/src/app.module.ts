@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
 import { TrainerModule } from './trainer/trainer.module';
 import { ClientModule } from './client/client.module';
@@ -43,6 +45,18 @@ const dbConfig: any = isSqlite
 @Module({
   imports: [
     TypeOrmModule.forRoot(dbConfig),
+    ServeStaticModule.forRoot(
+      {
+        rootPath: join(__dirname, 'public'),
+        serveRoot: '/client',
+        serveStaticOptions: { index: ['index.html'] },
+      },
+      {
+        rootPath: join(__dirname, 'public-trainer'),
+        serveRoot: '/trainer',
+        serveStaticOptions: { index: ['index.html'] },
+      },
+    ),
     AuthModule,
     TrainerModule,
     ClientModule,
