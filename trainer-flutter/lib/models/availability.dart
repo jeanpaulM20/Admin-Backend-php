@@ -66,9 +66,9 @@ class AvailabilitySlot {
           json['to']?.toString(),
       startTime: startTime,
       endTime: endTime,
-      trainerId: _parseInt(json['trainer_id']),
-      trainerName: json['trainer_name']?.toString(),
-      locationId: _parseInt(json['location_id']),
+      trainerId: _parseInt(json['trainer_id'] ?? json['trainerId']),
+      trainerName: json['trainer_name']?.toString() ?? json['trainerName']?.toString(),
+      locationId: _parseInt(json['location_id'] ?? json['locationId']),
       locationName: json['location_name']?.toString() ??
           json['location']?.toString(),
       isBooked: isBooked,

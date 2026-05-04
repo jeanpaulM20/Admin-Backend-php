@@ -42,8 +42,10 @@ class Client {
           json['mobile']?.toString() ??
           json['telephone']?.toString(),
       photo: json['photo']?.toString() ??
+          json['picture']?.toString() ??
           json['image']?.toString() ??
-          json['avatar']?.toString(),
+          json['avatar']?.toString() ??
+          json['foto']?.toString(),
       address: _buildAddress(json),
       dateOfBirth: json['date_of_birth']?.toString() ??
           json['birthday']?.toString() ??

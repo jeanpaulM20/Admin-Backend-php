@@ -40,7 +40,7 @@ class ProfileData {
     return ProfileData(
       firstName: json['firstname']?.toString() ?? json['firstName']?.toString() ?? '',
       lastName: json['lastname']?.toString() ?? json['lastName']?.toString() ?? '',
-      imageUrl: json['photo']?.toString() ?? json['imageUrl']?.toString(),
+      imageUrl: json['photo']?.toString() ?? json['picture']?.toString() ?? json['foto']?.toString() ?? json['imageUrl']?.toString(),
       email: json['email']?.toString(),
       phone: json['phone']?.toString(),
       birthday: json['birthday']?.toString(),
