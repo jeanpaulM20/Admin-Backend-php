@@ -44,11 +44,11 @@ class ApiConfig {
   // Reviews (training recordings with heart rate)
   static const String review            = 'review';
 
-  // ── PHP-legacy endpoints (not yet in NestJS — will return 404) ─────────────
-  // These are referenced in screens but not yet implemented in NestJS.
-  // They fail gracefully with an error message shown to the user.
+  // Files
   static const String file              = 'file';
   static const String sendFile          = 'file/send';
+
+  // Trainer QR, preferences, password
   static const String trainerQR         = 'trainer/qr';
   static const String preference        = 'preference';
   static const String changePassword    = 'trainer/password';
