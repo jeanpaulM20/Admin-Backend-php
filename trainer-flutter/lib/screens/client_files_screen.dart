@@ -1,5 +1,7 @@
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:ui_web' as ui;
 import 'package:flutter/material.dart';
 import '../models/client.dart';
 import '../models/file_item.dart';
@@ -47,6 +49,15 @@ class _ClientFilesScreenState extends State<ClientFilesScreen> {
     }
   }
 
+  String _buildDownloadUrl(String url) {
+    if (url.startsWith('/api/')) {
+      final base = ApiConfig.baseUrl.replaceAll('/api/', '');
+      final token = _apiService.authToken;
+      return '$base$url${url.contains('?') ? '&' : '?'}token=$token';
+    }
+    return url;
+  }
+
   void _openFile(FileItem file) {
     final url = file.file;
     if (url == null || url.isEmpty) {
@@ -58,15 +69,14 @@ class _ClientFilesScreenState extends State<ClientFilesScreen> {
       );
       return;
     }
-    // Build secure download URL through our backend proxy
-    // If URL is relative (/api/file/...), prepend base URL and add auth token
-    String downloadUrl = url;
-    if (url.startsWith('/api/')) {
-      final base = ApiConfig.baseUrl.replaceAll('/api/', '');
-      final token = _apiService.authToken;
-      downloadUrl = '$base$url${url.contains('?') ? '&' : '?'}token=$token';
-    }
-    html.window.open(downloadUrl, '_blank');
+    final downloadUrl = _buildDownloadUrl(url);
+    // Open file in-app using a full-screen dialog with embedded viewer
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => _InAppFileViewer(
+        title: file.displayName,
+        url: downloadUrl,
+      ),
+    ));
   }
 
   Future<void> _sendFile(FileItem file) async {
@@ -275,5 +285,55 @@ class _ClientFilesScreenState extends State<ClientFilesScreen> {
       case 'xlsx': return const Color(0xFF4CAF50);
       default:     return AppColors.muted;
     }
+  }
+}
+
+/// Full-screen in-app file viewer using an iframe (for web/PDF files).
+/// Files are loaded through the authenticated proxy — no external URLs exposed.
+class _InAppFileViewer extends StatefulWidget {
+  final String title;
+  final String url;
+
+  const _InAppFileViewer({required this.title, required this.url});
+
+  @override
+  State<_InAppFileViewer> createState() => _InAppFileViewerState();
+}
+
+class _InAppFileViewerState extends State<_InAppFileViewer> {
+  late final String _viewId;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewId = 'file-viewer-${widget.url.hashCode}';
+
+    // Register an iframe element for HtmlElementView
+    // ignore: undefined_prefixed_name
+    ui.platformViewRegistry.registerViewFactory(_viewId, (int viewId) {
+      final iframe = html.IFrameElement()
+        ..src = widget.url
+        ..style.border = 'none'
+        ..style.width = '100%'
+        ..style.height = '100%'
+        ..allow = 'fullscreen'
+        ..setAttribute('sandbox', 'allow-same-origin allow-scripts allow-popups');
+      return iframe;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text(widget.title, overflow: TextOverflow.ellipsis),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: HtmlElementView(viewType: _viewId),
+    );
   }
 }
