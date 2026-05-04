@@ -40,6 +40,11 @@ export class FileService {
     return f ? this.formatFile(f) : null;
   }
 
+  /** Returns raw entity with original file URL (used by download proxy) */
+  async findOneRaw(id: number): Promise<FileEntity | null> {
+    return this.fileRepo.findOne({ where: { id } });
+  }
+
   async create(data: Partial<FileEntity>): Promise<FileEntity> {
     const entity = this.fileRepo.create(data);
     return this.fileRepo.save(entity);

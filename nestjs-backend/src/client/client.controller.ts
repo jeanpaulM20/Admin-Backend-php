@@ -33,8 +33,12 @@ export class ClientController {
 
   /** GET /api/client/files/:clientId — files for a client (used by client Flutter app) */
   @Get('files/:clientId')
-  getClientFiles(@Param('clientId', ParseIntPipe) clientId: number) {
-    return this.fileService.findByClient(clientId);
+  async getClientFiles(@Param('clientId', ParseIntPipe) clientId: number) {
+    const files = await this.fileService.findByClient(clientId);
+    return files.map((f: any) => ({
+      ...f,
+      file: f.file ? `/api/file/${f.id}/download` : null,
+    }));
   }
 
   /** GET /api/client/:id/auto-notify — get auto-notify state */

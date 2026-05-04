@@ -58,7 +58,15 @@ class _ClientFilesScreenState extends State<ClientFilesScreen> {
       );
       return;
     }
-    html.window.open(url, '_blank');
+    // Build secure download URL through our backend proxy
+    // If URL is relative (/api/file/...), prepend base URL and add auth token
+    String downloadUrl = url;
+    if (url.startsWith('/api/')) {
+      final base = ApiConfig.baseUrl.replaceAll('/api/', '');
+      final token = _apiService.authToken;
+      downloadUrl = '$base$url${url.contains('?') ? '&' : '?'}token=$token';
+    }
+    html.window.open(downloadUrl, '_blank');
   }
 
   Future<void> _sendFile(FileItem file) async {
