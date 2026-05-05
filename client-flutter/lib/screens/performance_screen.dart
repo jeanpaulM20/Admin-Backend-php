@@ -12,6 +12,7 @@ import '../widgets/error_view.dart';
 import '../widgets/empty_view.dart';
 import 'performance_detail_screen.dart';
 import 'training_review_screen.dart';
+import 'training_compare_screen.dart';
 
 class PerformanceScreen extends StatefulWidget {
   const PerformanceScreen({super.key});
@@ -246,6 +247,35 @@ class TrainingReviewSectionTile extends StatelessWidget {
                 ),
               );
             }),
+            // Vergleich button
+            if (reviews.length >= 2)
+              Container(
+                decoration: const BoxDecoration(
+                  border: Border(top: BorderSide(color: AppColors.border)),
+                ),
+                child: InkWell(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => TrainingCompareScreen(reviews: reviews),
+                  )),
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(13)),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.compare_arrows_rounded, size: 18, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Text('Trainings vergleichen',
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            )),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
