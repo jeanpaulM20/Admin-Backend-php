@@ -10,7 +10,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  # ── Job 1: Build & deploy to production server ──
+  deploy-server:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -32,13 +33,13 @@ jobs:
           flutter pub get
           flutter build web --release --base-href /trainer/
 
-      - name: Build Client Web App (for apps.sihltraining.ch)
+      - name: Build Client Web App
         working-directory: client-flutter
         run: |
           flutter pub get
           flutter build web --release --base-href /client/
 
-      - name: Copy push notification files into client build
+      - name: Copy push notification files
         run: |
           cp client-flutter/web/push-sw.js client-flutter/build/web/push-sw.js
           cp client-flutter/web/push-notifications.js client-flutter/build/web/push-notifications.js
@@ -63,3 +64,61 @@ jobs:
           script: |
             cd ${{ secrets.SERVER_PATH }}
             git pull origin main
+
+  # ── Job 2: Build & deploy to GitHub Pages ──
+  deploy-github-pages:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.4'
+          channel: 'stable'
+          cache: true
+
+      - name: Build Trainer Web App (GitHub Pages)
+        working-directory: trainer-flutter
+        run: |
+          flutter pub get
+          flutter build web --release --base-href /Admin-Backend-php/trainer/
+
+      - name: Build Client Web App (GitHub Pages)
+        working-directory: client-flutter
+        run: |
+          flutter pub get
+          flutter build web --release --base-href /Admin-Backend-php/client/
+
+      - name: Copy push notification files
+        run: |
+          cp client-flutter/web/push-sw.js client-flutter/build/web/push-sw.js
+          cp client-flutter/web/push-notifications.js client-flutter/build/web/push-notifications.js
+
+      - name: Prepare GitHub Pages content
+        run: |
+          mkdir -p gh-pages-output
+          cp -r trainer-flutter/build/web gh-pages-output/trainer
+          cp -r client-flutter/build/web gh-pages-output/client
+          cat > gh-pages-output/index.html << 'INDEXEOF'
+          <!DOCTYPE html>
+          <html lang="de">
+          <head><meta charset="UTF-8"><title>Sihl Training</title></head>
+          <body style="font-family:sans-serif;padding:40px">
+            <h2>Sihl Training Apps</h2>
+            <ul>
+              <li><a href="trainer/">Trainer App</a></li>
+              <li><a href="client/">Client App</a></li>
+            </ul>
+          </body>
+          </html>
+          INDEXEOF
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./gh-pages-output
+          publish_branch: gh-pages
