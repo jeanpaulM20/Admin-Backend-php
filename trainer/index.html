@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="/Admin-Backend-php/trainer/">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A new Flutter project.">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="sihl_training">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Sihl Training</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    @font-face {
+      font-family: 'MaterialIcons';
+      src: url('https://cdn.jsdelivr.net/gh/jeanpaulM20/Admin-Backend-php@main/trainer-app/assets/fonts/MaterialIcons-Regular.otf') format('opentype');
+      font-weight: normal;
+      font-style: normal;
+      font-display: block;
+    }
+    body { margin: 0; background-color: #1a1a1a; }
+  </style>
+  <script>
+    // 1) Pre-load MaterialIcons from CDN via FontFace API before Flutter starts
+    (function() {
+      var cdnFont = 'https://cdn.jsdelivr.net/gh/jeanpaulM20/Admin-Backend-php@main/trainer-app/assets/fonts/MaterialIcons-Regular.otf';
+      var font = new FontFace('MaterialIcons', 'url(' + cdnFont + ')');
+      font.load().then(function(f) {
+        document.fonts.add(f);
+      }).catch(function(e) {
+        console.warn('MaterialIcons CDN load failed:', e);
+      });
+    })();
+
+    // 2) Intercept Flutter asset fetches — serve FontManifest inline, redirect other missing assets to CDN
+    (function() {
+      var CDN = 'https://cdn.jsdelivr.net/gh/jeanpaulM20/Admin-Backend-php@main/trainer-app/assets/';
+      var _fetch = window.fetch.bind(window);
+      window.fetch = function(input, init) {
+        var url = (input && input.url) ? input.url : String(input);
+
+        // Serve FontManifest inline so Flutter registers MaterialIcons
+        if (url.indexOf('FontManifest.json') !== -1) {
+          var manifest = [{"family":"MaterialIcons","fonts":[{"asset":"fonts/MaterialIcons-Regular.otf"}]}];
+          return Promise.resolve(new Response(JSON.stringify(manifest), {
+            status: 200,
+            headers: {'Content-Type': 'application/json'}
+          }));
+        }
+
+        // For anything under /assets/ that 404s, fall back to CDN
+        return _fetch(input, init).then(function(response) {
+          if (!response.ok && url.indexOf('/assets/') !== -1) {
+            var assetPath = url.replace(/.*\/assets\//, '');
+            return _fetch(CDN + assetPath);
+          }
+          return response;
+        });
+      };
+    })();
+  </script>
+</head>
+<body>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
