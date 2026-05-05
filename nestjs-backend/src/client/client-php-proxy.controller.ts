@@ -61,6 +61,12 @@ export class ClientAppController {
     return this.appService.getTests(clientId);
   }
 
+  /** Body metrics (Körperwerte) */
+  @Get('metrics/:clientId')
+  metrics(@Param('clientId', ParseIntPipe) clientId: number) {
+    return this.appService.getMetrics(clientId);
+  }
+
   /** Training reviews — HR data + charts from review module */
   @Get('reviews/:clientId')
   reviews(@Param('clientId', ParseIntPipe) clientId: number) {

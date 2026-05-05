@@ -15,6 +15,18 @@ class PerformanceService {
     return [];
   }
 
+  Future<List<PerformanceSection>> getMetrics(String clientId) async {
+    final data = await apiClient.get('api/client/metrics/$clientId');
+    if (data == null) return [];
+    if (data is List) {
+      return data
+          .whereType<Map<String, dynamic>>()
+          .map(PerformanceSection.fromJson)
+          .toList();
+    }
+    return [];
+  }
+
   Future<List<TrainingReview>> getReviews(String clientId) async {
     final data = await apiClient.get('api/client/reviews/$clientId');
     if (data == null) return [];

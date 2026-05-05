@@ -6,6 +6,7 @@ import { Training, TrainingStatus } from '../entities/training.entity';
 import { TrainerAvailability } from '../entities/trainer-availability.entity';
 import { Trainer } from '../entities/trainer.entity';
 import { ClientCredits, TrainingType, PerformanceTest, File as ClientFile } from '../entities/remaining.entities';
+import { Metric } from '../entities/metric.entity';
 import { Location } from '../entities/location.entity';
 import { ReviewService } from '../review/review.service';
 
@@ -21,6 +22,7 @@ export class ClientAppService {
     @InjectRepository(Location) private readonly locationRepo: Repository<Location>,
     @InjectRepository(PerformanceTest) private readonly perfTestRepo: Repository<PerformanceTest>,
     @InjectRepository(ClientFile) private readonly fileRepo: Repository<ClientFile>,
+    @InjectRepository(Metric) private readonly metricRepo: Repository<Metric>,
     private readonly reviewService: ReviewService,
   ) {}
 
@@ -317,6 +319,76 @@ export class ClientAppService {
     }
 
     return result;
+  }
+
+  /** Body metrics (Körperwerte) – sectioned format matching getTests output */
+  async getMetrics(clientId: number) {
+    const rows = await this.metricRepo.find({
+      where: { client_id: clientId },
+      order: { date: 'DESC' },
+    });
+
+    if (!rows.length) return [];
+
+    // Metric field definitions
+    const metricDefs: Record<string, { label: string; unit: string }> = {
+      weight: { label: 'Gewicht', unit: 'kg' },
+      body_fat_perc: { label: 'Körperfett', unit: '%' },
+      body_fat_kg: { label: 'Fettmasse', unit: 'kg' },
+      bcm: { label: 'BCM', unit: 'kg' },
+      waist_circumference: { label: 'Bauchumfang', unit: 'cm' },
+      calm_pulse: { label: 'Ruhepuls', unit: 'bpm' },
+      sys: { label: 'Blutdruck (sys)', unit: 'mmHg' },
+      dia: { label: 'Blutdruck (dia)', unit: 'mmHg' },
+    };
+
+    const items: {
+      key: string;
+      value: string | null;
+      previousValue: string | null;
+      change: string;
+      unit: string;
+      history: { date: string; value: string }[];
+    }[] = [];
+
+    for (const [column, def] of Object.entries(metricDefs)) {
+      const history: { date: string; value: string }[] = [];
+      for (const row of rows) {
+        const raw = row[column];
+        if (raw != null && Number(raw) > 0) {
+          history.push({ date: row.date, value: this.formatMetricValue(Number(raw)) });
+        }
+      }
+
+      if (history.length === 0) continue;
+
+      const latest = history[0].value;
+      const previous = history.length > 1 ? history[1].value : null;
+
+      let change = '';
+      if (latest != null && previous != null) {
+        const diff = Number(latest) - Number(previous);
+        change = diff > 0
+          ? `+${this.formatMetricValue(diff)}`
+          : this.formatMetricValue(diff);
+      }
+
+      // Chronological for chart
+      const chronological = [...history].reverse();
+
+      items.push({
+        key: def.label,
+        value: latest,
+        previousValue: previous,
+        change,
+        unit: def.unit,
+        history: chronological,
+      });
+    }
+
+    if (items.length === 0) return [];
+
+    return [{ section: 'Körperwerte', data: items }];
   }
 
   /** Book a training appointment */

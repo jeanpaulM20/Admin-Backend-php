@@ -207,7 +207,25 @@ class MockData {
         ),
       ];
 
-  static Map<String, List<MetricHistoryPoint>> get performanceHistory => {};
+  static Map<String, List<MetricHistoryPoint>> get performanceHistory => {
+    'Gewicht': [
+      MetricHistoryPoint(date: DateTime(2024, 1, 15), value: 82.0, unit: 'kg'),
+      MetricHistoryPoint(date: DateTime(2024, 3, 10), value: 81.2, unit: 'kg'),
+      MetricHistoryPoint(date: DateTime(2024, 5, 5), value: 80.1, unit: 'kg'),
+      MetricHistoryPoint(date: DateTime(2024, 7, 20), value: 79.5, unit: 'kg'),
+      MetricHistoryPoint(date: DateTime(2024, 9, 8), value: 78.4, unit: 'kg'),
+    ],
+    'Koerperfett': [
+      MetricHistoryPoint(date: DateTime(2024, 1, 15), value: 18.0, unit: '%'),
+      MetricHistoryPoint(date: DateTime(2024, 5, 5), value: 16.0, unit: '%'),
+      MetricHistoryPoint(date: DateTime(2024, 9, 8), value: 14.2, unit: '%'),
+    ],
+    'Muskelmasse': [
+      MetricHistoryPoint(date: DateTime(2024, 1, 15), value: 59.5, unit: 'kg'),
+      MetricHistoryPoint(date: DateTime(2024, 5, 5), value: 60.8, unit: 'kg'),
+      MetricHistoryPoint(date: DateTime(2024, 9, 8), value: 62.1, unit: 'kg'),
+    ],
+  };
 
   static List<PerformanceSection> get performanceData => [
         PerformanceSection(

@@ -9,6 +9,7 @@ import { Location } from '../entities/location.entity';
 import {
   ClientCredits, TrainingType, PerformanceTest, File as ClientFile,
 } from '../entities/remaining.entities';
+import { Metric } from '../entities/metric.entity';
 import { Feedback } from '../entities/feedback.entity';
 import { ReviewModule } from '../review/review.module';
 import { FileModule } from '../file/file.module';
@@ -32,6 +33,7 @@ import { ClientAppController } from './client-php-proxy.controller';
       PerformanceTest,
       ClientFile,
       Feedback,
+      Metric,
     ]),
     ReviewModule,
     FileModule,

@@ -27,10 +27,13 @@ class PerformanceProvider extends ChangeNotifier {
     try {
       final results = await Future.wait([
         _service.getPerformanceData(clientId),
+        _service.getMetrics(clientId),
         _service.getReviews(clientId),
       ]);
-      _data = results[0] as List<PerformanceSection>;
-      _reviews = results[1] as List<TrainingReview>;
+      final tests = results[0] as List<PerformanceSection>;
+      final metrics = results[1] as List<PerformanceSection>;
+      _data = [...metrics, ...tests];
+      _reviews = results[2] as List<TrainingReview>;
     } catch (e) {
       _error = e.toString().replaceFirst('Exception: ', '');
     } finally {
