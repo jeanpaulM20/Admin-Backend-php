@@ -2,7 +2,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:ui_web' as ui;
 import '../config/app_colors.dart';
+import '../config/api_config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/profile_provider.dart';
 import '../models/credit_pack.dart';
@@ -490,39 +495,119 @@ class _InvoiceCard extends StatelessWidget {
   }
 }
 
-// ── File row
+// ── File row (tappable — opens in-app viewer)
 class _FileRow extends StatelessWidget {
   final ClientFile file;
   const _FileRow({required this.file});
 
+  String _buildDownloadUrl(String url) {
+    if (url.startsWith('/api/')) {
+      final base = ApiConfig.baseUrl.replaceFirst(RegExp(r'/api/?$'), '').replaceFirst(RegExp(r'/$'), '');
+      final token = apiClient.token;
+      return '$base$url${url.contains('?') ? '&' : '?'}token=$token';
+    }
+    return url;
+  }
+
+  void _openFile(BuildContext context) {
+    final url = file.url;
+    if (url == null || url.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Kein Datei-Link verfügbar'),
+          backgroundColor: AppColors.red,
+        ),
+      );
+      return;
+    }
+    final downloadUrl = _buildDownloadUrl(url);
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => _InAppFileViewer(title: file.name, url: downloadUrl),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final dateStr = file.date != null ? DateFormat('dd.MM.yyyy').format(file.date!) : '-';
+    final hasUrl = file.url != null && file.url!.isNotEmpty;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.surface2,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.insert_drive_file_rounded, size: 20, color: AppColors.primary),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(file.name,
-                    style: const TextStyle(color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w600)),
-                Text(dateStr, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
-              ],
+    return GestureDetector(
+      onTap: hasUrl ? () => _openFile(context) : null,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surface2,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.insert_drive_file_rounded, size: 20, color: AppColors.primary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(file.name,
+                      style: const TextStyle(color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w600)),
+                  Text(dateStr, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                ],
+              ),
             ),
-          ),
-        ],
+            if (hasUrl)
+              const Icon(Icons.open_in_new, size: 18, color: AppColors.primary),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+/// In-app file viewer using sandboxed iframe
+class _InAppFileViewer extends StatefulWidget {
+  final String title;
+  final String url;
+  const _InAppFileViewer({required this.title, required this.url});
+
+  @override
+  State<_InAppFileViewer> createState() => _InAppFileViewerState();
+}
+
+class _InAppFileViewerState extends State<_InAppFileViewer> {
+  late final String _viewId;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewId = 'file-viewer-${widget.url.hashCode}';
+    // ignore: undefined_prefixed_name
+    ui.platformViewRegistry.registerViewFactory(_viewId, (int viewId) {
+      final iframe = html.IFrameElement()
+        ..src = widget.url
+        ..style.border = 'none'
+        ..style.width = '100%'
+        ..style.height = '100%'
+        ..allow = 'fullscreen'
+        ..setAttribute('sandbox', 'allow-same-origin allow-scripts allow-popups');
+      return iframe;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        title: Text(widget.title, overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: AppColors.text, fontSize: 16)),
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: AppColors.text),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: HtmlElementView(viewType: _viewId),
     );
   }
 }
