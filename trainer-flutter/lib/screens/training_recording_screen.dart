@@ -6,6 +6,7 @@ import '../models/review.dart';
 import '../services/api_service.dart';
 import '../config/api_config.dart';
 import '../config/app_colors.dart';
+import 'training_compare_screen.dart';
 
 /// Training recordings (Trainingsaufzeichnungen) with heart-rate chart.
 /// Shows all reviews for a given client, each expandable with HR timeseries.
@@ -119,6 +120,10 @@ class _TrainingRecordingScreenState extends State<TrainingRecordingScreen> {
                         padding: const EdgeInsets.all(16),
                         children: [
                           _buildSummaryRow(),
+                          if (_reviews.length >= 2) ...[
+                            const SizedBox(height: 12),
+                            _buildCompareButton(),
+                          ],
                           const SizedBox(height: 16),
                           ..._reviews
                               .map((r) => _ReviewCard(
@@ -130,6 +135,45 @@ class _TrainingRecordingScreenState extends State<TrainingRecordingScreen> {
                         ],
                       ),
                     ),
+    );
+  }
+
+  Widget _buildCompareButton() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border, width: 0.5),
+      ),
+      child: InkWell(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => TrainingCompareScreen(
+              reviews: _reviews,
+              client: widget.client,
+            ),
+          ),
+        ),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.compare_arrows_rounded,
+                  size: 18, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Text('Trainings vergleichen',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  )),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
