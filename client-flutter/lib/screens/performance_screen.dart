@@ -167,23 +167,62 @@ class PerformanceSectionTile extends StatelessWidget {
   }
 }
 
-class TrainingReviewSectionTile extends StatelessWidget {
+class TrainingReviewSectionTile extends StatefulWidget {
   final List<TrainingReview> reviews;
   const TrainingReviewSectionTile({super.key, required this.reviews});
+
+  @override
+  State<TrainingReviewSectionTile> createState() => _TrainingReviewSectionTileState();
+}
+
+class _TrainingReviewSectionTileState extends State<TrainingReviewSectionTile> {
+  bool _compareMode = false;
+  final Set<int> _selected = {};
 
   String _formatDate(DateTime dt) {
     const months = ['Jan','Feb','Mar','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
     return '${dt.day}. ${months[dt.month - 1]} ${dt.year}';
   }
 
+  void _toggleCompareMode() {
+    setState(() {
+      _compareMode = !_compareMode;
+      _selected.clear();
+    });
+  }
+
+  void _toggleSelection(int index) {
+    setState(() {
+      if (_selected.contains(index)) {
+        _selected.remove(index);
+      } else {
+        _selected.add(index);
+      }
+    });
+    // Auto-navigate when 2+ selected
+    if (_selected.length >= 2) {
+      final selectedReviews = _selected.map((i) => widget.reviews[i]).toList();
+      Navigator.push(context, MaterialPageRoute(
+        builder: (_) => TrainingCompareScreen(reviews: selectedReviews),
+      )).then((_) {
+        // Reset compare mode when returning
+        setState(() {
+          _compareMode = false;
+          _selected.clear();
+        });
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final reviews = widget.reviews;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: _compareMode ? AppColors.primary : AppColors.border),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: AppColors.transparent),
@@ -198,33 +237,104 @@ class TrainingReviewSectionTile extends StatelessWidget {
             ),
             child: const Icon(Icons.monitor_heart_rounded, color: AppColors.red, size: 20),
           ),
-          title: Text('Training',
-              style: const TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
-          subtitle: Text('${reviews.length} Einheit${reviews.length != 1 ? 'en' : ''}',
-              style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+          title: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Training',
+                        style: const TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
+                    Text('${reviews.length} Einheit${reviews.length != 1 ? 'en' : ''}',
+                        style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                  ],
+                ),
+              ),
+              if (reviews.length >= 2)
+                GestureDetector(
+                  onTap: _toggleCompareMode,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _compareMode ? AppColors.primary : AppColors.surface2,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: _compareMode ? AppColors.primary : AppColors.border,
+                      ),
+                    ),
+                    child: Text(
+                      _compareMode ? 'Abbrechen' : 'Vergleichen',
+                      style: TextStyle(
+                        color: _compareMode ? AppColors.white : AppColors.text,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          subtitle: null,
           iconColor: AppColors.muted,
           collapsedIconColor: AppColors.muted,
           initiallyExpanded: false,
           children: [
             const Divider(color: AppColors.border, height: 1),
+            if (_compareMode && _selected.isEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                color: AppColors.primary.withOpacity(0.08),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline_rounded, size: 14, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    Text('Wähle 2 Trainings zum Vergleichen',
+                        style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ),
             ...reviews.asMap().entries.map((e) {
               final review = e.value;
               final isLast = e.key == reviews.length - 1;
+              final isSelected = _selected.contains(e.key);
               return InkWell(
-                onTap: () => Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => TrainingReviewDetailScreen(review: review),
-                )),
+                onTap: _compareMode
+                    ? () => _toggleSelection(e.key)
+                    : () => Navigator.push(context, MaterialPageRoute(
+                        builder: (_) => TrainingReviewDetailScreen(review: review),
+                      )),
                 borderRadius: isLast
                     ? const BorderRadius.vertical(bottom: Radius.circular(13))
                     : BorderRadius.zero,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
-                    color: e.key.isEven ? Colors.transparent : AppColors.surface2.withOpacity(0.4),
+                    color: isSelected
+                        ? AppColors.primary.withOpacity(0.1)
+                        : e.key.isEven
+                            ? Colors.transparent
+                            : AppColors.surface2.withOpacity(0.4),
                     border: isLast ? null : const Border(bottom: BorderSide(color: AppColors.border)),
                   ),
                   child: Row(
                     children: [
+                      if (_compareMode) ...[
+                        Container(
+                          width: 22, height: 22,
+                          decoration: BoxDecoration(
+                            color: isSelected ? AppColors.primary : Colors.transparent,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: isSelected ? AppColors.primary : AppColors.muted,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: isSelected
+                              ? const Icon(Icons.check_rounded, size: 16, color: AppColors.white)
+                              : null,
+                        ),
+                        const SizedBox(width: 12),
+                      ],
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -240,42 +350,15 @@ class TrainingReviewSectionTile extends StatelessWidget {
                       if (review.hrMax != null)
                         Text('${review.hrMax} bpm',
                             style: const TextStyle(color: AppColors.red, fontSize: 13, fontWeight: FontWeight.w600)),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.border),
+                      if (!_compareMode) ...[
+                        const SizedBox(width: 8),
+                        const Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.border),
+                      ],
                     ],
                   ),
                 ),
               );
             }),
-            // Vergleich button
-            if (reviews.length >= 2)
-              Container(
-                decoration: const BoxDecoration(
-                  border: Border(top: BorderSide(color: AppColors.border)),
-                ),
-                child: InkWell(
-                  onTap: () => Navigator.push(context, MaterialPageRoute(
-                    builder: (_) => TrainingCompareScreen(reviews: reviews),
-                  )),
-                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(13)),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.compare_arrows_rounded, size: 18, color: AppColors.primary),
-                        const SizedBox(width: 8),
-                        Text('Trainings vergleichen',
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                            )),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
           ],
         ),
       ),
