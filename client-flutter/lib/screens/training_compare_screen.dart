@@ -44,7 +44,37 @@ class TrainingCompareScreen extends StatelessWidget {
         ),
       ),
       body: withChart.isEmpty
-          ? const Center(child: Text('Keine Kurvendaten vorhanden', style: TextStyle(color: AppColors.muted)))
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.heart_broken_rounded, size: 48, color: AppColors.muted.withAlpha(120)),
+                    const SizedBox(height: 16),
+                    const Text('Kein Vergleich möglich',
+                        style: TextStyle(color: AppColors.text, fontSize: 16, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Die ausgewählten Trainings haben keine Herzfrequenz-Aufzeichnungen. '
+                      'Wähle Trainings mit mindestens 2 HR-Datenpunkten.',
+                      style: TextStyle(color: AppColors.muted, fontSize: 13, height: 1.5),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back_rounded, size: 16),
+                      label: const Text('Zurück zur Auswahl'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.primary),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
           : ListView(
               padding: const EdgeInsets.all(20),
               children: [
@@ -154,7 +184,7 @@ class TrainingCompareScreen extends StatelessWidget {
                         return Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
-                            color: e.key.isEven ? Colors.transparent : AppColors.surface2.withOpacity(0.4),
+                            color: e.key.isEven ? Colors.transparent : AppColors.surface2.withAlpha(100),
                             border: isLast ? null : const Border(bottom: BorderSide(color: AppColors.border)),
                           ),
                           child: Row(
