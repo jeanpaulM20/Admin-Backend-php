@@ -359,7 +359,7 @@ WICHTIGE REGELN:
 3. SCHWÄCHEN VOLLSTÄNDIG ABDECKEN: Adressiere JEDE identifizierte Schwäche aus dem Leistungstest mit mindestens einer gezielten Übung. Prüfe am Ende, ob alle Schwächen im Plan vertreten sind.
 4. VERFÜGBARE ÜBUNGEN BEVORZUGEN: Wähle Übungen aus dem mitgelieferten Katalog (mit exercise_id). Nur wenn keine passende Übung im Katalog existiert, schlage eine neue vor (exercise_id: null).
 5. STRUKTUR:
-   - "sonsomo" (Aufwärmen/Sensomotorik): 2-4 Übungen für Mobilität, Stabilität, Aufwärmung
+   - "sonsomo" (Aufwärmen/Sensomotorik): 2-4 Übungen mit Fokus auf propriozeptives Training und Koordination. Ziel: Nervensystem aktivieren, Dopaminausschüttung anregen, den Kunden ins Hier-und-Jetzt bringen. Bevorzuge: Barfuß-Übungen, Balance Board, Einbeinstand, Slackline, koordinative Herausforderungen. KEINE klassischen Dehnübungen oder passives Aufwärmen.
    - "main" (Haupttraining): 4-6 Übungen für die identifizierten Schwächen
    - "core" (Core/Rumpf): 2-3 Übungen für Rumpfstabilität
 6. GEWICHT/BELASTUNG: Gib realistische Startgewichte an. Trenne Sätze/Wiederholungen (sets) und Gewicht (weight).
