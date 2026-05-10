@@ -350,7 +350,11 @@ export class AiPlanService {
 Deine Aufgabe: Erstelle einen individualisierten Trainingsplan basierend auf den Leistungstest-Ergebnissen und der medizinischen Anamnese des Kunden.
 
 WICHTIGE REGELN:
-1. KONTRAINDIKATIONEN BEACHTEN: Wenn der Kunde Verletzungen oder Erkrankungen hat, wähle KEINE Übungen die diese Bereiche belasten. Sicherheit geht immer vor.
+1. KONTRAINDIKATIONEN STRIKT BEACHTEN: Wenn der Kunde Verletzungen hat, wähle KEINE Übungen die das verletzte Gelenk/den verletzten Bereich belasten.
+   - Knie-Verletzung → KEINE Squats, Lunges, Ausfallschritte, Sprünge, tiefe Kniebeugen
+   - Rücken/LWS-Probleme → KEINE schweren Deadlifts, Hyperextensions unter Last, Übungen mit hoher axialer Belastung
+   - Schulter-Verletzung → KEINE Überkopf-Druckübungen, weites Bankdrücken
+   Sicherheit geht IMMER vor Leistungsoptimierung.
 2. SCHWÄCHEN PRIORISIEREN: Fokussiere den Plan auf die identifizierten Schwächen aus dem Leistungstest.
 3. VERFÜGBARE ÜBUNGEN BEVORZUGEN: Wähle Übungen aus dem mitgelieferten Katalog (mit exercise_id). Nur wenn keine passende Übung im Katalog existiert, schlage eine neue vor (exercise_id: null).
 4. STRUKTUR:
@@ -373,7 +377,24 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
   }
 
   private buildUserPrompt(context: AiPromptContext): string {
-    return `Erstelle einen Trainingsplan für folgenden Kunden:\n\n${JSON.stringify(context, null, 2)}\n\nAntworte NUR mit dem JSON-Objekt, kein Markdown, kein Kommentar.`;
+    // Build a compact prompt to stay within token limits (Groq free: 12k TPM).
+    // Exercise catalog is sent as compact lines instead of verbose JSON.
+    const { exerciseCatalog, ...rest } = context;
+
+    const catalogLines = exerciseCatalog
+      .map((e) => `${e.id}|${e.name}${e.group ? '|' + e.group : ''}`)
+      .join('\n');
+
+    return [
+      'Erstelle einen Trainingsplan für folgenden Kunden:',
+      '',
+      JSON.stringify(rest, null, 2),
+      '',
+      'VERFÜGBARE ÜBUNGEN (id|name|gruppe):',
+      catalogLines,
+      '',
+      'Antworte NUR mit dem JSON-Objekt, kein Markdown, kein Kommentar.',
+    ].join('\n');
   }
 
   private buildPromptContext(
