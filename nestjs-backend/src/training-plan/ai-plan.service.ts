@@ -236,6 +236,7 @@ export class AiPlanService {
       this.planRepo.create({
         clientId,
         values,
+        name: result.name || 'KI-Trainingsplan',
         goal: result.ai_reasoning.substring(0, 500),
       }),
     );

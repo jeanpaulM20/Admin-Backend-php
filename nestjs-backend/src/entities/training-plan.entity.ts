@@ -36,8 +36,9 @@ export class TrainingPlan {
   @Column({ nullable: true, type: 'text' })
   values: string;
 
+  /** Display name of the plan (stored in DB column "new_pro") */
   @Column({ name: 'new_pro', nullable: true })
-  newPro: string;
+  name: string;
 
   @Column({ nullable: true })
   type: string;
