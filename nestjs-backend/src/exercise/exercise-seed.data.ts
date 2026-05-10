@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Sportwissenschaftliche Übungsdatenbank — 9 Kernbereiche
+// Sportwissenschaftliche Übungsdatenbank — 10 Kernbereiche
 // Ganzheitlich, funktionell, Fokus auf Sensomotorik, Sehnen & Mobilität
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -308,6 +308,63 @@ export const EXERCISE_SEED_DATA: SeedCategory[] = [
       { name: 'World\'s Greatest Stretch', subgroup: 'Faszien & Bewegungsfluss' },
       { name: 'Thoracic Spine Rotation (Open Book)', subgroup: 'Faszien & Bewegungsfluss' },
       { name: 'Animal Flow (Beast-Crab-Scorpion)', subgroup: 'Faszien & Bewegungsfluss' },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 10. Plyometrie & Reaktivkraft (Schnellkraft, Explosivität, Sprungkraft)
+  // ═══════════════════════════════════════════════════════════════════════════
+  {
+    group: 'Plyometrie & Reaktivkraft',
+    subgroups: [
+      'Sprungkraft (vertikal)',
+      'Sprungkraft (horizontal)',
+      'Reaktivkraft & Drop Jumps',
+      'Laterale Agilität',
+      'Sprint & Beschleunigung',
+    ],
+    exercises: [
+      // Sprungkraft (vertikal)
+      { name: 'Box Jump (beidbeinig)', subgroup: 'Sprungkraft (vertikal)' },
+      { name: 'Box Jump einbeinig', subgroup: 'Sprungkraft (vertikal)' },
+      { name: 'Countermovement Jump (CMJ)', subgroup: 'Sprungkraft (vertikal)' },
+      { name: 'Squat Jump (ohne Gegenbeweg.)', subgroup: 'Sprungkraft (vertikal)' },
+      { name: 'Tuck Jump (Knie zur Brust)', subgroup: 'Sprungkraft (vertikal)' },
+      { name: 'Weighted Jump Squat (leicht belastet)', subgroup: 'Sprungkraft (vertikal)' },
+      { name: 'Single-Leg Hop (einbeiniger Vertikalsprung)', subgroup: 'Sprungkraft (vertikal)' },
+
+      // Sprungkraft (horizontal)
+      { name: 'Broad Jump (Standweitsprung)', subgroup: 'Sprungkraft (horizontal)' },
+      { name: 'Bounding (Wechselsprünge)', subgroup: 'Sprungkraft (horizontal)' },
+      { name: 'Einbeiniger Standweitsprung', subgroup: 'Sprungkraft (horizontal)' },
+      { name: 'Medizinball-Stoß vorwärts (Power Throw)', subgroup: 'Sprungkraft (horizontal)' },
+      { name: 'Hürdenhüpfen beidbeinig (niedrige Hürden)', subgroup: 'Sprungkraft (horizontal)' },
+
+      // Reaktivkraft & Drop Jumps
+      { name: 'Drop Jump (Tiefsprung 30-50cm)', subgroup: 'Reaktivkraft & Drop Jumps' },
+      { name: 'Altitude Landing (Landungsstabilität)', subgroup: 'Reaktivkraft & Drop Jumps' },
+      { name: 'Pogo Hops (Sprunggelenk-Reaktivkraft)', subgroup: 'Reaktivkraft & Drop Jumps' },
+      { name: 'Depth Jump to Box (reaktiv auf Box)', subgroup: 'Reaktivkraft & Drop Jumps' },
+      { name: 'Continuous Hurdle Hops (Reaktivsprünge über Hürden)', subgroup: 'Reaktivkraft & Drop Jumps' },
+      { name: 'Ankle Bounce (schnelle Sprunggelenk-Hops)', subgroup: 'Reaktivkraft & Drop Jumps' },
+
+      // Laterale Agilität
+      { name: 'Lateral Bound (Seitsprung beidbeinig)', subgroup: 'Laterale Agilität' },
+      { name: 'Skater Jump (einbeiniger Seitsprung)', subgroup: 'Laterale Agilität' },
+      { name: 'Lateral Hurdle Hop (seitlich über Hürde)', subgroup: 'Laterale Agilität' },
+      { name: 'Pro Agility Shuttle (5-10-5)', subgroup: 'Laterale Agilität' },
+      { name: 'T-Drill (Agilitäts-T-Lauf)', subgroup: 'Laterale Agilität' },
+      { name: 'Hexagon Drill (Sechseck-Sprünge)', subgroup: 'Laterale Agilität' },
+      { name: 'Richtungswechsel-Sprints (Cut & Go)', subgroup: 'Laterale Agilität' },
+
+      // Sprint & Beschleunigung
+      { name: 'Sled Push (Schlittenpressen)', subgroup: 'Sprint & Beschleunigung' },
+      { name: 'Sled Pull (Schlittenziehen)', subgroup: 'Sprint & Beschleunigung' },
+      { name: 'Resisted Sprint (Widerstandssprint)', subgroup: 'Sprint & Beschleunigung' },
+      { name: 'Sprint-Start aus verschiedenen Positionen', subgroup: 'Sprint & Beschleunigung' },
+      { name: 'Flying Sprint (Überschnelligkeit 10-30m)', subgroup: 'Sprint & Beschleunigung' },
+      { name: 'A-Skip / B-Skip (Lauf-ABC Schnellkraft)', subgroup: 'Sprint & Beschleunigung' },
+      { name: 'Acceleration Wall Drill (Wanddrücken-Sprint)', subgroup: 'Sprint & Beschleunigung' },
     ],
   },
 ];

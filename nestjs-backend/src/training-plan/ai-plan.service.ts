@@ -352,6 +352,7 @@ Deine Aufgabe: Erstelle einen individualisierten Trainingsplan basierend auf den
 WICHTIGE REGELN:
 1. KONTRAINDIKATIONEN STRIKT BEACHTEN: Wenn der Kunde Verletzungen hat, wähle KEINE Übungen die das verletzte Gelenk/den verletzten Bereich belasten.
    - Knie-Verletzung → KEINE Squats, Lunges, Ausfallschritte, Sprünge, tiefe Kniebeugen
+   - Patellasehne (Jumpers Knee) → KEINE Sprünge, KEINE tiefe Kniebeugen, KEINE plyometrischen Übungen. Stattdessen: Exzentrische Spanish Squats, Exzentrische Step-Downs, isometrisches Wandsitzen, Hamstring-Kräftigung (Nordics). Exzentrische Kniestreckerkraft gezielt aufbauen.
    - Rücken/LWS-Probleme → KEINE schweren Deadlifts, Hyperextensions unter Last, Übungen mit hoher axialer Belastung
    - Schulter-Verletzung/Impingement → KEINE Überkopf-Druckübungen, weites Bankdrücken, Handstände, Front Lever, Back Lever, Lock-Off Holds, Military Press, Push Press. Stattdessen: Scapula-Stabilisation, Rotatorenmanschetten-Übungen, Facepulls, horizontales Rudern.
    Sicherheit geht IMMER vor Leistungsoptimierung.
