@@ -11,6 +11,14 @@ export class ExerciseController {
     return this.service.findGroups();
   }
 
+  /**
+   * POST /api/exercise/seed — idempotent: inserts missing exercises, skips existing
+   */
+  @Post('seed')
+  seed() {
+    return this.service.seed();
+  }
+
   @Get()
   findAll() {
     return this.service.findAll();
