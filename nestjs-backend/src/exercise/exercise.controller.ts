@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, ParseIntPipe } from '@nestjs/common';
 import { ExerciseService } from './exercise.service';
 import { Exercise } from '../entities/exercise.entity';
+import { Public } from '../auth/decorators/public.decorator';
 
 @Controller('api/exercise')
 export class ExerciseController {
@@ -13,7 +14,9 @@ export class ExerciseController {
 
   /**
    * POST /api/exercise/seed — idempotent: inserts missing exercises, skips existing
+   * Public so it can be triggered without auth during setup.
    */
+  @Public()
   @Post('seed')
   seed() {
     return this.service.seed();
