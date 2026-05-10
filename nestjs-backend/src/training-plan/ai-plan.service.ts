@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import Anthropic from '@anthropic-ai/sdk';
+import Groq from 'groq-sdk';
 
 import { TrainingPlan } from '../entities/training-plan.entity';
 import { PerformanceTest } from '../entities/performance-test.entity';
@@ -75,10 +76,18 @@ const DISEASE_LABELS: Record<string, string> = {
   disease_heart_circulatory:      'Herz-Kreislauf-Erkrankung',
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// AI Provider type — switch via AI_PROVIDER env var
+// ─────────────────────────────────────────────────────────────────────────────
+
+type AiProvider = 'groq' | 'anthropic' | 'none';
+
 @Injectable()
 export class AiPlanService {
   private readonly logger = new Logger(AiPlanService.name);
   private anthropic: Anthropic | null = null;
+  private groq: Groq | null = null;
+  private readonly provider: AiProvider;
 
   constructor(
     @InjectRepository(TrainingPlan)
@@ -92,13 +101,32 @@ export class AiPlanService {
     @InjectRepository(Client)
     private readonly clientRepo: Repository<Client>,
   ) {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (apiKey) {
-      this.anthropic = new Anthropic({ apiKey });
-      this.logger.log('Anthropic client initialized');
+    // Determine provider from env: AI_PROVIDER=groq|anthropic (default: auto-detect)
+    const requestedProvider = (process.env.AI_PROVIDER || '').toLowerCase();
+    const groqKey = process.env.GROQ_API_KEY;
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+
+    if (requestedProvider === 'anthropic' && anthropicKey) {
+      this.anthropic = new Anthropic({ apiKey: anthropicKey });
+      this.provider = 'anthropic';
+      this.logger.log('AI Provider: Anthropic Claude');
+    } else if (requestedProvider === 'groq' && groqKey) {
+      this.groq = new Groq({ apiKey: groqKey });
+      this.provider = 'groq';
+      this.logger.log('AI Provider: Groq (Llama)');
+    } else if (groqKey) {
+      // Auto-detect: prefer Groq if available (free)
+      this.groq = new Groq({ apiKey: groqKey });
+      this.provider = 'groq';
+      this.logger.log('AI Provider: Groq (auto-detected)');
+    } else if (anthropicKey) {
+      this.anthropic = new Anthropic({ apiKey: anthropicKey });
+      this.provider = 'anthropic';
+      this.logger.log('AI Provider: Anthropic (auto-detected)');
     } else {
+      this.provider = 'none';
       this.logger.warn(
-        'ANTHROPIC_API_KEY not set — AI plan generation will use rule-based fallback',
+        'No AI API key set (GROQ_API_KEY or ANTHROPIC_API_KEY) — using rule-based fallback',
       );
     }
   }
@@ -312,8 +340,40 @@ export class AiPlanService {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // LLM CALL
+  // LLM CALL — supports Groq and Anthropic
   // ═══════════════════════════════════════════════════════════════════════════
+
+  /** Shared system prompt used by all providers */
+  private get systemPrompt(): string {
+    return `Du bist ein erfahrener Sportwissenschaftler und Personal Trainer.
+Deine Aufgabe: Erstelle einen individualisierten Trainingsplan basierend auf den Leistungstest-Ergebnissen und der medizinischen Anamnese des Kunden.
+
+WICHTIGE REGELN:
+1. KONTRAINDIKATIONEN BEACHTEN: Wenn der Kunde Verletzungen oder Erkrankungen hat, wähle KEINE Übungen die diese Bereiche belasten. Sicherheit geht immer vor.
+2. SCHWÄCHEN PRIORISIEREN: Fokussiere den Plan auf die identifizierten Schwächen aus dem Leistungstest.
+3. VERFÜGBARE ÜBUNGEN BEVORZUGEN: Wähle Übungen aus dem mitgelieferten Katalog (mit exercise_id). Nur wenn keine passende Übung im Katalog existiert, schlage eine neue vor (exercise_id: null).
+4. STRUKTUR:
+   - "sonsomo" (Aufwärmen/Sensomotorik): 2-4 Übungen für Mobilität, Stabilität, Aufwärmung
+   - "main" (Haupttraining): 4-6 Übungen für die identifizierten Schwächen
+   - "core" (Core/Rumpf): 2-3 Übungen für Rumpfstabilität
+5. GEWICHT/BELASTUNG: Gib realistische Startgewichte an. Trenne Sätze/Wiederholungen (sets) und Gewicht (weight).
+6. SPRACHE: Antworte auf Deutsch.
+
+Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
+{
+  "plan_name": "Kurzer Planname (z.B. 'Kraft & Stabilität Phase 1')",
+  "sonsomo": [
+    { "exercise_name": "Name", "exercise_id": 123, "device": "Gerät", "position": "Position/Ausführung", "sets": "3×12", "weight": "20kg" }
+  ],
+  "main": [ ... ],
+  "core": [ ... ],
+  "reasoning": "2-4 Sätze die erklären WARUM dieser Plan gewählt wurde, welche Schwächen adressiert werden, und welche Kontraindikationen berücksichtigt wurden."
+}`;
+  }
+
+  private buildUserPrompt(context: AiPromptContext): string {
+    return `Erstelle einen Trainingsplan für folgenden Kunden:\n\n${JSON.stringify(context, null, 2)}\n\nAntworte NUR mit dem JSON-Objekt, kein Markdown, kein Kommentar.`;
+  }
 
   private buildPromptContext(
     client: Client,
@@ -352,66 +412,77 @@ export class AiPlanService {
     };
   }
 
+  /** Route to the active provider */
   private async callLlm(context: AiPromptContext): Promise<AiLlmResponse> {
-    if (!this.anthropic) {
-      throw new ServiceUnavailableException('Anthropic API key not configured');
+    switch (this.provider) {
+      case 'groq':
+        return this.callGroq(context);
+      case 'anthropic':
+        return this.callAnthropic(context);
+      default:
+        throw new ServiceUnavailableException('No AI provider configured');
     }
+  }
 
-    const systemPrompt = `Du bist ein erfahrener Sportwissenschaftler und Personal Trainer.
-Deine Aufgabe: Erstelle einen individualisierten Trainingsplan basierend auf den Leistungstest-Ergebnissen und der medizinischen Anamnese des Kunden.
+  // ── Groq (Llama 3.3 70B — free tier) ────────────────────────────────────
 
-WICHTIGE REGELN:
-1. KONTRAINDIKATIONEN BEACHTEN: Wenn der Kunde Verletzungen oder Erkrankungen hat, wähle KEINE Übungen die diese Bereiche belasten. Sicherheit geht immer vor.
-2. SCHWÄCHEN PRIORISIEREN: Fokussiere den Plan auf die identifizierten Schwächen aus dem Leistungstest.
-3. VERFÜGBARE ÜBUNGEN BEVORZUGEN: Wähle Übungen aus dem mitgelieferten Katalog (mit exercise_id). Nur wenn keine passende Übung im Katalog existiert, schlage eine neue vor (exercise_id: null).
-4. STRUKTUR:
-   - "sonsomo" (Aufwärmen/Sensomotorik): 2-4 Übungen für Mobilität, Stabilität, Aufwärmung
-   - "main" (Haupttraining): 4-6 Übungen für die identifizierten Schwächen
-   - "core" (Core/Rumpf): 2-3 Übungen für Rumpfstabilität
-5. GEWICHT/BELASTUNG: Gib realistische Startgewichte an. Trenne Sätze/Wiederholungen (sets) und Gewicht (weight).
-6. SPRACHE: Antworte auf Deutsch.
+  private async callGroq(context: AiPromptContext): Promise<AiLlmResponse> {
+    if (!this.groq) throw new ServiceUnavailableException('Groq API key not configured');
 
-Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
-{
-  "plan_name": "Kurzer Planname (z.B. 'Kraft & Stabilität Phase 1')",
-  "sonsomo": [
-    { "exercise_name": "Name", "exercise_id": 123, "device": "Gerät", "position": "Position/Ausführung", "sets": "3×12", "weight": "20kg" }
-  ],
-  "main": [ ... ],
-  "core": [ ... ],
-  "reasoning": "2-4 Sätze die erklären WARUM dieser Plan gewählt wurde, welche Schwächen adressiert werden, und welche Kontraindikationen berücksichtigt wurden."
-}`;
+    const userPrompt = this.buildUserPrompt(context);
 
-    const userPrompt = `Erstelle einen Trainingsplan für folgenden Kunden:
+    const response = await this.groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: 4096,
+      temperature: 0.3,
+      messages: [
+        { role: 'system', content: this.systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+    });
 
-${JSON.stringify(context, null, 2)}
+    const raw = response.choices?.[0]?.message?.content?.trim();
+    if (!raw) throw new Error('No content in Groq response');
 
-Antworte NUR mit dem JSON-Objekt, kein Markdown, kein Kommentar.`;
+    return this.parseResponse(raw);
+  }
+
+  // ── Anthropic Claude ─────────────────────────────────────────────────────
+
+  private async callAnthropic(context: AiPromptContext): Promise<AiLlmResponse> {
+    if (!this.anthropic) throw new ServiceUnavailableException('Anthropic API key not configured');
+
+    const userPrompt = this.buildUserPrompt(context);
 
     const response = await this.anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 4096,
-      system: systemPrompt,
+      system: this.systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],
     });
 
-    // Extract text from the response
     const textBlock = response.content.find((b) => b.type === 'text');
     if (!textBlock || textBlock.type !== 'text') {
-      throw new Error('No text content in LLM response');
+      throw new Error('No text content in Anthropic response');
     }
 
-    // Parse JSON — strip potential markdown fences
-    let raw = textBlock.text.trim();
-    if (raw.startsWith('```')) {
-      raw = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+    return this.parseResponse(textBlock.text.trim());
+  }
+
+  // ── Shared JSON parser ───────────────────────────────────────────────────
+
+  private parseResponse(raw: string): AiLlmResponse {
+    // Strip potential markdown fences
+    let cleaned = raw;
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
     }
 
     let parsed: AiLlmResponse;
     try {
-      parsed = JSON.parse(raw);
+      parsed = JSON.parse(cleaned);
     } catch (e) {
-      this.logger.error(`Failed to parse LLM JSON: ${raw.substring(0, 500)}`);
+      this.logger.error(`Failed to parse LLM JSON: ${cleaned.substring(0, 500)}`);
       throw new Error(`LLM returned invalid JSON: ${e.message}`);
     }
 
