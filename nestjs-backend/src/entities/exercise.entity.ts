@@ -23,6 +23,24 @@ export class Exercise {
   @Column({ default: 0 })
   published: number;
 
+  // ── Anatomie-Metadaten (für KI-gestützte Planauswahl) ──
+
+  /** UpperBody | LowerBody | Core | FullBody */
+  @Column({ name: 'body_region', nullable: true })
+  bodyRegion: string;
+
+  /** z.B. Quadriceps, Hamstrings, Wade, Oberer Rücken, Brust, Schulter … */
+  @Column({ name: 'primary_muscle_group', nullable: true })
+  primaryMuscleGroup: string;
+
+  /** Sprunggelenk | Knie | Hüfte | LWS | BWS | Schulter | Ellenbogen | Handgelenk */
+  @Column({ name: 'target_joint', nullable: true })
+  targetJoint: string;
+
+  /** Push | Pull | Squat | Hinge | Carry | Rotation | Static | Plyo | Sprint | Agility */
+  @Column({ name: 'movement_pattern', nullable: true })
+  movementPattern: string;
+
   @ManyToOne(() => Exercisegroup, (g) => g.exercises)
   @JoinColumn({ name: 'group_id' })
   group: Exercisegroup;

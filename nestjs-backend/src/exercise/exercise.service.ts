@@ -60,6 +60,7 @@ export class ExerciseService {
     subgroupsCreated: number;
     exercisesCreated: number;
     exercisesSkipped: number;
+    metadataUpdated: number;
     details: string[];
   }> {
     const details: string[] = [];
@@ -67,6 +68,7 @@ export class ExerciseService {
     let subgroupsCreated = 0;
     let exercisesCreated = 0;
     let exercisesSkipped = 0;
+    let metadataUpdated = 0;
 
     // Cache existing exercise names for deduplication
     const existingExercises = await this.exerciseRepo.find({ select: ['name'] });
@@ -98,9 +100,22 @@ export class ExerciseService {
         subgroupMap.set(sgName, sg.id);
       }
 
-      // 3. Create exercises (skip duplicates)
+      // 3. Create or update exercises (skip duplicates for new, update metadata for existing)
       for (const ex of category.exercises) {
         if (existingNames.has(ex.name.toLowerCase())) {
+          // Update anatomy metadata on existing exercises (idempotent)
+          if (ex.body_region || ex.primary_muscle_group || ex.target_joint || ex.movement_pattern) {
+            await this.exerciseRepo.update(
+              { name: ex.name },
+              {
+                ...(ex.body_region && { bodyRegion: ex.body_region }),
+                ...(ex.primary_muscle_group && { primaryMuscleGroup: ex.primary_muscle_group }),
+                ...(ex.target_joint && { targetJoint: ex.target_joint }),
+                ...(ex.movement_pattern && { movementPattern: ex.movement_pattern }),
+              },
+            );
+            metadataUpdated++;
+          }
           exercisesSkipped++;
           continue;
         }
@@ -112,6 +127,10 @@ export class ExerciseService {
             subgroupId: ex.subgroup ? subgroupMap.get(ex.subgroup) : undefined,
             published: 1,
             archive: 0,
+            bodyRegion: ex.body_region || undefined,
+            primaryMuscleGroup: ex.primary_muscle_group || undefined,
+            targetJoint: ex.target_joint || undefined,
+            movementPattern: ex.movement_pattern || undefined,
           }),
         );
         existingNames.add(ex.name.toLowerCase());
@@ -125,9 +144,9 @@ export class ExerciseService {
 
     this.logger.log(
       `Seed complete: ${groupsCreated} groups, ${subgroupsCreated} subgroups, ` +
-      `${exercisesCreated} exercises created, ${exercisesSkipped} skipped`,
+      `${exercisesCreated} exercises created, ${exercisesSkipped} skipped, ${metadataUpdated} metadata updated`,
     );
 
-    return { groupsCreated, subgroupsCreated, exercisesCreated, exercisesSkipped, details };
+    return { groupsCreated, subgroupsCreated, exercisesCreated, exercisesSkipped, metadataUpdated, details };
   }
 }
