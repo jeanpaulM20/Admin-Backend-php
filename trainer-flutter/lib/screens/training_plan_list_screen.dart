@@ -375,9 +375,10 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                       ],
                     ]),
                     if ((m['device']?.toString() ?? '').isNotEmpty ||
-                        (m['position']?.toString() ?? '').isNotEmpty)
+                        (m['position']?.toString() ?? '').isNotEmpty ||
+                        (m['sets']?.toString() ?? '').isNotEmpty)
                       Text(
-                        [m['device'], m['position']]
+                        [m['device'], m['position'], m['sets']]
                             .where((s) => s != null && s.toString().isNotEmpty)
                             .join(' · '),
                         style: GoogleFonts.openSans(color: AppColors.muted, fontSize: 11),
@@ -413,6 +414,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
           device: m['device']?.toString() ?? '',
           position: m['position']?.toString() ?? '',
           weight: m['weight']?.toString() ?? '',
+          sets: m['sets']?.toString() ?? '',
         );
       }).toList();
     }

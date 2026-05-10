@@ -75,10 +75,11 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
 
   List<List<TextEditingController>> _buildRowCtrls(List<TrainingPlanRow> rows) =>
       rows.map((r) => [
-            TextEditingController(text: r.exercise),
-            TextEditingController(text: r.device),
-            TextEditingController(text: r.position),
-            TextEditingController(text: r.weight),
+            TextEditingController(text: r.exercise),  // 0
+            TextEditingController(text: r.device),     // 1
+            TextEditingController(text: r.position),   // 2
+            TextEditingController(text: r.weight),     // 3
+            TextEditingController(text: r.sets),       // 4
           ]).toList();
 
   List<List<TextEditingController>> _buildDateCtrls(List<TrainingPlanRow> rows) =>
@@ -93,6 +94,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
         TextEditingController(),
         TextEditingController(),
         TextEditingController(),
+        TextEditingController(),  // sets
       ]);
       _dateCtrlsFor(prefix).add(List.generate(8, (_) => TextEditingController()));
       _likedFor(prefix).add(false);
@@ -177,6 +179,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
               device:   rc[i][1].text,
               position: rc[i][2].text,
               weight:   rc[i][3].text,
+              sets:     rc[i][4].text,
               dates:    List.generate(8, (j) => dc[i][j].text),
               liked:    liked[i],
               disliked: disliked[i],
@@ -369,7 +372,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
                     decoration: InputDecoration(
                       hintText: '${i + 1}. Datum',
                       hintStyle: GoogleFonts.openSans(
-                          color: AppColors.muted.withOpacity(0.4), fontSize: 10),
+                          color: AppColors.muted.withAlpha(102), fontSize: 10),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
                       filled: true,
                       fillColor: AppColors.surface2,
@@ -449,9 +452,9 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: section.color.withOpacity(0.12),
+                color: section.color.withAlpha(31),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: section.color.withOpacity(0.3), width: 0.5),
+                border: Border.all(color: section.color.withAlpha(77), width: 0.5),
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Icon(section.icon, size: 12, color: section.color),
@@ -511,22 +514,21 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
           border: Border.all(
-            color: color.withOpacity(0.3),
+            color: color.withAlpha(77),
             width: 1.5,
-            // dashed not available natively, simulate with low opacity border
           ),
           borderRadius: BorderRadius.circular(12),
-          color: color.withOpacity(0.04),
+          color: color.withAlpha(10),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.add_circle_outline, size: 18, color: color.withOpacity(0.8)),
+            Icon(Icons.add_circle_outline, size: 18, color: color.withAlpha(204)),
             const SizedBox(width: 8),
             Text(
               'Übung hinzufügen',
               style: GoogleFonts.openSans(
-                  color: color.withOpacity(0.8),
+                  color: color.withAlpha(204),
                   fontSize: 13,
                   fontWeight: FontWeight.w600),
             ),
@@ -587,12 +589,12 @@ class _ExerciseTile extends StatelessWidget {
 
     // Determine tile accent: liked=green, disliked=red, else normal
     final borderColor = isLiked
-        ? AppColors.green.withOpacity(0.5)
+        ? AppColors.green.withAlpha(128)
         : isDisliked
-            ? AppColors.red.withOpacity(0.4)
+            ? AppColors.red.withAlpha(102)
             : isExpanded
-                ? accentColor.withOpacity(0.35)
-                : AppColors.border.withOpacity(0.5);
+                ? accentColor.withAlpha(89)
+                : AppColors.border.withAlpha(128);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -619,11 +621,11 @@ class _ExerciseTile extends StatelessWidget {
                     height: 28,
                     decoration: BoxDecoration(
                       color: isLiked
-                          ? AppColors.green.withOpacity(0.15)
+                          ? AppColors.green.withAlpha(38)
                           : isDisliked
-                              ? AppColors.red.withOpacity(0.12)
+                              ? AppColors.red.withAlpha(31)
                               : hasContent
-                                  ? accentColor.withOpacity(0.15)
+                                  ? accentColor.withAlpha(38)
                                   : AppColors.surface2,
                       shape: BoxShape.circle,
                     ),
@@ -656,14 +658,14 @@ class _ExerciseTile extends StatelessWidget {
                           style: GoogleFonts.openSans(
                             color: hasContent
                                 ? AppColors.text
-                                : AppColors.muted.withOpacity(0.5),
+                                : AppColors.muted.withAlpha(128),
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
                           decoration: InputDecoration(
                             hintText: 'Übung eingeben…',
                             hintStyle: GoogleFonts.openSans(
-                                color: AppColors.muted.withOpacity(0.3),
+                                color: AppColors.muted.withAlpha(77),
                                 fontSize: 13),
                             border: InputBorder.none,
                             isDense: true,
@@ -671,10 +673,10 @@ class _ExerciseTile extends StatelessWidget {
                           ),
                         ),
                         if (!isExpanded &&
-                            (ctrls[1].text.isNotEmpty || ctrls[2].text.isNotEmpty)) ...[
+                            (ctrls[1].text.isNotEmpty || ctrls[2].text.isNotEmpty || ctrls[4].text.isNotEmpty)) ...[
                           const SizedBox(height: 2),
                           Text(
-                            [ctrls[1].text, ctrls[2].text]
+                            [ctrls[1].text, ctrls[2].text, if (ctrls[4].text.isNotEmpty) ctrls[4].text]
                                 .where((s) => s.isNotEmpty)
                                 .join('  ·  '),
                             style: GoogleFonts.openSans(
@@ -688,6 +690,33 @@ class _ExerciseTile extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
 
+                  // Sets pill
+                  SizedBox(
+                    width: 52,
+                    child: TextField(
+                      controller: ctrls[4],
+                      style: GoogleFonts.openSans(
+                          color: AppColors.muted, fontSize: 11, fontWeight: FontWeight.w600),
+                      textAlign: TextAlign.center,
+                      decoration: InputDecoration(
+                        hintText: 'Sätze',
+                        hintStyle: GoogleFonts.openSans(
+                            color: AppColors.muted.withAlpha(77), fontSize: 10),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                        filled: true,
+                        fillColor: AppColors.surface2,
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
+                        enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
+                        focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            borderSide: BorderSide(color: accentColor, width: 1)),
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
                   // Weight pill
                   SizedBox(
                     width: 54,
@@ -699,10 +728,10 @@ class _ExerciseTile extends StatelessWidget {
                       decoration: InputDecoration(
                         hintText: 'kg',
                         hintStyle: GoogleFonts.openSans(
-                            color: AppColors.muted.withOpacity(0.3), fontSize: 11),
+                            color: AppColors.muted.withAlpha(77), fontSize: 11),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
                         filled: true,
-                        fillColor: accentColor.withOpacity(0.1),
+                        fillColor: accentColor.withAlpha(26),
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
                         enabledBorder: OutlineInputBorder(
@@ -730,7 +759,7 @@ class _ExerciseTile extends StatelessWidget {
 
           // ── Expanded details ───────────────────────────────────────────────
           if (isExpanded) ...[
-            Divider(color: accentColor.withOpacity(0.2), height: 1, indent: 50),
+            Divider(color: accentColor.withAlpha(51), height: 1, indent: 50),
             Padding(
               padding: const EdgeInsets.fromLTRB(50, 12, 12, 14),
               child: Column(
@@ -747,7 +776,7 @@ class _ExerciseTile extends StatelessWidget {
                   // Ergebnisse label
                   Text('ERGEBNISSE',
                       style: GoogleFonts.openSans(
-                          color: AppColors.muted.withOpacity(0.6),
+                          color: AppColors.muted.withAlpha(153),
                           fontSize: 9,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1.5)),
@@ -776,7 +805,7 @@ class _ExerciseTile extends StatelessWidget {
                         label: 'Gefällt mir',
                         color: isLiked ? AppColors.green : AppColors.muted,
                         filled: isLiked,
-                        fillColor: AppColors.green.withOpacity(0.12),
+                        fillColor: AppColors.green.withAlpha(31),
                         onTap: onLike,
                       ),
                       const SizedBox(width: 8),
@@ -786,7 +815,7 @@ class _ExerciseTile extends StatelessWidget {
                         label: 'Passt nicht',
                         color: isDisliked ? AppColors.red : AppColors.muted,
                         filled: isDisliked,
-                        fillColor: AppColors.red.withOpacity(0.1),
+                        fillColor: AppColors.red.withAlpha(26),
                         onTap: onDislike,
                       ),
                       const Spacer(),
@@ -796,7 +825,7 @@ class _ExerciseTile extends StatelessWidget {
                         child: Container(
                           padding: const EdgeInsets.all(7),
                           decoration: BoxDecoration(
-                            color: AppColors.red.withOpacity(0.08),
+                            color: AppColors.red.withAlpha(20),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Icon(Icons.delete_outline,
@@ -892,7 +921,7 @@ class _ActionChip extends StatelessWidget {
           color: filled ? fillColor : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: filled ? color.withOpacity(0.4) : AppColors.border,
+            color: filled ? color.withAlpha(102) : AppColors.border,
             width: 0.8,
           ),
         ),

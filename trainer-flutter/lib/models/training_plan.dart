@@ -5,6 +5,7 @@ class TrainingPlanRow {
   String device;
   String position;
   String weight;
+  String sets;        // e.g. "3×12"
   List<String> dates;
   bool liked;
   bool disliked;
@@ -14,6 +15,7 @@ class TrainingPlanRow {
     this.device = '',
     this.position = '',
     this.weight = '',
+    this.sets = '',
     List<String>? dates,
     this.liked = false,
     this.disliked = false,
@@ -25,6 +27,7 @@ class TrainingPlanRow {
       device: json['device']?.toString() ?? '',
       position: json['position']?.toString() ?? '',
       weight: json['weight']?.toString() ?? '',
+      sets: json['sets']?.toString() ?? '',
       dates: json['dates'] is List
           ? List<String>.from((json['dates'] as List).map((e) => e?.toString() ?? ''))
           : List.filled(8, ''),
@@ -38,6 +41,7 @@ class TrainingPlanRow {
         'device': device,
         'position': position,
         'weight': weight,
+        if (sets.isNotEmpty) 'sets': sets,
         'dates': dates,
         if (liked) 'liked': true,
         if (disliked) 'disliked': true,
