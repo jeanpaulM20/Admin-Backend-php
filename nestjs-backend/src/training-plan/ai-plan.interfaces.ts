@@ -88,4 +88,5 @@ export interface AiLlmExercise {
   device: string;
   position: string;
   weight: string;
+  sets?: string;                // e.g. "3×12"
 }

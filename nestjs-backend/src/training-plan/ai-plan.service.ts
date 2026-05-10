@@ -153,6 +153,7 @@ export class AiPlanService {
           device: r.device || '',
           position: r.position || '',
           weight: r.weight || '',
+          sets: r.sets || '',
           dates: Array(8).fill(''),
         };
       });
@@ -367,14 +368,14 @@ WICHTIGE REGELN:
    - "sonsomo" (Aufwärmen/Sensomotorik): 2-4 Übungen für Mobilität, Stabilität, Aufwärmung
    - "main" (Haupttraining): 4-6 Übungen für die identifizierten Schwächen
    - "core" (Core/Rumpf): 2-3 Übungen für Rumpfstabilität
-5. GEWICHT/BELASTUNG: Gib realistische Startgewichte oder Wiederholungszahlen an.
+5. GEWICHT/BELASTUNG: Gib realistische Startgewichte an. Trenne Sätze/Wiederholungen (sets) und Gewicht (weight).
 6. SPRACHE: Antworte auf Deutsch.
 
 Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
 {
   "plan_name": "Kurzer Planname (z.B. 'Kraft & Stabilität Phase 1')",
   "sonsomo": [
-    { "exercise_name": "Name", "exercise_id": 123, "device": "Gerät", "position": "Position/Ausführung", "weight": "3×15" }
+    { "exercise_name": "Name", "exercise_id": 123, "device": "Gerät", "position": "Position/Ausführung", "sets": "3×12", "weight": "20kg" }
   ],
   "main": [ ... ],
   "core": [ ... ],
@@ -453,7 +454,8 @@ Antworte NUR mit dem JSON-Objekt, kein Markdown, kein Kommentar.`;
         exercise_id: e.id,
         device: '',
         position: '',
-        weight: '3×12',
+        sets: '3×12',
+        weight: '',
       }));
 
     // Simple matching: try to find exercises whose group loosely matches
@@ -510,6 +512,7 @@ Antworte NUR mit dem JSON-Objekt, kein Markdown, kein Kommentar.`;
       device: row.device,
       position: row.position,
       weight: row.weight,
+      sets: row.sets || '',
       dates: row.dates,
       ...(row.exerciseId ? { exerciseId: row.exerciseId } : {}),
     };
