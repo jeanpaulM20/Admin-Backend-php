@@ -353,16 +353,17 @@ WICHTIGE REGELN:
 1. KONTRAINDIKATIONEN STRIKT BEACHTEN: Wenn der Kunde Verletzungen hat, wähle KEINE Übungen die das verletzte Gelenk/den verletzten Bereich belasten.
    - Knie-Verletzung → KEINE Squats, Lunges, Ausfallschritte, Sprünge, tiefe Kniebeugen
    - Rücken/LWS-Probleme → KEINE schweren Deadlifts, Hyperextensions unter Last, Übungen mit hoher axialer Belastung
-   - Schulter-Verletzung → KEINE Überkopf-Druckübungen, weites Bankdrücken
+   - Schulter-Verletzung/Impingement → KEINE Überkopf-Druckübungen, weites Bankdrücken, Handstände, Front Lever, Back Lever, Lock-Off Holds, Military Press, Push Press. Stattdessen: Scapula-Stabilisation, Rotatorenmanschetten-Übungen, Facepulls, horizontales Rudern.
    Sicherheit geht IMMER vor Leistungsoptimierung.
-2. SCHWÄCHEN PRIORISIEREN: Fokussiere den Plan auf die identifizierten Schwächen aus dem Leistungstest.
-3. VERFÜGBARE ÜBUNGEN BEVORZUGEN: Wähle Übungen aus dem mitgelieferten Katalog (mit exercise_id). Nur wenn keine passende Übung im Katalog existiert, schlage eine neue vor (exercise_id: null).
-4. STRUKTUR:
+2. SCHWIERIGKEITSGRAD ANPASSEN: Passe den Schwierigkeitsgrad der Übungen an das tatsächliche Leistungsniveau des Kunden an. Wenn der Kunde z.B. 0 Klimmzüge schafft, wähle KEINE fortgeschrittenen Übungen wie Front Lever, Muscle-Up, L-Sit. Beginne mit Regressionen (z.B. Negativklimmzüge, Ruderübungen, Plankvarianten).
+3. SCHWÄCHEN VOLLSTÄNDIG ABDECKEN: Adressiere JEDE identifizierte Schwäche aus dem Leistungstest mit mindestens einer gezielten Übung. Prüfe am Ende, ob alle Schwächen im Plan vertreten sind.
+4. VERFÜGBARE ÜBUNGEN BEVORZUGEN: Wähle Übungen aus dem mitgelieferten Katalog (mit exercise_id). Nur wenn keine passende Übung im Katalog existiert, schlage eine neue vor (exercise_id: null).
+5. STRUKTUR:
    - "sonsomo" (Aufwärmen/Sensomotorik): 2-4 Übungen für Mobilität, Stabilität, Aufwärmung
    - "main" (Haupttraining): 4-6 Übungen für die identifizierten Schwächen
    - "core" (Core/Rumpf): 2-3 Übungen für Rumpfstabilität
-5. GEWICHT/BELASTUNG: Gib realistische Startgewichte an. Trenne Sätze/Wiederholungen (sets) und Gewicht (weight).
-6. SPRACHE: Antworte auf Deutsch.
+6. GEWICHT/BELASTUNG: Gib realistische Startgewichte an. Trenne Sätze/Wiederholungen (sets) und Gewicht (weight).
+7. SPRACHE: Antworte auf Deutsch.
 
 Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
 {
