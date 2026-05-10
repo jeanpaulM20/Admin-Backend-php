@@ -25,7 +25,7 @@ export class Exercise {
 
   // ── Anatomie-Metadaten (für KI-gestützte Planauswahl) ──
 
-  /** UpperBody | LowerBody | Core | FullBody */
+  /** UpperBody | LowerBody | Core | FullBody | Foot */
   @Column({ name: 'body_region', nullable: true })
   bodyRegion: string;
 

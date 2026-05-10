@@ -4,7 +4,7 @@
 // Jede Übung mit anatomischen Metadaten für KI-gestützte Planauswahl
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type BodyRegion = 'UpperBody' | 'LowerBody' | 'Core' | 'FullBody';
+export type BodyRegion = 'UpperBody' | 'LowerBody' | 'Core' | 'FullBody' | 'Foot';
 export type MovementPattern = 'Push' | 'Pull' | 'Squat' | 'Hinge' | 'Carry' | 'Rotation' | 'Static' | 'Plyo' | 'Sprint' | 'Agility';
 
 export interface SeedExercise {
@@ -36,33 +36,33 @@ export const EXERCISE_SEED_DATA: SeedCategory[] = [
     ],
     exercises: [
       // Intrinsische Fußmuskulatur
-      { name: 'Short Foot Exercise (Kurzfuß nach Janda)', subgroup: 'Intrinsische Fußmuskulatur', body_region: 'LowerBody', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Static' },
-      { name: 'Zehenklavier (isolierte Zehenkontrolle)', subgroup: 'Intrinsische Fußmuskulatur', body_region: 'LowerBody', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Static' },
-      { name: 'Towel Scrunch (Handtuch-Raffen)', subgroup: 'Intrinsische Fußmuskulatur', body_region: 'LowerBody', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Pull' },
-      { name: 'Marble Pickup (Murmelgreifen mit Zehen)', subgroup: 'Intrinsische Fußmuskulatur', body_region: 'LowerBody', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Pull' },
-      { name: 'Arch Doming (Fußgewölbe-Aktivierung)', subgroup: 'Intrinsische Fußmuskulatur', body_region: 'LowerBody', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Static' },
-      { name: 'Big Toe Extension mit Widerstandsband', subgroup: 'Intrinsische Fußmuskulatur', body_region: 'LowerBody', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Push' },
-      { name: 'Toe Yoga (Großzeh heben / Kleinzehen heben)', subgroup: 'Intrinsische Fußmuskulatur', body_region: 'LowerBody', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Static' },
-      { name: 'Zehen-Spreizen & Kontrahieren (aktiv)', subgroup: 'Intrinsische Fußmuskulatur', body_region: 'LowerBody', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Static' },
+      { name: 'Short Foot Exercise (Kurzfuß nach Janda)', subgroup: 'Intrinsische Fußmuskulatur', body_region: 'Foot', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Static' },
+      { name: 'Zehenklavier (isolierte Zehenkontrolle)', subgroup: 'Intrinsische Fußmuskulatur', body_region: 'Foot', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Static' },
+      { name: 'Towel Scrunch (Handtuch-Raffen)', subgroup: 'Intrinsische Fußmuskulatur', body_region: 'Foot', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Pull' },
+      { name: 'Marble Pickup (Murmelgreifen mit Zehen)', subgroup: 'Intrinsische Fußmuskulatur', body_region: 'Foot', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Pull' },
+      { name: 'Arch Doming (Fußgewölbe-Aktivierung)', subgroup: 'Intrinsische Fußmuskulatur', body_region: 'Foot', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Static' },
+      { name: 'Big Toe Extension mit Widerstandsband', subgroup: 'Intrinsische Fußmuskulatur', body_region: 'Foot', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Push' },
+      { name: 'Toe Yoga (Großzeh heben / Kleinzehen heben)', subgroup: 'Intrinsische Fußmuskulatur', body_region: 'Foot', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Static' },
+      { name: 'Zehen-Spreizen & Kontrahieren (aktiv)', subgroup: 'Intrinsische Fußmuskulatur', body_region: 'Foot', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Static' },
 
       // Propriozeption Fuß
-      { name: 'Einbeinstand auf instabilem Untergrund', subgroup: 'Propriozeption Fuß', body_region: 'LowerBody', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Static' },
-      { name: 'Barfuß-Gehen über Sensorik-Pfad', subgroup: 'Propriozeption Fuß', body_region: 'LowerBody', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Static' },
-      { name: 'Einbeinstand Augen geschlossen (30s+)', subgroup: 'Propriozeption Fuß', body_region: 'LowerBody', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Static' },
-      { name: 'Tandemstand auf weichem Untergrund', subgroup: 'Propriozeption Fuß', body_region: 'LowerBody', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Static' },
+      { name: 'Einbeinstand auf instabilem Untergrund', subgroup: 'Propriozeption Fuß', body_region: 'Foot', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Static' },
+      { name: 'Barfuß-Gehen über Sensorik-Pfad', subgroup: 'Propriozeption Fuß', body_region: 'Foot', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Static' },
+      { name: 'Einbeinstand Augen geschlossen (30s+)', subgroup: 'Propriozeption Fuß', body_region: 'Foot', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Static' },
+      { name: 'Tandemstand auf weichem Untergrund', subgroup: 'Propriozeption Fuß', body_region: 'Foot', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Static' },
 
       // Barfuß-Kräftigung
-      { name: 'Heel Walk / Toe Walk (Fersen-/Zehengang)', subgroup: 'Barfuß-Kräftigung', body_region: 'LowerBody', primary_muscle_group: 'Wade / Tibialis anterior', target_joint: 'Sprunggelenk', movement_pattern: 'Push' },
-      { name: 'Calf-Raise einbeinig barfuß (langsam exzentrisch)', subgroup: 'Barfuß-Kräftigung', body_region: 'LowerBody', primary_muscle_group: 'Wade', target_joint: 'Sprunggelenk', movement_pattern: 'Push' },
-      { name: 'Lateral Walk barfuß (Außenkante)', subgroup: 'Barfuß-Kräftigung', body_region: 'LowerBody', primary_muscle_group: 'Peroneus / Fußmuskulatur', target_joint: 'Sprunggelenk', movement_pattern: 'Static' },
-      { name: 'Barfuß-Treppengehen (kontrolliert exzentrisch)', subgroup: 'Barfuß-Kräftigung', body_region: 'LowerBody', primary_muscle_group: 'Wade / Quadriceps', target_joint: 'Sprunggelenk', movement_pattern: 'Squat' },
+      { name: 'Heel Walk / Toe Walk (Fersen-/Zehengang)', subgroup: 'Barfuß-Kräftigung', body_region: 'Foot', primary_muscle_group: 'Wade / Tibialis anterior', target_joint: 'Sprunggelenk', movement_pattern: 'Push' },
+      { name: 'Calf-Raise einbeinig barfuß (langsam exzentrisch)', subgroup: 'Barfuß-Kräftigung', body_region: 'Foot', primary_muscle_group: 'Wade', target_joint: 'Sprunggelenk', movement_pattern: 'Push' },
+      { name: 'Lateral Walk barfuß (Außenkante)', subgroup: 'Barfuß-Kräftigung', body_region: 'Foot', primary_muscle_group: 'Peroneus / Fußmuskulatur', target_joint: 'Sprunggelenk', movement_pattern: 'Static' },
+      { name: 'Barfuß-Treppengehen (kontrolliert exzentrisch)', subgroup: 'Barfuß-Kräftigung', body_region: 'Foot', primary_muscle_group: 'Wade / Quadriceps', target_joint: 'Sprunggelenk', movement_pattern: 'Squat' },
 
       // Barfuß-Laufen
-      { name: 'Barfuß-Lauf auf Rasen (Technikfokus Vorfuß)', subgroup: 'Barfuß-Laufen', body_region: 'LowerBody', primary_muscle_group: 'Wade / Fußmuskulatur', target_joint: 'Sprunggelenk', movement_pattern: 'Sprint' },
-      { name: 'Barfuß-Lauf-ABC (Skipping, Kniehebelauf)', subgroup: 'Barfuß-Laufen', body_region: 'LowerBody', primary_muscle_group: 'Hüftbeuger / Wade', target_joint: 'Knie', movement_pattern: 'Sprint' },
-      { name: 'Barfuß-Steigerungsläufe (50m progressiv)', subgroup: 'Barfuß-Laufen', body_region: 'LowerBody', primary_muscle_group: 'Gluteus / Quadriceps / Wade', target_joint: 'Knie', movement_pattern: 'Sprint' },
-      { name: 'Barfuß Trail-Walking (Waldboden, Kiesel)', subgroup: 'Barfuß-Laufen', body_region: 'LowerBody', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Static' },
-      { name: 'Barfuß-Rückwärtslaufen (Propriozeption)', subgroup: 'Barfuß-Laufen', body_region: 'LowerBody', primary_muscle_group: 'Quadriceps / Wade', target_joint: 'Knie', movement_pattern: 'Sprint' },
+      { name: 'Barfuß-Lauf auf Rasen (Technikfokus Vorfuß)', subgroup: 'Barfuß-Laufen', body_region: 'Foot', primary_muscle_group: 'Wade / Fußmuskulatur', target_joint: 'Sprunggelenk', movement_pattern: 'Sprint' },
+      { name: 'Barfuß-Lauf-ABC (Skipping, Kniehebelauf)', subgroup: 'Barfuß-Laufen', body_region: 'Foot', primary_muscle_group: 'Hüftbeuger / Wade', target_joint: 'Knie', movement_pattern: 'Sprint' },
+      { name: 'Barfuß-Steigerungsläufe (50m progressiv)', subgroup: 'Barfuß-Laufen', body_region: 'Foot', primary_muscle_group: 'Gluteus / Quadriceps / Wade', target_joint: 'Knie', movement_pattern: 'Sprint' },
+      { name: 'Barfuß Trail-Walking (Waldboden, Kiesel)', subgroup: 'Barfuß-Laufen', body_region: 'Foot', primary_muscle_group: 'Fußmuskulatur intrinsisch', target_joint: 'Sprunggelenk', movement_pattern: 'Static' },
+      { name: 'Barfuß-Rückwärtslaufen (Propriozeption)', subgroup: 'Barfuß-Laufen', body_region: 'Foot', primary_muscle_group: 'Quadriceps / Wade', target_joint: 'Knie', movement_pattern: 'Sprint' },
     ],
   },
 
@@ -164,7 +164,7 @@ export const EXERCISE_SEED_DATA: SeedCategory[] = [
       { name: 'Exzentrische Spanish Squats (Patellasehne)', subgroup: 'Sehnen-Prehab', body_region: 'LowerBody', primary_muscle_group: 'Quadriceps', target_joint: 'Knie', movement_pattern: 'Squat' },
       { name: 'Exzentrische Wrist Curls (Tennisarm-Prehab)', subgroup: 'Sehnen-Prehab', body_region: 'UpperBody', primary_muscle_group: 'Unterarm-Extensoren', target_joint: 'Ellenbogen', movement_pattern: 'Pull' },
       { name: 'Isometric-Eccentric Combo Wandsitzen', subgroup: 'Sehnen-Prehab', body_region: 'LowerBody', primary_muscle_group: 'Quadriceps', target_joint: 'Knie', movement_pattern: 'Static' },
-      { name: 'Exzentrische Plantarfaszie-Übung (Towel Stretch)', subgroup: 'Sehnen-Prehab', body_region: 'LowerBody', primary_muscle_group: 'Plantarfaszie / Wade', target_joint: 'Sprunggelenk', movement_pattern: 'Static' },
+      { name: 'Exzentrische Plantarfaszie-Übung (Towel Stretch)', subgroup: 'Sehnen-Prehab', body_region: 'Foot', primary_muscle_group: 'Plantarfaszie / Wade', target_joint: 'Sprunggelenk', movement_pattern: 'Static' },
 
       // Untere Extremität
       { name: 'Exzentrische Nordic Hamstring Curls', subgroup: 'Untere Extremität', body_region: 'LowerBody', primary_muscle_group: 'Hamstrings', target_joint: 'Knie', movement_pattern: 'Pull' },
