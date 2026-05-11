@@ -20,6 +20,13 @@ export class TrainingPlanController {
     return this.aiService.getProviderStatus();
   }
 
+  /** Temporary test endpoint — generates AI plan for a client (public, REMOVE after testing!) */
+  @Public()
+  @Get('ai/test/:clientId')
+  testRecommend(@Param('clientId', ParseIntPipe) clientId: number) {
+    return this.aiService.generateAiPlan(clientId);
+  }
+
   @Get()
   findAll(@CurrentClient() client: Client, @Query('client_id') clientId?: number) {
     return this.service.findAll(client?.id ?? clientId);
