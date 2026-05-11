@@ -20,6 +20,8 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
   final _searchCtrl = TextEditingController();
   bool _loading = true;
   bool _generatingAi = false;
+  String _aiStep = '';
+  int _aiStepIndex = 0;
   String? _error;
   List<TrainingPlan> _plans = [];
   String _query = '';
@@ -84,32 +86,58 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
     if (ok == true) _load();
   }
 
+  static const _aiSteps = [
+    'Kundendaten laden …',
+    'Leistungstest analysieren …',
+    'Körperzusammensetzung prüfen …',
+    'Trainingshistorie auswerten …',
+    'Schwächen identifizieren …',
+    'KI erstellt Trainingsplan …',
+  ];
+
+  void _advanceAiSteps() async {
+    for (var i = 0; i < _aiSteps.length; i++) {
+      if (!_generatingAi || !mounted) return;
+      setState(() {
+        _aiStepIndex = i;
+        _aiStep = _aiSteps[i];
+      });
+      // Stagger the steps: first ones quick, last one long (waiting for AI)
+      await Future.delayed(Duration(milliseconds: i < 4 ? 1200 : 2500));
+    }
+  }
+
   Future<void> _generateAiPlan() async {
-    setState(() => _generatingAi = true);
+    setState(() {
+      _generatingAi = true;
+      _aiStepIndex = 0;
+      _aiStep = _aiSteps[0];
+    });
+    _advanceAiSteps();
     try {
       final result = await _api.get(
         '${ApiConfig.trainingPlan}/ai/recommend/${widget.client.id}',
       );
       if (!mounted) return;
       if (result is Map<String, dynamic>) {
-        // Show preview bottom sheet
+        setState(() => _generatingAi = false);
         await _showAiPreview(result);
       }
     } on ApiException catch (e) {
       if (!mounted) return;
+      setState(() => _generatingAi = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message), backgroundColor: AppColors.red),
       );
     } catch (e) {
       if (!mounted) return;
+      setState(() => _generatingAi = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('KI-Generierung fehlgeschlagen: $e'),
           backgroundColor: AppColors.red,
         ),
       );
-    } finally {
-      if (mounted) setState(() => _generatingAi = false);
     }
   }
 
@@ -448,40 +476,154 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
+      body: Stack(
         children: [
-          _buildHeader(),
-          _buildSearchBar(),
-          Expanded(child: _buildBody()),
+          Column(
+            children: [
+              _buildHeader(),
+              _buildSearchBar(),
+              Expanded(child: _buildBody()),
+            ],
+          ),
+          if (_generatingAi) _buildAiOverlay(),
         ],
       ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // AI-Plan button
-          FloatingActionButton.small(
-            heroTag: 'ai',
-            onPressed: _generatingAi ? null : _generateAiPlan,
-            backgroundColor: const Color(0xFF1E2740),
-            foregroundColor: const Color(0xFFAB47BC),
-            tooltip: 'KI-Plan erstellen',
-            child: _generatingAi
-                ? const SizedBox(
-                    width: 18, height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFAB47BC)))
-                : const Icon(Icons.auto_awesome, size: 20),
+      floatingActionButton: _generatingAi
+          ? null
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // AI-Plan button
+                FloatingActionButton.small(
+                  heroTag: 'ai',
+                  onPressed: _generateAiPlan,
+                  backgroundColor: const Color(0xFF1E2740),
+                  foregroundColor: const Color(0xFFAB47BC),
+                  tooltip: 'KI-Plan erstellen',
+                  child: const Icon(Icons.auto_awesome, size: 20),
+                ),
+                const SizedBox(height: 10),
+                // Manual plan button
+                FloatingActionButton(
+                  heroTag: 'add',
+                  onPressed: () => _open(null),
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  tooltip: 'Neuer Plan',
+                  child: const Icon(Icons.add),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildAiOverlay() {
+    final progress = (_aiStepIndex + 1) / _aiSteps.length;
+    return AnimatedOpacity(
+      opacity: _generatingAi ? 1.0 : 0.0,
+      duration: const Duration(milliseconds: 300),
+      child: Container(
+        color: Colors.black.withOpacity(0.85),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // AI icon with glow
+                Container(
+                  width: 80, height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF1E2740),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFAB47BC).withOpacity(0.4),
+                        blurRadius: 30,
+                        spreadRadius: 5,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.auto_awesome,
+                      color: Color(0xFFAB47BC), size: 36),
+                ),
+                const SizedBox(height: 32),
+                // Title
+                Text(
+                  'KI-Trainingsplan',
+                  style: GoogleFonts.montserrat(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  widget.client.name,
+                  style: GoogleFonts.inter(
+                    color: Colors.white60,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                // Progress bar
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 4,
+                    backgroundColor: Colors.white12,
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                        Color(0xFFAB47BC)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Step list
+                ...List.generate(_aiSteps.length, (i) {
+                  final done = i < _aiStepIndex;
+                  final active = i == _aiStepIndex;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 20, height: 20,
+                          child: done
+                              ? const Icon(Icons.check_circle,
+                                  color: Color(0xFFAB47BC), size: 18)
+                              : active
+                                  ? const SizedBox(
+                                      width: 16, height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Color(0xFFAB47BC),
+                                      ),
+                                    )
+                                  : Icon(Icons.circle_outlined,
+                                      color: Colors.white24, size: 18),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          _aiSteps[i].replaceAll(' …', ''),
+                          style: GoogleFonts.inter(
+                            color: done
+                                ? Colors.white70
+                                : active
+                                    ? Colors.white
+                                    : Colors.white30,
+                            fontSize: 13,
+                            fontWeight:
+                                active ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ),
           ),
-          const SizedBox(height: 10),
-          // Manual plan button
-          FloatingActionButton(
-            heroTag: 'add',
-            onPressed: () => _open(null),
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            tooltip: 'Neuer Plan',
-            child: const Icon(Icons.add),
-          ),
-        ],
+        ),
       ),
     );
   }
