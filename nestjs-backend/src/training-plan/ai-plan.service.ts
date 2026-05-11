@@ -101,36 +101,32 @@ export class AiPlanService {
     @InjectRepository(Client)
     private readonly clientRepo: Repository<Client>,
   ) {
-    // Determine provider from env: AI_PROVIDER=groq|anthropic (default: auto-detect)
+    // Initialize ALL available providers (primary + fallback)
     const requestedProvider = (process.env.AI_PROVIDER || '').toLowerCase().trim();
     const groqKey = process.env.GROQ_API_KEY?.trim();
     const anthropicKey = process.env.ANTHROPIC_API_KEY?.trim();
 
-    this.logger.log(`AI config: AI_PROVIDER="${requestedProvider}", GROQ_KEY=${groqKey ? 'set(' + groqKey.substring(0, 8) + '...)' : 'missing'}, ANTHROPIC_KEY=${anthropicKey ? 'set' : 'missing'}`);
+    // Initialize both SDKs if keys exist (for fallback)
+    if (groqKey) this.groq = new Groq({ apiKey: groqKey });
+    if (anthropicKey) this.anthropic = new Anthropic({ apiKey: anthropicKey });
 
-    if (requestedProvider === 'groq' && groqKey) {
-      this.groq = new Groq({ apiKey: groqKey });
-      this.provider = 'groq';
-      this.logger.log('AI Provider: Groq (Llama 3.3 70B)');
-    } else if (requestedProvider === 'anthropic' && anthropicKey) {
-      this.anthropic = new Anthropic({ apiKey: anthropicKey });
+    // Determine primary provider
+    if (requestedProvider === 'anthropic' && anthropicKey) {
       this.provider = 'anthropic';
-      this.logger.log('AI Provider: Anthropic Claude');
-    } else if (groqKey) {
-      // Auto-detect: prefer Groq if available (free)
-      this.groq = new Groq({ apiKey: groqKey });
+    } else if (requestedProvider === 'groq' && groqKey) {
       this.provider = 'groq';
-      this.logger.log('AI Provider: Groq (auto-detected)');
     } else if (anthropicKey) {
-      this.anthropic = new Anthropic({ apiKey: anthropicKey });
       this.provider = 'anthropic';
-      this.logger.log('AI Provider: Anthropic (auto-detected)');
+    } else if (groqKey) {
+      this.provider = 'groq';
     } else {
       this.provider = 'none';
-      this.logger.warn(
-        'No AI API key set (GROQ_API_KEY or ANTHROPIC_API_KEY) — using rule-based fallback',
-      );
     }
+
+    const fallback = this.provider === 'anthropic' && this.groq ? 'groq'
+                   : this.provider === 'groq' && this.anthropic ? 'anthropic'
+                   : 'none';
+    this.logger.log(`AI Provider: ${this.provider} (fallback: ${fallback})`);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -173,15 +169,11 @@ export class AiPlanService {
 
     // 5. Generate plan (AI or rule-based fallback)
     let llmResponse: AiLlmResponse;
-    let llmError: string | null = null;
     try {
       llmResponse = await this.callLlm(context);
     } catch (err) {
-      llmError = `[${this.provider}] ${err.message ?? err}`;
-      this.logger.warn(`LLM call failed, using rule-based fallback: ${llmError}`);
+      this.logger.warn(`LLM call failed, using rule-based fallback: ${err.message}`);
       llmResponse = this.ruleBasedFallback(weaknesses, exercises, contraindications);
-      // Append error info to reasoning so it's visible in the UI
-      llmResponse.reasoning = `⚠️ AI-Fehler: ${llmError}\n\n${llmResponse.reasoning}`;
     }
 
     // 6. Match suggested exercises against DB
@@ -459,15 +451,29 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
     };
   }
 
-  /** Route to the active provider */
+  /** Route to the active provider, with automatic fallback */
   private async callLlm(context: AiPromptContext): Promise<AiLlmResponse> {
-    switch (this.provider) {
-      case 'groq':
-        return this.callGroq(context);
-      case 'anthropic':
-        return this.callAnthropic(context);
-      default:
-        throw new ServiceUnavailableException('No AI provider configured');
+    if (this.provider === 'none') {
+      throw new ServiceUnavailableException('No AI provider configured');
+    }
+
+    // Try primary provider
+    try {
+      return this.provider === 'groq'
+        ? await this.callGroq(context)
+        : await this.callAnthropic(context);
+    } catch (primaryErr) {
+      // Determine if a fallback provider is available
+      const fallbackAvailable = this.provider === 'anthropic' ? !!this.groq : !!this.anthropic;
+      if (!fallbackAvailable) throw primaryErr;
+
+      const fallbackName = this.provider === 'anthropic' ? 'Groq' : 'Anthropic';
+      this.logger.warn(`${this.provider} failed (${primaryErr.message}), trying ${fallbackName}...`);
+
+      // Try fallback provider
+      return this.provider === 'anthropic'
+        ? await this.callGroq(context)
+        : await this.callAnthropic(context);
     }
   }
 
