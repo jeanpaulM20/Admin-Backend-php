@@ -4,6 +4,7 @@ import { AiPlanService } from './ai-plan.service';
 import { TrainingPlan } from '../entities/training-plan.entity';
 import { CurrentClient } from '../auth/decorators/current-user.decorator';
 import { Client } from '../entities/client.entity';
+import { Public } from '../auth/decorators/public.decorator';
 
 @Controller('api/training-plan')
 export class TrainingPlanController {
@@ -11,6 +12,13 @@ export class TrainingPlanController {
     private readonly service: TrainingPlanService,
     private readonly aiService: AiPlanService,
   ) {}
+
+  /** Temporary debug endpoint — shows AI provider status (public, no auth) */
+  @Public()
+  @Get('ai/status')
+  aiStatus() {
+    return this.aiService.getProviderStatus();
+  }
 
   @Get()
   findAll(@CurrentClient() client: Client, @Query('client_id') clientId?: number) {

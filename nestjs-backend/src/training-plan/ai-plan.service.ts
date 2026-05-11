@@ -137,6 +137,20 @@ export class AiPlanService {
   // PUBLIC API
   // ═══════════════════════════════════════════════════════════════════════════
 
+  /** Debug: returns which AI provider is active */
+  getProviderStatus() {
+    return {
+      provider: this.provider,
+      groqConfigured: !!this.groq,
+      anthropicConfigured: !!this.anthropic,
+      env: {
+        AI_PROVIDER: process.env.AI_PROVIDER ?? '(not set)',
+        GROQ_API_KEY: process.env.GROQ_API_KEY ? `set (${process.env.GROQ_API_KEY.substring(0, 10)}...)` : '(not set)',
+        ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ? 'set' : '(not set)',
+      },
+    };
+  }
+
   async generateAiPlan(clientId: number): Promise<AiPlanResult> {
     // 1. Load all required data in parallel
     const [client, test, anamnese, exercises] = await Promise.all([
