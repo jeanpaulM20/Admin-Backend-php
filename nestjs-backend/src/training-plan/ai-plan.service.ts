@@ -102,18 +102,20 @@ export class AiPlanService {
     private readonly clientRepo: Repository<Client>,
   ) {
     // Determine provider from env: AI_PROVIDER=groq|anthropic (default: auto-detect)
-    const requestedProvider = (process.env.AI_PROVIDER || '').toLowerCase();
-    const groqKey = process.env.GROQ_API_KEY;
-    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    const requestedProvider = (process.env.AI_PROVIDER || '').toLowerCase().trim();
+    const groqKey = process.env.GROQ_API_KEY?.trim();
+    const anthropicKey = process.env.ANTHROPIC_API_KEY?.trim();
 
-    if (requestedProvider === 'anthropic' && anthropicKey) {
+    this.logger.log(`AI config: AI_PROVIDER="${requestedProvider}", GROQ_KEY=${groqKey ? 'set(' + groqKey.substring(0, 8) + '...)' : 'missing'}, ANTHROPIC_KEY=${anthropicKey ? 'set' : 'missing'}`);
+
+    if (requestedProvider === 'groq' && groqKey) {
+      this.groq = new Groq({ apiKey: groqKey });
+      this.provider = 'groq';
+      this.logger.log('AI Provider: Groq (Llama 3.3 70B)');
+    } else if (requestedProvider === 'anthropic' && anthropicKey) {
       this.anthropic = new Anthropic({ apiKey: anthropicKey });
       this.provider = 'anthropic';
       this.logger.log('AI Provider: Anthropic Claude');
-    } else if (requestedProvider === 'groq' && groqKey) {
-      this.groq = new Groq({ apiKey: groqKey });
-      this.provider = 'groq';
-      this.logger.log('AI Provider: Groq (Llama)');
     } else if (groqKey) {
       // Auto-detect: prefer Groq if available (free)
       this.groq = new Groq({ apiKey: groqKey });
