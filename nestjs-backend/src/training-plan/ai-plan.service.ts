@@ -472,9 +472,14 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
       this.logger.warn(`${this.provider} failed (${primaryErr.message}), trying ${fallbackName}...`);
 
       // Try fallback provider
-      return this.provider === 'anthropic'
-        ? await this.callGroq(context)
-        : await this.callAnthropic(context);
+      try {
+        return this.provider === 'anthropic'
+          ? await this.callGroq(context)
+          : await this.callAnthropic(context);
+      } catch (fallbackErr) {
+        // Both failed — throw combined error
+        throw new Error(`Primary(${this.provider}): ${primaryErr.message} | Fallback(${fallbackName}): ${fallbackErr.message}`);
+      }
     }
   }
 
