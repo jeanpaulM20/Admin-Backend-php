@@ -13,11 +13,18 @@ export class TrainingPlanController {
     private readonly aiService: AiPlanService,
   ) {}
 
-  /** Temporary debug endpoint — shows AI provider status (public, no auth) */
+  /** Debug endpoint — shows AI provider status (public, no auth) */
   @Public()
   @Get('ai/status')
   aiStatus() {
     return this.aiService.getProviderStatus();
+  }
+
+  /** Temporary test endpoint — REMOVE after testing! */
+  @Public()
+  @Get('ai/test/:clientId')
+  testRecommend(@Param('clientId', ParseIntPipe) clientId: number) {
+    return this.aiService.generateAiPlan(clientId);
   }
 
 
