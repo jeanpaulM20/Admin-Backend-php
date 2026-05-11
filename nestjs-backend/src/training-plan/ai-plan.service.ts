@@ -174,6 +174,7 @@ export class AiPlanService {
     } catch (err) {
       this.logger.warn(`LLM call failed, using rule-based fallback: ${err.message}`);
       llmResponse = this.ruleBasedFallback(weaknesses, exercises, contraindications);
+      llmResponse.reasoning = `⚠️ AI-Fehler: ${err.message}\n\n${llmResponse.reasoning}`;
     }
 
     // 6. Match suggested exercises against DB
