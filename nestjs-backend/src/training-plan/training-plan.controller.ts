@@ -16,8 +16,8 @@ export class TrainingPlanController {
   /** Debug endpoint — shows AI provider status (public, no auth) */
   @Public()
   @Get('ai/status')
-  aiStatus() {
-    return this.aiService.getProviderStatus();
+  aiStatus(@Query('test') test?: string) {
+    return this.aiService.getProviderStatus(test === 'true');
   }
 
   /** Temporary test endpoint — REMOVE after testing! */

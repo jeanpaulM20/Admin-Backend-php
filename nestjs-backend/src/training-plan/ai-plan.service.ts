@@ -133,18 +133,33 @@ export class AiPlanService {
   // PUBLIC API
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /** Debug: returns which AI provider is active */
-  getProviderStatus() {
-    return {
+  /** Debug: returns which AI provider is active, optionally tests the connection */
+  async getProviderStatus(test = false) {
+    const status: any = {
       provider: this.provider,
       groqConfigured: !!this.groq,
       anthropicConfigured: !!this.anthropic,
       env: {
         AI_PROVIDER: process.env.AI_PROVIDER ?? '(not set)',
         GROQ_API_KEY: process.env.GROQ_API_KEY ? `set (${process.env.GROQ_API_KEY.substring(0, 10)}...)` : '(not set)',
-        ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ? 'set' : '(not set)',
+        ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ? `set (${process.env.ANTHROPIC_API_KEY.substring(0, 15)}...)` : '(not set)',
       },
     };
+
+    if (test && this.anthropic) {
+      try {
+        const resp = await this.anthropic.messages.create({
+          model: 'claude-3-haiku-20240307',
+          max_tokens: 10,
+          messages: [{ role: 'user', content: 'Say OK' }],
+        });
+        status.anthropicTest = { ok: true, model: 'claude-3-haiku-20240307', response: resp.content?.[0] };
+      } catch (err: any) {
+        status.anthropicTest = { ok: false, error: err.message?.substring(0, 300) };
+      }
+    }
+
+    return status;
   }
 
   async generateAiPlan(clientId: number): Promise<AiPlanResult> {
