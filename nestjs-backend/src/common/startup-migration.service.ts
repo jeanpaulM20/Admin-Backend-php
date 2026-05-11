@@ -20,6 +20,11 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       `ALTER TABLE client ADD COLUMN auto_training_notify TINYINT(1) NOT NULL DEFAULT 0`,
       `ALTER TABLE feedback ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP`,
       `ALTER TABLE feedback ADD COLUMN sender_type VARCHAR(10) DEFAULT NULL`,
+      // Exercise anatomical metadata (for AI plan selection)
+      `ALTER TABLE exercise ADD COLUMN body_region VARCHAR(20) DEFAULT NULL`,
+      `ALTER TABLE exercise ADD COLUMN primary_muscle_group VARCHAR(50) DEFAULT NULL`,
+      `ALTER TABLE exercise ADD COLUMN target_joint VARCHAR(30) DEFAULT NULL`,
+      `ALTER TABLE exercise ADD COLUMN movement_pattern VARCHAR(20) DEFAULT NULL`,
     ];
 
     // Create push_subscription table if it doesn't exist
