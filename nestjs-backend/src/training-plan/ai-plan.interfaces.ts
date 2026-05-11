@@ -54,6 +54,8 @@ export interface AiPromptContext {
     name: string;
     birthdate?: string;
     gender?: string;
+    minHeartRate?: number;
+    maxHeartRate?: number;
   };
   anamnese: {
     injuries: string | null;
@@ -64,7 +66,38 @@ export interface AiPromptContext {
     goals: string | null;
     sportarts: string | null;
     sportartsIntensity: string | null;
+    profession: string | null;
+    activities: string | null;
+    physicalDemands: string | null;
+    sleepWeek: string | null;
+    sleepWeekend: string | null;
+    medicalTreatment: boolean;
+    takingDrugs: boolean;
+    comments: string | null;
   };
+  bodyComposition: {
+    date: string | null;
+    weight: number | null;
+    bodyFatPerc: number | null;
+    bodyFatKg: number | null;
+    waistCircumference: number | null;
+    bcm: number | null;
+    sys: number | null;
+    dia: number | null;
+    calmPulse: number | null;
+  } | null;
+  goals: {
+    description: string;
+    targetDate: string | null;
+    achieved: boolean;
+  }[];
+  recentTrainings: {
+    trainingType: string | null;
+    duration: string | null;
+    kcal: number | null;
+    heartRate: number | null;
+    feedbackEmoticon: string | null;
+  }[];
   performanceTest: {
     date: string;
     results: Record<string, number>;

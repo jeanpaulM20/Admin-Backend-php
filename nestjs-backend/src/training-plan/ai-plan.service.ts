@@ -14,6 +14,9 @@ import { PerformanceTest } from '../entities/performance-test.entity';
 import { ClientAnamnese } from '../entities/client-anamnese.entity';
 import { Exercise } from '../entities/exercise.entity';
 import { Client } from '../entities/client.entity';
+import { Metric } from '../entities/metric.entity';
+import { Review } from '../entities/review.entity';
+import { Goal } from '../entities/remaining.entities';
 
 import {
   AiPlanResult,
@@ -100,6 +103,12 @@ export class AiPlanService {
     private readonly exerciseRepo: Repository<Exercise>,
     @InjectRepository(Client)
     private readonly clientRepo: Repository<Client>,
+    @InjectRepository(Metric)
+    private readonly metricRepo: Repository<Metric>,
+    @InjectRepository(Review)
+    private readonly reviewRepo: Repository<Review>,
+    @InjectRepository(Goal)
+    private readonly goalRepo: Repository<Goal>,
   ) {
     // Initialize ALL available providers (primary + fallback)
     const requestedProvider = (process.env.AI_PROVIDER || '').toLowerCase().trim();
@@ -164,11 +173,14 @@ export class AiPlanService {
 
   async generateAiPlan(clientId: number): Promise<AiPlanResult> {
     // 1. Load all required data in parallel
-    const [client, test, anamnese, exercises] = await Promise.all([
+    const [client, test, anamnese, exercises, metric, goals, recentReviews] = await Promise.all([
       this.loadClient(clientId),
       this.loadLatestTest(clientId),
       this.loadAnamnese(clientId),
       this.loadExerciseCatalog(),
+      this.loadLatestMetric(clientId),
+      this.loadGoals(clientId),
+      this.loadRecentReviews(clientId),
     ]);
 
     // 2. Identify weaknesses from test
@@ -179,7 +191,7 @@ export class AiPlanService {
 
     // 4. Build prompt context
     const context = this.buildPromptContext(
-      client, test, anamnese, weaknesses, exercises,
+      client, test, anamnese, weaknesses, exercises, metric, goals, recentReviews,
     );
 
     // 5. Generate plan (AI or rule-based fallback)
@@ -316,6 +328,30 @@ export class AiPlanService {
     }));
   }
 
+  private async loadLatestMetric(clientId: number): Promise<Metric | null> {
+    return this.metricRepo.findOne({
+      where: { client_id: clientId },
+      order: { date: 'DESC' },
+    });
+  }
+
+  private async loadGoals(clientId: number): Promise<Goal[]> {
+    return this.goalRepo.find({
+      where: { clientId },
+    });
+  }
+
+  private async loadRecentReviews(clientId: number): Promise<Review[]> {
+    // Load last 10 training sessions for context
+    return this.reviewRepo
+      .createQueryBuilder('r')
+      .innerJoin('training', 't', 't.id = r.training_id')
+      .where('t.client_id = :clientId', { clientId })
+      .orderBy('r.id', 'DESC')
+      .take(10)
+      .getMany();
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   // ANALYSIS
   // ═══════════════════════════════════════════════════════════════════════════
@@ -374,7 +410,7 @@ export class AiPlanService {
   /** Shared system prompt used by all providers */
   private get systemPrompt(): string {
     return `Du bist ein erfahrener Sportwissenschaftler und Personal Trainer.
-Deine Aufgabe: Erstelle einen individualisierten Trainingsplan basierend auf den Leistungstest-Ergebnissen und der medizinischen Anamnese des Kunden.
+Deine Aufgabe: Erstelle einen individualisierten Trainingsplan basierend auf den Leistungstest-Ergebnissen, der medizinischen Anamnese, der Körperzusammensetzung, den Kundenzielen und der Trainingshistorie des Kunden.
 
 WICHTIGE REGELN:
 1. KONTRAINDIKATIONEN STRIKT BEACHTEN: Wenn der Kunde Verletzungen hat, wähle KEINE Übungen die das verletzte Gelenk/den verletzten Bereich belasten.
@@ -393,8 +429,13 @@ WICHTIGE REGELN:
    - "sonsomo" (Aufwärmen/Sensomotorik): 2-4 Übungen mit Fokus auf propriozeptives Training und Koordination. Ziel: Nervensystem aktivieren, Dopaminausschüttung anregen, den Kunden ins Hier-und-Jetzt bringen. Bevorzuge: Barfuß-Übungen, Balance Board, Einbeinstand, Slackline, koordinative Herausforderungen. KEINE klassischen Dehnübungen oder passives Aufwärmen.
    - "main" (Haupttraining): 4-6 Übungen für die identifizierten Schwächen
    - "core" (Core/Rumpf): 2-3 Übungen für Rumpfstabilität
-6. GEWICHT/BELASTUNG: Gib realistische Startgewichte an. Trenne Sätze/Wiederholungen (sets) und Gewicht (weight).
-7. SPRACHE: Antworte auf Deutsch.
+6. GEWICHT/BELASTUNG: Gib realistische Startgewichte basierend auf der Körperzusammensetzung und dem Leistungsniveau an. Trenne Sätze/Wiederholungen (sets) und Gewicht (weight). Berücksichtige das Körpergewicht bei Eigengewichtsübungen.
+7. KÖRPERZUSAMMENSETZUNG BERÜCKSICHTIGEN: Nutze die Körperzusammensetzungsdaten (Gewicht, Körperfett%, BCM, Bauchumfang) für die Belastungssteuerung. Hoher Körperfettanteil → mehr metabolische Übungen einbauen. Niedrige BCM → Fokus auf Muskelaufbau.
+8. BLUTDRUCK & RUHEPULS BEACHTEN: Bei erhöhtem Blutdruck (sys > 140 oder dia > 90) oder hohem Ruhepuls (> 80 bpm) → KEINE maximalen Belastungen, KEINE Pressatmung, moderates Tempo bevorzugen.
+9. KUNDENZIELE PRIORISIEREN: Berücksichtige die spezifischen Ziele des Kunden (z.B. Muskelaufbau, Schmerzreduktion, Wettkampfvorbereitung). Die Ziele bestimmen die Trainingsausrichtung.
+10. TRAININGSHISTORIE EINBEZIEHEN: Nutze die letzten Trainingseinheiten für die Progression. Wenn der Kunde regelmäßig trainiert → anspruchsvollere Übungen. Wenn die Herzfrequenz bei Trainings konstant hoch war → Intensität anpassen. Emoticon-Feedback (😀=leicht, 😐=mittel, 😫=hart) zeigt die subjektive Belastung.
+11. LIFESTYLE-KONTEXT: Berücksichtige den Beruf (sitzend → mehr Mobilität, körperlich → weniger Volumen), Schlafqualität und sportliche Vorbelastung bei der Plangestaltung.
+12. SPRACHE: Antworte auf Deutsch.
 
 Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
 {
@@ -404,14 +445,26 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
   ],
   "main": [ ... ],
   "core": [ ... ],
-  "reasoning": "2-4 Sätze die erklären WARUM dieser Plan gewählt wurde, welche Schwächen adressiert werden, und welche Kontraindikationen berücksichtigt wurden."
+  "reasoning": "2-4 Sätze die erklären WARUM dieser Plan gewählt wurde, welche Schwächen adressiert werden, welche Kontraindikationen berücksichtigt wurden, und wie Körperzusammensetzung/Ziele/Trainingshistorie eingeflossen sind."
 }`;
   }
 
   private buildUserPrompt(context: AiPromptContext): string {
-    // Build a compact prompt to stay within token limits (Groq free: 12k TPM).
-    // Exercise catalog is sent as compact lines instead of verbose JSON.
+    // Build a compact prompt. Exercise catalog as compact lines to save tokens.
+    // Strip null/empty values to reduce token usage.
     const { exerciseCatalog, ...rest } = context;
+
+    const stripNulls = (obj: any): any => {
+      if (Array.isArray(obj)) return obj.map(stripNulls);
+      if (obj && typeof obj === 'object') {
+        return Object.fromEntries(
+          Object.entries(obj)
+            .filter(([, v]) => v !== null && v !== undefined && v !== '' && v !== false)
+            .map(([k, v]) => [k, stripNulls(v)]),
+        );
+      }
+      return obj;
+    };
 
     const catalogLines = exerciseCatalog
       .map((e) => `${e.id}|${e.name}${e.group ? '|' + e.group : ''}`)
@@ -420,7 +473,7 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
     return [
       'Erstelle einen Trainingsplan für folgenden Kunden:',
       '',
-      JSON.stringify(rest, null, 2),
+      JSON.stringify(stripNulls(rest), null, 2),
       '',
       'VERFÜGBARE ÜBUNGEN (id|name|gruppe):',
       catalogLines,
@@ -435,6 +488,9 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
     anamnese: ClientAnamnese | null,
     weaknesses: AiWeakness[],
     exercises: AiExerciseCatalog[],
+    metric: Metric | null,
+    goals: Goal[],
+    recentReviews: Review[],
   ): AiPromptContext {
     return {
       client: {
@@ -442,6 +498,8 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
         name: `${client.firstname} ${client.lastname}`,
         birthdate: client.birthday ?? undefined,
         gender: client.gender ?? undefined,
+        minHeartRate: client.minHeartRate ?? undefined,
+        maxHeartRate: client.maxHeartRate ?? undefined,
       },
       anamnese: {
         injuries: anamnese?.injury_type ?? null,
@@ -452,7 +510,40 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
         goals: anamnese?.goals ?? null,
         sportarts: anamnese?.sportarts ?? null,
         sportartsIntensity: anamnese?.sportarts_intencity ?? null,
+        profession: anamnese?.profession ?? null,
+        activities: anamnese?.activities ?? null,
+        physicalDemands: anamnese?.physical_demands ?? null,
+        sleepWeek: anamnese?.sleep_week ?? null,
+        sleepWeekend: anamnese?.sleep_weekend ?? null,
+        medicalTreatment: anamnese?.medical_treatment === 1,
+        takingDrugs: anamnese?.taking_drugs === 1,
+        comments: anamnese?.comments ?? null,
       },
+      bodyComposition: metric
+        ? {
+            date: metric.date,
+            weight: metric.weight ?? null,
+            bodyFatPerc: metric.body_fat_perc ?? null,
+            bodyFatKg: metric.body_fat_kg ?? null,
+            waistCircumference: metric.waist_circumference ?? null,
+            bcm: metric.bcm ?? null,
+            sys: metric.sys ?? null,
+            dia: metric.dia ?? null,
+            calmPulse: metric.calm_pulse ?? null,
+          }
+        : null,
+      goals: goals.map((g) => ({
+        description: g.description ?? '',
+        targetDate: g.targetDate ?? null,
+        achieved: g.achieved === 1,
+      })),
+      recentTrainings: recentReviews.map((r) => ({
+        trainingType: r.training_type ?? null,
+        duration: r.duration ?? null,
+        kcal: r.kcal ?? null,
+        heartRate: r.heart_rate ?? null,
+        feedbackEmoticon: r.feedback_emoticon ?? null,
+      })),
       performanceTest: test
         ? {
             date: test.date,

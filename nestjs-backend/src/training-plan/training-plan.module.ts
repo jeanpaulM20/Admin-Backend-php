@@ -5,6 +5,9 @@ import { PerformanceTest } from '../entities/performance-test.entity';
 import { ClientAnamnese } from '../entities/client-anamnese.entity';
 import { Exercise } from '../entities/exercise.entity';
 import { Client } from '../entities/client.entity';
+import { Metric } from '../entities/metric.entity';
+import { Review } from '../entities/review.entity';
+import { Goal } from '../entities/remaining.entities';
 import { TrainingPlanService } from './training-plan.service';
 import { AiPlanService } from './ai-plan.service';
 import { TrainingPlanController } from './training-plan.controller';
@@ -17,6 +20,9 @@ import { TrainingPlanController } from './training-plan.controller';
       ClientAnamnese,
       Exercise,
       Client,
+      Metric,
+      Review,
+      Goal,
     ]),
   ],
   providers: [TrainingPlanService, AiPlanService],
