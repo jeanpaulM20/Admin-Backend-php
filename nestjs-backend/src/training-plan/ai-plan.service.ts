@@ -329,27 +329,46 @@ export class AiPlanService {
   }
 
   private async loadLatestMetric(clientId: number): Promise<Metric | null> {
-    return this.metricRepo.findOne({
-      where: { client_id: clientId },
-      order: { date: 'DESC' },
-    });
+    try {
+      return await this.metricRepo.findOne({
+        where: { client_id: clientId },
+        order: { date: 'DESC' },
+      });
+    } catch (err) {
+      this.logger.warn(`Failed to load metric for client ${clientId}: ${err.message}`);
+      return null;
+    }
   }
 
   private async loadGoals(clientId: number): Promise<Goal[]> {
-    return this.goalRepo.find({
-      where: { clientId },
-    });
+    try {
+      return await this.goalRepo.find({
+        where: { clientId },
+      });
+    } catch (err) {
+      this.logger.warn(`Failed to load goals for client ${clientId}: ${err.message}`);
+      return [];
+    }
   }
 
   private async loadRecentReviews(clientId: number): Promise<Review[]> {
-    // Load last 10 training sessions for context
-    return this.reviewRepo
-      .createQueryBuilder('r')
-      .innerJoin('training', 't', 't.id = r.training_id')
-      .where('t.client_id = :clientId', { clientId })
-      .orderBy('r.id', 'DESC')
-      .take(10)
-      .getMany();
+    try {
+      // Load last 10 training sessions via raw query (Review→Training join)
+      const reviews = await this.reviewRepo.query(
+        `SELECT r.id, r.training_type, r.duration, r.kcal, r.heart_rate,
+                r.feedback_emoticon, r.speed, r.distance
+         FROM review r
+         INNER JOIN training t ON t.id = r.training_id
+         WHERE t.client_id = ?
+         ORDER BY r.id DESC
+         LIMIT 10`,
+        [clientId],
+      );
+      return reviews;
+    } catch (err) {
+      this.logger.warn(`Failed to load reviews for client ${clientId}: ${err.message}`);
+      return [];
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
