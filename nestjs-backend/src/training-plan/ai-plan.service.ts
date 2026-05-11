@@ -514,7 +514,7 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
     const userPrompt = this.buildUserPrompt(context);
 
     const response = await this.anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-3-5-sonnet-20241022',
       max_tokens: 4096,
       system: this.systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],
