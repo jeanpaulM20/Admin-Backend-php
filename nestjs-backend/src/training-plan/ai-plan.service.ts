@@ -173,11 +173,15 @@ export class AiPlanService {
 
     // 5. Generate plan (AI or rule-based fallback)
     let llmResponse: AiLlmResponse;
+    let llmError: string | null = null;
     try {
       llmResponse = await this.callLlm(context);
     } catch (err) {
-      this.logger.warn(`LLM call failed, using rule-based fallback: ${err.message}`);
+      llmError = `[${this.provider}] ${err.message ?? err}`;
+      this.logger.warn(`LLM call failed, using rule-based fallback: ${llmError}`);
       llmResponse = this.ruleBasedFallback(weaknesses, exercises, contraindications);
+      // Append error info to reasoning so it's visible in the UI
+      llmResponse.reasoning = `⚠️ AI-Fehler: ${llmError}\n\n${llmResponse.reasoning}`;
     }
 
     // 6. Match suggested exercises against DB
