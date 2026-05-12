@@ -43,25 +43,31 @@ export class AvailabilityService {
     rEnd: string;
     days: number[];
     locationId?: number;
+    trainingTypeId?: number;
   }) {
-    const { trainerId, from, to, rStart, rEnd, days, locationId } = params;
+    const { trainerId, from, to, rStart, rEnd, days, locationId, trainingTypeId } = params;
     const start = new Date(rStart);
     const end = new Date(rEnd);
     const toInsert: TrainerAvailability[] = [];
 
-    for (const d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       const dayOfWeek = d.getDay() === 0 ? 7 : d.getDay(); // 1=Mon … 7=Sun
       if (days.includes(dayOfWeek)) {
         const dateStr = d.toISOString().slice(0, 10);
         const data: Partial<TrainerAvailability> = {
           trainerId,
           locationId: locationId ?? 1,
+          trainingTypeId: trainingTypeId ?? 1,
           date: dateStr,
           from,
         };
         if (to) data.to = to;
         toInsert.push(this.repo.create(data));
       }
+    }
+
+    if (toInsert.length === 0) {
+      return { created: 0, entries: [] };
     }
 
     const saved = await this.repo.save(toInsert);

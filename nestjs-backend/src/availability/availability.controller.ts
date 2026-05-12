@@ -32,6 +32,7 @@ export class AvailabilityController {
       rEnd: string;
       days: number[];
       locationId?: number;
+      trainingTypeId?: number;
     },
   ) {
     const resolvedTrainerId = trainer?.id ?? body.trainerId;

@@ -12,8 +12,8 @@ export class TrainerAvailability {
   @Column({ name: 'location_id', default: 1 })
   locationId: number = 1;
 
-  @Column({ name: 'training_type_id', nullable: true })
-  trainingTypeId: number;
+  @Column({ name: 'training_type_id', default: 1 })
+  trainingTypeId: number = 1;
 
   @Column({ type: 'date' })
   date: string;
