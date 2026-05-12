@@ -149,7 +149,8 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
     final sonsomo = result['sonsomo'] as List<dynamic>? ?? [];
     final main = result['main'] as List<dynamic>? ?? [];
     final core = result['core'] as List<dynamic>? ?? [];
-    final totalExercises = sonsomo.length + main.length + core.length;
+    final mobility = result['mobility'] as List<dynamic>? ?? [];
+    final totalExercises = sonsomo.length + main.length + core.length + mobility.length;
     final isRuleBased = result['isRuleBased'] == true;
 
     final accepted = await showModalBottomSheet<bool>(
@@ -328,6 +329,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
             _buildAiSection('Aufwärmen / Sonsomo', sonsomo, AppColors.primary),
             _buildAiSection('Haupttraining', main, AppColors.blue),
             _buildAiSection('Core', core, AppColors.green),
+            _buildAiSection('Mobilität', mobility, AppColors.orange),
 
             const SizedBox(height: 24),
 
@@ -489,6 +491,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
         sonsomo: mapRows(result['sonsomo'] as List<dynamic>? ?? []),
         main: mapRows(result['main'] as List<dynamic>? ?? []),
         core: mapRows(result['core'] as List<dynamic>? ?? []),
+        mobility: mapRows(result['mobility'] as List<dynamic>? ?? []),
       ),
     );
   }
@@ -496,7 +499,8 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
   int _countExercises(TrainingPlan p) =>
       p.values.sonsomo.where((r) => r.exercise.isNotEmpty).length +
       p.values.main.where((r) => r.exercise.isNotEmpty).length +
-      p.values.core.where((r) => r.exercise.isNotEmpty).length;
+      p.values.core.where((r) => r.exercise.isNotEmpty).length +
+      p.values.mobility.where((r) => r.exercise.isNotEmpty).length;
 
   List<TrainingPlan> get _filtered {
     if (_query.isEmpty) return _plans;

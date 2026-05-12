@@ -33,15 +33,19 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
   late List<List<TextEditingController>> _sRowCtrls;
   late List<List<TextEditingController>> _mRowCtrls;
   late List<List<TextEditingController>> _cRowCtrls;
+  late List<List<TextEditingController>> _mobRowCtrls;
   late List<List<TextEditingController>> _sDateCtrls;
   late List<List<TextEditingController>> _mDateCtrls;
   late List<List<TextEditingController>> _cDateCtrls;
+  late List<List<TextEditingController>> _mobDateCtrls;
   late List<bool> _sLiked;
   late List<bool> _mLiked;
   late List<bool> _cLiked;
+  late List<bool> _mobLiked;
   late List<bool> _sDisliked;
   late List<bool> _mDisliked;
   late List<bool> _cDisliked;
+  late List<bool> _mobDisliked;
 
   final Set<String> _expanded = {};
 
@@ -49,28 +53,33 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
     _SectionMeta('AUFWÄRMEN',    'Warm-up / Sonsomo', Icons.accessibility_new, AppColors.primary),
     _SectionMeta('HAUPTTRAINING','Main',              Icons.fitness_center,    AppColors.blue),
     _SectionMeta('CORE',         'Core',              Icons.self_improvement,  AppColors.green),
+    _SectionMeta('MOBILITÄT',    'Mobility',          Icons.swap_calls,        AppColors.orange),
   ];
 
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 3, vsync: this);
+    _tabCtrl = TabController(length: 4, vsync: this);
     _values = widget.plan?.values ?? TrainingPlanValues();
     _nameCtrl.text = widget.plan?.name ?? '';
     for (var i = 0; i < 8; i++) _dateCtrls[i].text = _values.dates[i];
 
-    _sRowCtrls  = _buildRowCtrls(_values.sonsomo);
-    _mRowCtrls  = _buildRowCtrls(_values.main);
-    _cRowCtrls  = _buildRowCtrls(_values.core);
-    _sDateCtrls = _buildDateCtrls(_values.sonsomo);
-    _mDateCtrls = _buildDateCtrls(_values.main);
-    _cDateCtrls = _buildDateCtrls(_values.core);
-    _sLiked     = _values.sonsomo.map((r) => r.liked).toList();
-    _mLiked     = _values.main.map((r) => r.liked).toList();
-    _cLiked     = _values.core.map((r) => r.liked).toList();
-    _sDisliked  = _values.sonsomo.map((r) => r.disliked).toList();
-    _mDisliked  = _values.main.map((r) => r.disliked).toList();
-    _cDisliked  = _values.core.map((r) => r.disliked).toList();
+    _sRowCtrls    = _buildRowCtrls(_values.sonsomo);
+    _mRowCtrls    = _buildRowCtrls(_values.main);
+    _cRowCtrls    = _buildRowCtrls(_values.core);
+    _mobRowCtrls  = _buildRowCtrls(_values.mobility);
+    _sDateCtrls   = _buildDateCtrls(_values.sonsomo);
+    _mDateCtrls   = _buildDateCtrls(_values.main);
+    _cDateCtrls   = _buildDateCtrls(_values.core);
+    _mobDateCtrls = _buildDateCtrls(_values.mobility);
+    _sLiked       = _values.sonsomo.map((r) => r.liked).toList();
+    _mLiked       = _values.main.map((r) => r.liked).toList();
+    _cLiked       = _values.core.map((r) => r.liked).toList();
+    _mobLiked     = _values.mobility.map((r) => r.liked).toList();
+    _sDisliked    = _values.sonsomo.map((r) => r.disliked).toList();
+    _mDisliked    = _values.main.map((r) => r.disliked).toList();
+    _cDisliked    = _values.core.map((r) => r.disliked).toList();
+    _mobDisliked  = _values.mobility.map((r) => r.disliked).toList();
   }
 
   List<List<TextEditingController>> _buildRowCtrls(List<TrainingPlanRow> rows) =>
@@ -152,16 +161,16 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
   // ─── Helpers to get lists by prefix ─────────────────────────────────────
 
   List<List<TextEditingController>> _rowCtrls(String p) =>
-      p == 's' ? _sRowCtrls : p == 'm' ? _mRowCtrls : _cRowCtrls;
+      p == 's' ? _sRowCtrls : p == 'm' ? _mRowCtrls : p == 'mob' ? _mobRowCtrls : _cRowCtrls;
 
   List<List<TextEditingController>> _dateCtrlsFor(String p) =>
-      p == 's' ? _sDateCtrls : p == 'm' ? _mDateCtrls : _cDateCtrls;
+      p == 's' ? _sDateCtrls : p == 'm' ? _mDateCtrls : p == 'mob' ? _mobDateCtrls : _cDateCtrls;
 
   List<bool> _likedFor(String p) =>
-      p == 's' ? _sLiked : p == 'm' ? _mLiked : _cLiked;
+      p == 's' ? _sLiked : p == 'm' ? _mLiked : p == 'mob' ? _mobLiked : _cLiked;
 
   List<bool> _dislikedFor(String p) =>
-      p == 's' ? _sDisliked : p == 'm' ? _mDisliked : _cDisliked;
+      p == 's' ? _sDisliked : p == 'm' ? _mDisliked : p == 'mob' ? _mobDisliked : _cDisliked;
 
   // ─── Collect values for save ─────────────────────────────────────────────
 
@@ -186,10 +195,11 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
             ));
 
     return TrainingPlanValues(
-      sonsomo: collect(_sRowCtrls, _sDateCtrls, _sLiked, _sDisliked),
-      main:    collect(_mRowCtrls, _mDateCtrls, _mLiked, _mDisliked),
-      core:    collect(_cRowCtrls, _cDateCtrls, _cLiked, _cDisliked),
-      dates:   dates,
+      sonsomo:  collect(_sRowCtrls, _sDateCtrls, _sLiked, _sDisliked),
+      main:     collect(_mRowCtrls, _mDateCtrls, _mLiked, _mDisliked),
+      core:     collect(_cRowCtrls, _cDateCtrls, _cLiked, _cDisliked),
+      mobility: collect(_mobRowCtrls, _mobDateCtrls, _mobLiked, _mobDisliked),
+      dates:    dates,
     );
   }
 
@@ -228,9 +238,9 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
     _tabCtrl.dispose();
     _nameCtrl.dispose();
     for (final c in _dateCtrls) c.dispose();
-    for (final row in [..._sRowCtrls, ..._mRowCtrls, ..._cRowCtrls])
+    for (final row in [..._sRowCtrls, ..._mRowCtrls, ..._cRowCtrls, ..._mobRowCtrls])
       for (final c in row) c.dispose();
-    for (final sec in [..._sDateCtrls, ..._mDateCtrls, ..._cDateCtrls])
+    for (final sec in [..._sDateCtrls, ..._mDateCtrls, ..._cDateCtrls, ..._mobDateCtrls])
       for (final c in sec) c.dispose();
     super.dispose();
   }
@@ -252,6 +262,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
                 _buildTab('s', _sRowCtrls, _sDateCtrls, _sLiked, _sDisliked, 0),
                 _buildTab('m', _mRowCtrls, _mDateCtrls, _mLiked, _mDisliked, 1),
                 _buildTab('c', _cRowCtrls, _cDateCtrls, _cLiked, _cDisliked, 2),
+                _buildTab('mob', _mobRowCtrls, _mobDateCtrls, _mobLiked, _mobDisliked, 3),
               ],
             ),
           ),

@@ -234,6 +234,7 @@ export class AiPlanService {
       sonsomo: mapRows(llmResponse.sonsomo),
       main: mapRows(llmResponse.main),
       core: mapRows(llmResponse.core),
+      mobility: mapRows(llmResponse.mobility ?? []),
       ai_reasoning: llmResponse.reasoning,
       weaknesses,
       basedOnTestId: test?.id ?? null,
@@ -249,7 +250,7 @@ export class AiPlanService {
    */
   async generateAndSave(clientId: number): Promise<{
     plan: TrainingPlan;
-    meta: Omit<AiPlanResult, 'sonsomo' | 'main' | 'core' | 'name'>;
+    meta: Omit<AiPlanResult, 'sonsomo' | 'main' | 'core' | 'mobility' | 'name'>;
   }> {
     const result = await this.generateAiPlan(clientId);
 
@@ -257,11 +258,12 @@ export class AiPlanService {
       sonsomo: result.sonsomo.map(this.toPlanRow),
       main: result.main.map(this.toPlanRow),
       core: result.core.map(this.toPlanRow),
+      mobility: result.mobility.map(this.toPlanRow),
       dates: Array(8).fill(''),
     });
 
     // Auto-create new exercises that the AI suggested (with duplicate check)
-    for (const row of [...result.sonsomo, ...result.main, ...result.core]) {
+    for (const row of [...result.sonsomo, ...result.main, ...result.core, ...result.mobility]) {
       if (row.isNew && row.exercise) {
         // Check if exercise already exists (case-insensitive)
         const existing = await this.exerciseRepo
@@ -498,6 +500,7 @@ WICHTIGE REGELN:
    - "sonsomo" (Aufwärmen/Sensomotorik): 2-4 Übungen. FOKUS: Propriozeptives Training, Koordination und Fußmuskulatur. ZIELE: (1) Propriorezeptoren aktivieren und verbessern — Einbeinstand, Balance Board, instabiler Untergrund, Augen-geschlossen-Varianten. (2) Neuronales Nervensystem aktivieren — Aufmerksamkeit, Achtsamkeit, den Kunden bewusst ins Hier-und-Jetzt bringen. (3) Koordinative Herausforderungen — Seilspringen, Reaktionsübungen, kontralaterale Bewegungen. (4) Fußmuskulatur stärken — Barfuß-Übungen, Kurzfuß nach Janda, Zehenarbeit, Fußgewölbe-Aktivierung. BEVORZUGE: Barfuß-Übungen, Balance Board, Einbeinstand, Slackline, Seilspringen, Short Foot Exercise, MFT Board. VERMEIDE: Klassische Dehnübungen, passives Aufwärmen, Scapula- oder Schulter-Übungen (gehören in main/core). Die Sonsomo-Phase ist REIN propriozeptiv und koordinativ.
    - "main" (Haupttraining): 4-6 Übungen für die identifizierten Schwächen
    - "core" (Core/Rumpf): 2-3 Übungen für Rumpfstabilität
+   - "mobility" (Mobilität/Cool-Down): 2-3 Übungen. FOKUS: Aktive Beweglichkeit, CARs (Controlled Articular Rotations), Faszien-Release, Dehnübungen. ZIELE: (1) Bewegungsumfang (ROM) erhalten und verbessern. (2) Verkürzte Muskelketten adressieren — besonders Hüftbeuger bei sitzenden Berufen. (3) Gelenke durch volle ROM führen (CARs). BEVORZUGE: CARs (Hip, Shoulder, Spine, Ankle), aktive Dehnungen, PNF-Stretching, Foam Rolling, Faszien-Übungen. VERMEIDE: Statisches Dehnen ohne vorherige Aktivierung.
 6. GEWICHT/BELASTUNG: Gib realistische Startgewichte basierend auf der Körperzusammensetzung und dem Leistungsniveau an. Trenne Sätze/Wiederholungen (sets) und Gewicht (weight). Berücksichtige das Körpergewicht bei Eigengewichtsübungen.
 7. KÖRPERZUSAMMENSETZUNG BERÜCKSICHTIGEN: Nutze die Körperzusammensetzungsdaten (Gewicht, Körperfett%, BCM, Bauchumfang) für die Belastungssteuerung. Hoher Körperfettanteil → mehr metabolische Übungen einbauen. Niedrige BCM → Fokus auf Muskelaufbau.
 8. BLUTDRUCK & RUHEPULS BEACHTEN: Bei erhöhtem Blutdruck (sys > 140 oder dia > 90) oder hohem Ruhepuls (> 80 bpm) → KEINE maximalen Belastungen, KEINE Pressatmung, moderates Tempo bevorzugen.
@@ -549,6 +552,7 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
   ],
   "main": [ ... ],
   "core": [ ... ],
+  "mobility": [ ... ],
   "reasoning": "2-4 Sätze die erklären WARUM dieser Plan gewählt wurde, welche Schwächen adressiert werden, welche Kontraindikationen berücksichtigt wurden, und wie Körperzusammensetzung/Ziele/Trainingshistorie eingeflossen sind. Erwähne auch welche Agonist/Antagonist-Paare berücksichtigt wurden."
 }`;
   }
@@ -783,10 +787,11 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
       throw new Error(`LLM returned invalid JSON: ${e.message}`);
     }
 
-    // Validate required fields
+    // Validate required fields (mobility is optional for backward compat)
     if (!parsed.plan_name || !parsed.sonsomo || !parsed.main || !parsed.core) {
       throw new Error('LLM response missing required fields (plan_name, sonsomo, main, core)');
     }
+    if (!parsed.mobility) parsed.mobility = [];
 
     return parsed;
   }
@@ -930,6 +935,18 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
     ].slice(0, 5);
     const coreRows = shuffle(corePool.filter((e) => !usedIds.has(e.id))).slice(0, 3).map((e) => toRow(e, '3×30s'));
 
+    // ── Mobility: CARs, active stretches, fascia work ────────────────────
+    const mobilityPool = safeExercises.filter((e) => {
+      const group = (e.group ?? '').toLowerCase();
+      const pattern = (e.pattern ?? '').toLowerCase();
+      const name = e.name.toLowerCase();
+      if (group.includes('mobilit') || group.includes('beweglichkeit')) return true;
+      if (name.includes('car') || name.includes('kreisbewegung') || name.includes('dehnung') || name.includes('stretch')) return true;
+      if (pattern === 'rotation' && (e.joint ?? '').toLowerCase().includes('bws')) return true;
+      return false;
+    });
+    const mobilityRows = shuffle(mobilityPool).slice(0, 2).map((e) => toRow(e, '2×30s'));
+
     // ── Build reasoning text ─────────────────────────────────────────────
     const weaknessText = weaknesses.length
       ? weaknesses.map((w) => `${w.label} (${w.deficit}% unter Benchmark)`).join(', ')
@@ -944,6 +961,7 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
       sonsomo: sonsomoRows,
       main: mainRows,
       core: coreRows,
+      mobility: mobilityRows,
       reasoning:
         `Regelbasierter Plan (KI nicht verfügbar). ` +
         `Sonsomo: Propriozeption, Koordination & Fußmuskulatur. ` +

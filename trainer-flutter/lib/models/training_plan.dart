@@ -52,16 +52,19 @@ class TrainingPlanValues {
   List<TrainingPlanRow> sonsomo;
   List<TrainingPlanRow> main;
   List<TrainingPlanRow> core;
+  List<TrainingPlanRow> mobility;
   List<String> dates;
 
   TrainingPlanValues({
     List<TrainingPlanRow>? sonsomo,
     List<TrainingPlanRow>? main,
     List<TrainingPlanRow>? core,
+    List<TrainingPlanRow>? mobility,
     List<String>? dates,
   })  : sonsomo = sonsomo ?? List.generate(3, (_) => TrainingPlanRow()),
         main = main ?? List.generate(6, (_) => TrainingPlanRow()),
         core = core ?? List.generate(3, (_) => TrainingPlanRow()),
+        mobility = mobility ?? List.generate(2, (_) => TrainingPlanRow()),
         dates = dates ?? List.filled(8, '');
 
   factory TrainingPlanValues.fromJson(Map<String, dynamic> json) {
@@ -78,6 +81,7 @@ class TrainingPlanValues {
       sonsomo: parseRows(json['sonsomo']),
       main: parseRows(json['main']),
       core: parseRows(json['core']),
+      mobility: parseRows(json['mobility']),
       dates: json['dates'] is List
           ? List<String>.from((json['dates'] as List).map((e) => e?.toString() ?? ''))
           : List.filled(8, ''),
@@ -88,6 +92,7 @@ class TrainingPlanValues {
         'sonsomo': sonsomo.map((r) => r.toJson()).toList(),
         'main': main.map((r) => r.toJson()).toList(),
         'core': core.map((r) => r.toJson()).toList(),
+        'mobility': mobility.map((r) => r.toJson()).toList(),
         'dates': dates,
       };
 }

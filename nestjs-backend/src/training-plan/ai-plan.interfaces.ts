@@ -20,6 +20,7 @@ export interface AiPlanResult {
   sonsomo: AiPlanRow[];
   main: AiPlanRow[];
   core: AiPlanRow[];
+  mobility: AiPlanRow[];
   ai_reasoning: string;              // Human-readable explanation
   weaknesses: AiWeakness[];          // Identified test deficits
   basedOnTestId: number | null;
@@ -119,6 +120,7 @@ export interface AiLlmResponse {
   sonsomo: AiLlmExercise[];
   main: AiLlmExercise[];
   core: AiLlmExercise[];
+  mobility: AiLlmExercise[];
   reasoning: string;
 }
 
