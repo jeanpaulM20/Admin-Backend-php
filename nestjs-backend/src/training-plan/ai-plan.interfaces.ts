@@ -45,6 +45,10 @@ export interface AiExerciseCatalog {
   name: string;
   group: string | null;
   subgroup: string | null;
+  bodyRegion: string | null;
+  muscle: string | null;
+  joint: string | null;
+  pattern: string | null;
 }
 
 /** The structured prompt context assembled for the LLM. */

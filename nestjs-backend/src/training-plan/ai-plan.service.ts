@@ -325,6 +325,10 @@ export class AiPlanService {
       name: e.name,
       group: e.group?.name ?? null,
       subgroup: e.subgroup?.name ?? null,
+      bodyRegion: e.bodyRegion ?? null,
+      muscle: e.primaryMuscleGroup ?? null,
+      joint: e.targetJoint ?? null,
+      pattern: e.movementPattern ?? null,
     }));
   }
 
@@ -445,7 +449,7 @@ WICHTIGE REGELN:
    Sicherheit geht IMMER vor Leistungsoptimierung.
 2. SCHWIERIGKEITSGRAD ANPASSEN: Passe den Schwierigkeitsgrad der Übungen an das tatsächliche Leistungsniveau des Kunden an. Wenn der Kunde z.B. 0 Klimmzüge schafft, wähle KEINE fortgeschrittenen Übungen wie Front Lever, Muscle-Up, L-Sit. Beginne mit Regressionen (z.B. Negativklimmzüge, Ruderübungen, Plankvarianten).
 3. SCHWÄCHEN VOLLSTÄNDIG ABDECKEN: Adressiere JEDE identifizierte Schwäche aus dem Leistungstest mit mindestens einer gezielten Übung. Prüfe am Ende, ob alle Schwächen im Plan vertreten sind. WICHTIG: Wenn ein Test-Parameter als "notTested" markiert ist, wurde er NICHT durchgeführt. Behandle fehlende Tests NICHT als Schwäche — erwähne sie nur als "nicht getestet" im Reasoning.
-4. VERFÜGBARE ÜBUNGEN BEVORZUGEN: Wähle Übungen aus dem mitgelieferten Katalog (mit exercise_id). Nur wenn keine passende Übung im Katalog existiert, schlage eine neue vor (exercise_id: null).
+4. VERFÜGBARE ÜBUNGEN BEVORZUGEN: Wähle Übungen aus dem mitgelieferten Katalog (mit exercise_id). Der Katalog enthält pro Übung: Muskelgruppe, Zielgelenk und Bewegungsmuster (Push/Pull/Squat/Hinge/Plyo/Static/etc.). Nutze diese Metadaten für eine präzise Übungsauswahl. Nur wenn keine passende Übung im Katalog existiert, schlage eine neue vor (exercise_id: null).
 5. STRUKTUR:
    - "sonsomo" (Aufwärmen/Sensomotorik): 2-4 Übungen mit Fokus auf propriozeptives Training und Koordination. Ziel: Nervensystem aktivieren, Dopaminausschüttung anregen, den Kunden ins Hier-und-Jetzt bringen. Bevorzuge: Barfuß-Übungen, Balance Board, Einbeinstand, Slackline, koordinative Herausforderungen. KEINE klassischen Dehnübungen oder passives Aufwärmen.
    - "main" (Haupttraining): 4-6 Übungen für die identifizierten Schwächen
@@ -456,7 +460,42 @@ WICHTIGE REGELN:
 9. KUNDENZIELE PRIORISIEREN: Berücksichtige die spezifischen Ziele des Kunden (z.B. Muskelaufbau, Schmerzreduktion, Wettkampfvorbereitung). Die Ziele bestimmen die Trainingsausrichtung.
 10. TRAININGSHISTORIE EINBEZIEHEN: Nutze die letzten Trainingseinheiten für die Progression. Wenn der Kunde regelmäßig trainiert → anspruchsvollere Übungen. Wenn die Herzfrequenz bei Trainings konstant hoch war → Intensität anpassen. Emoticon-Feedback (😀=leicht, 😐=mittel, 😫=hart) zeigt die subjektive Belastung.
 11. LIFESTYLE-KONTEXT: Berücksichtige den Beruf (sitzend → mehr Mobilität, körperlich → weniger Volumen), Schlafqualität und sportliche Vorbelastung bei der Plangestaltung.
-12. SPRACHE: Antworte auf Deutsch.
+12. PUSH/PULL-BALANCE & MUSKEL-ANTAGONISTEN: Stelle sicher, dass der Plan muskulär ausbalanciert ist. Nutze die Muskelreferenz unten:
+    - Trainiere nie nur Agonisten ohne Antagonisten (z.B. Brust ohne Rücken, Quadriceps ohne Hamstrings)
+    - Bei Verletzungen: Stärke den Antagonisten des verletzten Bereichs (z.B. Knie-Verletzung → Hamstrings & Gluteus kräftigen)
+    - Berücksichtige die Gelenkzuordnung der Muskeln bei Kontraindikationen (Schulter-Verletzung → vermeide ALLE Muskeln die das Schultergelenk belasten)
+13. SPRACHE: Antworte auf Deutsch.
+
+MUSKEL-REFERENZ (Agonist/Antagonist-Beziehungen):
+OBERKÖRPER:
+- Pectoralis major (Brust): Push|Schulter → Ago: Latissimus, Teres major, Deltoideus ant → Ant: Trapezius, Deltoideus post, Infraspinatus
+- Latissimus dorsi (breiter Rücken): Pull|Schulter → Ago: Pectoralis major, Triceps, Teres major → Ant: Deltoideus ant, Biceps, Infraspinatus, Teres minor
+- Deltoideus anterior (vordere Schulter): Push|Schulter → Ago: Pectoralis, Biceps, Coracobrachialis → Ant: Deltoideus post, Latissimus, Teres major
+- Deltoideus medial (seitl. Schulter): Push|Schulter → Ago: Deltoideus ant, Supraspinatus → Ant: Pectoralis major, Latissimus
+- Deltoideus posterior (hintere Schulter): Pull|Schulter → Ago: Latissimus, Teres major, Infraspinatus → Ant: Deltoideus ant, Pectoralis, Biceps
+- Trapezius (Nacken/oberer Rücken): Pull|Schulter → desc: hebt Scapula, trans: retrahiert Scapula, asc: senkt Scapula
+- Rhomboideus (Schulterblatt-Retraktion): Pull|Schulter → Ago: Trapezius, Levator scapulae → Ant: Pectoralis minor, Serratus anterior
+- Serratus anterior (Sägezahnmuskel): Push|Schulter → Ago: Trapezius → Ant: Rhomboideus, Levator scapulae
+- Biceps brachii: Pull|Ellenbogen+Schulter → Ago: Coracobrachialis, Deltoideus ant → Ant: Triceps, Deltoideus post
+- Rotatorenmanschette: Schulter-Stabilisation → Infraspinatus (Außenrotation) + Supraspinatus (Abduktion) + Subscapularis (Innenrotation) + Teres minor (Außenrotation)
+RUMPF/CORE:
+- Rectus abdominis (gerader Bauch): Flexion/Stabilisation|LWS → Ago: Obliquus ext/int, Transversus, Psoas major → Ant: Erector spinae, Quadratus lumborum
+- Obliquus ext/int (seitl. Bauch): Rotation/Lateralflexion → Ago: Rectus abdominis, Transversus → Ant: Erector spinae, Quadratus lumborum
+- Erector spinae (Rückenstrecker): Extension|Wirbelsäule+Hüfte → Ago: Gluteus maximus, Hamstrings → Ant: Bauchmuskulatur, Rectus femoris
+- Quadratus lumborum (tiefer Rücken): Lateralflexion → Ago: Erector spinae → Ant: Obliquus ext/int
+UNTERKÖRPER:
+- Gluteus maximus (großer Gesäß): Push|Hüfte → Ago: Hamstrings, Adductor magnus → Ant: Iliopsoas, Psoas major, Gluteus medius, TFL
+- Gluteus medius/minimus (Hüft-Abduktion): Pull|Hüfte → Ago: TFL, Gluteus maximus → Ant: Adduktoren (longus, magnus, brevis)
+- Quadriceps (Kniestrecker): Push|Knie+Hüfte → Rectus femoris + Vastus lat/med/int → Ant: Hamstrings (Biceps femoris, Semitendinosus, Semimembranosus)
+- Hamstrings (Kniebeuger/Hüftstrecker): Pull|Knie+Hüfte → Biceps femoris + Semitendinosus + Semimembranosus → Ant: Quadriceps, Iliopsoas
+- Iliopsoas (Hüftbeuger): Pull|Hüfte → Ago: Rectus femoris, TFL, Sartorius → Ant: Gluteus maximus, Hamstrings, Gluteus medius
+- Adduktoren (Schenkel-Adduktion): Pull|Hüfte → Ago: Pectineus, Gracilis → Ant: Gluteus maximus, Gluteus medius, TFL
+- Gastrocnemius+Soleus (Wade): Push|Knie+Sprunggelenk → Plantarflexion → Ant: Tibialis anterior, Ext. digitorum longus
+- Tibialis anterior (Schienbein): Pull|Sprunggelenk → Dorsalextension → Ant: Fibularis longus, Triceps surae
+FUß:
+- Intrinsische Fußmuskulatur: Stabilisation|Sprunggelenk → Kurzfuß, Zehengreifen, Gewölbe-Aktivierung
+- Fibularis longus (Pronation): Push|Sprunggelenk → Ant: Tibialis anterior
+- Tibialis posterior (Supination): Push|Sprunggelenk → Ant: Ext. digitorum/hallucis longus
 
 Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
 {
@@ -466,7 +505,7 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
   ],
   "main": [ ... ],
   "core": [ ... ],
-  "reasoning": "2-4 Sätze die erklären WARUM dieser Plan gewählt wurde, welche Schwächen adressiert werden, welche Kontraindikationen berücksichtigt wurden, und wie Körperzusammensetzung/Ziele/Trainingshistorie eingeflossen sind."
+  "reasoning": "2-4 Sätze die erklären WARUM dieser Plan gewählt wurde, welche Schwächen adressiert werden, welche Kontraindikationen berücksichtigt wurden, und wie Körperzusammensetzung/Ziele/Trainingshistorie eingeflossen sind. Erwähne auch welche Agonist/Antagonist-Paare berücksichtigt wurden."
 }`;
   }
 
@@ -488,7 +527,14 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
     };
 
     const catalogLines = exerciseCatalog
-      .map((e) => `${e.id}|${e.name}${e.group ? '|' + e.group : ''}`)
+      .map((e) => {
+        const parts = [String(e.id), e.name];
+        if (e.group) parts.push(e.group);
+        if (e.muscle) parts.push(e.muscle);
+        if (e.joint) parts.push(e.joint);
+        if (e.pattern) parts.push(e.pattern);
+        return parts.join('|');
+      })
       .join('\n');
 
     return [
@@ -496,7 +542,7 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
       '',
       JSON.stringify(stripNulls(rest), null, 2),
       '',
-      'VERFÜGBARE ÜBUNGEN (id|name|gruppe):',
+      'VERFÜGBARE ÜBUNGEN (id|name|gruppe|muskel|gelenk|pattern):',
       catalogLines,
       '',
       'Antworte NUR mit dem JSON-Objekt, kein Markdown, kein Kommentar.',
