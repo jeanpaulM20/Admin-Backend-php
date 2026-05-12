@@ -20,11 +20,17 @@ class _TrainingsScreenState extends State<TrainingsScreen>
   late TabController _tabController;
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  int _currentTab = 0;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.index != _currentTab) {
+        setState(() => _currentTab = _tabController.index);
+      }
+    });
   }
 
   @override
@@ -63,10 +69,36 @@ class _TrainingsScreenState extends State<TrainingsScreen>
   bool _matchesSearch(Training t) {
     if (_searchQuery.isEmpty) return true;
     final q = _searchQuery.toLowerCase();
-    return (t.clientName?.toLowerCase().contains(q) ?? false) ||
-        (t.title?.toLowerCase().contains(q) ?? false) ||
-        (t.trainingType?.toLowerCase().contains(q) ?? false) ||
-        (t.locationName?.toLowerCase().contains(q) ?? false);
+    // Search across all relevant fields
+    if (t.clientName?.toLowerCase().contains(q) ?? false) return true;
+    if (t.title?.toLowerCase().contains(q) ?? false) return true;
+    if (t.trainingType?.toLowerCase().contains(q) ?? false) return true;
+    if (t.locationName?.toLowerCase().contains(q) ?? false) return true;
+    if (t.trainerName?.toLowerCase().contains(q) ?? false) return true;
+    if (t.notes?.toLowerCase().contains(q) ?? false) return true;
+    // Date search: "15.03", "März", "2025" etc.
+    if (t.startTime != null) {
+      final formatted = DateFormat('dd.MM.yyyy').format(t.startTime!);
+      if (formatted.contains(q)) return true;
+      // German month names
+      final monthDe = DateFormat('MMMM', 'de_DE').format(t.startTime!).toLowerCase();
+      if (monthDe.contains(q)) return true;
+      // Day name (e.g. "Montag")
+      final dayDe = DateFormat('EEEE', 'de_DE').format(t.startTime!).toLowerCase();
+      if (dayDe.contains(q)) return true;
+    }
+    // Status search: "abgesagt", "absolviert", "gebucht", "verpasst"
+    final status = (t.status ?? '').toLowerCase();
+    if (t.isCancelled || status == 'cancelled' || status == 'canceled') {
+      if ('abgesagt'.contains(q)) return true;
+    } else if (status == 'attended') {
+      if ('absolviert'.contains(q)) return true;
+    } else if (status == 'missed') {
+      if ('verpasst'.contains(q)) return true;
+    } else {
+      if ('gebucht'.contains(q)) return true;
+    }
+    return false;
   }
 
   @override
@@ -135,7 +167,8 @@ class _TrainingsScreenState extends State<TrainingsScreen>
       ),
       body: Column(
         children: [
-          _buildSearchBar(),
+          // Hide search bar on Statistik tab (it has its own time range filter)
+          if (_currentTab != 2) _buildSearchBar(),
           Expanded(
             child: trainerProvider.trainingsLoading
                 ? const Center(
