@@ -39,7 +39,7 @@ export class ClientAppService {
           date: MoreThanOrEqual(today),
           status: In([TrainingStatus.BOOKED, TrainingStatus.ATTENDED]),
         },
-        relations: ['trainer'],
+        relations: ['trainer', 'trainingType', 'location'],
         order: { date: 'ASC', starttime: 'ASC' },
         take: 10,
       }),
@@ -78,11 +78,8 @@ export class ClientAppService {
           })
         : Promise.resolve([]),
       this.trainingRepo.find({
-        where: {
-          clientId,
-          date: MoreThanOrEqual(today),
-        },
-        relations: ['trainer'],
+        where: { clientId },
+        relations: ['trainer', 'trainingType', 'location'],
         order: { date: 'ASC', starttime: 'ASC' },
       }),
       this.locationRepo.find({ where: { active: 1 } }),
@@ -522,7 +519,9 @@ export class ClientAppService {
       status: t.status,
       trainer_id: t.trainerId,
       training_type_id: t.trainingTypeId,
+      training_type_name: t.trainingType?.name_de ?? t.trainingType?.name_en ?? '',
       location_id: t.locationId,
+      location_name: t.location?.name ?? '',
       duration: t.duration,
       notes: t.text,
       trainer: t.trainer
