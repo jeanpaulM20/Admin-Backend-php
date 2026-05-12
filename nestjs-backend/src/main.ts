@@ -9,8 +9,13 @@ async function bootstrap() {
   // Health check for Railway
   app.getHttpAdapter().get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 
+  // CORS — restrict to known origins in production
+  const allowedOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim())
+    : ['*'];
+
   app.enableCors({
-    origin: '*',
+    origin: allowedOrigins.includes('*') ? true : allowedOrigins,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type, Accept, X-Auth-Token',
   });

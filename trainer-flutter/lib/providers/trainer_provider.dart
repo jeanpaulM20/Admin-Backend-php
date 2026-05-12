@@ -120,16 +120,18 @@ class TrainerProvider extends ChangeNotifier {
     _trainingsError = null;
     notifyListeners();
 
-    final dateFrom = from ?? DateTime.now().subtract(const Duration(days: 30));
-    final dateTo = to ?? DateTime.now().add(const Duration(days: 90));
     final fmt = DateFormat('yyyy-MM-dd');
+    final queryParams = <String, String>{
+      'trainer_id': trainerId.toString(),
+    };
+    // Only send date filters when explicitly provided;
+    // Statistics tab needs all data so the default is no filter.
+    if (from != null) queryParams['date_from'] = fmt.format(from);
+    if (to != null) queryParams['date_to'] = fmt.format(to);
 
     try {
-      final response = await _apiService.get(ApiConfig.training, queryParams: {
-        'trainer_id': trainerId.toString(),
-        'date_from': fmt.format(dateFrom),
-        'date_to': fmt.format(dateTo),
-      });
+      final response =
+          await _apiService.get(ApiConfig.training, queryParams: queryParams);
 
       if (response is List) {
         _trainings = response

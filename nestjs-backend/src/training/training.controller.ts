@@ -42,10 +42,12 @@ export class TrainingController {
     @CurrentTrainer() trainer: Trainer,
     @Query('client_id') clientId?: number,
     @Query('trainer_id') trainerId?: number,
+    @Query('date_from') dateFrom?: string,
+    @Query('date_to') dateTo?: string,
   ) {
     // Clients only see their own trainings
-    if (client) return this.service.findAll(client.id);
-    return this.service.findAll(clientId, trainerId ?? trainer?.id);
+    if (client) return this.service.findAll(client.id, undefined, dateFrom, dateTo);
+    return this.service.findAll(clientId, trainerId ?? trainer?.id, dateFrom, dateTo);
   }
 
   // ── iCal download ────────────────────────────────────────────────────────

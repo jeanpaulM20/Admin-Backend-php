@@ -59,6 +59,7 @@ class AppointmentProvider extends ChangeNotifier {
     String? locationId,
     int duration = 60,
   }) async {
+    _error = null;
     try {
       await _service.bookAppointment(
         clientId,
@@ -83,6 +84,7 @@ class AppointmentProvider extends ChangeNotifier {
   }
 
   Future<bool> cancelAppointment(String clientId, String appointmentId) async {
+    _error = null;
     try {
       final success =
           await _service.cancelAppointment(clientId, appointmentId);

@@ -40,12 +40,17 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> fetchMessages(String clientId, String trainerId) async {
     if (_isMock) return;
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
     try {
       _messagesByTrainer[trainerId] =
           await _service.getMessages(clientId, trainerId);
-      notifyListeners();
     } catch (e) {
       _error = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      _isLoading = false;
       notifyListeners();
     }
   }

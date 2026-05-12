@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
 import { Training, TrainingStatus } from '../entities/training.entity';
 
 @Injectable()
@@ -21,21 +21,34 @@ export class TrainingService {
     };
   }
 
-  async findAll(clientId?: number, trainerId?: number) {
+  async findAll(clientId?: number, trainerId?: number, dateFrom?: string, dateTo?: string) {
     const where: any = {};
     if (clientId) where.clientId = clientId;
     if (trainerId) where.trainerId = trainerId;
+
+    // Optional date range filtering
+    if (dateFrom && dateTo) {
+      where.date = Between(dateFrom, dateTo);
+    } else if (dateFrom) {
+      where.date = MoreThanOrEqual(dateFrom);
+    } else if (dateTo) {
+      where.date = LessThanOrEqual(dateTo);
+    }
+
     const rows = await this.repo.find({
       where,
-      relations: ['trainer', 'client', 'exercisesets', 'trainingType', 'location'],
+      relations: ['trainer', 'client', 'trainingType', 'location'],
+      order: { date: 'ASC', starttime: 'ASC' },
     });
     return rows.map((t) => this.formatTraining(t));
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, includeExercises = false) {
+    const relations = ['trainer', 'client', 'trainingType', 'location'];
+    if (includeExercises) relations.push('exercisesets');
     const training = await this.repo.findOne({
       where: { id },
-      relations: ['trainer', 'client', 'exercisesets', 'trainingType', 'location'],
+      relations,
     });
     if (!training) throw new NotFoundException(`Training ${id} not found`);
     return this.formatTraining(training);
@@ -66,7 +79,7 @@ export class TrainingService {
   async remove(id: number) {
     const raw = await this.repo.findOne({
       where: { id },
-      relations: ['trainer', 'client', 'exercisesets', 'trainingType', 'location'],
+      relations: ['trainer', 'client', 'trainingType', 'location'],
     });
     if (!raw) throw new NotFoundException(`Training ${id} not found`);
     return this.repo.remove(raw);

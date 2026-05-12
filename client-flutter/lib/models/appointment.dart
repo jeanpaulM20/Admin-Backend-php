@@ -32,10 +32,11 @@ class Appointment {
     DateTime parseDate() {
       final date = json['date']?.toString() ?? '';
       final time = json['starttime'] ?? json['time_from'] ?? '00:00';
+      if (date.isEmpty) return DateTime(1970);
       try {
         return DateTime.parse('${date}T$time');
       } catch (_) {
-        return DateTime.tryParse(date) ?? DateTime.now();
+        return DateTime.tryParse(date) ?? DateTime(1970);
       }
     }
 
