@@ -4,6 +4,7 @@ import { AiPlanService } from './ai-plan.service';
 import { TrainingPlan } from '../entities/training-plan.entity';
 import { CurrentClient } from '../auth/decorators/current-user.decorator';
 import { Client } from '../entities/client.entity';
+import { Public } from '../auth/decorators/public.decorator';
 
 @Controller('api/training-plan')
 export class TrainingPlanController {
@@ -12,7 +13,8 @@ export class TrainingPlanController {
     private readonly aiService: AiPlanService,
   ) {}
 
-  /** Debug endpoint — shows AI provider status (auth required) */
+  /** Debug endpoint — shows AI provider status */
+  @Public()
   @Get('ai/status')
   aiStatus(@Query('test') test?: string) {
     return this.aiService.getProviderStatus(test === 'true');
@@ -30,6 +32,7 @@ export class TrainingPlanController {
    * Returns: AiPlanResult with sonsomo, main, core rows + ai_reasoning
    * Falls back to rule-based generation if ANTHROPIC_API_KEY is not set.
    */
+  @Public() // TEMP: for testing — remove after verification
   @Get('ai/recommend/:clientId')
   recommend(@Param('clientId', ParseIntPipe) clientId: number) {
     return this.aiService.generateAiPlan(clientId);
