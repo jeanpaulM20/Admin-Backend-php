@@ -6,6 +6,7 @@ import '../providers/trainer_provider.dart';
 import '../models/training.dart';
 import '../config/app_colors.dart';
 import 'training_detail_screen.dart';
+import 'training_analytics_screen.dart';
 
 class TrainingsScreen extends StatefulWidget {
   const TrainingsScreen({super.key});
@@ -23,7 +24,7 @@ class _TrainingsScreenState extends State<TrainingsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -119,6 +120,16 @@ class _TrainingsScreenState extends State<TrainingsScreen>
                 ],
               ),
             ),
+            const Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.bar_chart_rounded, size: 16),
+                  SizedBox(width: 4),
+                  Text('Statistik'),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -152,6 +163,7 @@ class _TrainingsScreenState extends State<TrainingsScreen>
                             ? () => trainerProvider.fetchTrainings(trainer.id)
                             : null,
                       ),
+                      TrainingAnalytics(trainings: all),
                     ],
                   ),
           ),
