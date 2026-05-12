@@ -4,7 +4,6 @@ import { AiPlanService } from './ai-plan.service';
 import { TrainingPlan } from '../entities/training-plan.entity';
 import { CurrentClient } from '../auth/decorators/current-user.decorator';
 import { Client } from '../entities/client.entity';
-import { Public } from '../auth/decorators/public.decorator';
 
 @Controller('api/training-plan')
 export class TrainingPlanController {
@@ -17,13 +16,6 @@ export class TrainingPlanController {
   @Get('ai/status')
   aiStatus(@Query('test') test?: string) {
     return this.aiService.getProviderStatus(test === 'true');
-  }
-
-  /** TEMPORARY test endpoint — remove after verifying enriched AI output */
-  @Public()
-  @Get('ai/test/:clientId')
-  testRecommend(@Param('clientId', ParseIntPipe) clientId: number) {
-    return this.aiService.generateAiPlan(clientId);
   }
 
   @Get()
