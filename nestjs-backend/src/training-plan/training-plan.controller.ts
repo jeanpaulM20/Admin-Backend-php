@@ -42,8 +42,14 @@ export class TrainingPlanController {
   }
 
   @Post()
-  create(@Body() body: Partial<TrainingPlan>) {
-    return this.service.create(body);
+  create(@Body() body: any) {
+    // Flutter sends snake_case (client_id), but TypeORM entity uses camelCase (clientId)
+    const mapped: Partial<TrainingPlan> = {
+      ...body,
+      clientId: body.clientId ?? body.client_id,
+    };
+    delete (mapped as any).client_id;
+    return this.service.create(mapped);
   }
 
   /**
@@ -58,8 +64,14 @@ export class TrainingPlanController {
   }
 
   @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() body: Partial<TrainingPlan>) {
-    return this.service.update(id, body);
+  update(@Param('id', ParseIntPipe) id: number, @Body() body: any) {
+    // Flutter sends snake_case (client_id), but TypeORM entity uses camelCase (clientId)
+    const mapped: Partial<TrainingPlan> = {
+      ...body,
+      clientId: body.clientId ?? body.client_id,
+    };
+    delete (mapped as any).client_id;
+    return this.service.update(id, mapped);
   }
 
   @Delete(':id')
