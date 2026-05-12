@@ -169,10 +169,21 @@ class TrainerProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // NestJS endpoint auto-filters by the authenticated trainer's token.
-      // Optional: pass trainer_id as fallback for non-authed contexts.
+      final queryParams = <String, String>{
+        'trainer_id': trainerId.toString(),
+      };
+      if (locationId > 0) {
+        queryParams['location_id'] = locationId.toString();
+      }
+      if (from != null) {
+        queryParams['from'] = DateFormat('yyyy-MM-dd').format(from);
+      }
+      if (to != null) {
+        queryParams['to'] = DateFormat('yyyy-MM-dd').format(to);
+      }
+
       final response = await _apiService.get(ApiConfig.availability,
-          queryParams: {'trainer_id': trainerId.toString()});
+          queryParams: queryParams);
 
       _availabilityMap = {};
       List<dynamic> slots = [];

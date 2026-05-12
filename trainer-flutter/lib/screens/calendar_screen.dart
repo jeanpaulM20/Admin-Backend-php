@@ -22,44 +22,70 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime? _selectedDay;
   CalendarFormat _calendarFormat = CalendarFormat.month;
   int? _selectedLocationId;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadData();
+      _initialLoad();
     });
   }
 
-  Future<void> _loadData() async {
+  Future<void> _initialLoad() async {
     final authProvider = context.read<AuthProvider>();
     final trainerProvider = context.read<TrainerProvider>();
     final trainer = authProvider.trainer;
     if (trainer == null) return;
 
-    if (trainerProvider.locations.isEmpty) {
-      await trainerProvider.fetchLocations();
+    setState(() => _error = null);
+
+    try {
+      if (trainerProvider.locations.isEmpty) {
+        await trainerProvider.fetchLocations();
+      }
+
+      // Default to first location if none selected
+      if (_selectedLocationId == null && trainerProvider.locations.isNotEmpty) {
+        _selectedLocationId = trainerProvider.locations.first.id;
+      }
+
+      await trainerProvider.fetchAvailability(
+        trainer.id,
+        _selectedLocationId ?? 0,
+      );
+
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (mounted) {
+        setState(
+            () => _error = 'Verfügbarkeit konnte nicht geladen werden');
+      }
     }
-
-    final locationId = _selectedLocationId ??
-        (trainerProvider.locations.isNotEmpty
-            ? trainerProvider.locations.first.id
-            : 1);
-
-    await trainerProvider.fetchAvailability(
-      trainer.id,
-      locationId,
-      from: DateTime(_focusedDay.year, _focusedDay.month, 1),
-      to: DateTime(_focusedDay.year, _focusedDay.month + 1, 0),
-    );
   }
 
+  Future<void> _refresh() async {
+    setState(() => _error = null);
+    await _initialLoad();
+  }
+
+  /// Availability slots for a given day, filtered by selected location.
   List<AvailabilitySlot> _getSlotsForDay(
       DateTime day, Map<DateTime, List<AvailabilitySlot>> map) {
     final key = DateTime(day.year, day.month, day.day);
-    return map[key] ?? [];
+    final slots = map[key] ?? [];
+    if (_selectedLocationId != null) {
+      return slots
+          .where((s) =>
+              s.locationId == null ||
+              s.locationId == 0 ||
+              s.locationId == _selectedLocationId)
+          .toList();
+    }
+    return slots;
   }
 
+  /// Trainings for a specific calendar day.
   List<Training> _getTrainingsForDay(
       DateTime day, List<Training> trainings) {
     return trainings.where((t) {
@@ -77,120 +103,32 @@ class _CalendarScreenState extends State<CalendarScreen> {
         }
       }
       return false;
-    }).toList();
-  }
-
-  void _showTrainingsBottomSheet(
-      BuildContext context, DateTime day, List<Training> trainings) {
-    if (trainings.isEmpty) return;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      isScrollControlled: true,
-      builder: (context) {
-        return DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.45,
-          minChildSize: 0.3,
-          maxChildSize: 0.85,
-          builder: (context, scrollController) {
-            return Column(
-              children: [
-                Container(
-                  margin: const EdgeInsets.symmetric(vertical: 10),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.muted,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.fitness_center,
-                          color: AppColors.primary, size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        DateFormat('EEEE, MMMM d').format(day),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withAlpha(40),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '${trainings.length} session${trainings.length == 1 ? '' : 's'}',
-                          style: const TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1, color: AppColors.border),
-                Expanded(
-                  child: ListView.separated(
-                    controller: scrollController,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: trainings.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final t = trainings[index];
-                      return _TrainingBottomSheetItem(
-                        training: t,
-                        onTap: () {
-                          Navigator.pop(context);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  TrainingDetailScreen(training: t),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
+    }).toList()
+      ..sort((a, b) {
+        if (a.startTime == null) return 1;
+        if (b.startTime == null) return -1;
+        return a.startTime!.compareTo(b.startTime!);
+      });
   }
 
   @override
   Widget build(BuildContext context) {
     final trainerProvider = context.watch<TrainerProvider>();
-    final slots = _selectedDay != null
+    final daySlots = _selectedDay != null
         ? _getSlotsForDay(_selectedDay!, trainerProvider.availabilityMap)
         : <AvailabilitySlot>[];
+    final dayTrainings = _selectedDay != null
+        ? _getTrainingsForDay(_selectedDay!, trainerProvider.trainings)
+        : <Training>[];
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Availability Calendar'),
+        title: const Text('Kalender'),
         actions: [
           IconButton(
             icon: const Icon(Icons.event_repeat),
-            tooltip: 'Serial Availability',
+            tooltip: 'Serientermine',
             onPressed: () {
               final trainer = context.read<AuthProvider>().trainer;
               if (trainer == null) return;
@@ -200,12 +138,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   builder: (_) =>
                       AvailabilitySerialScreen(trainerId: trainer.id),
                 ),
-              ).then((_) => _loadData());
+              ).then((_) => _refresh());
             },
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loadData,
+            onPressed: _refresh,
           ),
         ],
       ),
@@ -213,15 +151,49 @@ class _CalendarScreenState extends State<CalendarScreen> {
         children: [
           if (trainerProvider.locations.isNotEmpty)
             _buildLocationSelector(trainerProvider),
+          if (_error != null) _buildErrorBanner(),
           _buildCalendar(trainerProvider),
           const Divider(height: 1, color: AppColors.border),
           Expanded(
-            child: _buildSlotList(slots, trainerProvider.availabilityLoading),
+            child: _buildDayDetail(
+              daySlots,
+              dayTrainings,
+              trainerProvider.availabilityLoading,
+            ),
           ),
         ],
       ),
     );
   }
+
+  // ── Error banner ────────────────────────────────────────────────────────────
+
+  Widget _buildErrorBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: AppColors.red.withAlpha(30),
+      child: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded,
+              color: AppColors.red, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              _error!,
+              style: const TextStyle(color: AppColors.red, fontSize: 13),
+            ),
+          ),
+          TextButton(
+            onPressed: _refresh,
+            child: const Text('Erneut', style: TextStyle(fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Location selector ───────────────────────────────────────────────────────
 
   Widget _buildLocationSelector(TrainerProvider provider) {
     return Container(
@@ -240,21 +212,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
             child: GestureDetector(
               onTap: () {
                 setState(() => _selectedLocationId = loc.id);
-                _loadData();
+                // Data is already loaded — filtering happens client-side
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.primary
-                      : AppColors.surface,
+                  color:
+                      isSelected ? AppColors.primary : AppColors.surface,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: isSelected
-                        ? AppColors.primary
-                        : AppColors.border,
+                    color:
+                        isSelected ? AppColors.primary : AppColors.border,
                   ),
                 ),
                 child: Text(
@@ -262,9 +232,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   style: TextStyle(
                     color: isSelected ? Colors.white : AppColors.muted,
                     fontSize: 13,
-                    fontWeight: isSelected
-                        ? FontWeight.w600
-                        : FontWeight.normal,
+                    fontWeight:
+                        isSelected ? FontWeight.w600 : FontWeight.normal,
                   ),
                 ),
               ),
@@ -275,32 +244,35 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
+  // ── Calendar ────────────────────────────────────────────────────────────────
+
   Widget _buildCalendar(TrainerProvider provider) {
-    return TableCalendar<AvailabilitySlot>(
+    return TableCalendar<Object>(
+      locale: 'de_DE',
       firstDay: DateTime.utc(2020, 1, 1),
       lastDay: DateTime.utc(2030, 12, 31),
       focusedDay: _focusedDay,
       calendarFormat: _calendarFormat,
+      startingDayOfWeek: StartingDayOfWeek.monday,
       selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-      eventLoader: (day) =>
-          _getSlotsForDay(day, provider.availabilityMap),
+      eventLoader: (day) {
+        // Return combined list so markerBuilder fires for both types
+        final slots = _getSlotsForDay(day, provider.availabilityMap);
+        final trainings = _getTrainingsForDay(day, provider.trainings);
+        return [...slots, ...trainings];
+      },
       onDaySelected: (selectedDay, focusedDay) {
         setState(() {
           _selectedDay = selectedDay;
           _focusedDay = focusedDay;
         });
-        final trainingsForDay =
-            _getTrainingsForDay(selectedDay, provider.trainings);
-        if (trainingsForDay.isNotEmpty) {
-          _showTrainingsBottomSheet(context, selectedDay, trainingsForDay);
-        }
       },
       onFormatChanged: (format) {
         setState(() => _calendarFormat = format);
       },
       onPageChanged: (focusedDay) {
         _focusedDay = focusedDay;
-        _loadData();
+        // No refetch needed — backend returns all availability data
       },
       calendarStyle: CalendarStyle(
         outsideDaysVisible: false,
@@ -308,7 +280,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             const TextStyle(color: AppColors.text, fontSize: 14),
         weekendTextStyle:
             const TextStyle(color: AppColors.text, fontSize: 14),
-        selectedDecoration: BoxDecoration(
+        selectedDecoration: const BoxDecoration(
           color: AppColors.primary,
           shape: BoxShape.circle,
         ),
@@ -326,17 +298,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
           fontSize: 14,
           fontWeight: FontWeight.bold,
         ),
-        markerDecoration: BoxDecoration(
-          color: const Color(0xFF4CAF50),
+        markerDecoration: const BoxDecoration(
+          color: Color(0xFF4CAF50),
           shape: BoxShape.circle,
         ),
-        markersMaxCount: 3,
+        markersMaxCount: 4,
         outsideTextStyle:
             const TextStyle(color: AppColors.muted, fontSize: 14),
         disabledTextStyle:
             const TextStyle(color: AppColors.border, fontSize: 14),
         cellMargin: const EdgeInsets.all(4),
-        rowDecoration: const BoxDecoration(color: Colors.transparent),
+        rowDecoration:
+            const BoxDecoration(color: Colors.transparent),
       ),
       headerStyle: HeaderStyle(
         formatButtonVisible: true,
@@ -375,34 +348,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ),
       calendarBuilders: CalendarBuilders(
         markerBuilder: (context, day, events) {
-          if (events.isEmpty) return null;
-          final bookedCount = events.where((e) => e.isBooked).length;
-          final freeCount = events.where((e) => !e.isBooked).length;
+          final slots = events.whereType<AvailabilitySlot>().toList();
+          final trainings = events.whereType<Training>().toList();
+
+          if (slots.isEmpty && trainings.isEmpty) return null;
+
+          final freeCount = slots.where((e) => !e.isBooked).length;
+          final bookedCount = slots.where((e) => e.isBooked).length;
+          final activeTrainings =
+              trainings.where((t) => !t.isCancelled).length;
+          final cancelledTrainings =
+              trainings.where((t) => t.isCancelled).length;
+
           return Positioned(
             bottom: 2,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (freeCount > 0)
-                  Container(
-                    width: 6,
-                    height: 6,
-                    margin: const EdgeInsets.symmetric(horizontal: 1),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF4CAF50),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
+                  _calDot(AppColors.green),
                 if (bookedCount > 0)
-                  Container(
-                    width: 6,
-                    height: 6,
-                    margin: const EdgeInsets.symmetric(horizontal: 1),
-                    decoration: const BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
+                  _calDot(AppColors.primary),
+                if (activeTrainings > 0)
+                  _calCountDot(AppColors.orange, activeTrainings),
+                if (cancelledTrainings > 0)
+                  _calDot(AppColors.red),
               ],
             ),
           );
@@ -411,7 +381,45 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  Widget _buildSlotList(List<AvailabilitySlot> slots, bool loading) {
+  Widget _calDot(Color color) {
+    return Container(
+      width: 6,
+      height: 6,
+      margin: const EdgeInsets.symmetric(horizontal: 1),
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    );
+  }
+
+  Widget _calCountDot(Color color, int count) {
+    if (count <= 1) return _calDot(color);
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 3),
+      height: 10,
+      constraints: const BoxConstraints(minWidth: 10),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: Text(
+        count.toString(),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 7,
+          fontWeight: FontWeight.bold,
+          height: 1,
+        ),
+      ),
+    );
+  }
+
+  // ── Day detail list (trainings + availability) ─────────────────────────────
+
+  Widget _buildDayDetail(
+      List<AvailabilitySlot> slots,
+      List<Training> trainings,
+      bool loading) {
     if (loading) {
       return const Center(
         child: CircularProgressIndicator(
@@ -429,7 +437,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             Icon(Icons.touch_app, color: AppColors.muted, size: 36),
             SizedBox(height: 12),
             Text(
-              'Select a day to view availability',
+              'Tippe auf einen Tag',
               style: TextStyle(color: AppColors.muted, fontSize: 14),
             ),
           ],
@@ -437,7 +445,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       );
     }
 
-    if (slots.isEmpty) {
+    if (slots.isEmpty && trainings.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -445,7 +453,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             const Icon(Icons.event_busy, color: AppColors.muted, size: 36),
             const SizedBox(height: 12),
             Text(
-              'No availability on ${DateFormat('MMMM d, yyyy').format(_selectedDay!)}',
+              'Keine Einträge am ${DateFormat('d. MMMM yyyy', 'de_DE').format(_selectedDay!)}',
               style: const TextStyle(color: AppColors.muted, fontSize: 14),
             ),
           ],
@@ -453,51 +461,131 @@ class _CalendarScreenState extends State<CalendarScreen> {
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-          child: Row(
-            children: [
-              Text(
-                DateFormat('EEEE, MMMM d').format(_selectedDay!),
+        // ── Date header + legend ──
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                DateFormat('EEEE, d. MMMM', 'de_DE').format(_selectedDay!),
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(width: 10),
-              _buildLegend(),
-            ],
+            ),
+            _buildLegend(
+              hasSlots: slots.isNotEmpty,
+              hasTrainings: trainings.isNotEmpty,
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // ── Trainings section ──
+        if (trainings.isNotEmpty) ...[
+          _sectionHeader(
+            Icons.fitness_center,
+            'Termine',
+            trainings.length,
+            AppColors.orange,
+          ),
+          const SizedBox(height: 6),
+          for (final t in trainings)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _TrainingDayCard(
+                training: t,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => TrainingDetailScreen(training: t),
+                  ),
+                ),
+              ),
+            ),
+          if (slots.isNotEmpty) const SizedBox(height: 4),
+        ],
+
+        // ── Availability section ──
+        if (slots.isNotEmpty) ...[
+          _sectionHeader(
+            Icons.schedule,
+            'Verfügbarkeit',
+            slots.length,
+            AppColors.green,
+          ),
+          const SizedBox(height: 6),
+          for (final s in slots)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _SlotCard(slot: s),
+            ),
+        ],
+      ],
+    );
+  }
+
+  Widget _sectionHeader(
+      IconData icon, String title, int count, Color color) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 16),
+        const SizedBox(width: 6),
+        Text(
+          title,
+          style: TextStyle(
+            color: color,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            itemCount: slots.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              return _SlotCard(slot: slots[index]);
-            },
+        const SizedBox(width: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+          decoration: BoxDecoration(
+            color: color.withAlpha(30),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            count.toString(),
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildLegend() {
+  Widget _buildLegend({
+    required bool hasSlots,
+    required bool hasTrainings,
+  }) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _LegendDot(color: const Color(0xFF4CAF50), label: 'Free'),
-        const SizedBox(width: 10),
-        _LegendDot(color: AppColors.primary, label: 'Booked'),
+        if (hasSlots) ...[
+          const _LegendDot(color: AppColors.green, label: 'Frei'),
+          const SizedBox(width: 8),
+          const _LegendDot(color: AppColors.primary, label: 'Gebucht'),
+        ],
+        if (hasSlots && hasTrainings) const SizedBox(width: 8),
+        if (hasTrainings)
+          const _LegendDot(color: AppColors.orange, label: 'Termin'),
       ],
     );
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Private widgets
+// ═══════════════════════════════════════════════════════════════════════════════
 
 class _LegendDot extends StatelessWidget {
   final Color color;
@@ -589,13 +677,14 @@ class _SlotCard extends StatelessWidget {
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: statusColor.withAlpha(40),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              isBooked ? 'Booked' : 'Available',
+              isBooked ? 'Gebucht' : 'Verfügbar',
               style: TextStyle(
                 color: isBooked
                     ? const Color(0xFFFF6B6B)
@@ -611,11 +700,11 @@ class _SlotCard extends StatelessWidget {
   }
 }
 
-class _TrainingBottomSheetItem extends StatelessWidget {
+class _TrainingDayCard extends StatelessWidget {
   final Training training;
   final VoidCallback onTap;
 
-  const _TrainingBottomSheetItem({
+  const _TrainingDayCard({
     required this.training,
     required this.onTap,
   });
@@ -623,18 +712,16 @@ class _TrainingBottomSheetItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isCancelled = training.isCancelled;
-    final accentColor =
-        isCancelled ? AppColors.muted : AppColors.primary;
+    final accentColor = isCancelled ? AppColors.red : AppColors.orange;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: accentColor.withAlpha(12),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-              color: accentColor.withAlpha(60), width: 0.5),
+          border: Border.all(color: accentColor.withAlpha(50)),
         ),
         child: Row(
           children: [
@@ -651,22 +738,47 @@ class _TrainingBottomSheetItem extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (training.clientName != null)
-                    Text(
-                      training.clientName!,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                  const SizedBox(height: 2),
                   Text(
-                    training.displayTime,
-                    style: const TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 13,
+                    training.clientName ??
+                        training.title ??
+                        'Training',
+                    style: TextStyle(
+                      color: isCancelled ? AppColors.muted : Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      decoration: isCancelled
+                          ? TextDecoration.lineThrough
+                          : null,
                     ),
+                  ),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      const Icon(Icons.access_time,
+                          size: 12, color: AppColors.muted),
+                      const SizedBox(width: 3),
+                      Text(
+                        training.displayTime,
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 13,
+                        ),
+                      ),
+                      if (training.locationName != null) ...[
+                        const SizedBox(width: 8),
+                        const Icon(Icons.location_on_outlined,
+                            size: 12, color: AppColors.muted),
+                        const SizedBox(width: 3),
+                        Expanded(
+                          child: Text(
+                            training.locationName!,
+                            style: const TextStyle(
+                                color: AppColors.muted, fontSize: 12),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   if (training.trainingType != null) ...[
                     const SizedBox(height: 2),
@@ -686,12 +798,12 @@ class _TrainingBottomSheetItem extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: AppColors.border,
+                  color: AppColors.red.withAlpha(30),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Text(
-                  'Cancelled',
-                  style: TextStyle(color: AppColors.muted, fontSize: 11),
+                  'Abgesagt',
+                  style: TextStyle(color: AppColors.red, fontSize: 11),
                 ),
               )
             else
