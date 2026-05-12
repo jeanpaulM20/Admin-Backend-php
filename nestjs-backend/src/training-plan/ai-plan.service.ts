@@ -380,17 +380,19 @@ export class AiPlanService {
 
     return Object.entries(TEST_BENCHMARKS)
       .filter(([key, bench]) => {
-        const value = test[key] as number;
-        // Sprint: lower = better, skip 0 values
+        const value = Number(test[key]) || 0;
+        // Sprint: lower = better, skip entirely for weakness analysis
         if (key.startsWith('sprint_')) return false;
+        // 0 or null = NOT TESTED → skip (don't treat as weakness)
+        if (!value || value === 0) return false;
         return bench.min > 0 && value < bench.min;
       })
       .map(([key, bench]) => ({
         field: key,
         label: bench.label,
-        value: test[key] as number,
+        value: Number(test[key]) || 0,
         benchmark: bench.min,
-        deficit: Math.round((1 - (test[key] as number) / bench.min) * 100),
+        deficit: Math.round((1 - (Number(test[key]) || 0) / bench.min) * 100),
         category: bench.category,
       }))
       .sort((a, b) => b.deficit - a.deficit);
@@ -442,7 +444,7 @@ WICHTIGE REGELN:
    - BWS-Kyphose / Rundrücken → IMMER Thorakale Rotation und BWS-Extension einplanen. Bevorzuge: Thorakale Rotation, Shoulder CARs, Ring Face Pull, Band Pull-Apart, Rudern. Fokus auf Scapula-Retraktion und Brustöffnung.
    Sicherheit geht IMMER vor Leistungsoptimierung.
 2. SCHWIERIGKEITSGRAD ANPASSEN: Passe den Schwierigkeitsgrad der Übungen an das tatsächliche Leistungsniveau des Kunden an. Wenn der Kunde z.B. 0 Klimmzüge schafft, wähle KEINE fortgeschrittenen Übungen wie Front Lever, Muscle-Up, L-Sit. Beginne mit Regressionen (z.B. Negativklimmzüge, Ruderübungen, Plankvarianten).
-3. SCHWÄCHEN VOLLSTÄNDIG ABDECKEN: Adressiere JEDE identifizierte Schwäche aus dem Leistungstest mit mindestens einer gezielten Übung. Prüfe am Ende, ob alle Schwächen im Plan vertreten sind.
+3. SCHWÄCHEN VOLLSTÄNDIG ABDECKEN: Adressiere JEDE identifizierte Schwäche aus dem Leistungstest mit mindestens einer gezielten Übung. Prüfe am Ende, ob alle Schwächen im Plan vertreten sind. WICHTIG: Wenn ein Test-Parameter als "notTested" markiert ist, wurde er NICHT durchgeführt. Behandle fehlende Tests NICHT als Schwäche — erwähne sie nur als "nicht getestet" im Reasoning.
 4. VERFÜGBARE ÜBUNGEN BEVORZUGEN: Wähle Übungen aus dem mitgelieferten Katalog (mit exercise_id). Nur wenn keine passende Übung im Katalog existiert, schlage eine neue vor (exercise_id: null).
 5. STRUKTUR:
    - "sonsomo" (Aufwärmen/Sensomotorik): 2-4 Übungen mit Fokus auf propriozeptives Training und Koordination. Ziel: Nervensystem aktivieren, Dopaminausschüttung anregen, den Kunden ins Hier-und-Jetzt bringen. Bevorzuge: Barfuß-Übungen, Balance Board, Einbeinstand, Slackline, koordinative Herausforderungen. KEINE klassischen Dehnübungen oder passives Aufwärmen.
@@ -566,9 +568,21 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
       performanceTest: test
         ? {
             date: test.date,
+            // Only include actually tested values (> 0). Value 0 = not tested.
             results: Object.fromEntries(
-              Object.keys(TEST_BENCHMARKS).map((k) => [k, test[k] as number]),
+              Object.keys(TEST_BENCHMARKS)
+                .filter((k) => {
+                  const v = Number(test[k]) || 0;
+                  return v > 0;
+                })
+                .map((k) => [k, Number(test[k])]),
             ),
+            notTested: Object.keys(TEST_BENCHMARKS)
+              .filter((k) => {
+                const v = Number(test[k]) || 0;
+                return v === 0 && !k.startsWith('sprint_');
+              })
+              .map((k) => TEST_BENCHMARKS[k].label),
           }
         : { date: '', results: {} },
       weaknesses,

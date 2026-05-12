@@ -101,6 +101,7 @@ export interface AiPromptContext {
   performanceTest: {
     date: string;
     results: Record<string, number>;
+    notTested?: string[];
   };
   weaknesses: AiWeakness[];
   exerciseCatalog: AiExerciseCatalog[];
