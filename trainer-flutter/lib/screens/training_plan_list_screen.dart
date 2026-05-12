@@ -150,6 +150,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
     final main = result['main'] as List<dynamic>? ?? [];
     final core = result['core'] as List<dynamic>? ?? [];
     final totalExercises = sonsomo.length + main.length + core.length;
+    final isRuleBased = result['isRuleBased'] == true;
 
     final accepted = await showModalBottomSheet<bool>(
       context: context,
@@ -204,6 +205,40 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
               ),
             ]),
             const SizedBox(height: 20),
+
+            // Rule-based fallback warning
+            if (isRuleBased) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.orange.withAlpha(20),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.orange.withAlpha(60)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: AppColors.orange, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Regelbasierter Plan',
+                              style: GoogleFonts.openSans(
+                                  color: AppColors.orange, fontSize: 12, fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 4),
+                          Text('Die KI war nicht erreichbar. Dieser Plan wurde automatisch nach Regeln erstellt und sollte besonders sorgfältig geprüft werden.',
+                              style: GoogleFonts.openSans(
+                                  color: AppColors.text, fontSize: 12, height: 1.4)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
 
             // AI Reasoning
             Container(
