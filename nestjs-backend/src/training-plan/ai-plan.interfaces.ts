@@ -25,6 +25,8 @@ export interface AiPlanResult {
   basedOnTestId: number | null;
   basedOnTestDate: string | null;
   contraindications: string[];       // Active medical constraints
+  isRuleBased?: boolean;             // true = LLM failed, rule-based fallback used
+  llmError?: string;                 // Error message if LLM failed
 }
 
 /** A single identified weakness from the performance test. */

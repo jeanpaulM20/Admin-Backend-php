@@ -196,11 +196,15 @@ export class AiPlanService {
 
     // 5. Generate plan (AI or rule-based fallback)
     let llmResponse: AiLlmResponse;
+    let isRuleBased = false;
+    let llmError: string | undefined;
     try {
       llmResponse = await this.callLlm(context);
     } catch (err) {
       this.logger.warn(`LLM call failed, using rule-based fallback: ${err.message}`);
       llmResponse = this.ruleBasedFallback(weaknesses, exercises, contraindications);
+      isRuleBased = true;
+      llmError = err.message;
     }
 
     // 6. Match suggested exercises against DB
@@ -235,6 +239,7 @@ export class AiPlanService {
       basedOnTestId: test?.id ?? null,
       basedOnTestDate: test?.date ?? null,
       contraindications,
+      ...(isRuleBased ? { isRuleBased: true, llmError } : {}),
     };
   }
 
@@ -255,19 +260,31 @@ export class AiPlanService {
       dates: Array(8).fill(''),
     });
 
-    // Auto-create new exercises that the AI suggested
+    // Auto-create new exercises that the AI suggested (with duplicate check)
     for (const row of [...result.sonsomo, ...result.main, ...result.core]) {
       if (row.isNew && row.exercise) {
-        const created = await this.exerciseRepo.save(
-          this.exerciseRepo.create({
-            name: row.exercise,
-            published: 1,
-            archive: 0,
-          }),
-        );
-        row.exerciseId = created.id;
-        row.isNew = false;
-        this.logger.log(`Auto-created exercise: "${row.exercise}" → id=${created.id}`);
+        // Check if exercise already exists (case-insensitive)
+        const existing = await this.exerciseRepo
+          .createQueryBuilder('e')
+          .where('LOWER(e.name) = LOWER(:name)', { name: row.exercise.trim() })
+          .getOne();
+
+        if (existing) {
+          row.exerciseId = existing.id;
+          row.isNew = false;
+          this.logger.log(`Matched existing exercise: "${row.exercise}" → id=${existing.id}`);
+        } else {
+          const created = await this.exerciseRepo.save(
+            this.exerciseRepo.create({
+              name: row.exercise,
+              published: 1,
+              archive: 0,
+            }),
+          );
+          row.exerciseId = created.id;
+          row.isNew = false;
+          this.logger.log(`Auto-created exercise: "${row.exercise}" → id=${created.id}`);
+        }
       }
     }
 
@@ -276,7 +293,7 @@ export class AiPlanService {
         clientId,
         values,
         name: result.name || 'KI-Trainingsplan',
-        goal: result.ai_reasoning.substring(0, 500),
+        goal: result.ai_reasoning.substring(0, 1000),
       }),
     );
 
@@ -423,6 +440,33 @@ export class AiPlanService {
     // Musculoskeletal
     if (anamnese.musculoskeletal_problems && anamnese.musculoskeletal_problems_description) {
       result.push(`Muskuloskelettale Probleme: ${anamnese.musculoskeletal_problems_description}`);
+    }
+
+    // Extract medical hints from comments field (often contains surgery info, chronic conditions)
+    if (anamnese.comments) {
+      const comments = anamnese.comments.toLowerCase();
+      const medicalKeywords = [
+        { pattern: /knie[\s-]?(op|operation|arthroskopie|tep|prothese)/i, label: 'Knie-OP' },
+        { pattern: /kreuzband/i, label: 'Kreuzbandverletzung' },
+        { pattern: /meniskus/i, label: 'Meniskusschaden' },
+        { pattern: /bandscheib/i, label: 'Bandscheibenvorfall' },
+        { pattern: /h[üu]ft[\s-]?(op|operation|tep|prothese)/i, label: 'Hüft-OP' },
+        { pattern: /schulter[\s-]?(op|operation|arthroskopie)/i, label: 'Schulter-OP' },
+        { pattern: /impingement/i, label: 'Schulter-Impingement' },
+        { pattern: /achillessehne/i, label: 'Achillessehnen-Problem' },
+        { pattern: /patella/i, label: 'Patella-Problem' },
+        { pattern: /schwanger/i, label: 'Schwangerschaft' },
+        { pattern: /osteoporo/i, label: 'Osteoporose' },
+        { pattern: /arthro(se|sis)/i, label: 'Arthrose' },
+        { pattern: /skoliose/i, label: 'Skoliose' },
+        { pattern: /hernie/i, label: 'Hernie' },
+      ];
+
+      for (const { pattern, label } of medicalKeywords) {
+        if (pattern.test(anamnese.comments) && !result.some((r) => r.toLowerCase().includes(label.toLowerCase()))) {
+          result.push(`${label} (aus Kommentaren)`);
+        }
+      }
     }
 
     return result;
@@ -674,15 +718,20 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
 
     const userPrompt = this.buildUserPrompt(context);
 
-    const response = await this.groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
-      max_tokens: 4096,
-      temperature: 0.3,
-      messages: [
-        { role: 'system', content: this.systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-    });
+    const response = await Promise.race([
+      this.groq.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
+        max_tokens: 4096,
+        temperature: 0.3,
+        messages: [
+          { role: 'system', content: this.systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+      }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Groq timeout after 45s')), 45_000),
+      ),
+    ]);
 
     const raw = response.choices?.[0]?.message?.content?.trim();
     if (!raw) throw new Error('No content in Groq response');
@@ -697,12 +746,17 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
 
     const userPrompt = this.buildUserPrompt(context);
 
-    const response = await this.anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4096,
-      system: this.systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-    });
+    const response = await Promise.race([
+      this.anthropic.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 4096,
+        system: this.systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }],
+      }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Anthropic timeout after 45s')), 45_000),
+      ),
+    ]);
 
     const textBlock = response.content.find((b) => b.type === 'text');
     if (!textBlock || textBlock.type !== 'text') {
@@ -746,71 +800,153 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
     exercises: AiExerciseCatalog[],
     contraindications: string[],
   ): AiLlmResponse {
-    const hasCardioContra = contraindications.some(
-      (c) => c.includes('Herz') || c.includes('Kreislauf'),
+    // ── Contraindication helpers ──────────────────────────────────────────
+    const contraLower = contraindications.map((c) => c.toLowerCase());
+    const hasKneeContra = contraLower.some(
+      (c) => c.includes('knie') || c.includes('patella') || c.includes('meniskus'),
+    );
+    const hasShoulderContra = contraLower.some(
+      (c) => c.includes('schulter') || c.includes('impingement') || c.includes('rotator'),
+    );
+    const hasBackContra = contraLower.some(
+      (c) => c.includes('rücken') || c.includes('lws') || c.includes('bandscheibe'),
     );
 
-    // Group exercises by their group name
-    const byGroup = new Map<string, AiExerciseCatalog[]>();
-    for (const e of exercises) {
-      const g = e.group?.toLowerCase() ?? 'sonstige';
-      if (!byGroup.has(g)) byGroup.set(g, []);
-      byGroup.get(g)!.push(e);
+    // Filter out exercises that conflict with contraindications
+    const isSafe = (e: AiExerciseCatalog): boolean => {
+      const joint = (e.joint ?? '').toLowerCase();
+      const name = e.name.toLowerCase();
+      if (hasKneeContra && (joint.includes('knie') || name.includes('squat') || name.includes('lunge') || name.includes('sprung') || name.includes('jump'))) return false;
+      if (hasShoulderContra && (joint.includes('schulter') || name.includes('press') || name.includes('überkopf') || name.includes('handstand'))) return false;
+      if (hasBackContra && (joint.includes('lws') || name.includes('deadlift') || name.includes('hyperextension'))) return false;
+      return true;
+    };
+
+    const safeExercises = exercises.filter(isSafe);
+
+    // ── Sonsomo: Proprioception, coordination, foot muscles ──────────────
+    // Priority: bodyRegion=Foot, group containing Balance/Sensomotorik/Fuß, pattern=Static with ankle joint
+    const sonsomoPool = safeExercises.filter((e) => {
+      const region = (e.bodyRegion ?? '').toLowerCase();
+      const group = (e.group ?? '').toLowerCase();
+      const joint = (e.joint ?? '').toLowerCase();
+      const pattern = (e.pattern ?? '').toLowerCase();
+      const name = e.name.toLowerCase();
+      // Foot exercises
+      if (region === 'foot') return true;
+      // Balance/Sensomotorik group
+      if (group.includes('balance') || group.includes('sensomotorik') || group.includes('slackline')) return true;
+      // Static ankle exercises (proprioceptive)
+      if (pattern === 'static' && joint.includes('sprunggelenk')) return true;
+      // Seilspringen (coordination)
+      if (name.includes('seilspring') || name.includes('rope') || name.includes('skip')) return true;
+      return false;
+    });
+
+    // ── Core: Core stability & rotation ──────────────────────────────────
+    const corePool = safeExercises.filter((e) => {
+      const region = (e.bodyRegion ?? '').toLowerCase();
+      const muscle = (e.muscle ?? '').toLowerCase();
+      const joint = (e.joint ?? '').toLowerCase();
+      const pattern = (e.pattern ?? '').toLowerCase();
+      const name = e.name.toLowerCase();
+      // Direct core region
+      if (region === 'core') return true;
+      // Muscle-based: abdominal/back stabilizers
+      if (muscle.includes('bauch') || muscle.includes('core') || muscle.includes('rumpf') || muscle.includes('rückenstrecker')) return true;
+      // Joint: LWS or BWS (spinal stabilizers)
+      if (joint.includes('lws') || joint.includes('bws')) return true;
+      // Pattern: rotation or static with core indication
+      if (pattern === 'rotation') return true;
+      // Name-based hints
+      if (name.includes('plank') || name.includes('stütz') || name.includes('pallof') || name.includes('hollow')) return true;
+      return false;
+    });
+
+    // ── Main: Address weaknesses, pick from remaining pool ───────────────
+    const usedIds = new Set<number>();
+    const sonsomoIds = new Set(sonsomoPool.map((e) => e.id));
+    const coreIds = new Set(corePool.map((e) => e.id));
+
+    // Try to match exercises to weaknesses
+    const weaknessExercises: AiExerciseCatalog[] = [];
+    for (const w of weaknesses) {
+      if (w.category === 'core' || w.category === 'warmup') continue; // handled by sonsomo/core
+      const categoryLower = w.label.toLowerCase();
+      const match = safeExercises.find((e) => {
+        if (usedIds.has(e.id) || sonsomoIds.has(e.id)) return false;
+        const muscle = (e.muscle ?? '').toLowerCase();
+        const pattern = (e.pattern ?? '').toLowerCase();
+        const name = e.name.toLowerCase();
+        // Match by weakness type
+        if (categoryLower.includes('zug') && (pattern === 'pull' || name.includes('pull') || name.includes('ruder') || name.includes('row'))) return true;
+        if (categoryLower.includes('druck') && (pattern === 'push' || name.includes('push') || name.includes('press') || name.includes('dip'))) return true;
+        if (categoryLower.includes('rumpf') && (muscle.includes('bauch') || muscle.includes('rückenstrecker'))) return true;
+        if (categoryLower.includes('wand') && (pattern === 'squat' || name.includes('squat') || name.includes('kniebeuge'))) return true;
+        if (categoryLower.includes('sprung') && (pattern === 'plyo' || name.includes('jump') || name.includes('sprung'))) return true;
+        if (categoryLower.includes('sprint') && (pattern === 'sprint' || name.includes('sprint'))) return true;
+        return false;
+      });
+      if (match) {
+        weaknessExercises.push(match);
+        usedIds.add(match.id);
+      }
     }
 
-    // Pick exercises for each weakness category
-    const pick = (
-      pool: AiExerciseCatalog[],
-      count: number,
-    ): AiLlmResponse['sonsomo'] =>
-      pool.slice(0, count).map((e) => ({
-        exercise_name: e.name,
-        exercise_id: e.id,
-        device: '',
-        position: '',
-        sets: '3×12',
-        weight: '',
-      }));
+    // Fill remaining main slots with general strength exercises
+    const mainPool = safeExercises.filter((e) => {
+      if (usedIds.has(e.id) || sonsomoIds.has(e.id) || coreIds.has(e.id)) return false;
+      const region = (e.bodyRegion ?? '').toLowerCase();
+      const pattern = (e.pattern ?? '').toLowerCase();
+      return (
+        (region === 'upperbody' || region === 'lowerbody' || region === 'fullbody') &&
+        (pattern === 'push' || pattern === 'pull' || pattern === 'squat' || pattern === 'hinge')
+      );
+    });
 
-    // Simple matching: try to find exercises whose group loosely matches
-    const warmupExercises = exercises.filter(
-      (e) =>
-        e.group?.toLowerCase().includes('mobil') ||
-        e.group?.toLowerCase().includes('warm') ||
-        e.group?.toLowerCase().includes('stabil') ||
-        e.group?.toLowerCase().includes('dehnung'),
-    );
-    const coreExercises = exercises.filter(
-      (e) =>
-        e.group?.toLowerCase().includes('core') ||
-        e.group?.toLowerCase().includes('rumpf') ||
-        e.group?.toLowerCase().includes('bauch'),
-    );
-    const mainExercises = exercises.filter(
-      (e) =>
-        !warmupExercises.includes(e) &&
-        !coreExercises.includes(e),
-    );
+    // ── Assemble with deduplication & shuffle for variety ─────────────────
+    const shuffle = <T>(arr: T[]): T[] => {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    };
 
-    const sonsomo = pick(warmupExercises.length ? warmupExercises : exercises, 3);
-    const main = pick(mainExercises.length ? mainExercises : exercises, 5);
-    const core = pick(coreExercises.length ? coreExercises : exercises, 3);
+    const toRow = (e: AiExerciseCatalog, sets = '3×12'): AiLlmResponse['sonsomo'][0] => ({
+      exercise_name: e.name,
+      exercise_id: e.id,
+      device: '',
+      position: '',
+      sets,
+      weight: '',
+    });
 
+    const sonsomoRows = shuffle(sonsomoPool).slice(0, 3).map((e) => toRow(e, '2×30s'));
+    const mainRows = [
+      ...weaknessExercises.map((e) => toRow(e)),
+      ...shuffle(mainPool).slice(0, Math.max(0, 5 - weaknessExercises.length)).map((e) => toRow(e)),
+    ].slice(0, 5);
+    const coreRows = shuffle(corePool.filter((e) => !usedIds.has(e.id))).slice(0, 3).map((e) => toRow(e, '3×30s'));
+
+    // ── Build reasoning text ─────────────────────────────────────────────
     const weaknessText = weaknesses.length
       ? weaknesses.map((w) => `${w.label} (${w.deficit}% unter Benchmark)`).join(', ')
       : 'Keine Schwächen identifiziert';
 
     const contraText = contraindications.length
-      ? `Beachte: ${contraindications.join(', ')}.`
+      ? `Kontraindikationen berücksichtigt: ${contraindications.join(', ')}.`
       : '';
 
     return {
       plan_name: 'Automatischer Trainingsplan',
-      sonsomo,
-      main,
-      core,
+      sonsomo: sonsomoRows,
+      main: mainRows,
+      core: coreRows,
       reasoning:
         `Regelbasierter Plan (KI nicht verfügbar). ` +
+        `Sonsomo: Propriozeption, Koordination & Fußmuskulatur. ` +
         `Identifizierte Schwächen: ${weaknessText}. ${contraText} ` +
         `Bitte überprüfe die Übungsauswahl manuell und passe sie an die individuellen Bedürfnisse an.`,
     };
