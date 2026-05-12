@@ -64,10 +64,10 @@ class _TrainingAnalyticsState extends State<TrainingAnalytics> {
         _buildKpiRow(stats),
         const SizedBox(height: 20),
 
-        // ── Weekly workload bar chart (last 8 weeks) ─────────────
+        // ── Weekly workload bar chart ────────────────────────────
         _SectionCard(
           title: 'Wöchentliche Auslastung',
-          subtitle: 'Letzte 8 Wochen',
+          subtitle: stats.weeklySubtitle,
           child: SizedBox(
             height: 200,
             child: _WeeklyBarChart(stats: stats),
@@ -285,6 +285,7 @@ class _TrainingStats {
   late final double missedRate;
   late final int uniqueClients;
   late final Map<String, int> weeklyLoad;    // "dd.MM" → count
+  late final String weeklySubtitle;          // dynamic subtitle for chart
   late final Map<String, int> monthlyTotal;  // "yyyy-MM" → count
   late final Map<String, int> monthlyCancelled;
   late final Map<String, int> monthlyAttended;
@@ -328,24 +329,8 @@ class _TrainingStats {
     }
     uniqueClients = clientSet.length;
 
-    // ── Weekly load (last 8 weeks) ───────────────────────────────
-    weeklyLoad = {};
-    final now = DateTime.now();
-    for (var i = 7; i >= 0; i--) {
-      final weekStart = now.subtract(Duration(days: now.weekday - 1 + i * 7));
-      final key = _weekKey(weekStart);
-      weeklyLoad[key] = 0;
-    }
-    for (final t in all) {
-      if (t.startTime == null) continue;
-      final s = (t.status ?? '').toLowerCase();
-      // Only count actually performed trainings
-      if (t.isCancelled || s == 'cancelled' || s == 'canceled' || s == 'missed') {
-        continue;
-      }
-      final key = _weekKey(t.startTime!);
-      if (weeklyLoad.containsKey(key)) weeklyLoad[key] = weeklyLoad[key]! + 1;
-    }
+    // ── Weekly load (smart: recent 8 weeks or fallback to weeks with data)
+    _computeWeeklyLoad();
 
     // ── Monthly totals (up to 12 months) ─────────────────────────
     monthlyTotal = {};
@@ -396,6 +381,82 @@ class _TrainingStats {
       final name = t.clientName ?? 'Unbekannt';
       clientCounts[name] = (clientCounts[name] ?? 0) + 1;
     }
+  }
+
+  /// Normalize any DateTime to its Monday at midnight.
+  DateTime _mondayOf(DateTime d) {
+    final date = DateTime(d.year, d.month, d.day);
+    return date.subtract(Duration(days: date.weekday - 1));
+  }
+
+  /// Build weeklyLoad with smart fallback:
+  /// 1. Try last 8 calendar weeks — if any have data, show those
+  /// 2. Otherwise fall back to the 8 most recent weeks that have data
+  void _computeWeeklyLoad() {
+    final now = DateTime.now();
+
+    // Helper: is the training active (not cancelled/missed)?
+    bool isActive(Training t) {
+      if (t.startTime == null) return false;
+      final s = (t.status ?? '').toLowerCase();
+      return !t.isCancelled &&
+          s != 'cancelled' &&
+          s != 'canceled' &&
+          s != 'missed';
+    }
+
+    // ── Step 1: Count ALL active trainings by their week's Monday ─────
+    final allWeekBuckets = <DateTime, int>{};
+    for (final t in all) {
+      if (!isActive(t)) continue;
+      final monday = _mondayOf(t.startTime!);
+      allWeekBuckets[monday] = (allWeekBuckets[monday] ?? 0) + 1;
+    }
+
+    // ── Step 2: Build last 8 calendar weeks ──────────────────────────
+    final calendarMondays = <DateTime>[];
+    for (var i = 7; i >= 0; i--) {
+      calendarMondays.add(_mondayOf(now.subtract(Duration(days: i * 7))));
+    }
+
+    // Check if any calendar week has data
+    final calendarHasData =
+        calendarMondays.any((m) => (allWeekBuckets[m] ?? 0) > 0);
+
+    if (calendarHasData) {
+      // ── Show last 8 calendar weeks ─────────────────────────────────
+      weeklyLoad = {};
+      for (final monday in calendarMondays) {
+        weeklyLoad[_weekLabel(monday)] = allWeekBuckets[monday] ?? 0;
+      }
+      weeklySubtitle = 'Letzte 8 Wochen';
+    } else if (allWeekBuckets.isNotEmpty) {
+      // ── Fallback: show the 8 most recent weeks with actual data ────
+      final sortedMondays = allWeekBuckets.keys.toList()
+        ..sort((a, b) => a.compareTo(b));
+      final recent = sortedMondays.length > 8
+          ? sortedMondays.sublist(sortedMondays.length - 8)
+          : sortedMondays;
+
+      weeklyLoad = {};
+      for (final monday in recent) {
+        weeklyLoad[_weekLabel(monday)] = allWeekBuckets[monday]!;
+      }
+      final firstDate = DateFormat('dd.MM.yy').format(recent.first);
+      final lastDate = DateFormat('dd.MM.yy').format(recent.last);
+      weeklySubtitle = '$firstDate – $lastDate';
+    } else {
+      // ── No active trainings at all — show empty calendar weeks ─────
+      weeklyLoad = {};
+      for (final monday in calendarMondays) {
+        weeklyLoad[_weekLabel(monday)] = 0;
+      }
+      weeklySubtitle = 'Letzte 8 Wochen';
+    }
+  }
+
+  String _weekLabel(DateTime monday) {
+    return DateFormat('dd.MM').format(monday);
   }
 
   String _weekKey(DateTime d) {
@@ -520,12 +581,41 @@ class _WeeklyBarChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final entries = stats.weeklyLoad.entries.toList();
+    if (entries.isEmpty) {
+      return const Center(
+          child: Text('Keine Daten',
+              style: TextStyle(color: AppColors.muted)));
+    }
+
     final maxY =
         entries.fold<int>(0, (m, e) => e.value > m ? e.value : m).toDouble();
 
+    // When all values are 0, show a helpful empty state
+    if (maxY == 0) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.bar_chart_outlined,
+                color: AppColors.muted.withOpacity(0.5), size: 36),
+            const SizedBox(height: 8),
+            Text('Keine aktiven Trainings',
+                style: GoogleFonts.openSans(
+                    color: AppColors.muted, fontSize: 13)),
+            const SizedBox(height: 2),
+            Text('in diesem Zeitraum',
+                style: GoogleFonts.openSans(
+                    color: AppColors.muted.withOpacity(0.7), fontSize: 11)),
+          ],
+        ),
+      );
+    }
+
+    final chartMaxY = (maxY + 2).ceilToDouble();
+
     return BarChart(
       BarChartData(
-        maxY: (maxY + 2).ceilToDouble(),
+        maxY: chartMaxY,
         barTouchData: BarTouchData(
           touchTooltipData: BarTouchTooltipData(
             getTooltipColor: (_) => AppColors.surface2,
@@ -578,7 +668,7 @@ class _WeeklyBarChart extends StatelessWidget {
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          horizontalInterval: (maxY / 4).ceilToDouble().clamp(1, 100),
+          horizontalInterval: (maxY / 4).ceilToDouble().clamp(1.0, 100.0),
           getDrawingHorizontalLine: (value) => FlLine(
             color: AppColors.border.withOpacity(0.5),
             strokeWidth: 0.8,
@@ -596,8 +686,8 @@ class _WeeklyBarChart extends StatelessWidget {
                     const BorderRadius.vertical(top: Radius.circular(6)),
                 backDrawRodData: BackgroundBarChartRodData(
                   show: true,
-                  toY: (maxY + 2).ceilToDouble(),
-                  color: AppColors.primary.withOpacity(0.06),
+                  toY: chartMaxY,
+                  color: AppColors.primary.withOpacity(0.12),
                 ),
               ),
             ],
@@ -669,7 +759,7 @@ class _MonthlyLineChart extends StatelessWidget {
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          horizontalInterval: (maxY / 4).ceilToDouble().clamp(1, 100),
+          horizontalInterval: (maxY / 4).ceilToDouble().clamp(1.0, 100.0),
           getDrawingHorizontalLine: (value) => FlLine(
             color: AppColors.border.withOpacity(0.5),
             strokeWidth: 0.8,
