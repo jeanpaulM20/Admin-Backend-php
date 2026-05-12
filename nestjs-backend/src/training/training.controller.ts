@@ -1,14 +1,40 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, Res, ParseIntPipe } from '@nestjs/common';
+import { Response } from 'express';
 import { TrainingService } from './training.service';
+import { IcalService } from './ical.service';
 import { Training } from '../entities/training.entity';
 import { CurrentTrainer } from '../auth/decorators/current-user.decorator';
 import { CurrentClient } from '../auth/decorators/current-user.decorator';
+import { Public } from '../auth/decorators/public.decorator';
 import { Trainer } from '../entities/trainer.entity';
 import { Client } from '../entities/client.entity';
 
+// Legacy PHP-compatible endpoint: GET /api/getIcal?id=...
+@Controller('api/getIcal')
+export class IcalLegacyController {
+  constructor(private readonly icalService: IcalService) {}
+
+  @Public()
+  @Get()
+  async getIcal(
+    @Query('id', ParseIntPipe) id: number,
+    @Res() res: Response,
+  ) {
+    const ical = await this.icalService.generateIcal(id);
+    res.set({
+      'Content-Type': 'text/calendar; charset=utf-8',
+      'Content-Disposition': `attachment; filename="Appointment.ics"`,
+    });
+    res.send(ical);
+  }
+}
+
 @Controller('api/training')
 export class TrainingController {
-  constructor(private readonly service: TrainingService) {}
+  constructor(
+    private readonly service: TrainingService,
+    private readonly icalService: IcalService,
+  ) {}
 
   @Get()
   findAll(
@@ -20,6 +46,21 @@ export class TrainingController {
     // Clients only see their own trainings
     if (client) return this.service.findAll(client.id);
     return this.service.findAll(clientId, trainerId ?? trainer?.id);
+  }
+
+  // ── iCal download ────────────────────────────────────────────────────────
+  @Public()
+  @Get(':id/ical')
+  async getIcal(
+    @Param('id', ParseIntPipe) id: number,
+    @Res() res: Response,
+  ) {
+    const ical = await this.icalService.generateIcal(id);
+    res.set({
+      'Content-Type': 'text/calendar; charset=utf-8',
+      'Content-Disposition': `attachment; filename="training-${id}.ics"`,
+    });
+    res.send(ical);
   }
 
   @Get(':id')

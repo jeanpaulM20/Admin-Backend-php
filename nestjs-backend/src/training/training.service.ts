@@ -17,6 +17,7 @@ export class TrainingService {
       training_type: typeName,
       type_name: typeName,
       type_abbr: t.trainingType?.abbr ?? null,
+      location_name: t.location?.name ?? null,
     };
   }
 
@@ -26,7 +27,7 @@ export class TrainingService {
     if (trainerId) where.trainerId = trainerId;
     const rows = await this.repo.find({
       where,
-      relations: ['trainer', 'client', 'exercisesets', 'trainingType'],
+      relations: ['trainer', 'client', 'exercisesets', 'trainingType', 'location'],
     });
     return rows.map((t) => this.formatTraining(t));
   }
@@ -34,7 +35,7 @@ export class TrainingService {
   async findOne(id: number) {
     const training = await this.repo.findOne({
       where: { id },
-      relations: ['trainer', 'client', 'exercisesets', 'trainingType'],
+      relations: ['trainer', 'client', 'exercisesets', 'trainingType', 'location'],
     });
     if (!training) throw new NotFoundException(`Training ${id} not found`);
     return this.formatTraining(training);
@@ -65,7 +66,7 @@ export class TrainingService {
   async remove(id: number) {
     const raw = await this.repo.findOne({
       where: { id },
-      relations: ['trainer', 'client', 'exercisesets', 'trainingType'],
+      relations: ['trainer', 'client', 'exercisesets', 'trainingType', 'location'],
     });
     if (!raw) throw new NotFoundException(`Training ${id} not found`);
     return this.repo.remove(raw);

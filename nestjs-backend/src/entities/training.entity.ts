@@ -5,6 +5,7 @@ import { Trainer } from './trainer.entity';
 import { Client } from './client.entity';
 import { Exerciseset } from './exercise-set.entity';
 import { TrainingType } from './training-type.entity';
+import { Location } from './location.entity';
 
 export enum TrainingStatus {
   BOOKED = 'booked',
@@ -29,6 +30,10 @@ export class Training {
 
   @Column({ name: 'location_id', nullable: true })
   locationId: number;
+
+  @ManyToOne(() => Location)
+  @JoinColumn({ name: 'location_id' })
+  location: Location;
 
   @Column({ type: 'date' })
   date: string;

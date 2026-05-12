@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/training.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
@@ -18,7 +19,6 @@ class TrainingDetailScreen extends StatefulWidget {
 class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
   final ApiService _apiService = ApiService();
   bool _isCancelling = false;
-  bool _isInviting = false;
   late Training _training;
 
   @override
@@ -38,22 +38,23 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         title: const Text(
-          'Cancel Training',
+          'Training absagen',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         content: const Text(
-          'Are you sure you want to cancel this training session?',
+          'Möchtest du dieses Training wirklich absagen?',
           style: TextStyle(color: AppColors.text),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('No', style: TextStyle(color: AppColors.muted)),
+            child:
+                const Text('Nein', style: TextStyle(color: AppColors.muted)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text(
-              'Yes, Cancel',
+              'Ja, absagen',
               style: TextStyle(color: Color(0xFFB71C1C)),
             ),
           ),
@@ -90,7 +91,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Training cancelled successfully.'),
+            content: Text('Training wurde abgesagt.'),
             backgroundColor: Color(0xFF2E7D32),
           ),
         );
@@ -109,38 +110,52 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
     }
   }
 
-  Future<void> _inviteTraining() async {
-    final authProvider = context.read<AuthProvider>();
-    final trainer = authProvider.trainer;
-    if (trainer == null) return;
+  Future<void> _addToCalendar() async {
+    final id = _training.id;
+    if (id == null) return;
 
-    setState(() => _isInviting = false);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Invite functionality not yet available in new app.'),
-          backgroundColor: AppColors.primary,
-        ),
-      );
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.training}/$id/ical');
+    try {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Kalender-Download konnte nicht geöffnet werden.'),
+            backgroundColor: AppColors.red,
+          ),
+        );
+      }
     }
   }
 
   Color get _statusColor {
     final s = (_training.status ?? '').toLowerCase();
-    if (s == 'confirmed') return const Color(0xFF2E7D32);
+    if (s == 'attended') return const Color(0xFF2E7D32);
+    if (s == 'booked') return AppColors.primary;
     if (s == 'cancelled' || s == 'canceled' || _training.isCancelled) {
-      return AppColors.muted;
+      return AppColors.red;
     }
-    return const Color(0xFF8B6020);
+    if (s == 'missed') return AppColors.orange;
+    return AppColors.primary;
   }
 
   String get _statusLabel {
-    if (_training.isCancelled) return 'Cancelled';
+    if (_training.isCancelled) return 'Abgesagt';
     final s = (_training.status ?? '').toLowerCase();
-    if (s == 'confirmed') return 'Confirmed';
-    if (s == 'pending') return 'Pending';
-    if (s.isEmpty) return 'Scheduled';
-    return (_training.status ?? 'Unknown');
+    if (s == 'attended') return 'Absolviert';
+    if (s == 'booked') return 'Gebucht';
+    if (s == 'missed') return 'Verpasst';
+    if (s.isEmpty) return 'Geplant';
+    return _training.status ?? 'Unbekannt';
+  }
+
+  IconData get _statusIcon {
+    if (_training.isCancelled) return Icons.cancel_outlined;
+    final s = (_training.status ?? '').toLowerCase();
+    if (s == 'attended') return Icons.check_circle_outline;
+    if (s == 'missed') return Icons.error_outline;
+    return Icons.schedule_outlined;
   }
 
   @override
@@ -167,7 +182,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
             const SizedBox(height: 16),
             _buildDetailCard(),
             const SizedBox(height: 16),
-            if (!_training.isCancelled) _buildActionButtons(),
+            _buildActionButtons(),
             const SizedBox(height: 40),
           ],
         ),
@@ -186,15 +201,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
       ),
       child: Row(
         children: [
-          Icon(
-            _training.isCancelled
-                ? Icons.cancel_outlined
-                : (_training.status?.toLowerCase() == 'confirmed'
-                    ? Icons.check_circle_outline
-                    : Icons.schedule_outlined),
-            color: _statusColor,
-            size: 22,
-          ),
+          Icon(_statusIcon, color: _statusColor, size: 22),
           const SizedBox(width: 12),
           Text(
             _statusLabel,
@@ -222,7 +229,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Session Info',
+            'Termininfo',
             style: TextStyle(
               color: Colors.white,
               fontSize: 15,
@@ -232,36 +239,36 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
           const SizedBox(height: 16),
           _DetailRow(
             icon: Icons.calendar_today_outlined,
-            label: 'Date',
+            label: 'Datum',
             value: _training.displayDate,
           ),
           _DetailRow(
             icon: Icons.access_time_outlined,
-            label: 'Time',
+            label: 'Uhrzeit',
             value: _training.displayTime,
           ),
           if (_training.clientName != null)
             _DetailRow(
               icon: Icons.person_outline,
-              label: 'Client',
+              label: 'Kunde',
               value: _training.clientName!,
             ),
           if (_training.trainingType != null)
             _DetailRow(
               icon: Icons.fitness_center_outlined,
-              label: 'Type',
+              label: 'Typ',
               value: _training.trainingType!,
             ),
           if (_training.locationName != null)
             _DetailRow(
               icon: Icons.location_on_outlined,
-              label: 'Location',
+              label: 'Ort',
               value: _training.locationName!,
             ),
           if (_training.notes != null && _training.notes!.isNotEmpty)
             _DetailRow(
               icon: Icons.notes_outlined,
-              label: 'Notes',
+              label: 'Notizen',
               value: _training.notes!,
             ),
         ],
@@ -273,17 +280,11 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // ── Add to calendar ──
         ElevatedButton.icon(
-          onPressed: _isInviting ? null : _inviteTraining,
-          icon: _isInviting
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white),
-                )
-              : const Icon(Icons.send_outlined, size: 18),
-          label: Text(_isInviting ? 'Sending...' : 'Invite Training'),
+          onPressed: _addToCalendar,
+          icon: const Icon(Icons.calendar_month_outlined, size: 18),
+          label: const Text('Zum Kalender hinzufügen'),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
@@ -297,31 +298,35 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        OutlinedButton.icon(
-          onPressed: _isCancelling ? null : _cancelTraining,
-          icon: _isCancelling
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: AppColors.primary),
-                )
-              : const Icon(Icons.cancel_outlined, size: 18),
-          label: Text(_isCancelling ? 'Cancelling...' : 'Cancel Training'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.primary,
-            side: const BorderSide(color: AppColors.primary),
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            textStyle: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
+        // ── Cancel training ──
+        if (!_training.isCancelled) ...[
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _isCancelling ? null : _cancelTraining,
+            icon: _isCancelling
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: AppColors.red),
+                  )
+                : const Icon(Icons.cancel_outlined, size: 18),
+            label: Text(
+                _isCancelling ? 'Wird abgesagt...' : 'Training absagen'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.red,
+              side: const BorderSide(color: AppColors.red),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              textStyle: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-        ),
+        ],
       ],
     );
   }
