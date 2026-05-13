@@ -5,7 +5,7 @@ class ProfileService {
   Future<ProfileData> getProfile(String clientId) async {
     final data = await apiClient.get('api/client/profile/$clientId');
     if (data == null || data is! Map<String, dynamic>) {
-      throw ApiException(500, 'Ungueltige Profildaten');
+      throw ApiException(500, 'Ungültige Profildaten');
     }
     return ProfileData.fromJson(data);
   }

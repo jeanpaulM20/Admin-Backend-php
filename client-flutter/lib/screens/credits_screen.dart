@@ -187,7 +187,7 @@ class _CreditPackCard extends StatelessWidget {
                   Text(
                     isExpired
                         ? 'Abgelaufen ${_formatDate(credit.expires)}'
-                        : 'Gueltig bis ${_formatDate(credit.expires)}',
+                        : 'Gültig bis ${_formatDate(credit.expires)}',
                     style: TextStyle(
                       color: isExpired ? AppColors.red : AppColors.muted,
                       fontSize: 11,

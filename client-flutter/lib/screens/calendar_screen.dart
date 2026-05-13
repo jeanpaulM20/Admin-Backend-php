@@ -377,7 +377,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Verfügbare Zeiten:',
+                            'Verfügbare Zeiten (antippen zum Auswählen):',
                             style: TextStyle(
                               color: AppColors.green,
                               fontSize: 12,
@@ -463,6 +463,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             final time = await showTimePicker(
                               context: ctx,
                               initialTime: selectedTime,
+                              builder: (context, child) {
+                                return MediaQuery(
+                                  data: MediaQuery.of(context).copyWith(
+                                      alwaysUse24HourFormat: true),
+                                  child: child!,
+                                );
+                              },
                             );
                             if (time != null) {
                               setDialogState(() => selectedTime = time);
@@ -489,7 +496,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               size: 20),
                           const SizedBox(width: 10),
                           Text(
-                            selectedTime.format(ctx),
+                            '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}',
                             style: const TextStyle(
                                 color: AppColors.text, fontSize: 15),
                           ),
@@ -853,9 +860,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     ),
                   ),
                 ),
-                // Cancel button (only for booked)
+                // Cancel button (only for active/booked – not cancelled, attended, or missed)
                 if (!isCancelled &&
-                    appt.status.toLowerCase() != 'attended') ...[
+                    appt.status.toLowerCase() != 'attended' &&
+                    appt.status.toLowerCase() != 'missed') ...[
                   const SizedBox(width: 10),
                   Expanded(
                     child: OutlinedButton.icon(
@@ -963,9 +971,38 @@ class _CalendarScreenState extends State<CalendarScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         title: const Text('Termin absagen',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        content: const Text(
-          'Möchtest du diesen Termin wirklich absagen?',
-          style: TextStyle(color: AppColors.text),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Möchtest du diesen Termin wirklich absagen?',
+              style: TextStyle(color: AppColors.text),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.green.withAlpha(15),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.green.withAlpha(40)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.toll_outlined,
+                      color: AppColors.green, size: 14),
+                  SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Dein Credit wird automatisch zurückerstattet.',
+                      style: TextStyle(
+                          color: AppColors.green, fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -984,16 +1021,36 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     if (confirmed != true || !mounted) return;
 
+    // Show loading SnackBar during cancellation
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 16, height: 16,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: Colors.white),
+            ),
+            SizedBox(width: 12),
+            Text('Termin wird abgesagt…'),
+          ],
+        ),
+        backgroundColor: AppColors.orange,
+        duration: Duration(seconds: 10),
+      ),
+    );
+
     final auth = context.read<AuthProvider>();
     final provider = context.read<AppointmentProvider>();
     final success =
         await provider.cancelAppointment(auth.clientId!, appt.id);
 
     if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(success
-              ? 'Termin wurde abgesagt.'
+              ? 'Termin abgesagt – Credit wurde zurückerstattet.'
               : provider.error ?? 'Absage fehlgeschlagen'),
           backgroundColor: success ? AppColors.green : AppColors.red,
         ),
@@ -1145,6 +1202,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                           a.status.toLowerCase() ==
                                           'cancelled')
                                       .length;
+                                  final missed = appts
+                                      .where((a) =>
+                                          a.status.toLowerCase() ==
+                                          'missed')
+                                      .length;
 
                                   return Positioned(
                                     bottom: 2,
@@ -1157,6 +1219,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                           _markerCountDot(
                                               AppColors.primary,
                                               booked),
+                                        if (missed > 0)
+                                          _markerDot(AppColors.orange),
                                         if (cancelled > 0)
                                           _markerDot(AppColors.red),
                                       ],
@@ -1242,13 +1306,28 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                       border: Border.all(
                                           color: AppColors.border),
                                     ),
-                                    child: const Center(
-                                      child: Text(
-                                        'Keine Termine an diesem Tag',
-                                        style: TextStyle(
-                                            color: AppColors.muted,
-                                            fontSize: 14),
-                                      ),
+                                    child: Column(
+                                      children: [
+                                        const Icon(Icons.event_outlined,
+                                            color: AppColors.muted, size: 28),
+                                        const SizedBox(height: 8),
+                                        const Text(
+                                          'Keine Termine an diesem Tag',
+                                          style: TextStyle(
+                                              color: AppColors.muted,
+                                              fontSize: 14),
+                                        ),
+                                        if (dayAvail.isNotEmpty) ...[
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Tippe + um einen Termin zu buchen',
+                                            style: TextStyle(
+                                                color: AppColors.primary
+                                                    .withAlpha(180),
+                                                fontSize: 12),
+                                          ),
+                                        ],
+                                      ],
                                     ),
                                   ),
                                 )

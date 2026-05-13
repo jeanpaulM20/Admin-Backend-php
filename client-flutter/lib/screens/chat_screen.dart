@@ -471,7 +471,7 @@ class _ChatThreadState extends State<_ChatThread> {
       }
       if (!mounted) return;
       _showPickerSheet(
-        title: 'Aufzeichnung waehlen',
+        title: 'Aufzeichnung wählen',
         items: data.cast<Map<String, dynamic>>(),
         titleBuilder: (item) {
           final type = _trainingTypeLabel(item['trainingType']?.toString());
@@ -510,7 +510,7 @@ class _ChatThreadState extends State<_ChatThread> {
       }
       if (!mounted) return;
       _showPickerSheet(
-        title: 'Performance Test waehlen',
+        title: 'Performance Test wählen',
         items: data.cast<Map<String, dynamic>>(),
         titleBuilder: (item) {
           final date = _fmtDate(item['date']?.toString());
@@ -588,7 +588,7 @@ class _ChatThreadState extends State<_ChatThread> {
                             fontSize: 16,
                             fontWeight: FontWeight.w600)),
                     const Spacer(),
-                    Text('${items.length} Eintraege',
+                    Text('${items.length} Einträge',
                         style:
                             const TextStyle(color: AppColors.muted, fontSize: 12)),
                   ],
