@@ -11,6 +11,7 @@ import '../models/appointment.dart';
 import '../models/calendar_data.dart';
 import '../widgets/loading_indicator.dart';
 import '../widgets/error_view.dart';
+import 'credits_screen.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -93,7 +94,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       return;
     }
 
-    // Fix 5: Block booking in the past
+    // Block booking in the past
     final bookingDay = _selectedDay ?? DateTime.now();
     final today = DateTime.now();
     final todayDate = DateTime(today.year, today.month, today.day);
@@ -108,6 +109,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
       return;
     }
 
+    // Credit check — redirect to credits screen if no credits
+    if (calData.credits <= 0) {
+      _showNoCreditsDialog();
+      return;
+    }
+
     String? selectedTrainerId = calData.defaultTrainerId;
     String? selectedTypeId = calData.defaultTypeId;
     String? selectedLocationId =
@@ -115,13 +122,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
     TimeOfDay selectedTime = const TimeOfDay(hour: 9, minute: 0);
     bool isBooking = false;
 
-    // Fix 1: Get duration from selected training type
-    int _getDurationMinutes() {
-      final type = calData.trainingTypes
-          .where((t) => t.id == selectedTypeId)
-          .firstOrNull;
-      return type?.durationMinutes ?? 60;
-    }
+    // Duration is always 60 minutes
+    const int durationMin = 60;
 
     showDialog(
       context: context,
@@ -143,9 +145,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               })
               .toList();
 
-          final durationMin = _getDurationMinutes();
-
-          // Fix 4: Check if selected time is within an availability slot
+          // Check if selected time is within an availability slot
           bool isTimeValid() {
             if (dayAvail.isEmpty) return true; // allow if no avail defined
             final selMinutes = selectedTime.hour * 60 + selectedTime.minute;
@@ -161,7 +161,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             return false;
           }
 
-          // Fix 16: Check for double booking
+          // Check for double booking (client's own appointments)
           bool hasConflict() {
             final selMinutes = selectedTime.hour * 60 + selectedTime.minute;
             final selEnd = selMinutes + durationMin;
@@ -177,8 +177,44 @@ class _CalendarScreenState extends State<CalendarScreen> {
             return false;
           }
 
+          // Check trainer conflict (with 30-min buffer for different locations)
+          String? trainerConflictMsg() {
+            if (selectedTrainerId == null) return null;
+            final dateStr = DateFormat('yyyy-MM-dd').format(bookingDay);
+            final selMinutes = selectedTime.hour * 60 + selectedTime.minute;
+            final selEnd = selMinutes + durationMin;
+            const bufferMin = 30;
+
+            for (final b in calData.trainerBookings) {
+              if (b.trainerId != selectedTrainerId) continue;
+              if (b.date != dateStr) continue;
+              if (b.status.toLowerCase() == 'cancelled') continue;
+
+              final parts = b.starttime.split(':');
+              if (parts.length < 2) continue;
+              final bStart = int.parse(parts[0]) * 60 + int.parse(parts[1]);
+              final bEnd = bStart + b.duration;
+
+              // Same location → no buffer, different → 30 min buffer
+              final sameLocation = selectedLocationId != null &&
+                  b.locationId != null &&
+                  b.locationId == selectedLocationId;
+              final buffer = sameLocation ? 0 : bufferMin;
+
+              if (selMinutes < bEnd + buffer && bStart < selEnd + buffer) {
+                if (buffer > 0) {
+                  return 'Trainer hat einen Termin an einem anderen Standort. '
+                      '30 Min. Pufferzeit nötig.';
+                }
+                return 'Trainer ist zu dieser Zeit bereits gebucht.';
+              }
+            }
+            return null;
+          }
+
           final timeValid = isTimeValid();
           final conflict = hasConflict();
+          final trainerConflict = trainerConflictMsg();
 
           return AlertDialog(
             backgroundColor: AppColors.surface,
@@ -219,31 +255,43 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     ),
                   ),
 
-                  // Fix 12: Credits display
-                  if (appt.startData != null) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface2,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.toll_outlined,
-                              color: AppColors.muted, size: 16),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Guthaben: ${appt.startData!.totalCredits} Credits',
-                            style: const TextStyle(
-                                color: AppColors.muted, fontSize: 12),
-                          ),
-                        ],
+                  // Credits display
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: calData.credits > 0
+                          ? AppColors.green.withAlpha(15)
+                          : AppColors.red.withAlpha(15),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: calData.credits > 0
+                            ? AppColors.green.withAlpha(40)
+                            : AppColors.red.withAlpha(40),
                       ),
                     ),
-                  ],
+                    child: Row(
+                      children: [
+                        Icon(Icons.toll_outlined,
+                            color: calData.credits > 0
+                                ? AppColors.green
+                                : AppColors.red,
+                            size: 16),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${calData.credits} Credit${calData.credits != 1 ? 's' : ''} verfügbar',
+                          style: TextStyle(
+                              color: calData.credits > 0
+                                  ? AppColors.green
+                                  : AppColors.red,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 14),
 
                   // Trainer dropdown
@@ -282,8 +330,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     items: calData.trainingTypes
                         .map((t) => DropdownMenuItem(
                             value: t.id,
-                            child: Text(
-                                '${t.name} (${t.durationMinutes} Min.)')))
+                            child: Text(t.name)))
                         .toList(),
                     onChanged: isBooking
                         ? null
@@ -477,8 +524,28 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
                     ),
 
-                  // Fix 16: Double booking warning
+                  // Double booking warning (client's own)
                   if (conflict)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.block,
+                              color: AppColors.red, size: 14),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              'Du hast bereits einen Termin zu dieser Zeit.',
+                              style: TextStyle(
+                                  color: AppColors.red, fontSize: 11),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // Trainer conflict / buffer warning
+                  if (trainerConflict != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: Row(
@@ -488,7 +555,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
-                              'Überschneidung mit einem bestehenden Termin',
+                              trainerConflict,
                               style: TextStyle(
                                   color: AppColors.orange, fontSize: 11),
                             ),
@@ -506,10 +573,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     style: TextStyle(color: AppColors.muted)),
               ),
               ElevatedButton(
-                // Fix 8: Loading state + Fix 9: Confirmation
                 onPressed: isBooking ||
                         selectedTrainerId == null ||
-                        selectedTypeId == null
+                        selectedTypeId == null ||
+                        conflict ||
+                        trainerConflict != null
                     ? null
                     : () async {
                         // Fix 9: Confirmation dialog
@@ -556,7 +624,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                 _confirmRow('Uhrzeit', '$timeStr – $endStr'),
                                 _confirmRow('Trainer', trainerName),
                                 _confirmRow('Typ', typeName),
-                                _confirmRow('Dauer', '$durationMin Min.'),
+                                _confirmRow('Dauer', '60 Min.'),
+                                _confirmRow('Credits', '1 Credit'),
                               ],
                             ),
                             actions: [
@@ -632,6 +701,49 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  void _showNoCreditsDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: const Text(
+          'Keine Credits verfügbar',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Du hast keine verfügbaren Credits mehr. '
+          'Bitte kaufe neue Credits, um Termine buchen zu können.',
+          style: TextStyle(color: AppColors.text, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Schliessen',
+                style: TextStyle(color: AppColors.muted)),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CreditsScreen()),
+              );
+            },
+            icon: const Icon(Icons.toll_outlined, size: 18),
+            label: const Text('Credits kaufen'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ],
       ),
     );
   }

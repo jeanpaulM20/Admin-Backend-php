@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThanOrEqual, In } from 'typeorm';
 import { Client } from '../entities/client.entity';
@@ -66,26 +66,40 @@ export class ClientAppService {
 
     const trainerIds = client.trainers?.map((t) => t.id) ?? [];
 
-    const [trainingTypes, availability, trainings, locations] = await Promise.all([
-      this.typeRepo.find(),
-      trainerIds.length
-        ? this.availRepo.find({
-            where: {
-              trainerId: In(trainerIds),
-              date: MoreThanOrEqual(today),
-            },
-            order: { date: 'ASC', from: 'ASC' },
-          })
-        : Promise.resolve([]),
-      this.trainingRepo.find({
-        where: { clientId },
-        relations: ['trainer', 'trainingType', 'location'],
-        order: { date: 'ASC', starttime: 'ASC' },
-      }),
-      this.locationRepo.find({ where: { active: 1 } }),
-    ]);
+    const [trainingTypes, availability, trainings, locations, credits, trainerTrainings] =
+      await Promise.all([
+        this.typeRepo.find(),
+        trainerIds.length
+          ? this.availRepo.find({
+              where: {
+                trainerId: In(trainerIds),
+                date: MoreThanOrEqual(today),
+              },
+              order: { date: 'ASC', from: 'ASC' },
+            })
+          : Promise.resolve([]),
+        this.trainingRepo.find({
+          where: { clientId },
+          relations: ['trainer', 'trainingType', 'location'],
+          order: { date: 'ASC', starttime: 'ASC' },
+        }),
+        this.locationRepo.find({ where: { active: 1 } }),
+        this.getTotalCredits(clientId),
+        // Fetch all trainer bookings (for buffer-time / slot calculation)
+        trainerIds.length
+          ? this.trainingRepo.find({
+              where: {
+                trainerId: In(trainerIds),
+                date: MoreThanOrEqual(today),
+                status: In([TrainingStatus.BOOKED, TrainingStatus.ATTENDED]),
+              },
+              order: { date: 'ASC', starttime: 'ASC' },
+            })
+          : Promise.resolve([]),
+      ]);
 
     return {
+      credits,
       trainers: (client.trainers ?? []).map((t) => ({
         id: t.id,
         firstname: t.firstname,
@@ -108,6 +122,16 @@ export class ClientAppService {
         location_id: a.locationId,
       })),
       appointments: trainings.map((t) => this.mapTraining(t)),
+      // All trainer bookings for buffer/conflict display in client
+      trainer_bookings: trainerTrainings.map((t) => ({
+        id: t.id,
+        trainer_id: t.trainerId,
+        date: t.date,
+        starttime: t.starttime,
+        duration: t.duration || 60,
+        location_id: t.locationId,
+        status: t.status,
+      })),
       locations: locations.map((l) => ({ id: l.id, name: l.name, address: l.address })),
     };
   }
@@ -388,32 +412,204 @@ export class ClientAppService {
     return [{ section: 'Körperwerte', data: items }];
   }
 
-  /** Book a training appointment */
+  /** Book a training appointment — with full validation */
   async bookAppointment(clientId: number, body: any) {
+    const DURATION = 60; // Training is always 60 minutes
+    const BUFFER_MINUTES = 30; // Buffer between trainings at different locations
+
+    // ── 1. Parse & validate input ─────────────────────────────────
+    const trainerId = Number(body.trainer_id ?? body.trainerId);
+    const trainingTypeId = Number(body.training_type_id ?? body.trainingTypeId);
+    const locationId = body.location_id ?? body.locationId
+      ? Number(body.location_id ?? body.locationId)
+      : null;
+    const date: string = body.date;
+    const starttime: string = body.starttime ?? body.time_from ?? body.from;
+
+    if (!trainerId || !trainingTypeId || !date || !starttime) {
+      throw new BadRequestException(
+        'Trainer, Trainingsart, Datum und Startzeit sind erforderlich.',
+      );
+    }
+
+    // ── 2. Date must not be in the past ───────────────────────────
+    const today = new Date().toISOString().slice(0, 10);
+    if (date < today) {
+      throw new BadRequestException(
+        'Buchungen in der Vergangenheit sind nicht möglich.',
+      );
+    }
+
+    // ── 3. Parse requested time window ────────────────────────────
+    const [reqH, reqM] = starttime.split(':').map(Number);
+    if (isNaN(reqH) || isNaN(reqM)) {
+      throw new BadRequestException('Ungültiges Zeitformat.');
+    }
+    const reqStart = reqH * 60 + reqM;
+    const reqEnd = reqStart + DURATION;
+
+    // ── 4. Check trainer has availability on this date ─────────────
+    const availability = await this.availRepo.find({
+      where: { trainerId, date },
+    });
+
+    if (availability.length > 0) {
+      const fitsSlot = availability.some((slot) => {
+        const [fH, fM] = (slot.from || '00:00').split(':').map(Number);
+        const [tH, tM] = (slot.to || '23:59').split(':').map(Number);
+        const slotStart = fH * 60 + fM;
+        const slotEnd = tH * 60 + tM;
+        return reqStart >= slotStart && reqEnd <= slotEnd;
+      });
+      if (!fitsSlot) {
+        throw new BadRequestException(
+          'Die gewählte Zeit liegt außerhalb der Trainer-Verfügbarkeit.',
+        );
+      }
+    }
+
+    // ── 5. No double booking for CLIENT ───────────────────────────
+    const clientTrainings = await this.trainingRepo.find({
+      where: {
+        clientId,
+        date,
+        status: In([TrainingStatus.BOOKED, TrainingStatus.ATTENDED]),
+      },
+    });
+
+    for (const t of clientTrainings) {
+      const [eH, eM] = (t.starttime || '00:00').split(':').map(Number);
+      const existStart = eH * 60 + eM;
+      const existEnd = existStart + (t.duration || DURATION);
+      if (reqStart < existEnd && existStart < reqEnd) {
+        throw new BadRequestException(
+          'Du hast bereits einen Termin zu dieser Zeit.',
+        );
+      }
+    }
+
+    // ── 6. No trainer conflict (with location buffer) ─────────────
+    const trainerTrainings = await this.trainingRepo.find({
+      where: {
+        trainerId,
+        date,
+        status: In([TrainingStatus.BOOKED, TrainingStatus.ATTENDED]),
+      },
+    });
+
+    for (const t of trainerTrainings) {
+      const [eH, eM] = (t.starttime || '00:00').split(':').map(Number);
+      const existStart = eH * 60 + eM;
+      const existEnd = existStart + (t.duration || DURATION);
+
+      // Buffer: 30 min if different location, 0 if same
+      const sameLocation =
+        locationId != null &&
+        t.locationId != null &&
+        Number(t.locationId) === locationId;
+      const buffer = sameLocation ? 0 : BUFFER_MINUTES;
+
+      if (reqStart < existEnd + buffer && existStart < reqEnd + buffer) {
+        if (buffer > 0) {
+          throw new BadRequestException(
+            'Trainer hat einen Termin an einem anderen Standort. ' +
+              '30 Minuten Pufferzeit zwischen verschiedenen Standorten erforderlich.',
+          );
+        }
+        throw new BadRequestException(
+          'Trainer ist zu dieser Zeit bereits gebucht.',
+        );
+      }
+    }
+
+    // ── 7. Check client has available credits ─────────────────────
+    const creditPacks = await this.creditsRepo.find({
+      where: { clientId },
+      order: { expires: 'ASC' },
+    });
+
+    // Find a valid credit pack with remaining balance
+    let creditDeducted = false;
+    const todayDate = new Date();
+    todayDate.setHours(0, 0, 0, 0);
+
+    for (const pack of creditPacks) {
+      const remaining = (pack.paid ?? 0) - (pack.attended ?? 0);
+      if (remaining <= 0) continue;
+
+      // Skip expired packs
+      if (pack.expires) {
+        const expiryDate = new Date(pack.expires);
+        expiryDate.setHours(23, 59, 59, 999);
+        if (expiryDate < todayDate) continue;
+      }
+
+      pack.attended = (pack.attended ?? 0) + 1;
+      await this.creditsRepo.save(pack);
+      creditDeducted = true;
+      break;
+    }
+
+    if (!creditDeducted) {
+      throw new BadRequestException(
+        'Keine verfügbaren Credits. Bitte neue Credits kaufen.',
+      );
+    }
+
+    // ── 8. Create training ────────────────────────────────────────
     const training = this.trainingRepo.create({
       clientId,
-      trainerId: body.trainer_id ?? body.trainerId,
-      trainingTypeId: body.training_type_id ?? body.trainingTypeId,
-      locationId: body.location_id ?? body.locationId ?? 1,
-      date: body.date,
-      starttime: body.starttime ?? body.time_from ?? body.from,
-      duration: body.duration ?? 60,
+      trainerId,
+      trainingTypeId,
+      locationId: locationId ?? undefined,
+      date,
+      starttime,
+      duration: DURATION,
       status: TrainingStatus.BOOKED,
+      creditsCharged: 1,
     });
-    const saved = await this.trainingRepo.save(training);
-    return this.mapTraining(saved);
+    const saved = await this.trainingRepo.save(training) as Training;
+
+    // Load relations for full response
+    const full = await this.trainingRepo.findOne({
+      where: { id: saved.id },
+      relations: ['trainer', 'trainingType', 'location'],
+    });
+
+    return this.mapTraining(full ?? saved);
   }
 
-  /** Cancel appointment */
+  /** Cancel appointment — with credit refund */
   async cancelAppointment(clientId: number, appointmentId: number) {
     const training = await this.trainingRepo.findOne({
       where: { id: appointmentId, clientId },
     });
-    if (!training) throw new NotFoundException('Training not found');
+    if (!training) throw new NotFoundException('Termin nicht gefunden.');
+
+    if (training.status === TrainingStatus.CANCELLED) {
+      throw new BadRequestException('Termin ist bereits abgesagt.');
+    }
+
+    // Refund credit if one was charged
+    if (training.creditsCharged && training.creditsCharged > 0) {
+      const creditPacks = await this.creditsRepo.find({
+        where: { clientId },
+        order: { expires: 'DESC' }, // Refund to latest-expiring pack
+      });
+
+      for (const pack of creditPacks) {
+        if ((pack.attended ?? 0) > 0) {
+          pack.attended = (pack.attended ?? 0) - 1;
+          await this.creditsRepo.save(pack);
+          break;
+        }
+      }
+    }
 
     training.status = TrainingStatus.CANCELLED;
     training.cancelledAt = new Date().toISOString();
     training.cancelledByClientId = clientId;
+    training.creditsCharged = 0;
     await this.trainingRepo.save(training);
     return { success: true };
   }

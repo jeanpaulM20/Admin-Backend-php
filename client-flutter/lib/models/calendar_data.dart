@@ -34,6 +34,39 @@ class AvailabilityInterval {
   }
 }
 
+/// A trainer's existing booking (for buffer/conflict display)
+class TrainerBooking {
+  final String id;
+  final String trainerId;
+  final String date;
+  final String starttime;
+  final int duration;
+  final String? locationId;
+  final String status;
+
+  TrainerBooking({
+    required this.id,
+    required this.trainerId,
+    required this.date,
+    required this.starttime,
+    required this.duration,
+    this.locationId,
+    required this.status,
+  });
+
+  factory TrainerBooking.fromJson(Map<String, dynamic> json) {
+    return TrainerBooking(
+      id: json['id']?.toString() ?? '',
+      trainerId: json['trainer_id']?.toString() ?? '',
+      date: json['date']?.toString() ?? '',
+      starttime: json['starttime']?.toString() ?? '00:00',
+      duration: int.tryParse(json['duration']?.toString() ?? '60') ?? 60,
+      locationId: json['location_id']?.toString(),
+      status: json['status']?.toString() ?? '',
+    );
+  }
+}
+
 class LocationInfo {
   final String id;
   final String name;
@@ -55,10 +88,12 @@ class CalendarData {
   final String? defaultTypeId;
   final DateTime? minimumDate;
   final DateTime? maximumDate;
+  final int credits;
   final List<Trainer> trainers;
   final List<TrainingType> trainingTypes;
   final List<Appointment> appointments;
   final List<AvailabilityInterval> availabilityIntervals;
+  final List<TrainerBooking> trainerBookings;
   final List<LocationInfo> locations;
 
   CalendarData({
@@ -66,10 +101,12 @@ class CalendarData {
     this.defaultTypeId,
     this.minimumDate,
     this.maximumDate,
+    this.credits = 0,
     required this.trainers,
     required this.trainingTypes,
     required this.appointments,
     required this.availabilityIntervals,
+    this.trainerBookings = const [],
     this.locations = const [],
   });
 
@@ -106,6 +143,14 @@ class CalendarData {
       }
     }
 
+    final rawBookings = json['trainer_bookings'];
+    final trainerBookings = <TrainerBooking>[];
+    if (rawBookings is List) {
+      for (final b in rawBookings) {
+        if (b is Map<String, dynamic>) trainerBookings.add(TrainerBooking.fromJson(b));
+      }
+    }
+
     final rawLocs = json['locations'];
     final locations = <LocationInfo>[];
     if (rawLocs is List) {
@@ -119,10 +164,12 @@ class CalendarData {
       defaultTypeId: types.isNotEmpty ? types.first.id : null,
       minimumDate: DateTime.now().subtract(const Duration(days: 30)),
       maximumDate: DateTime.now().add(const Duration(days: 90)),
+      credits: int.tryParse(json['credits']?.toString() ?? '0') ?? 0,
       trainers: trainers,
       trainingTypes: types,
       appointments: appointments,
       availabilityIntervals: availability,
+      trainerBookings: trainerBookings,
       locations: locations,
     );
   }
