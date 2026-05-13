@@ -51,16 +51,128 @@ class _CreditsScreenState extends State<CreditsScreen> {
                           title: 'Keine Credits',
                           subtitle: 'Noch keine Credit-Pakete vorhanden.',
                         )
-                      : ListView.builder(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.all(20),
-                          itemCount: credits.data.length,
-                          itemBuilder: (ctx, i) {
-                            return _CreditPackCard(credit: credits.data[i]);
-                          },
-                        ),
+                      : _CreditsList(credits: credits.data),
         ),
       ),
+    );
+  }
+}
+
+class _CreditsList extends StatelessWidget {
+  final List<ClientCredit> credits;
+
+  const _CreditsList({required this.credits});
+
+  @override
+  Widget build(BuildContext context) {
+    // Calculate active credits (not expired, not future-start)
+    final now = DateTime.now();
+    int activeCredits = 0;
+    for (final c in credits) {
+      final isExpired = c.expires != null &&
+          (DateTime.tryParse(c.expires!)?.isBefore(now) ?? false);
+      final notYetStarted = c.startdate != null &&
+          (DateTime.tryParse(c.startdate!)?.isAfter(now) ?? false);
+      if (!isExpired && !notYetStarted) {
+        activeCredits += c.remaining;
+      }
+    }
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(20),
+      children: [
+        // Summary card
+        Container(
+          padding: const EdgeInsets.all(16),
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: activeCredits > 0
+                      ? AppColors.primary.withValues(alpha: 0.12)
+                      : AppColors.red.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  activeCredits > 0
+                      ? Icons.check_circle_rounded
+                      : Icons.warning_rounded,
+                  color: activeCredits > 0 ? AppColors.primary : AppColors.red,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$activeCredits Credit${activeCredits != 1 ? 's' : ''} verfügbar',
+                      style: TextStyle(
+                        color: activeCredits > 0
+                            ? AppColors.primary
+                            : AppColors.red,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      activeCredits > 0
+                          ? 'Aus ${credits.length} Credit-Paket${credits.length != 1 ? 'en' : ''}'
+                          : 'Kontaktiere das Studio für neue Credits',
+                      style: const TextStyle(
+                          color: AppColors.muted, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Credit pack cards
+        ...credits.map((c) => _CreditPackCard(credit: c)),
+        // Contact hint if no active credits
+        if (activeCredits <= 0) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.2)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.info_outline_rounded,
+                    color: AppColors.primary, size: 20),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Neue Credits erhältst du direkt im Studio '
+                    'oder über deinen Trainer.',
+                    style: TextStyle(
+                      color: AppColors.text,
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -103,7 +215,7 @@ class _CreditPackCard extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.12),
+                  color: AppColors.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.credit_card_rounded,
@@ -136,8 +248,8 @@ class _CreditPackCard extends StatelessWidget {
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: isExpired
-                      ? AppColors.red.withOpacity(0.15)
-                      : AppColors.primary.withOpacity(0.15),
+                      ? AppColors.red.withValues(alpha: 0.15)
+                      : AppColors.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(

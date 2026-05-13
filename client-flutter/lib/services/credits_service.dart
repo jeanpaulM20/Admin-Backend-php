@@ -15,20 +15,6 @@ class CreditsService {
     return [];
   }
 
-  Future<List<BuyableCredit>> listBuyableCredits(String clientId) async {
-    final data = await apiClient.get('api/client/credits/$clientId');
-    if (data == null) return [];
-    if (data is List) {
-      return data
-          .whereType<Map<String, dynamic>>()
-          .map(BuyableCredit.fromJson)
-          .toList();
-    }
-    return [];
-  }
-
-  Future<bool> buyCredits(String clientId, String creditId) async {
-    final data = await apiClient.post('api/client/credits/buy/$clientId/$creditId');
-    return data != null;
-  }
+  // Note: Credit purchasing requires direct contact with the studio.
+  // No online buy endpoint — credits are sold in person.
 }

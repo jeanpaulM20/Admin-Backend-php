@@ -62,6 +62,9 @@ export class Training {
   @Column({ name: 'credits_charged', nullable: true })
   creditsCharged: number;
 
+  @Column({ name: 'credit_pack_id', nullable: true })
+  creditPackId: number;
+
   @ManyToOne(() => TrainingType)
   @JoinColumn({ name: 'type_id' })
   trainingType: TrainingType;

@@ -145,10 +145,7 @@ export class ClientAppService {
     if (!client) throw new NotFoundException(`Client ${clientId} not found`);
 
     const creditRows = await this.creditsRepo.find({ where: { clientId } });
-    const totalCredits = creditRows.reduce(
-      (sum, r) => sum + ((r.paid ?? 0) - (r.attended ?? 0)),
-      0,
-    );
+    const totalCredits = await this.getTotalCredits(clientId);
 
     return {
       id: client.id,
@@ -530,6 +527,7 @@ export class ClientAppService {
 
     // Find a valid credit pack with remaining balance
     let creditDeducted = false;
+    let usedPackId: number | null = null;
     const todayDate = new Date();
     todayDate.setHours(0, 0, 0, 0);
 
@@ -544,8 +542,16 @@ export class ClientAppService {
         if (expiryDate < todayDate) continue;
       }
 
+      // Skip packs not yet active
+      if (pack.startdate) {
+        const startDate = new Date(pack.startdate);
+        startDate.setHours(0, 0, 0, 0);
+        if (startDate > todayDate) continue;
+      }
+
       pack.attended = (pack.attended ?? 0) + 1;
       await this.creditsRepo.save(pack);
+      usedPackId = pack.id;
       creditDeducted = true;
       break;
     }
@@ -567,6 +573,7 @@ export class ClientAppService {
       duration: DURATION,
       status: TrainingStatus.BOOKED,
       creditsCharged: 1,
+      creditPackId: usedPackId ?? undefined,
     });
     const saved = await this.trainingRepo.save(training) as Training;
 
@@ -592,16 +599,27 @@ export class ClientAppService {
 
     // Refund credit if one was charged
     if (training.creditsCharged && training.creditsCharged > 0) {
-      const creditPacks = await this.creditsRepo.find({
-        where: { clientId },
-        order: { expires: 'DESC' }, // Refund to latest-expiring pack
-      });
-
-      for (const pack of creditPacks) {
-        if ((pack.attended ?? 0) > 0) {
-          pack.attended = (pack.attended ?? 0) - 1;
-          await this.creditsRepo.save(pack);
-          break;
+      // Try to refund to the exact pack that was charged
+      if (training.creditPackId) {
+        const originalPack = await this.creditsRepo.findOne({
+          where: { id: training.creditPackId },
+        });
+        if (originalPack && (originalPack.attended ?? 0) > 0) {
+          originalPack.attended = (originalPack.attended ?? 0) - 1;
+          await this.creditsRepo.save(originalPack);
+        }
+      } else {
+        // Fallback for older bookings without creditPackId
+        const creditPacks = await this.creditsRepo.find({
+          where: { clientId },
+          order: { expires: 'ASC' },
+        });
+        for (const pack of creditPacks) {
+          if ((pack.attended ?? 0) > 0) {
+            pack.attended = (pack.attended ?? 0) - 1;
+            await this.creditsRepo.save(pack);
+            break;
+          }
         }
       }
     }
@@ -684,7 +702,24 @@ export class ClientAppService {
 
   private async getTotalCredits(clientId: number): Promise<number> {
     const rows = await this.creditsRepo.find({ where: { clientId } });
-    return rows.reduce((sum, r) => sum + ((r.paid ?? 0) - (r.attended ?? 0)), 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return rows.reduce((sum, r) => {
+      // Skip expired packs
+      if (r.expires) {
+        const expiryDate = new Date(r.expires);
+        expiryDate.setHours(23, 59, 59, 999);
+        if (expiryDate < today) return sum;
+      }
+      // Skip packs not yet active
+      if (r.startdate) {
+        const startDate = new Date(r.startdate);
+        startDate.setHours(0, 0, 0, 0);
+        if (startDate > today) return sum;
+      }
+      return sum + ((r.paid ?? 0) - (r.attended ?? 0));
+    }, 0);
   }
 
   /** Format a numeric metric: strip trailing .00 decimals for clean display */
