@@ -57,7 +57,7 @@ class AppointmentProvider extends ChangeNotifier {
     required String date,
     required String starttime,
     String? locationId,
-    int duration = 60,
+    required int duration,
   }) async {
     _error = null;
     try {

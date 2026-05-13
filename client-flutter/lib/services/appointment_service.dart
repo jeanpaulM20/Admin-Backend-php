@@ -6,7 +6,7 @@ class AppointmentService {
   Future<StartData> getStartData(String clientId) async {
     final data = await apiClient.get('api/client/start/$clientId');
     if (data == null || data is! Map<String, dynamic>) {
-      throw ApiException(500, 'Ungueltige Startdaten');
+      throw ApiException(500, 'Ungültige Startdaten');
     }
     return StartData.fromJson(data);
   }
@@ -14,7 +14,7 @@ class AppointmentService {
   Future<CalendarData> getCalendarData(String clientId) async {
     final data = await apiClient.get('api/client/calendar/$clientId');
     if (data == null || data is! Map<String, dynamic>) {
-      throw ApiException(500, 'Ungueltige Kalenderdaten');
+      throw ApiException(500, 'Ungültige Kalenderdaten');
     }
     return CalendarData.fromJson(data);
   }
@@ -26,18 +26,21 @@ class AppointmentService {
     required String date,
     required String starttime,
     String? locationId,
-    int duration = 60,
+    required int duration,
   }) async {
+    final body = <String, dynamic>{
+      'trainer_id': int.tryParse(trainerId) ?? trainerId,
+      'training_type_id': int.tryParse(trainingTypeId) ?? trainingTypeId,
+      'date': date,
+      'starttime': starttime,
+      'duration': duration,
+    };
+    if (locationId != null && locationId.isNotEmpty) {
+      body['location_id'] = int.tryParse(locationId) ?? locationId;
+    }
     final data = await apiClient.post(
       'api/client/appointment/$clientId',
-      body: {
-        'trainer_id': int.tryParse(trainerId) ?? trainerId,
-        'training_type_id': int.tryParse(trainingTypeId) ?? trainingTypeId,
-        'location_id': int.tryParse(locationId ?? '1') ?? 1,
-        'date': date,
-        'starttime': starttime,
-        'duration': duration,
-      },
+      body: body,
     );
     return data is Map<String, dynamic> ? data : {};
   }
