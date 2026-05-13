@@ -159,8 +159,7 @@ class _CreditsList extends StatelessWidget {
                 SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Neue Credits erhältst du direkt im Studio '
-                    'oder über deinen Trainer.',
+                    'Neue Credits kannst du direkt über die App buchen.',
                     style: TextStyle(
                       color: AppColors.text,
                       fontSize: 13,
