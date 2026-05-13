@@ -132,7 +132,7 @@ class _TrainingsScreenState extends State<TrainingsScreen>
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Upcoming'),
+                  const Text('Anstehend'),
                   if (upcoming.isNotEmpty) ...[
                     const SizedBox(width: 6),
                     _Badge(count: upcoming.length),

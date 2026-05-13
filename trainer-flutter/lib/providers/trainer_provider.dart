@@ -76,7 +76,7 @@ class TrainerProvider extends ChangeNotifier {
     } on ApiException catch (e) {
       _aboutUsError = e.message;
     } catch (e) {
-      _aboutUsError = 'Failed to load studio info';
+      _aboutUsError = 'Studio-Infos konnten nicht geladen werden';
     } finally {
       _aboutUsLoading = false;
       notifyListeners();
@@ -107,7 +107,7 @@ class TrainerProvider extends ChangeNotifier {
     } on ApiException catch (e) {
       _clientsError = e.message;
     } catch (e) {
-      _clientsError = 'Failed to load clients';
+      _clientsError = 'Kunden konnten nicht geladen werden';
     } finally {
       _clientsLoading = false;
       notifyListeners();
@@ -157,7 +157,7 @@ class TrainerProvider extends ChangeNotifier {
     } on ApiException catch (e) {
       _trainingsError = e.message;
     } catch (e) {
-      _trainingsError = 'Failed to load trainings';
+      _trainingsError = 'Trainings konnten nicht geladen werden';
     } finally {
       _trainingsLoading = false;
       notifyListeners();
@@ -207,7 +207,7 @@ class TrainerProvider extends ChangeNotifier {
     } on ApiException catch (e) {
       _availabilityError = e.message;
     } catch (e) {
-      _availabilityError = 'Failed to load availability';
+      _availabilityError = 'Verfügbarkeit konnte nicht geladen werden';
     } finally {
       _availabilityLoading = false;
       notifyListeners();

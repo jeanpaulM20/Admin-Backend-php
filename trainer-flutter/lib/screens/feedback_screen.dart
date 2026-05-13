@@ -29,9 +29,9 @@ class FeedbackItem {
     if (clientName.isEmpty && clientObj != null) {
       clientName = _buildName(clientObj, 'firstname', 'lastname') ??
           clientObj['name']?.toString() ??
-          'Unknown';
+          'Unbekannt';
     }
-    if (clientName.isEmpty) clientName = 'Unknown';
+    if (clientName.isEmpty) clientName = 'Unbekannt';
 
     return FeedbackItem(
       id: _parseInt(json['id'] ?? json['feedback_id'] ?? 0),
@@ -122,7 +122,7 @@ class _FeedbackScreenState extends State<FeedbackScreen>
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {
-      setState(() => _error = 'Failed to load feedback.');
+      setState(() => _error = 'Feedback konnte nicht geladen werden.');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -178,7 +178,7 @@ class _FeedbackScreenState extends State<FeedbackScreen>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('Unread'),
+                  const Text('Ungelesen'),
                   if (_unreadFeedback.isNotEmpty) ...[
                     const SizedBox(width: 6),
                     Container(
@@ -201,7 +201,7 @@ class _FeedbackScreenState extends State<FeedbackScreen>
                 ],
               ),
             ),
-            const Tab(text: 'All'),
+            const Tab(text: 'Alle'),
           ],
         ),
       ),
@@ -240,7 +240,7 @@ class _FeedbackScreenState extends State<FeedbackScreen>
           TextButton(
             onPressed: _fetchFeedback,
             child: const Text(
-              'Retry',
+              'Erneut versuchen',
               style: TextStyle(color: AppColors.primary),
             ),
           ),
@@ -262,7 +262,7 @@ class _FeedbackScreenState extends State<FeedbackScreen>
             ),
             const SizedBox(height: 12),
             Text(
-              isUnreadTab ? 'No unread feedback' : 'No feedback yet',
+              isUnreadTab ? 'Kein ungelesenes Feedback' : 'Noch kein Feedback',
               style:
                   const TextStyle(color: AppColors.muted, fontSize: 15),
             ),
@@ -385,7 +385,7 @@ class _FeedbackCard extends StatelessWidget {
                       Icon(Icons.check, size: 13, color: AppColors.muted),
                       SizedBox(width: 4),
                       Text(
-                        'Read',
+                        'Gelesen',
                         style: TextStyle(
                             color: AppColors.muted, fontSize: 12),
                       ),
@@ -393,7 +393,7 @@ class _FeedbackCard extends StatelessWidget {
                   )
                 else
                   const Text(
-                    'Tap to mark as read',
+                    'Tippen zum Markieren',
                     style: TextStyle(
                       color: AppColors.primary,
                       fontSize: 12,

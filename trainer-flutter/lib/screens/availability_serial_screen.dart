@@ -25,7 +25,7 @@ class _AvailabilitySerialScreenState extends State<AvailabilitySerialScreen> {
 
   final Set<int> _selectedDays = {1, 2, 3, 4, 5}; // Mon–Fri default
 
-  static const _dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  static const _dayLabels = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
   String _formatTime(TimeOfDay t) =>
       '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
@@ -34,7 +34,7 @@ class _AvailabilitySerialScreenState extends State<AvailabilitySerialScreen> {
       d != null ? DateFormat('yyyy-MM-dd').format(d) : '';
 
   String _formatDateDisplay(DateTime? d) =>
-      d != null ? DateFormat('dd.MM.yyyy').format(d) : 'Not set';
+      d != null ? DateFormat('dd.MM.yyyy').format(d) : 'Nicht gesetzt';
 
   Future<void> _pickTime(bool isFrom) async {
     final current = isFrom ? _fromTime : _toTime;
@@ -100,7 +100,7 @@ class _AvailabilitySerialScreenState extends State<AvailabilitySerialScreen> {
     if (_rangeStart == null || _rangeEnd == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select a date range'),
+          content: Text('Bitte wähle einen Zeitraum'),
           backgroundColor: AppColors.primary,
         ),
       );
@@ -109,7 +109,7 @@ class _AvailabilitySerialScreenState extends State<AvailabilitySerialScreen> {
     if (_rangeEnd!.isBefore(_rangeStart!)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('End date must be after start date'),
+          content: Text('Enddatum muss nach dem Startdatum liegen'),
           backgroundColor: AppColors.primary,
         ),
       );
@@ -130,7 +130,7 @@ class _AvailabilitySerialScreenState extends State<AvailabilitySerialScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Serial availability created successfully'),
+            content: Text('Serienverfügbarkeit erfolgreich erstellt'),
             backgroundColor: Color(0xFF2E7D32),
           ),
         );
@@ -152,7 +152,7 @@ class _AvailabilitySerialScreenState extends State<AvailabilitySerialScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Serial Availability'),
+        title: const Text('Serienverfügbarkeit'),
         actions: [
           TextButton.icon(
             onPressed: _saving ? null : _save,
@@ -162,7 +162,7 @@ class _AvailabilitySerialScreenState extends State<AvailabilitySerialScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
                 : const Icon(Icons.save_outlined, size: 18, color: Colors.white),
-            label: Text(_saving ? 'Saving…' : 'Save',
+            label: Text(_saving ? 'Speichere…' : 'Speichern',
                 style: const TextStyle(color: Colors.white)),
           ),
         ],
@@ -171,19 +171,19 @@ class _AvailabilitySerialScreenState extends State<AvailabilitySerialScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _buildCard('Time Slot', [
-              _buildTimePicker('From', _fromTime, () => _pickTime(true)),
+            _buildCard('Zeitfenster', [
+              _buildTimePicker('Von', _fromTime, () => _pickTime(true)),
               const SizedBox(height: 10),
-              _buildTimePicker('To', _toTime, () => _pickTime(false)),
+              _buildTimePicker('Bis', _toTime, () => _pickTime(false)),
             ]),
             const SizedBox(height: 16),
-            _buildCard('Date Range', [
-              _buildDatePicker('Start Date', _rangeStart, () => _pickDate(true)),
+            _buildCard('Zeitraum', [
+              _buildDatePicker('Startdatum', _rangeStart, () => _pickDate(true)),
               const SizedBox(height: 10),
-              _buildDatePicker('End Date', _rangeEnd, () => _pickDate(false)),
+              _buildDatePicker('Enddatum', _rangeEnd, () => _pickDate(false)),
             ]),
             const SizedBox(height: 16),
-            _buildCard('Days of Week', [
+            _buildCard('Wochentage', [
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -242,7 +242,7 @@ class _AvailabilitySerialScreenState extends State<AvailabilitySerialScreen> {
                             strokeWidth: 2, color: Colors.white),
                       )
                     : const Icon(Icons.event_repeat),
-                label: Text(_saving ? 'Creating…' : 'Create Serial Availability'),
+                label: Text(_saving ? 'Erstelle…' : 'Serienverfügbarkeit erstellen'),
               ),
             ),
             const SizedBox(height: 40),
@@ -361,7 +361,7 @@ class _AvailabilitySerialScreenState extends State<AvailabilitySerialScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Summary',
+          const Text('Zusammenfassung',
               style: TextStyle(
                   color: AppColors.primary,
                   fontSize: 12,
@@ -370,7 +370,7 @@ class _AvailabilitySerialScreenState extends State<AvailabilitySerialScreen> {
           Text(
             '${_formatTime(_fromTime)} – ${_formatTime(_toTime)}\n'
             '${_formatDateDisplay(_rangeStart)} → ${_formatDateDisplay(_rangeEnd)}\n'
-            'Days: $dayNames',
+            'Tage: $dayNames',
             style: const TextStyle(color: AppColors.text, fontSize: 13, height: 1.6),
           ),
         ],

@@ -230,7 +230,7 @@ class _AnamneseScreenState extends State<AnamneseScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
                   : const Icon(Icons.save_outlined, size: 18, color: Colors.white),
-              label: Text(_saving ? 'Saving…' : 'Save',
+              label: Text(_saving ? 'Speichere…' : 'Speichern',
                   style: const TextStyle(color: Colors.white)),
             ),
         ],
@@ -252,7 +252,7 @@ class _AnamneseScreenState extends State<AnamneseScreen> {
           const SizedBox(height: 12),
           Text(_error!, style: const TextStyle(color: AppColors.muted)),
           const SizedBox(height: 16),
-          TextButton(onPressed: _loadAnamnese, child: const Text('Retry')),
+          TextButton(onPressed: _loadAnamnese, child: const Text('Erneut versuchen')),
         ],
       ),
     );
@@ -264,57 +264,57 @@ class _AnamneseScreenState extends State<AnamneseScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _section('Personal Information', [
-            _field('Address', _addressCtrl),
-            _field('Profession', _professionCtrl),
-            _field('Activities', _activitiesCtrl),
-            _field('Physical Demands', _physicalDemandsCtrl),
+          _section('Persönliche Daten', [
+            _field('Adresse', _addressCtrl),
+            _field('Beruf', _professionCtrl),
+            _field('Aktivitäten', _activitiesCtrl),
+            _field('Körperliche Belastung', _physicalDemandsCtrl),
           ]),
           _section('Sport & Training', [
-            _field('Sports', _sportartsCtrl),
-            _field('Scope / Hours per week', _sportartsScopeCtrl),
-            _field('Intensity', _sportartsIntensityCtrl),
-            _field('Training days off', _trainingDayoffCtrl),
+            _field('Sportarten', _sportartsCtrl),
+            _field('Umfang / Std. pro Woche', _sportartsScopeCtrl),
+            _field('Intensität', _sportartsIntensityCtrl),
+            _field('Trainingsfreie Tage', _trainingDayoffCtrl),
           ]),
-          _section('Sleep & Recovery', [
-            _field('Sleep – Weekdays (h)', _sleepWeekCtrl, keyboardType: TextInputType.number),
-            _field('Sleep – Weekend (h)', _sleepWeekendCtrl, keyboardType: TextInputType.number),
-            _field('Relaxation – Weekdays (h)', _relaxWeekCtrl, keyboardType: TextInputType.number),
-            _field('Relaxation – Weekend (h)', _relaxWeekendCtrl, keyboardType: TextInputType.number),
+          _section('Schlaf & Erholung', [
+            _field('Schlaf – Werktags (Std.)', _sleepWeekCtrl, keyboardType: TextInputType.number),
+            _field('Schlaf – Wochenende (Std.)', _sleepWeekendCtrl, keyboardType: TextInputType.number),
+            _field('Entspannung – Werktags (Std.)', _relaxWeekCtrl, keyboardType: TextInputType.number),
+            _field('Entspannung – Wochenende (Std.)', _relaxWeekendCtrl, keyboardType: TextInputType.number),
           ]),
-          _section('Injuries', [
-            _toggle('Has injury', _injury, (v) => setState(() => _injury = v)),
+          _section('Verletzungen', [
+            _toggle('Verletzung vorhanden', _injury, (v) => setState(() => _injury = v)),
             if (_injury) ...[
-              _field('Injury type', _injuryTypeCtrl),
-              _field('Body part', _injuryBodypartCtrl),
-              _toggle('Chronic', _injuryChronic, (v) => setState(() => _injuryChronic = v)),
+              _field('Verletzungsart', _injuryTypeCtrl),
+              _field('Körperteil', _injuryBodypartCtrl),
+              _toggle('Chronisch', _injuryChronic, (v) => setState(() => _injuryChronic = v)),
             ],
           ]),
-          _section('Diseases / Contraindications', [
-            _toggle('Heart attack', _diseaseHeartattack, (v) => setState(() => _diseaseHeartattack = v)),
-            _toggle('Arterial disorder', _diseaseArterialDisorder, (v) => setState(() => _diseaseArterialDisorder = v)),
-            _toggle('Raynaud syndrome', _diseaseRaynald, (v) => setState(() => _diseaseRaynald = v)),
-            _toggle('Vasculitis', _diseaseVasculitis, (v) => setState(() => _diseaseVasculitis = v)),
-            _toggle('Cold sensitivity', _diseaseCold, (v) => setState(() => _diseaseCold = v)),
-            _toggle('Sensory disturbances', _diseaseSensory, (v) => setState(() => _diseaseSensory = v)),
-            _toggle('Circulatory disorder', _diseaseCirculatory, (v) => setState(() => _diseaseCirculatory = v)),
-            _toggle('Nerve damage', _diseaseNerve, (v) => setState(() => _diseaseNerve = v)),
+          _section('Krankheiten / Kontraindikationen', [
+            _toggle('Herzinfarkt', _diseaseHeartattack, (v) => setState(() => _diseaseHeartattack = v)),
+            _toggle('Arterielle Verschlusskrankheit', _diseaseArterialDisorder, (v) => setState(() => _diseaseArterialDisorder = v)),
+            _toggle('Raynaud-Syndrom', _diseaseRaynald, (v) => setState(() => _diseaseRaynald = v)),
+            _toggle('Vaskulitis', _diseaseVasculitis, (v) => setState(() => _diseaseVasculitis = v)),
+            _toggle('Kälteempfindlichkeit', _diseaseCold, (v) => setState(() => _diseaseCold = v)),
+            _toggle('Sensibilitätsstörungen', _diseaseSensory, (v) => setState(() => _diseaseSensory = v)),
+            _toggle('Durchblutungsstörung', _diseaseCirculatory, (v) => setState(() => _diseaseCirculatory = v)),
+            _toggle('Nervenschädigung', _diseaseNerve, (v) => setState(() => _diseaseNerve = v)),
             _toggle('Replantation', _diseaseReplantation, (v) => setState(() => _diseaseReplantation = v)),
-            _toggle('Peripheral lymphatics', _diseaseLymphatics, (v) => setState(() => _diseaseLymphatics = v)),
-            _toggle('Hemoglobinemia', _diseaseHemoglobinemia, (v) => setState(() => _diseaseHemoglobinemia = v)),
-            _toggle('Kidney / bladder', _diseaseKidney, (v) => setState(() => _diseaseKidney = v)),
-            _toggle('Heart / circulatory', _diseaseHeartCirculatory, (v) => setState(() => _diseaseHeartCirculatory = v)),
+            _toggle('Periphere Lymphgefässe', _diseaseLymphatics, (v) => setState(() => _diseaseLymphatics = v)),
+            _toggle('Hämoglobinämie', _diseaseHemoglobinemia, (v) => setState(() => _diseaseHemoglobinemia = v)),
+            _toggle('Niere / Blase', _diseaseKidney, (v) => setState(() => _diseaseKidney = v)),
+            _toggle('Herz / Kreislauf', _diseaseHeartCirculatory, (v) => setState(() => _diseaseHeartCirculatory = v)),
           ]),
-          _section('Musculoskeletal', [
-            _toggle('Problems', _musculoskeletal, (v) => setState(() => _musculoskeletal = v)),
+          _section('Bewegungsapparat', [
+            _toggle('Beschwerden', _musculoskeletal, (v) => setState(() => _musculoskeletal = v)),
             if (_musculoskeletal)
-              _field('Description', _musculoDescCtrl, maxLines: 3),
+              _field('Beschreibung', _musculoDescCtrl, maxLines: 3),
           ]),
-          _section('General', [
-            _toggle('Medical treatment', _medicalTreatment, (v) => setState(() => _medicalTreatment = v)),
-            _toggle('Taking medication', _takingDrugs, (v) => setState(() => _takingDrugs = v)),
-            _field('Goals', _goalsCtrl, maxLines: 3),
-            _field('Comments', _commentsCtrl, maxLines: 3),
+          _section('Allgemein', [
+            _toggle('In ärztlicher Behandlung', _medicalTreatment, (v) => setState(() => _medicalTreatment = v)),
+            _toggle('Medikamente', _takingDrugs, (v) => setState(() => _takingDrugs = v)),
+            _field('Ziele', _goalsCtrl, maxLines: 3),
+            _field('Bemerkungen', _commentsCtrl, maxLines: 3),
           ]),
           const SizedBox(height: 24),
           SizedBox(
@@ -327,7 +327,7 @@ class _AnamneseScreenState extends State<AnamneseScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
                   : const Icon(Icons.save),
-              label: Text(_saving ? 'Saving…' : 'Save Anamnese'),
+              label: Text(_saving ? 'Speichere…' : 'Anamnese speichern'),
             ),
           ),
           const SizedBox(height: 40),

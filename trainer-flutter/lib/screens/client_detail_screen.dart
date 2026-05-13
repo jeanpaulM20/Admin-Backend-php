@@ -108,10 +108,10 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                 _buildContactInfo(),
                 if (upcomingTrainings.isNotEmpty)
                   _buildTrainingsSection(
-                      context, 'Upcoming Sessions', upcomingTrainings, true),
+                      context, 'Anstehende Termine', upcomingTrainings, true),
                 if (pastTrainings.isNotEmpty)
                   _buildTrainingsSection(
-                      context, 'Past Sessions', pastTrainings, false),
+                      context, 'Vergangene Termine', pastTrainings, false),
                 if (clientTrainings.isEmpty)
                   const Padding(
                     padding: EdgeInsets.all(32),
@@ -122,7 +122,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                               color: AppColors.muted, size: 48),
                           SizedBox(height: 12),
                           Text(
-                            'No training sessions found',
+                            'Keine Trainings gefunden',
                             style: TextStyle(color: AppColors.muted),
                           ),
                         ],
@@ -303,7 +303,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
               const Divider(color: AppColors.border, height: 1),
               const SizedBox(height: 8),
               const Text(
-                'Notes',
+                'Notizen',
                 style: TextStyle(
                     color: AppColors.muted,
                     fontSize: 12,
@@ -432,8 +432,8 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       ),
       _QuickAction(
         icon: Icons.show_chart,
-        label: 'Performance',
-        subtitle: 'Leistungen',
+        label: 'Leistung',
+        subtitle: 'Verlauf',
         color: AppColors.green,
         onTap: () => Navigator.push(
           context,
@@ -577,7 +577,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
           if (upcoming && trainings.length > 5)
             TextButton(
               onPressed: () {},
-              child: Text('View all ${trainings.length} sessions'),
+              child: Text('Alle ${trainings.length} Termine anzeigen'),
             ),
         ],
       ),
@@ -644,22 +644,22 @@ class _TrainingItemState extends State<_TrainingItem> {
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         title: const Text(
-          'Cancel Training',
+          'Training absagen',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         content: const Text(
-          'Are you sure you want to cancel this training session?',
+          'Möchtest du dieses Training wirklich absagen?',
           style: TextStyle(color: AppColors.text),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('No',
+            child: const Text('Nein',
                 style: TextStyle(color: AppColors.muted)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Yes, Cancel',
+            child: const Text('Ja, absagen',
                 style: TextStyle(color: Color(0xFFB71C1C))),
           ),
         ],

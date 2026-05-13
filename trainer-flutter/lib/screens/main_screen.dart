@@ -26,7 +26,7 @@ class _MainScreenState extends State<MainScreen> {
     _TabItem(label: 'Trainings', icon: Icons.fitness_center_outlined,activeIcon: Icons.fitness_center),
     _TabItem(label: 'Kalender',  icon: Icons.calendar_month_outlined,activeIcon: Icons.calendar_month),
     _TabItem(label: 'Nachrichten', icon: Icons.chat_bubble_outline,   activeIcon: Icons.chat_bubble),
-    _TabItem(label: 'Settings',  icon: Icons.settings_outlined,      activeIcon: Icons.settings),
+    _TabItem(label: 'Einstellungen', icon: Icons.settings_outlined,   activeIcon: Icons.settings),
   ];
 
   @override

@@ -122,7 +122,7 @@ class _ClientNextAppointmentsScreenState
     } on ApiException catch (e) {
       _error = e.message;
     } catch (e) {
-      _error = 'Failed to load appointments';
+      _error = 'Termine konnten nicht geladen werden';
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -136,20 +136,20 @@ class _ClientNextAppointmentsScreenState
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: const Text('Cancel Appointment',
+        title: const Text('Termin absagen',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         content: Text(
-          'Cancel appointment on ${appointment.displayDate}?',
+          'Termin am ${appointment.displayDate} absagen?',
           style: const TextStyle(color: AppColors.text),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('No', style: TextStyle(color: AppColors.muted)),
+            child: const Text('Nein', style: TextStyle(color: AppColors.muted)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Yes, Cancel',
+            child: const Text('Ja, absagen',
                 style: TextStyle(color: Color(0xFFB71C1C))),
           ),
         ],
@@ -174,7 +174,7 @@ class _ClientNextAppointmentsScreenState
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Next Appointments'),
+        title: const Text('Nächste Termine'),
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
@@ -198,7 +198,7 @@ class _ClientNextAppointmentsScreenState
           const SizedBox(height: 12),
           Text(_error!, style: const TextStyle(color: AppColors.muted)),
           const SizedBox(height: 16),
-          TextButton(onPressed: _load, child: const Text('Retry')),
+          TextButton(onPressed: _load, child: const Text('Erneut versuchen')),
         ],
       ),
     );
@@ -211,7 +211,7 @@ class _ClientNextAppointmentsScreenState
         children: [
           Icon(Icons.event_available, color: AppColors.muted, size: 56),
           SizedBox(height: 16),
-          Text('No upcoming appointments',
+          Text('Keine anstehenden Termine',
               style: TextStyle(color: AppColors.muted, fontSize: 15)),
         ],
       ),
@@ -288,7 +288,7 @@ class _ClientNextAppointmentsScreenState
                   child: OutlinedButton.icon(
                     onPressed: () => _cancel(apt),
                     icon: const Icon(Icons.cancel_outlined, size: 15),
-                    label: const Text('Cancel Appointment', style: TextStyle(fontSize: 13)),
+                    label: const Text('Termin absagen', style: TextStyle(fontSize: 13)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
                       side: const BorderSide(color: AppColors.primary, width: 0.8),

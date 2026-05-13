@@ -90,7 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
         IconButton(
           icon: const Icon(Icons.logout, color: AppColors.muted),
           onPressed: () => _confirmLogout(context),
-          tooltip: 'Logout',
+          tooltip: 'Abmelden',
         ),
       ],
     );
@@ -101,20 +101,20 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Logout', style: TextStyle(color: Colors.white)),
+        title: const Text('Abmelden', style: TextStyle(color: Colors.white)),
         content: const Text(
-          'Are you sure you want to logout?',
+          'Möchtest du dich wirklich abmelden?',
           style: TextStyle(color: AppColors.text),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: const Text('Abbrechen'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: AppColors.primary),
-            child: const Text('Logout'),
+            child: const Text('Abmelden'),
           ),
         ],
       ),
@@ -154,7 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Welcome back',
+                    'Willkommen zurück',
                     style: TextStyle(
                       color: Colors.white70,
                       fontSize: 13,
@@ -222,7 +222,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Text(
-              'Next Appointment',
+              'Nächster Termin',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 18,
@@ -237,7 +237,7 @@ class _HomeScreenState extends State<HomeScreen> {
           else
             const _EmptyCard(
               icon: Icons.event_available,
-              message: 'No upcoming appointments',
+              message: 'Keine anstehenden Termine',
             ),
         ],
       ),
@@ -260,7 +260,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Expanded(
               child: _StatCard(
-            label: 'Total Sessions',
+            label: 'Trainings',
             value: total.toString(),
             icon: Icons.fitness_center,
             color: AppColors.primary,
@@ -268,7 +268,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(width: 10),
           Expanded(
               child: _StatCard(
-            label: 'Upcoming',
+            label: 'Anstehend',
             value: upcoming.toString(),
             icon: Icons.upcoming,
             color: const Color(0xFF1565C0),
@@ -276,7 +276,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(width: 10),
           Expanded(
               child: _StatCard(
-            label: 'Clients',
+            label: 'Kunden',
             value: clients.toString(),
             icon: Icons.people,
             color: const Color(0xFF2E7D32),
@@ -295,7 +295,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Text(
-              'About Sihl Training',
+              'Über Sihl Training',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 18,
@@ -310,7 +310,7 @@ class _HomeScreenState extends State<HomeScreen> {
           else
             const _EmptyCard(
               icon: Icons.info_outline,
-              message: 'Studio information unavailable',
+              message: 'Studio-Infos nicht verfügbar',
             ),
         ],
       ),
@@ -355,7 +355,7 @@ class _AppointmentCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      training.clientName ?? training.title ?? 'Training Session',
+                      training.clientName ?? training.title ?? 'Training',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -484,7 +484,7 @@ class _AboutCard extends StatelessWidget {
             const Divider(color: AppColors.border, height: 1),
             const SizedBox(height: 14),
             const Text(
-              'Our Trainers',
+              'Unsere Trainer',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 14,

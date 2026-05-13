@@ -39,12 +39,12 @@ class _QrCodeScreenState extends State<QrCodeScreen> {
       } else if (resp is Map && resp['message'] != null) {
         _error = resp['message'].toString();
       } else {
-        _error = 'QR code not available';
+        _error = 'QR-Code nicht verfügbar';
       }
     } on ApiException catch (e) {
       _error = e.message;
     } catch (e) {
-      _error = 'Failed to load QR code';
+      _error = 'QR-Code konnte nicht geladen werden';
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -55,7 +55,7 @@ class _QrCodeScreenState extends State<QrCodeScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Trainer QR Code'),
+        title: const Text('Trainer QR-Code'),
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _loadQrCode),
         ],
@@ -80,7 +80,7 @@ class _QrCodeScreenState extends State<QrCodeScreen> {
             style: const TextStyle(color: AppColors.muted, fontSize: 15),
             textAlign: TextAlign.center),
         const SizedBox(height: 20),
-        TextButton(onPressed: _loadQrCode, child: const Text('Try again')),
+        TextButton(onPressed: _loadQrCode, child: const Text('Erneut versuchen')),
       ],
     );
   }
@@ -115,12 +115,12 @@ class _QrCodeScreenState extends State<QrCodeScreen> {
         ),
         const SizedBox(height: 28),
         const Text(
-          'Share this code with your clients',
+          'Teile diesen Code mit deinen Kunden',
           style: TextStyle(color: AppColors.muted, fontSize: 14),
         ),
         const SizedBox(height: 8),
         const Text(
-          'Clients can scan it to connect with you',
+          'Kunden können ihn scannen, um sich zu verbinden',
           style: TextStyle(color: AppColors.muted, fontSize: 12),
         ),
       ],
@@ -133,7 +133,7 @@ class _QrCodeScreenState extends State<QrCodeScreen> {
       children: [
         Icon(Icons.qr_code_2, color: Colors.black54, size: 100),
         SizedBox(height: 8),
-        Text('QR image unavailable',
+        Text('QR-Bild nicht verfügbar',
             style: TextStyle(color: Colors.black54, fontSize: 12),
             textAlign: TextAlign.center),
       ],

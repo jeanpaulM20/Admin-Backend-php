@@ -169,7 +169,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Training Details',
+          'Training-Details',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
       ),

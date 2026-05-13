@@ -34,7 +34,7 @@ class _ChatMsg {
     return _ChatMsg(
       id: _parseInt(j['id'] ?? 0),
       clientId: _parseInt(j['client_id'] ?? 0),
-      clientName: j['client_name']?.toString() ?? 'Unknown',
+      clientName: j['client_name']?.toString() ?? 'Unbekannt',
       text: j['text']?.toString() ?? j['comment']?.toString() ?? '',
       align: j['align']?.toString() ?? 'left',
       readTrainer: j['read_trainer'] == true || j['read_trainer'] == 1 || j['read_trainer'] == '1',

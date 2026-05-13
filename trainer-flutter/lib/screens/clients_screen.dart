@@ -43,7 +43,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Clients'),
+        title: const Text('Kunden'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -68,7 +68,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
           }
         },
         icon: const Icon(Icons.person_add),
-        label: const Text('New Client'),
+        label: const Text('Neuer Kunde'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
@@ -91,7 +91,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
         style: const TextStyle(color: Colors.white),
         onChanged: (value) => setState(() => _searchQuery = value),
         decoration: InputDecoration(
-          hintText: 'Search clients...',
+          hintText: 'Kunden suchen…',
           prefixIcon: const Icon(Icons.search, size: 20),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
@@ -165,7 +165,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(160, 44),
               ),
-              child: const Text('Retry'),
+              child: const Text('Erneut versuchen'),
             ),
           ],
         ),
@@ -182,7 +182,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
             const Icon(Icons.search_off, color: AppColors.muted, size: 48),
             const SizedBox(height: 16),
             Text(
-              'No clients found for "$_searchQuery"',
+              'Keine Kunden für „$_searchQuery" gefunden',
               style: const TextStyle(color: AppColors.muted),
             ),
           ],
@@ -196,7 +196,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
           Icon(Icons.people_outline, color: AppColors.muted, size: 60),
           SizedBox(height: 16),
           Text(
-            'No clients yet',
+            'Noch keine Kunden',
             style: TextStyle(
               color: Colors.white,
               fontSize: 18,
@@ -205,7 +205,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
           ),
           SizedBox(height: 8),
           Text(
-            'Your client list will appear here',
+            'Deine Kundenliste erscheint hier',
             style: TextStyle(color: AppColors.muted),
           ),
         ],

@@ -129,7 +129,7 @@ class _PerformanceScreenState extends State<PerformanceScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Performance & Metrics'),
+        title: const Text('Leistung & Messwerte'),
         bottom: TabBar(
           controller: _tabCtrl,
           indicatorColor: AppColors.primary,

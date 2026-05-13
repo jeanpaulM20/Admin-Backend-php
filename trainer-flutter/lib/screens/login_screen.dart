@@ -117,7 +117,7 @@ class _LoginScreenState extends State<LoginScreen>
                       const SizedBox(height: 6),
                       Center(
                         child: Text(
-                          'Personal Training Studio',
+                          'Trainer App',
                           style: GoogleFonts.openSans(
                             color: AppColors.muted,
                             fontSize: 13,

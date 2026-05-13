@@ -81,7 +81,7 @@ class _NewClientScreenState extends State<NewClientScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Client created successfully'),
+            content: Text('Kunde erfolgreich erstellt'),
             backgroundColor: Color(0xFF2E7D32),
           ),
         );
@@ -103,7 +103,7 @@ class _NewClientScreenState extends State<NewClientScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('New Client'),
+        title: const Text('Neuer Kunde'),
         actions: [
           TextButton.icon(
             onPressed: _saving ? null : _save,
@@ -113,7 +113,7 @@ class _NewClientScreenState extends State<NewClientScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
                 : const Icon(Icons.person_add_outlined, size: 18, color: Colors.white),
-            label: Text(_saving ? 'Saving…' : 'Save',
+            label: Text(_saving ? 'Speichere…' : 'Speichern',
                 style: const TextStyle(color: Colors.white)),
           ),
         ],
@@ -125,28 +125,28 @@ class _NewClientScreenState extends State<NewClientScreen> {
           child: Column(
             children: [
               _card([
-                _field('Client ID', _clientIdCtrl,
-                    validator: (v) => v == null || v.isEmpty ? 'Required' : null),
-                _field('Surname', _surnameCtrl,
-                    validator: (v) => v == null || v.isEmpty ? 'Required' : null),
-                _field('First name', _nameCtrl,
-                    validator: (v) => v == null || v.isEmpty ? 'Required' : null),
+                _field('Kunden-ID', _clientIdCtrl,
+                    validator: (v) => v == null || v.isEmpty ? 'Pflichtfeld' : null),
+                _field('Nachname', _surnameCtrl,
+                    validator: (v) => v == null || v.isEmpty ? 'Pflichtfeld' : null),
+                _field('Vorname', _nameCtrl,
+                    validator: (v) => v == null || v.isEmpty ? 'Pflichtfeld' : null),
               ], 'Name'),
               const SizedBox(height: 16),
               _card([
-                _field('Email', _emailCtrl,
+                _field('E-Mail', _emailCtrl,
                     keyboardType: TextInputType.emailAddress),
-                _field('Phone', _phoneCtrl,
+                _field('Telefon', _phoneCtrl,
                     keyboardType: TextInputType.phone),
-                _field('Mobile', _mobileCtrl,
+                _field('Mobil', _mobileCtrl,
                     keyboardType: TextInputType.phone),
-              ], 'Contact'),
+              ], 'Kontakt'),
               const SizedBox(height: 16),
               _card([
                 GestureDetector(
                   onTap: _pickBirthday,
                   child: AbsorbPointer(
-                    child: _field('Birthday', _birthdayCtrl,
+                    child: _field('Geburtstag', _birthdayCtrl,
                         suffixIcon: const Icon(Icons.calendar_today_outlined,
                             size: 18, color: AppColors.muted)),
                   ),
@@ -157,7 +157,7 @@ class _NewClientScreenState extends State<NewClientScreen> {
                   dropdownColor: AppColors.surface,
                   style: const TextStyle(color: Colors.white, fontSize: 14),
                   decoration: InputDecoration(
-                    labelText: 'Gender',
+                    labelText: 'Geschlecht',
                     labelStyle: const TextStyle(color: AppColors.muted, fontSize: 13),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     filled: true,
@@ -173,13 +173,13 @@ class _NewClientScreenState extends State<NewClientScreen> {
                     ),
                   ),
                   items: const [
-                    DropdownMenuItem(value: 'm', child: Text('Male')),
-                    DropdownMenuItem(value: 'f', child: Text('Female')),
-                    DropdownMenuItem(value: 'd', child: Text('Diverse')),
+                    DropdownMenuItem(value: 'm', child: Text('Männlich')),
+                    DropdownMenuItem(value: 'f', child: Text('Weiblich')),
+                    DropdownMenuItem(value: 'd', child: Text('Divers')),
                   ],
                   onChanged: (v) => setState(() => _gender = v),
                 ),
-              ], 'Personal'),
+              ], 'Persönlich'),
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
@@ -192,7 +192,7 @@ class _NewClientScreenState extends State<NewClientScreen> {
                               strokeWidth: 2, color: Colors.white),
                         )
                       : const Icon(Icons.person_add),
-                  label: Text(_saving ? 'Creating…' : 'Create Client'),
+                  label: Text(_saving ? 'Erstelle…' : 'Kunde erstellen'),
                 ),
               ),
               const SizedBox(height: 40),

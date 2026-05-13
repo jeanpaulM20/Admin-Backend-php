@@ -43,7 +43,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } on ApiException catch (e) {
       setState(() => _prefsError = e.message);
     } catch (_) {
-      setState(() => _prefsError = 'Failed to load preferences.');
+      setState(() => _prefsError = 'Einstellungen konnten nicht geladen werden.');
     } finally {
       setState(() => _isLoadingPrefs = false);
     }
@@ -66,7 +66,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.background,
         title: const Text(
-          'Settings',
+          'Einstellungen',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
       ),
@@ -132,19 +132,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
 
           // Account section
-          _SectionHeader(label: 'Account'),
+          _SectionHeader(label: 'Konto'),
           const SizedBox(height: 10),
           _SettingsTile(
             icon: Icons.lock_outline,
-            title: 'Change Password',
-            subtitle: 'Update your account password',
+            title: 'Passwort ändern',
+            subtitle: 'Aktualisiere dein Passwort',
             onTap: _showChangePasswordDialog,
           ),
           if (trainer != null)
             _SettingsTile(
               icon: Icons.qr_code_2,
-              title: 'My QR Code',
-              subtitle: 'Share with clients to connect',
+              title: 'Mein QR-Code',
+              subtitle: 'Mit Kunden teilen zum Verbinden',
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -154,8 +154,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           _SettingsTile(
             icon: Icons.logout,
-            title: 'Logout',
-            subtitle: 'Sign out of your account',
+            title: 'Abmelden',
+            subtitle: 'Von deinem Konto abmelden',
             iconColor: AppColors.primary,
             onTap: () async {
               final confirmed = await showDialog<bool>(
@@ -165,23 +165,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14)),
                   title: const Text(
-                    'Logout',
+                    'Abmelden',
                     style: TextStyle(
                         color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                   content: const Text(
-                    'Are you sure you want to sign out?',
+                    'Möchtest du dich wirklich abmelden?',
                     style: TextStyle(color: AppColors.text),
                   ),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancel',
+                      child: const Text('Abbrechen',
                           style: TextStyle(color: AppColors.muted)),
                     ),
                     TextButton(
                       onPressed: () => Navigator.pop(context, true),
-                      child: const Text('Logout',
+                      child: const Text('Abmelden',
                           style: TextStyle(color: Color(0xFFB71C1C))),
                     ),
                   ],
@@ -196,7 +196,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 24),
 
           // Preferences section
-          _SectionHeader(label: 'Preferences'),
+          _SectionHeader(label: 'Präferenzen'),
           const SizedBox(height: 10),
           _buildPreferences(),
         ],
@@ -241,7 +241,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             TextButton(
               onPressed: _fetchPreferences,
               child: const Text(
-                'Retry',
+                'Erneut',
                 style: TextStyle(
                     color: AppColors.primary, fontSize: 13),
               ),
@@ -262,7 +262,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         child: const Center(
           child: Text(
-            'No preferences configured.',
+            'Keine Präferenzen konfiguriert.',
             style: TextStyle(color: AppColors.muted, fontSize: 14),
           ),
         ),
@@ -456,7 +456,7 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Password changed successfully.'),
+            content: Text('Passwort erfolgreich geändert.'),
             backgroundColor: Color(0xFF2E7D32),
           ),
         );
@@ -481,7 +481,7 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
       backgroundColor: AppColors.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: const Text(
-        'Change Password',
+        'Passwort ändern',
         style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
       ),
       content: Form(
@@ -491,26 +491,26 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
           children: [
             _PasswordField(
               controller: _newPasswordController,
-              label: 'New Password',
+              label: 'Neues Passwort',
               obscure: _obscureNew,
               onToggle: () => setState(() => _obscureNew = !_obscureNew),
               validator: (v) {
-                if (v == null || v.isEmpty) return 'Required';
-                if (v.length < 6) return 'Min 6 characters';
+                if (v == null || v.isEmpty) return 'Pflichtfeld';
+                if (v.length < 6) return 'Min. 6 Zeichen';
                 return null;
               },
             ),
             const SizedBox(height: 12),
             _PasswordField(
               controller: _confirmPasswordController,
-              label: 'Confirm New Password',
+              label: 'Passwort bestätigen',
               obscure: _obscureConfirm,
               onToggle: () =>
                   setState(() => _obscureConfirm = !_obscureConfirm),
               validator: (v) {
-                if (v == null || v.isEmpty) return 'Required';
+                if (v == null || v.isEmpty) return 'Pflichtfeld';
                 if (v != _newPasswordController.text) {
-                  return 'Passwords do not match';
+                  return 'Passwörter stimmen nicht überein';
                 }
                 return null;
               },
@@ -522,7 +522,7 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
         TextButton(
           onPressed: _isLoading ? null : () => Navigator.pop(context),
           child: const Text(
-            'Cancel',
+            'Abbrechen',
             style: TextStyle(color: AppColors.muted),
           ),
         ),
@@ -541,7 +541,7 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
                   child: CircularProgressIndicator(
                       strokeWidth: 2, color: Colors.white),
                 )
-              : const Text('Save'),
+              : const Text('Speichern'),
         ),
       ],
     );

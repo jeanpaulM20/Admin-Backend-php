@@ -68,7 +68,7 @@ class _ReviewScreenState extends State<ReviewScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Training Review'),
+        title: const Text('Training-Übersicht'),
         actions: [
           if (trainer != null)
             IconButton(
@@ -84,9 +84,9 @@ class _ReviewScreenState extends State<ReviewScreen>
           indicatorColor: AppColors.primary,
           indicatorSize: TabBarIndicatorSize.label,
           tabs: const [
-            Tab(text: 'This Week'),
-            Tab(text: 'This Month'),
-            Tab(text: 'This Year'),
+            Tab(text: 'Woche'),
+            Tab(text: 'Monat'),
+            Tab(text: 'Jahr'),
           ],
         ),
       ),
@@ -137,7 +137,7 @@ class _ReviewScreenState extends State<ReviewScreen>
           children: [
             Expanded(
               child: _SummaryCard(
-                label: 'Sessions',
+                label: 'Trainings',
                 value: completed.toString(),
                 icon: Icons.fitness_center,
                 color: AppColors.primary,
@@ -147,11 +147,11 @@ class _ReviewScreenState extends State<ReviewScreen>
             const SizedBox(width: 10),
             Expanded(
               child: _SummaryCard(
-                label: 'Completion',
+                label: 'Abschluss',
                 value: '$completionRate%',
                 icon: Icons.check_circle_outline,
                 color: const Color(0xFF2E7D32),
-                subtitle: 'rate',
+                subtitle: 'Quote',
               ),
             ),
           ],
@@ -161,7 +161,7 @@ class _ReviewScreenState extends State<ReviewScreen>
           children: [
             Expanded(
               child: _SummaryCard(
-                label: 'Cancelled',
+                label: 'Abgesagt',
                 value: cancelled.toString(),
                 icon: Icons.cancel_outlined,
                 color: AppColors.muted,
@@ -171,11 +171,11 @@ class _ReviewScreenState extends State<ReviewScreen>
             const SizedBox(width: 10),
             Expanded(
               child: _SummaryCard(
-                label: 'All Time',
+                label: 'Gesamt',
                 value: totalAllTime.toString(),
                 icon: Icons.history,
                 color: const Color(0xFF1565C0),
-                subtitle: 'total sessions',
+                subtitle: 'alle Trainings',
               ),
             ),
           ],
@@ -224,7 +224,7 @@ class _ReviewScreenState extends State<ReviewScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Sessions Over Time',
+            'Trainings im Zeitverlauf',
             style: TextStyle(
               color: Colors.white,
               fontSize: 15,
@@ -322,7 +322,7 @@ class _ReviewScreenState extends State<ReviewScreen>
     final Map<String, int> typeCounts = {};
     for (final t in trainings) {
       if (t.isCancelled) continue;
-      final type = t.trainingType ?? 'Unknown';
+      final type = t.trainingType ?? 'Unbekannt';
       typeCounts[type] = (typeCounts[type] ?? 0) + 1;
     }
 
@@ -349,7 +349,7 @@ class _ReviewScreenState extends State<ReviewScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Training Types',
+            'Trainingsarten',
             style: TextStyle(
               color: Colors.white,
               fontSize: 15,
@@ -428,7 +428,7 @@ class _ReviewScreenState extends State<ReviewScreen>
               Icon(Icons.fitness_center, color: AppColors.muted, size: 44),
               SizedBox(height: 12),
               Text(
-                'No sessions in this period',
+                'Keine Trainings in diesem Zeitraum',
                 style: TextStyle(color: AppColors.muted, fontSize: 14),
               ),
             ],
@@ -449,7 +449,7 @@ class _ReviewScreenState extends State<ReviewScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Recent Sessions',
+          'Letzte Trainings',
           style: TextStyle(
               color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
         ),
@@ -600,7 +600,7 @@ class _ReviewTrainingItem extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Text(
-                'Cancelled',
+                'Abgesagt',
                 style: TextStyle(color: AppColors.primary, fontSize: 11),
               ),
             ),
