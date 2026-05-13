@@ -522,11 +522,313 @@ class _CalendarScreenState extends State<CalendarScreen> {
           for (final s in slots)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: _SlotCard(slot: s),
+              child: _SlotCard(
+                slot: s,
+                onTap: () => _showSlotActions(s),
+              ),
             ),
         ],
       ],
     );
+  }
+
+  // ── Slot actions bottom sheet ─────────────────────────────────────────────
+
+  void _showSlotActions(AvailabilitySlot slot) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Handle bar
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.muted.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Title
+                Row(
+                  children: [
+                    const Icon(Icons.schedule,
+                        color: AppColors.green, size: 22),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Verfügbarkeit',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${slot.displayTime}${slot.locationName != null ? ' · ${slot.locationName}' : ''}',
+                            style: const TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: slot.isBooked
+                            ? AppColors.primary.withAlpha(30)
+                            : AppColors.green.withAlpha(30),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        slot.isBooked ? 'Gebucht' : 'Verfügbar',
+                        style: TextStyle(
+                          color: slot.isBooked
+                              ? AppColors.primary
+                              : AppColors.green,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (slot.date != null) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_today_outlined,
+                          color: AppColors.muted, size: 14),
+                      const SizedBox(width: 6),
+                      Text(
+                        DateFormat('EEEE, d. MMMM yyyy', 'de_DE')
+                            .format(slot.slotDate ?? DateTime.now()),
+                        style: const TextStyle(
+                            color: AppColors.muted, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 20),
+                // ── Action buttons ──
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _editSlotTime(slot);
+                        },
+                        icon: const Icon(Icons.edit_outlined, size: 18),
+                        label: const Text('Bearbeiten'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(color: AppColors.primary),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: slot.isBooked
+                            ? null
+                            : () {
+                                Navigator.pop(ctx);
+                                _deleteSlot(slot);
+                              },
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        label: Text(slot.isBooked
+                            ? 'Gebucht'
+                            : 'Löschen'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.red,
+                          side: BorderSide(
+                            color: slot.isBooked
+                                ? AppColors.muted.withOpacity(0.3)
+                                : AppColors.red,
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _editSlotTime(AvailabilitySlot slot) async {
+    // Parse current from/to times
+    TimeOfDay? currentFrom;
+    TimeOfDay? currentTo;
+    if (slot.timeFrom != null) {
+      final parts = slot.timeFrom!.split(':');
+      if (parts.length >= 2) {
+        currentFrom = TimeOfDay(
+          hour: int.tryParse(parts[0]) ?? 9,
+          minute: int.tryParse(parts[1]) ?? 0,
+        );
+      }
+    }
+    if (slot.timeTo != null) {
+      final parts = slot.timeTo!.split(':');
+      if (parts.length >= 2) {
+        currentTo = TimeOfDay(
+          hour: int.tryParse(parts[0]) ?? 10,
+          minute: int.tryParse(parts[1]) ?? 0,
+        );
+      }
+    }
+
+    currentFrom ??= const TimeOfDay(hour: 9, minute: 0);
+    currentTo ??= const TimeOfDay(hour: 10, minute: 0);
+
+    // Pick new "from" time
+    final newFrom = await showTimePicker(
+      context: context,
+      initialTime: currentFrom,
+      helpText: 'Startzeit wählen',
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: AppColors.primary,
+            onPrimary: Colors.white,
+            surface: AppColors.surface,
+            onSurface: Colors.white,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (newFrom == null || !mounted) return;
+
+    // Pick new "to" time
+    final newTo = await showTimePicker(
+      context: context,
+      initialTime: currentTo,
+      helpText: 'Endzeit wählen',
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: AppColors.primary,
+            onPrimary: Colors.white,
+            surface: AppColors.surface,
+            onSurface: Colors.white,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (newTo == null || !mounted) return;
+
+    final fromStr =
+        '${newFrom.hour.toString().padLeft(2, '0')}:${newFrom.minute.toString().padLeft(2, '0')}';
+    final toStr =
+        '${newTo.hour.toString().padLeft(2, '0')}:${newTo.minute.toString().padLeft(2, '0')}';
+
+    final provider = context.read<TrainerProvider>();
+    final success =
+        await provider.updateAvailability(slot.id, from: fromStr, to: toStr);
+
+    if (mounted) {
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Verfügbarkeit aktualisiert'),
+            backgroundColor: Color(0xFF2E7D32),
+          ),
+        );
+        _refresh();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Fehler beim Aktualisieren'),
+            backgroundColor: AppColors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteSlot(AvailabilitySlot slot) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Verfügbarkeit löschen?',
+            style: TextStyle(color: Colors.white, fontSize: 17)),
+        content: Text(
+          'Slot ${slot.displayTime} am ${slot.date ?? 'diesem Tag'} wirklich löschen?',
+          style: const TextStyle(color: AppColors.muted, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.red),
+            child: const Text('Löschen'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final provider = context.read<TrainerProvider>();
+    final success = await provider.deleteAvailability(slot.id);
+
+    if (mounted) {
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Verfügbarkeit gelöscht'),
+            backgroundColor: Color(0xFF2E7D32),
+          ),
+        );
+        setState(() {}); // Refresh the UI with updated local state
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Fehler beim Löschen'),
+            backgroundColor: AppColors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _sectionHeader(
@@ -613,8 +915,9 @@ class _LegendDot extends StatelessWidget {
 
 class _SlotCard extends StatelessWidget {
   final AvailabilitySlot slot;
+  final VoidCallback? onTap;
 
-  const _SlotCard({required this.slot});
+  const _SlotCard({required this.slot, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -628,15 +931,17 @@ class _SlotCard extends StatelessWidget {
         ? AppColors.primary.withAlpha(50)
         : const Color(0xFF2E7D32).withAlpha(50);
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderColor),
-      ),
-      child: Row(
-        children: [
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: borderColor),
+        ),
+        child: Row(
+          children: [
           Container(
             width: 3,
             height: 40,
@@ -695,6 +1000,7 @@ class _SlotCard extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }

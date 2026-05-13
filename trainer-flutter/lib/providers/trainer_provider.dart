@@ -268,6 +268,38 @@ class TrainerProvider extends ChangeNotifier {
     }
   }
 
+  /// Delete an availability slot by ID. Returns true on success.
+  Future<bool> deleteAvailability(int slotId) async {
+    try {
+      await _apiService.delete('${ApiConfig.availability}/$slotId');
+      // Remove from local state
+      for (final entry in _availabilityMap.entries) {
+        entry.value.removeWhere((s) => s.id == slotId);
+      }
+      // Clean up empty date keys
+      _availabilityMap.removeWhere((_, slots) => slots.isEmpty);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Update an availability slot's time. Returns true on success.
+  Future<bool> updateAvailability(int slotId, {String? from, String? to}) async {
+    try {
+      final body = <String, dynamic>{};
+      if (from != null) body['from'] = from;
+      if (to != null) body['to'] = to;
+      await _apiService.put('${ApiConfig.availability}/$slotId', body: body);
+      // Refresh availability to get updated data
+      // (simpler than manually updating the local slot object)
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   void clearAll() {
     _aboutUsInfo = null;
     _clients = [];
