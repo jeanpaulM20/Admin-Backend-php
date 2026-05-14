@@ -718,7 +718,7 @@ class _PackageCard extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: const [
-                  Icon(Icons.store_rounded, size: 20, color: Colors.white),
+                  Icon(Icons.shopping_cart, size: 20, color: Colors.white),
                   SizedBox(width: 8),
                   Text('Paket kaufen', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                 ],
