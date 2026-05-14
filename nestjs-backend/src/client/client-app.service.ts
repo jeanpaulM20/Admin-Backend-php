@@ -5,7 +5,7 @@ import { Client } from '../entities/client.entity';
 import { Training, TrainingStatus } from '../entities/training.entity';
 import { TrainerAvailability } from '../entities/trainer-availability.entity';
 import { Trainer } from '../entities/trainer.entity';
-import { ClientCredits, TrainingType, PerformanceTest, File as ClientFile } from '../entities/remaining.entities';
+import { ClientCredits, TrainingType, PerformanceTest, File as ClientFile, Preference } from '../entities/remaining.entities';
 import { Metric } from '../entities/metric.entity';
 import { Location } from '../entities/location.entity';
 import { ReviewService } from '../review/review.service';
@@ -23,6 +23,7 @@ export class ClientAppService {
     @InjectRepository(PerformanceTest) private readonly perfTestRepo: Repository<PerformanceTest>,
     @InjectRepository(ClientFile) private readonly fileRepo: Repository<ClientFile>,
     @InjectRepository(Metric) private readonly metricRepo: Repository<Metric>,
+    @InjectRepository(Preference) private readonly preferenceRepo: Repository<Preference>,
     private readonly reviewService: ReviewService,
   ) {}
 
@@ -814,5 +815,59 @@ export class ClientAppService {
           }
         : undefined,
     };
+  }
+
+  // ── Preferences ──────────────────────────────────────────────────
+
+  /** Known booking preference keys */
+  private static readonly PREF_KEYS = ['trainer_id', 'training_type_id', 'location_id'];
+
+  /** Get client booking preferences (trainer, type, location defaults) */
+  async getPreferences(clientId: number) {
+    const rows = await this.preferenceRepo.find({ where: { clientId } });
+    const result: Record<string, string | null> = {};
+    for (const key of ClientAppService.PREF_KEYS) {
+      const row = rows.find(r => r.key === key);
+      result[key] = row?.value ?? null;
+    }
+    return result;
+  }
+
+  /** Save client booking preferences (partial update — only provided keys are updated) */
+  async savePreferences(clientId: number, prefs: Record<string, string | null>) {
+    const saved: Record<string, string | null> = {};
+
+    for (const key of ClientAppService.PREF_KEYS) {
+      if (!(key in prefs)) continue;
+
+      const value = prefs[key];
+      const existing = await this.preferenceRepo.findOne({
+        where: { clientId, key },
+      });
+
+      if (value === null || value === '') {
+        // Delete preference
+        if (existing) {
+          await this.preferenceRepo.remove(existing);
+        }
+        saved[key] = null;
+      } else if (existing) {
+        // Update
+        existing.value = String(value);
+        await this.preferenceRepo.save(existing);
+        saved[key] = existing.value;
+      } else {
+        // Insert
+        const pref = this.preferenceRepo.create({
+          clientId,
+          key,
+          value: String(value),
+        });
+        await this.preferenceRepo.save(pref);
+        saved[key] = pref.value;
+      }
+    }
+
+    return saved;
   }
 }

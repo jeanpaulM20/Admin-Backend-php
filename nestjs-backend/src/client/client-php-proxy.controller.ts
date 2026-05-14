@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Delete, Param, Body, Query,
+  Controller, Get, Post, Put, Delete, Param, Body, Query,
   ParseIntPipe, NotFoundException,
 } from '@nestjs/common';
 import { ClientAppService } from './client-app.service';
@@ -96,6 +96,25 @@ export class ClientAppController {
   polarDisconnect(@Param('clientId', ParseIntPipe) clientId: number) {
     return { success: true };
   }
+
+  // ── Preferences ───────────────────────────────────────────────────
+
+  /** Get booking preferences (default trainer, type, location) */
+  @Get('preferences/:clientId')
+  preferences(@Param('clientId', ParseIntPipe) clientId: number) {
+    return this.appService.getPreferences(clientId);
+  }
+
+  /** Save booking preferences (partial update) */
+  @Put('preferences/:clientId')
+  savePreferences(
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Body() body: Record<string, string | null>,
+  ) {
+    return this.appService.savePreferences(clientId, body);
+  }
+
+  // ── Appointments ─────────────────────────────────────────────────
 
   /** Book appointment */
   @Post('appointment/:clientId')

@@ -7,6 +7,7 @@ import '../config/app_colors.dart';
 import '../config/api_config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/appointment_provider.dart';
+import '../providers/preference_provider.dart';
 import '../models/appointment.dart';
 import '../models/calendar_data.dart';
 import '../widgets/loading_indicator.dart';
@@ -24,6 +25,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
+  // Filter state
+  String? _filterTrainerId;
+  String? _filterTypeId;
+  String? _filterLocationId;
+  bool _prefsApplied = false;
+
   @override
   void initState() {
     super.initState();
@@ -34,9 +41,44 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Future<void> _loadData() async {
     final auth = context.read<AuthProvider>();
     if (auth.clientId != null) {
-      await context.read<AppointmentProvider>().fetchCalendar(auth.clientId!);
+      await Future.wait([
+        context.read<AppointmentProvider>().fetchCalendar(auth.clientId!),
+        context.read<PreferenceProvider>().load(auth.clientId!),
+      ]);
+      _applyPreferences();
     }
   }
+
+  void _applyPreferences() {
+    if (_prefsApplied) return;
+    final pref = context.read<PreferenceProvider>();
+    final calData = context.read<AppointmentProvider>().calendarData;
+    if (calData == null) return;
+
+    setState(() {
+      // Apply preferences only if valid IDs exist in current data
+      if (pref.trainerId != null &&
+          calData.trainers.any((t) => t.id == pref.trainerId)) {
+        _filterTrainerId = pref.trainerId;
+      } else if (calData.trainers.length == 1) {
+        _filterTrainerId = calData.trainers.first.id;
+      }
+
+      if (pref.trainingTypeId != null &&
+          calData.trainingTypes.any((t) => t.id == pref.trainingTypeId)) {
+        _filterTypeId = pref.trainingTypeId;
+      }
+
+      if (pref.locationId != null &&
+          calData.locations.any((l) => l.id == pref.locationId)) {
+        _filterLocationId = pref.locationId;
+      }
+
+      _prefsApplied = true;
+    });
+  }
+
+  // ── Data helpers ─────────────────────────────────────────────────────────────
 
   List<Appointment> _getEventsForDay(DateTime day) {
     final calData = context.read<AppointmentProvider>().calendarData;
@@ -49,7 +91,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ..sort((a, b) => a.startDate.compareTo(b.startDate));
   }
 
-  /// Check if a trainer has availability on a given day.
   List<AvailabilityInterval> _getAvailabilityForDay(DateTime day) {
     final calData = context.read<AppointmentProvider>().calendarData;
     if (calData == null) return [];
@@ -59,690 +100,298 @@ class _CalendarScreenState extends State<CalendarScreen> {
         .toList();
   }
 
-  // ── Booking dialog ──────────────────────────────────────────────────────────
+  /// Generate 30-minute time slots for the selected day based on availability + filters.
+  List<_TimeSlot> _generateSlots(DateTime day, CalendarData calData) {
+    const int slotDuration = 60; // training duration in minutes
+    const int slotStep = 30; // grid step
 
-  void _showBookingDialog() {
+    final dateStr = DateFormat('yyyy-MM-dd').format(day);
+    final now = DateTime.now();
+
+    // 1. Filter availability by selected filters
+    final filteredAvail = calData.availabilityIntervals.where((a) {
+      if (a.date != dateStr) return false;
+      if (_filterTrainerId != null && a.trainerId != _filterTrainerId) return false;
+      if (_filterTypeId != null && a.trainingTypeId != null && a.trainingTypeId != _filterTypeId) return false;
+      if (_filterLocationId != null && a.locationId != null && a.locationId != _filterLocationId) return false;
+      return true;
+    }).toList();
+
+    if (filteredAvail.isEmpty) return [];
+
+    // 2. Collect all 30-min slots that fit within availability windows
+    final Set<int> availableMinutes = {};
+    for (final a in filteredAvail) {
+      final fromParts = a.from.split(':');
+      final toParts = a.to.split(':');
+      if (fromParts.length < 2 || toParts.length < 2) continue;
+      final fromMin = int.parse(fromParts[0]) * 60 + int.parse(fromParts[1]);
+      final toMin = int.parse(toParts[0]) * 60 + int.parse(toParts[1]);
+
+      for (int m = fromMin; m + slotDuration <= toMin; m += slotStep) {
+        availableMinutes.add(m);
+      }
+    }
+
+    if (availableMinutes.isEmpty) return [];
+
+    // Get location buffer values
+    final locationMap = <String, int>{};
+    for (final loc in calData.locations) {
+      locationMap[loc.id] = loc.bufferMinutes;
+    }
+    final selectedBuffer = _filterLocationId != null
+        ? (locationMap[_filterLocationId!] ?? 30)
+        : 30;
+
+    // 3. Check each slot for conflicts
+    final sorted = availableMinutes.toList()..sort();
+    final slots = <_TimeSlot>[];
+
+    for (final startMin in sorted) {
+      final endMin = startMin + slotDuration;
+      final timeStr = _minutesToTime(startMin);
+      final endTimeStr = _minutesToTime(endMin);
+
+      // Available slot's trainer (pick from filtered availability)
+      final matchingAvail = filteredAvail.firstWhere(
+        (a) {
+          final fromParts = a.from.split(':');
+          final toParts = a.to.split(':');
+          if (fromParts.length < 2 || toParts.length < 2) return false;
+          final fromMin = int.parse(fromParts[0]) * 60 + int.parse(fromParts[1]);
+          final toMin = int.parse(toParts[0]) * 60 + int.parse(toParts[1]);
+          return startMin >= fromMin && endMin <= toMin;
+        },
+        orElse: () => filteredAvail.first,
+      );
+
+      // 12h advance check
+      final slotDateTime = DateTime(day.year, day.month, day.day, startMin ~/ 60, startMin % 60);
+      final hoursUntil = slotDateTime.difference(now).inMinutes / 60.0;
+      if (hoursUntil < 12) {
+        slots.add(_TimeSlot(
+          startMin: startMin,
+          timeStr: timeStr,
+          endTimeStr: endTimeStr,
+          status: _SlotStatus.tooSoon,
+          trainerId: matchingAvail.trainerId,
+          locationId: matchingAvail.locationId,
+          message: 'Mind. 12h im Voraus',
+        ));
+        continue;
+      }
+
+      // Client double-booking check
+      bool clientConflict = false;
+      for (final a in calData.appointments) {
+        if (a.status.toLowerCase() == 'cancelled') continue;
+        if (a.startDate.year != day.year || a.startDate.month != day.month || a.startDate.day != day.day) continue;
+        final apptStart = a.startDate.hour * 60 + a.startDate.minute;
+        final apptEnd = apptStart + a.duration;
+        if (startMin < apptEnd && apptStart < endMin) {
+          clientConflict = true;
+          break;
+        }
+      }
+      if (clientConflict) {
+        slots.add(_TimeSlot(
+          startMin: startMin,
+          timeStr: timeStr,
+          endTimeStr: endTimeStr,
+          status: _SlotStatus.clientConflict,
+          trainerId: matchingAvail.trainerId,
+          locationId: matchingAvail.locationId,
+          message: 'Du hast schon einen Termin',
+        ));
+        continue;
+      }
+
+      // Trainer conflict + buffer check
+      String? trainerMsg;
+      for (final b in calData.trainerBookings) {
+        if (_filterTrainerId != null && b.trainerId != _filterTrainerId) continue;
+        if (b.trainerId != matchingAvail.trainerId) continue;
+        if (b.date != dateStr) continue;
+        if (b.status.toLowerCase() == 'cancelled') continue;
+
+        final parts = b.starttime.split(':');
+        if (parts.length < 2) continue;
+        final bStart = int.parse(parts[0]) * 60 + int.parse(parts[1]);
+        final bEnd = bStart + b.duration;
+
+        // 3-tier buffer
+        final sameLocation = _filterLocationId != null &&
+            b.locationId != null &&
+            b.locationId == _filterLocationId;
+        int buffer = 0;
+        if (!sameLocation) {
+          final existingBuffer = b.locationId != null ? (locationMap[b.locationId!] ?? 30) : 30;
+          buffer = selectedBuffer > existingBuffer ? selectedBuffer : existingBuffer;
+        }
+
+        if (startMin < bEnd + buffer && bStart < endMin + buffer) {
+          if (buffer > 0) {
+            trainerMsg = 'Puffer ${buffer}min (anderer Standort)';
+          } else {
+            trainerMsg = 'Trainer belegt';
+          }
+          break;
+        }
+      }
+
+      if (trainerMsg != null) {
+        slots.add(_TimeSlot(
+          startMin: startMin,
+          timeStr: timeStr,
+          endTimeStr: endTimeStr,
+          status: _SlotStatus.trainerConflict,
+          trainerId: matchingAvail.trainerId,
+          locationId: matchingAvail.locationId,
+          message: trainerMsg,
+        ));
+        continue;
+      }
+
+      // Available!
+      slots.add(_TimeSlot(
+        startMin: startMin,
+        timeStr: timeStr,
+        endTimeStr: endTimeStr,
+        status: _SlotStatus.available,
+        trainerId: matchingAvail.trainerId,
+        locationId: matchingAvail.locationId,
+      ));
+    }
+
+    return slots;
+  }
+
+  String _minutesToTime(int minutes) {
+    return '${(minutes ~/ 60).toString().padLeft(2, '0')}:${(minutes % 60).toString().padLeft(2, '0')}';
+  }
+
+  // ── Booking ─────────────────────────────────────────────────────────────────
+
+  Future<void> _bookSlot(_TimeSlot slot) async {
     final appt = context.read<AppointmentProvider>();
     final calData = appt.calendarData;
+    if (calData == null) return;
 
-    // Fix 17: Show message if no data/trainers/types
-    if (calData == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Kalenderdaten werden noch geladen…'),
-          backgroundColor: AppColors.orange,
-        ),
-      );
-      return;
-    }
-    if (calData.trainers.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Kein Trainer verfügbar.'),
-          backgroundColor: AppColors.orange,
-        ),
-      );
-      return;
-    }
-    if (calData.trainingTypes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Keine Trainingsarten verfügbar.'),
-          backgroundColor: AppColors.orange,
-        ),
-      );
-      return;
-    }
-
-    // Block booking in the past
-    final bookingDay = _selectedDay ?? DateTime.now();
-    final today = DateTime.now();
-    final todayDate = DateTime(today.year, today.month, today.day);
-    final selectedDate = DateTime(bookingDay.year, bookingDay.month, bookingDay.day);
-    if (selectedDate.isBefore(todayDate)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Buchungen in der Vergangenheit sind nicht möglich.'),
-          backgroundColor: AppColors.orange,
-        ),
-      );
-      return;
-    }
-
-    // Credit check — redirect to credits screen if no credits
     if (calData.credits <= 0) {
       _showNoCreditsDialog();
       return;
     }
 
-    String? selectedTrainerId = calData.defaultTrainerId;
-    String? selectedTypeId = calData.defaultTypeId;
-    String? selectedLocationId =
-        calData.locations.isNotEmpty ? calData.locations.first.id : null;
-    TimeOfDay selectedTime = const TimeOfDay(hour: 9, minute: 0);
-    bool isBooking = false;
+    final bookingDay = _selectedDay ?? DateTime.now();
+    final trainerId = slot.trainerId ?? _filterTrainerId ?? calData.defaultTrainerId;
+    final typeId = _filterTypeId ?? calData.defaultTypeId;
+    final locationId = slot.locationId ?? _filterLocationId;
 
-    // Duration is always 60 minutes
-    const int durationMin = 60;
+    final trainerName = calData.trainers
+        .where((t) => t.id == trainerId)
+        .firstOrNull?.fullName ?? 'Trainer';
+    final typeName = calData.trainingTypes
+        .where((t) => t.id == typeId)
+        .firstOrNull?.name ?? 'Training';
+    final locationName = calData.locations
+        .where((l) => l.id == locationId)
+        .firstOrNull?.name ?? '';
 
-    showDialog(
+    final confirmed = await showDialog<bool>(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          // Fix 14: Filter availability by trainer + type + location
-          final dayAvail = _getAvailabilityForDay(bookingDay)
-              .where((a) {
-                if (selectedTrainerId != null &&
-                    a.trainerId != selectedTrainerId) return false;
-                if (selectedTypeId != null &&
-                    a.trainingTypeId != null &&
-                    a.trainingTypeId != selectedTypeId) return false;
-                if (selectedLocationId != null &&
-                    a.locationId != null &&
-                    a.locationId != selectedLocationId) return false;
-                return true;
-              })
-              .toList();
-
-          // Check if selected time is within an availability slot
-          bool isTimeValid() {
-            if (dayAvail.isEmpty) return true; // allow if no avail defined
-            final selMinutes = selectedTime.hour * 60 + selectedTime.minute;
-            final selEnd = selMinutes + durationMin;
-            for (final slot in dayAvail) {
-              final fromParts = slot.from.split(':');
-              final toParts = slot.to.split(':');
-              if (fromParts.length < 2 || toParts.length < 2) continue;
-              final fromMin = int.parse(fromParts[0]) * 60 + int.parse(fromParts[1]);
-              final toMin = int.parse(toParts[0]) * 60 + int.parse(toParts[1]);
-              if (selMinutes >= fromMin && selEnd <= toMin) return true;
-            }
-            return false;
-          }
-
-          // Check for double booking (client's own appointments)
-          bool hasConflict() {
-            final selMinutes = selectedTime.hour * 60 + selectedTime.minute;
-            final selEnd = selMinutes + durationMin;
-            for (final a in calData.appointments) {
-              if (a.status.toLowerCase() == 'cancelled') continue;
-              if (a.startDate.year != bookingDay.year ||
-                  a.startDate.month != bookingDay.month ||
-                  a.startDate.day != bookingDay.day) continue;
-              final apptStart = a.startDate.hour * 60 + a.startDate.minute;
-              final apptEnd = apptStart + a.duration;
-              if (selMinutes < apptEnd && selEnd > apptStart) return true;
-            }
-            return false;
-          }
-
-          // Check trainer conflict (with 30-min buffer for different locations)
-          String? trainerConflictMsg() {
-            if (selectedTrainerId == null) return null;
-            final dateStr = DateFormat('yyyy-MM-dd').format(bookingDay);
-            final selMinutes = selectedTime.hour * 60 + selectedTime.minute;
-            final selEnd = selMinutes + durationMin;
-            const bufferMin = 30;
-
-            for (final b in calData.trainerBookings) {
-              if (b.trainerId != selectedTrainerId) continue;
-              if (b.date != dateStr) continue;
-              if (b.status.toLowerCase() == 'cancelled') continue;
-
-              final parts = b.starttime.split(':');
-              if (parts.length < 2) continue;
-              final bStart = int.parse(parts[0]) * 60 + int.parse(parts[1]);
-              final bEnd = bStart + b.duration;
-
-              // Same location → no buffer, different → 30 min buffer
-              final sameLocation = selectedLocationId != null &&
-                  b.locationId != null &&
-                  b.locationId == selectedLocationId;
-              final buffer = sameLocation ? 0 : bufferMin;
-
-              if (selMinutes < bEnd + buffer && bStart < selEnd + buffer) {
-                if (buffer > 0) {
-                  return 'Trainer hat einen Termin an einem anderen Standort. '
-                      '30 Min. Pufferzeit nötig.';
-                }
-                return 'Trainer ist zu dieser Zeit bereits gebucht.';
-              }
-            }
-            return null;
-          }
-
-          // Check 12-hour advance booking rule
-          bool isTooShortNotice() {
-            final appointmentDT = DateTime(
-              bookingDay.year, bookingDay.month, bookingDay.day,
-              selectedTime.hour, selectedTime.minute,
-            );
-            final hoursUntil =
-                appointmentDT.difference(DateTime.now()).inMinutes / 60.0;
-            return hoursUntil < 12;
-          }
-
-          final timeValid = isTimeValid();
-          final conflict = hasConflict();
-          final trainerConflict = trainerConflictMsg();
-          final tooShortNotice = isTooShortNotice();
-
-          return AlertDialog(
-            backgroundColor: AppColors.surface,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16)),
-            title: const Text('Termin buchen',
-                style: TextStyle(color: AppColors.text)),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Fix 10: Selected date prominent at top
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withAlpha(15),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                          color: AppColors.primary.withAlpha(40)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.calendar_today,
-                            color: AppColors.primary, size: 18),
-                        const SizedBox(width: 10),
-                        Text(
-                          DateFormat('EEEE, d. MMMM yyyy', 'de_DE')
-                              .format(bookingDay),
-                          style: const TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Credits display
-                  const SizedBox(height: 8),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: calData.credits > 0
-                          ? AppColors.green.withAlpha(15)
-                          : AppColors.red.withAlpha(15),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: calData.credits > 0
-                            ? AppColors.green.withAlpha(40)
-                            : AppColors.red.withAlpha(40),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.toll_outlined,
-                            color: calData.credits > 0
-                                ? AppColors.green
-                                : AppColors.red,
-                            size: 16),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${calData.credits} Credit${calData.credits != 1 ? 's' : ''} verfügbar',
-                          style: TextStyle(
-                              color: calData.credits > 0
-                                  ? AppColors.green
-                                  : AppColors.red,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Trainer dropdown
-                  DropdownButtonFormField<String>(
-                    value: selectedTrainerId,
-                    dropdownColor: AppColors.surface2,
-                    decoration: const InputDecoration(
-                      labelText: 'Trainer',
-                      labelStyle: TextStyle(color: AppColors.muted),
-                      enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: AppColors.border)),
-                    ),
-                    style: const TextStyle(color: AppColors.text),
-                    items: calData.trainers
-                        .map((t) => DropdownMenuItem(
-                            value: t.id, child: Text(t.fullName)))
-                        .toList(),
-                    onChanged: isBooking
-                        ? null
-                        : (v) =>
-                            setDialogState(() => selectedTrainerId = v),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Type dropdown + duration info
-                  DropdownButtonFormField<String>(
-                    value: selectedTypeId,
-                    dropdownColor: AppColors.surface2,
-                    decoration: const InputDecoration(
-                      labelText: 'Trainingsart',
-                      labelStyle: TextStyle(color: AppColors.muted),
-                      enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: AppColors.border)),
-                    ),
-                    style: const TextStyle(color: AppColors.text),
-                    items: calData.trainingTypes
-                        .map((t) => DropdownMenuItem(
-                            value: t.id,
-                            child: Text(t.name)))
-                        .toList(),
-                    onChanged: isBooking
-                        ? null
-                        : (v) =>
-                            setDialogState(() => selectedTypeId = v),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Location dropdown
-                  if (calData.locations.isNotEmpty)
-                    DropdownButtonFormField<String>(
-                      value: selectedLocationId,
-                      dropdownColor: AppColors.surface2,
-                      decoration: const InputDecoration(
-                        labelText: 'Standort',
-                        labelStyle: TextStyle(color: AppColors.muted),
-                        enabledBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(color: AppColors.border)),
-                      ),
-                      style: const TextStyle(color: AppColors.text),
-                      items: calData.locations
-                          .map((l) => DropdownMenuItem(
-                              value: l.id, child: Text(l.name)))
-                          .toList(),
-                      onChanged: isBooking
-                          ? null
-                          : (v) =>
-                              setDialogState(() => selectedLocationId = v),
-                    ),
-                  const SizedBox(height: 16),
-
-                  // Available slots info
-                  if (dayAvail.isNotEmpty)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppColors.green.withAlpha(15),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color: AppColors.green.withAlpha(40)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Verfügbare Zeiten (antippen zum Auswählen):',
-                            style: TextStyle(
-                              color: AppColors.green,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 4,
-                            children: dayAvail
-                                .map((a) => GestureDetector(
-                                      onTap: isBooking
-                                          ? null
-                                          : () {
-                                              // Tap on slot to auto-fill time
-                                              final parts = a.from.split(':');
-                                              if (parts.length >= 2) {
-                                                setDialogState(() {
-                                                  selectedTime = TimeOfDay(
-                                                    hour: int.parse(parts[0]),
-                                                    minute: int.parse(parts[1]),
-                                                  );
-                                                });
-                                              }
-                                            },
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 3),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.green.withAlpha(25),
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                          border: Border.all(
-                                              color: AppColors.green
-                                                  .withAlpha(50)),
-                                        ),
-                                        child: Text(
-                                          '${a.from} – ${a.to}',
-                                          style: const TextStyle(
-                                              color: AppColors.green,
-                                              fontSize: 11),
-                                        ),
-                                      ),
-                                    ))
-                                .toList(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  if (dayAvail.isEmpty)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppColors.orange.withAlpha(15),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color: AppColors.orange.withAlpha(40)),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.info_outline,
-                              color: AppColors.orange, size: 16),
-                          SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'Keine Verfügbarkeit an diesem Tag hinterlegt',
-                              style: TextStyle(
-                                  color: AppColors.orange, fontSize: 12),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  const SizedBox(height: 12),
-
-                  // Time picker
-                  InkWell(
-                    onTap: isBooking
-                        ? null
-                        : () async {
-                            final time = await showTimePicker(
-                              context: ctx,
-                              initialTime: selectedTime,
-                              builder: (context, child) {
-                                return MediaQuery(
-                                  data: MediaQuery.of(context).copyWith(
-                                      alwaysUse24HourFormat: true),
-                                  child: child!,
-                                );
-                              },
-                            );
-                            if (time != null) {
-                              setDialogState(() => selectedTime = time);
-                            }
-                          },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 14),
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                            color: !timeValid
-                                ? AppColors.red
-                                : conflict
-                                    ? AppColors.orange
-                                    : AppColors.border),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.access_time_rounded,
-                              color: !timeValid
-                                  ? AppColors.red
-                                  : AppColors.muted,
-                              size: 20),
-                          const SizedBox(width: 10),
-                          Text(
-                            '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}',
-                            style: const TextStyle(
-                                color: AppColors.text, fontSize: 15),
-                          ),
-                          const Spacer(),
-                          Text(
-                            '$durationMin Min.',
-                            style: const TextStyle(
-                                color: AppColors.muted, fontSize: 12),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // Fix 4: Time validation warning
-                  if (!timeValid && dayAvail.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.warning_amber_rounded,
-                              color: AppColors.red, size: 14),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              'Gewählte Zeit liegt außerhalb der Verfügbarkeit',
-                              style: TextStyle(
-                                  color: AppColors.red, fontSize: 11),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  // Double booking warning (client's own)
-                  if (conflict)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.block,
-                              color: AppColors.red, size: 14),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              'Du hast bereits einen Termin zu dieser Zeit.',
-                              style: TextStyle(
-                                  color: AppColors.red, fontSize: 11),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  // Trainer conflict / buffer warning
-                  if (trainerConflict != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.warning_amber_rounded,
-                              color: AppColors.orange, size: 14),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              trainerConflict,
-                              style: TextStyle(
-                                  color: AppColors.orange, fontSize: 11),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  // 12-hour advance booking rule
-                  if (tooShortNotice)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.schedule,
-                              color: AppColors.red, size: 14),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              'Buchungen müssen mind. 12 Stunden im Voraus erfolgen.',
-                              style: TextStyle(
-                                  color: AppColors.red, fontSize: 11),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: const Text('Buchung bestaetigen',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              DateFormat('EEEE, d. MMMM yyyy', 'de_DE').format(bookingDay),
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: isBooking ? null : () => Navigator.pop(ctx),
-                child: const Text('Abbrechen',
-                    style: TextStyle(color: AppColors.muted)),
-              ),
-              ElevatedButton(
-                onPressed: isBooking ||
-                        selectedTrainerId == null ||
-                        selectedTypeId == null ||
-                        conflict ||
-                        trainerConflict != null ||
-                        tooShortNotice
-                    ? null
-                    : () async {
-                        // Fix 9: Confirmation dialog
-                        final trainerName = calData.trainers
-                            .where((t) => t.id == selectedTrainerId)
-                            .firstOrNull
-                            ?.fullName ?? 'Unbekannt';
-                        final typeName = calData.trainingTypes
-                            .where((t) => t.id == selectedTypeId)
-                            .firstOrNull
-                            ?.name ?? 'Unbekannt';
-                        final timeStr =
-                            '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
-                        final endMinutes = selectedTime.hour * 60 +
-                            selectedTime.minute +
-                            durationMin;
-                        final endStr =
-                            '${(endMinutes ~/ 60).toString().padLeft(2, '0')}:${(endMinutes % 60).toString().padLeft(2, '0')}';
-
-                        final confirmed = await showDialog<bool>(
-                          context: ctx,
-                          builder: (confirmCtx) => AlertDialog(
-                            backgroundColor: AppColors.surface,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14)),
-                            title: const Text('Buchung bestätigen',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold)),
-                            content: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  DateFormat('EEEE, d. MMMM yyyy', 'de_DE')
-                                      .format(bookingDay),
-                                  style: const TextStyle(
-                                    color: AppColors.primary,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                _confirmRow('Uhrzeit', '$timeStr – $endStr'),
-                                _confirmRow('Trainer', trainerName),
-                                _confirmRow('Typ', typeName),
-                                _confirmRow('Dauer', '60 Min.'),
-                                _confirmRow('Credits', '1 Credit'),
-                              ],
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () =>
-                                    Navigator.pop(confirmCtx, false),
-                                child: const Text('Zurück',
-                                    style:
-                                        TextStyle(color: AppColors.muted)),
-                              ),
-                              ElevatedButton(
-                                onPressed: () =>
-                                    Navigator.pop(confirmCtx, true),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primary,
-                                  foregroundColor: AppColors.white,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(8)),
-                                ),
-                                child: const Text('Jetzt buchen'),
-                              ),
-                            ],
-                          ),
-                        );
-
-                        if (confirmed != true) return;
-
-                        // Fix 8: Show loading in dialog
-                        setDialogState(() => isBooking = true);
-
-                        final auth = context.read<AuthProvider>();
-                        final success = await appt.bookAppointment(
-                          auth.clientId!,
-                          trainerId: selectedTrainerId!,
-                          trainingTypeId: selectedTypeId!,
-                          date: DateFormat('yyyy-MM-dd').format(bookingDay),
-                          starttime: timeStr,
-                          locationId: selectedLocationId,
-                          duration: durationMin,
-                        );
-
-                        if (ctx.mounted) Navigator.pop(ctx);
-
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(success
-                                  ? 'Termin erfolgreich gebucht!'
-                                  : appt.error ??
-                                      'Buchung fehlgeschlagen'),
-                              backgroundColor:
-                                  success ? AppColors.green : AppColors.red,
-                            ),
-                          );
-                        }
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                ),
-                child: isBooking
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('Buchen'),
-              ),
-            ],
-          );
-        },
+            const SizedBox(height: 10),
+            _confirmRow('Uhrzeit', '${slot.timeStr} – ${slot.endTimeStr}'),
+            _confirmRow('Trainer', trainerName),
+            _confirmRow('Typ', typeName),
+            if (locationName.isNotEmpty) _confirmRow('Ort', locationName),
+            _confirmRow('Dauer', '60 Min.'),
+            _confirmRow('Credits', '1 Credit'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen', style: TextStyle(color: AppColors.muted)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Jetzt buchen'),
+          ),
+        ],
       ),
     );
+
+    if (confirmed != true || !mounted) return;
+
+    // Show loading
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(children: [
+          SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+          SizedBox(width: 12),
+          Text('Termin wird gebucht...'),
+        ]),
+        backgroundColor: AppColors.primary,
+        duration: Duration(seconds: 10),
+      ),
+    );
+
+    final auth = context.read<AuthProvider>();
+    final success = await appt.bookAppointment(
+      auth.clientId!,
+      trainerId: trainerId!,
+      trainingTypeId: typeId!,
+      date: DateFormat('yyyy-MM-dd').format(bookingDay),
+      starttime: slot.timeStr,
+      locationId: locationId,
+      duration: 60,
+    );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      // Save current filter as preference (auto-remember last booking choices)
+      if (success) {
+        final prefProvider = context.read<PreferenceProvider>();
+        prefProvider.savePreferences(auth.clientId!, {
+          'trainer_id': trainerId,
+          'training_type_id': typeId,
+          'location_id': locationId,
+        }).catchError((_) {}); // fire-and-forget
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success
+              ? 'Termin erfolgreich gebucht!'
+              : appt.error ?? 'Buchung fehlgeschlagen'),
+          backgroundColor: success ? AppColors.green : AppColors.red,
+        ),
+      );
+    }
   }
 
   void _showNoCreditsDialog() {
@@ -752,35 +401,30 @@ class _CalendarScreenState extends State<CalendarScreen> {
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         title: const Text(
-          'Keine Credits verfügbar',
+          'Keine Credits verfuegbar',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         content: const Text(
-          'Du hast keine verfügbaren Credits mehr. '
-          'Bitte kaufe neue Credits, um Termine buchen zu können.',
+          'Du hast keine verfuegbaren Credits mehr. '
+          'Bitte kaufe neue Credits, um Termine buchen zu koennen.',
           style: TextStyle(color: AppColors.text, fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Schliessen',
-                style: TextStyle(color: AppColors.muted)),
+            child: const Text('Schliessen', style: TextStyle(color: AppColors.muted)),
           ),
           ElevatedButton.icon(
             onPressed: () {
               Navigator.pop(ctx);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CreditsScreen()),
-              );
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const CreditsScreen()));
             },
             icon: const Icon(Icons.toll_outlined, size: 18),
             label: const Text('Credits kaufen'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: AppColors.white,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
           ),
         ],
@@ -795,21 +439,119 @@ class _CalendarScreenState extends State<CalendarScreen> {
         children: [
           SizedBox(
             width: 60,
-            child: Text(label,
-                style: const TextStyle(
-                    color: AppColors.muted, fontSize: 13)),
+            child: Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
           ),
           Expanded(
-            child: Text(value,
-                style: const TextStyle(
-                    color: AppColors.text, fontSize: 13)),
+            child: Text(value, style: const TextStyle(color: AppColors.text, fontSize: 13)),
           ),
         ],
       ),
     );
   }
 
-  // ── Appointment detail bottom sheet ─────────────────────────────────────────
+  // ── Cancel appointment ─────────────────────────────────────────────────────
+
+  Future<void> _cancelAppointment(Appointment appt) async {
+    final hoursUntil = appt.startDate.difference(DateTime.now()).inMinutes / 60.0;
+    final isLateCancellation = hoursUntil < 12;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: const Text('Termin absagen',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Moechtest du diesen Termin wirklich absagen?',
+                style: TextStyle(color: AppColors.text)),
+            const SizedBox(height: 10),
+            if (isLateCancellation)
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.red.withAlpha(15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.red.withAlpha(40)),
+                ),
+                child: const Row(children: [
+                  Icon(Icons.warning_amber_rounded, color: AppColors.red, size: 14),
+                  SizedBox(width: 6),
+                  Expanded(child: Text(
+                    'Verspaetete Absage (weniger als 12 Stunden). Dein Credit wird nicht zurueckerstattet.',
+                    style: TextStyle(color: AppColors.red, fontSize: 12),
+                  )),
+                ]),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.green.withAlpha(15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.green.withAlpha(40)),
+                ),
+                child: const Row(children: [
+                  Icon(Icons.toll_outlined, color: AppColors.green, size: 14),
+                  SizedBox(width: 6),
+                  Expanded(child: Text(
+                    'Dein Credit wird automatisch zurueckerstattet.',
+                    style: TextStyle(color: AppColors.green, fontSize: 12),
+                  )),
+                ]),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Nein', style: TextStyle(color: AppColors.muted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Ja, absagen', style: TextStyle(color: AppColors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(children: [
+          SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+          SizedBox(width: 12),
+          Text('Termin wird abgesagt...'),
+        ]),
+        backgroundColor: AppColors.orange,
+        duration: Duration(seconds: 10),
+      ),
+    );
+
+    final auth = context.read<AuthProvider>();
+    final provider = context.read<AppointmentProvider>();
+    final success = await provider.cancelAppointment(auth.clientId!, appt.id);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success
+              ? (isLateCancellation
+                  ? 'Termin abgesagt – Credit wurde nicht zurueckerstattet.'
+                  : 'Termin abgesagt – Credit wurde zurueckerstattet.')
+              : provider.error ?? 'Absage fehlgeschlagen'),
+          backgroundColor: success
+              ? (isLateCancellation ? AppColors.orange : AppColors.green)
+              : AppColors.red,
+        ),
+      );
+    }
+  }
 
   void _showAppointmentDetail(Appointment appt) {
     final isCancelled = appt.status.toLowerCase() == 'cancelled';
@@ -826,99 +568,60 @@ class _CalendarScreenState extends State<CalendarScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Handle
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.muted,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
+            Center(child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(color: AppColors.muted, borderRadius: BorderRadius.circular(2)),
+            )),
             const SizedBox(height: 16),
-
-            // Title + Status
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    appt.trainingTypeName.isNotEmpty
-                        ? appt.trainingTypeName
-                        : 'Training',
-                    style: TextStyle(
-                      color: isCancelled ? AppColors.muted : AppColors.text,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      decoration: isCancelled
-                          ? TextDecoration.lineThrough
-                          : null,
-                    ),
-                  ),
+            Row(children: [
+              Expanded(child: Text(
+                appt.trainingTypeName.isNotEmpty ? appt.trainingTypeName : 'Training',
+                style: TextStyle(
+                  color: isCancelled ? AppColors.muted : AppColors.text,
+                  fontSize: 18, fontWeight: FontWeight.w700,
+                  decoration: isCancelled ? TextDecoration.lineThrough : null,
                 ),
-                _statusBadge(appt.status),
-              ],
-            ),
+              )),
+              _statusBadge(appt.status),
+            ]),
             const SizedBox(height: 14),
-
-            // Details
             _detailRow(Icons.calendar_today_outlined, 'Datum',
                 DateFormat('EEEE, d. MMMM yyyy', 'de_DE').format(appt.startDate)),
             _detailRow(Icons.access_time_outlined, 'Uhrzeit',
                 '${DateFormat('HH:mm').format(appt.startDate)} – ${DateFormat('HH:mm').format(appt.startDate.add(Duration(minutes: appt.duration)))} (${appt.duration} Min.)'),
             _detailRow(Icons.person_outline, 'Trainer', appt.trainerName),
             if (appt.locationName.isNotEmpty)
-              _detailRow(
-                  Icons.location_on_outlined, 'Ort', appt.locationName),
-
+              _detailRow(Icons.location_on_outlined, 'Ort', appt.locationName),
             const SizedBox(height: 20),
-
-            // Action buttons
-            Row(
-              children: [
-                // iCal download
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _addToCalendar(appt),
-                    icon: const Icon(Icons.calendar_month_outlined,
-                        size: 18),
-                    label: const Text('Kalender'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: const BorderSide(color: AppColors.primary),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ),
-                  ),
+            Row(children: [
+              Expanded(child: OutlinedButton.icon(
+                onPressed: () => _addToCalendar(appt),
+                icon: const Icon(Icons.calendar_month_outlined, size: 18),
+                label: const Text('Kalender'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
-                // Cancel button (only for active/booked – not cancelled, attended, or missed)
-                if (!isCancelled &&
-                    appt.status.toLowerCase() != 'attended' &&
-                    appt.status.toLowerCase() != 'missed') ...[
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _cancelAppointment(appt);
-                      },
-                      icon: const Icon(Icons.cancel_outlined, size: 18),
-                      label: const Text('Absagen'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.red,
-                        side: const BorderSide(color: AppColors.red),
-                        padding:
-                            const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                      ),
-                    ),
+              )),
+              if (!isCancelled &&
+                  appt.status.toLowerCase() != 'attended' &&
+                  appt.status.toLowerCase() != 'missed') ...[
+                const SizedBox(width: 10),
+                Expanded(child: OutlinedButton.icon(
+                  onPressed: () { Navigator.pop(ctx); _cancelAppointment(appt); },
+                  icon: const Icon(Icons.cancel_outlined, size: 18),
+                  label: const Text('Absagen'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.red,
+                    side: const BorderSide(color: AppColors.red),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
-                ],
+                )),
               ],
-            ),
+            ]),
           ],
         ),
       ),
@@ -928,23 +631,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Widget _detailRow(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: AppColors.muted),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 65,
-            child: Text(label,
-                style:
-                    const TextStyle(color: AppColors.muted, fontSize: 13)),
-          ),
-          Expanded(
-            child: Text(value,
-                style:
-                    const TextStyle(color: AppColors.text, fontSize: 14)),
-          ),
-        ],
-      ),
+      child: Row(children: [
+        Icon(icon, size: 16, color: AppColors.muted),
+        const SizedBox(width: 8),
+        SizedBox(width: 65, child: Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 13))),
+        Expanded(child: Text(value, style: const TextStyle(color: AppColors.text, fontSize: 14))),
+      ]),
     );
   }
 
@@ -952,19 +644,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final s = status.toLowerCase();
     Color color;
     String label;
-    if (s == 'cancelled') {
-      color = AppColors.red;
-      label = 'Abgesagt';
-    } else if (s == 'attended') {
-      color = AppColors.green;
-      label = 'Absolviert';
-    } else if (s == 'missed') {
-      color = AppColors.orange;
-      label = 'Verpasst';
-    } else {
-      color = AppColors.primary;
-      label = 'Gebucht';
-    }
+    if (s == 'cancelled') { color = AppColors.red; label = 'Abgesagt'; }
+    else if (s == 'attended') { color = AppColors.green; label = 'Absolviert'; }
+    else if (s == 'missed') { color = AppColors.orange; label = 'Verpasst'; }
+    else { color = AppColors.primary; label = 'Gebucht'; }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -973,155 +656,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withAlpha(60)),
       ),
-      child: Text(label,
-          style: TextStyle(
-              color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+      child: Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
     );
   }
 
   Future<void> _addToCalendar(Appointment appt) async {
-    final url = Uri.parse(
-        '${ApiConfig.baseUrl}api/training/${appt.id}/ical');
+    final url = Uri.parse('${ApiConfig.baseUrl}api/training/${appt.id}/ical');
     try {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Kalender-Download fehlgeschlagen.'),
-            backgroundColor: AppColors.red,
-          ),
+          const SnackBar(content: Text('Kalender-Download fehlgeschlagen.'), backgroundColor: AppColors.red),
         );
       }
-    }
-  }
-
-  Future<void> _cancelAppointment(Appointment appt) async {
-    // Check if this is a late cancellation (< 12 hours before appointment)
-    final hoursUntil =
-        appt.startDate.difference(DateTime.now()).inMinutes / 60.0;
-    final isLateCancellation = hoursUntil < 12;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: const Text('Termin absagen',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Möchtest du diesen Termin wirklich absagen?',
-              style: TextStyle(color: AppColors.text),
-            ),
-            const SizedBox(height: 10),
-            if (isLateCancellation)
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.red.withAlpha(15),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.red.withAlpha(40)),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.warning_amber_rounded,
-                        color: AppColors.red, size: 14),
-                    SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Verspätete Absage (weniger als 12 Stunden vor dem Termin). '
-                        'Dein Credit wird nicht zurückerstattet.',
-                        style: TextStyle(
-                            color: AppColors.red, fontSize: 12),
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            else
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.green.withAlpha(15),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.green.withAlpha(40)),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.toll_outlined,
-                        color: AppColors.green, size: 14),
-                    SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Dein Credit wird automatisch zurückerstattet.',
-                        style: TextStyle(
-                            color: AppColors.green, fontSize: 12),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child:
-                const Text('Nein', style: TextStyle(color: AppColors.muted)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Ja, absagen',
-                style: TextStyle(color: AppColors.red)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true || !mounted) return;
-
-    // Show loading SnackBar during cancellation
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Row(
-          children: [
-            SizedBox(
-              width: 16, height: 16,
-              child: CircularProgressIndicator(
-                  strokeWidth: 2, color: Colors.white),
-            ),
-            SizedBox(width: 12),
-            Text('Termin wird abgesagt…'),
-          ],
-        ),
-        backgroundColor: AppColors.orange,
-        duration: Duration(seconds: 10),
-      ),
-    );
-
-    final auth = context.read<AuthProvider>();
-    final provider = context.read<AppointmentProvider>();
-    final success =
-        await provider.cancelAppointment(auth.clientId!, appt.id);
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(success
-              ? (isLateCancellation
-                  ? 'Termin abgesagt – Credit wurde nicht zurückerstattet (verspätete Absage).'
-                  : 'Termin abgesagt – Credit wurde zurückerstattet.')
-              : provider.error ?? 'Absage fehlgeschlagen'),
-          backgroundColor: success
-              ? (isLateCancellation ? AppColors.orange : AppColors.green)
-              : AppColors.red,
-        ),
-      );
     }
   }
 
@@ -1130,28 +678,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final appt = context.watch<AppointmentProvider>();
-    final events =
-        _selectedDay != null ? _getEventsForDay(_selectedDay!) : [];
-    final dayAvail =
-        _selectedDay != null ? _getAvailabilityForDay(_selectedDay!) : [];
+    final calData = appt.calendarData;
+    final events = _selectedDay != null ? _getEventsForDay(_selectedDay!) : <Appointment>[];
+    final dayAvail = _selectedDay != null ? _getAvailabilityForDay(_selectedDay!) : <AvailabilityInterval>[];
+    final slots = (_selectedDay != null && calData != null)
+        ? _generateSlots(_selectedDay!, calData)
+        : <_TimeSlot>[];
+    final availableSlots = slots.where((s) => s.status == _SlotStatus.available).length;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      floatingActionButton: appt.calendarData != null
-          ? FloatingActionButton(
-              onPressed: _showBookingDialog,
-              backgroundColor: AppColors.primary,
-              child: const Icon(Icons.add_rounded, color: AppColors.white),
-            )
-          : null,
       body: SafeArea(
         child: RefreshIndicator(
           color: AppColors.primary,
           backgroundColor: AppColors.surface,
           onRefresh: _loadData,
-          child: appt.isLoading && appt.calendarData == null
+          child: appt.isLoading && calData == null
               ? const LoadingIndicator(message: 'Lade Kalender...')
-              : appt.error != null && appt.calendarData == null
+              : appt.error != null && calData == null
                   ? ErrorView(message: appt.error!, onRetry: _loadData)
                   : CustomScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
@@ -1159,139 +703,71 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         // ── Calendar ──
                         SliverToBoxAdapter(
                           child: Container(
-                            margin:
-                                const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                            margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                             decoration: BoxDecoration(
                               color: AppColors.surface,
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(color: AppColors.border),
                             ),
                             child: TableCalendar<Object>(
-                              firstDay: appt.calendarData?.minimumDate ??
-                                  DateTime.now()
-                                      .subtract(const Duration(days: 30)),
-                              lastDay: appt.calendarData?.maximumDate ??
-                                  DateTime.now()
-                                      .add(const Duration(days: 90)),
+                              firstDay: calData?.minimumDate ?? DateTime.now().subtract(const Duration(days: 30)),
+                              lastDay: calData?.maximumDate ?? DateTime.now().add(const Duration(days: 90)),
                               focusedDay: _focusedDay,
-                              selectedDayPredicate: (day) =>
-                                  isSameDay(_selectedDay, day),
-                              onDaySelected:
-                                  (selectedDay, focusedDay) {
-                                setState(() {
-                                  _selectedDay = selectedDay;
-                                  _focusedDay = focusedDay;
-                                });
+                              selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                              onDaySelected: (selectedDay, focusedDay) {
+                                setState(() { _selectedDay = selectedDay; _focusedDay = focusedDay; });
                               },
-                              onPageChanged: (focusedDay) {
-                                _focusedDay = focusedDay;
-                              },
+                              onPageChanged: (focusedDay) { _focusedDay = focusedDay; },
                               eventLoader: (day) {
-                                // Combined: appointments + availability
                                 final appts = _getEventsForDay(day);
-                                final avail =
-                                    _getAvailabilityForDay(day);
+                                final avail = _getAvailabilityForDay(day);
                                 return [...appts, ...avail];
                               },
                               calendarStyle: CalendarStyle(
                                 todayDecoration: BoxDecoration(
-                                  color:
-                                      AppColors.primary.withOpacity(0.3),
+                                  color: AppColors.primary.withAlpha(77),
                                   shape: BoxShape.circle,
                                 ),
-                                selectedDecoration: const BoxDecoration(
-                                  color: AppColors.primary,
-                                  shape: BoxShape.circle,
-                                ),
-                                markerDecoration: const BoxDecoration(
-                                  color: AppColors.green,
-                                  shape: BoxShape.circle,
-                                ),
-                                defaultTextStyle: const TextStyle(
-                                    color: AppColors.text),
-                                weekendTextStyle: const TextStyle(
-                                    color: AppColors.muted),
-                                outsideTextStyle: TextStyle(
-                                    color:
-                                        AppColors.muted.withOpacity(0.4)),
+                                selectedDecoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                                markerDecoration: const BoxDecoration(color: AppColors.green, shape: BoxShape.circle),
+                                defaultTextStyle: const TextStyle(color: AppColors.text),
+                                weekendTextStyle: const TextStyle(color: AppColors.muted),
+                                outsideTextStyle: TextStyle(color: AppColors.muted.withAlpha(102)),
                                 markerSize: 6,
                                 markersMaxCount: 4,
                               ),
                               headerStyle: const HeaderStyle(
                                 titleCentered: true,
                                 formatButtonVisible: false,
-                                titleTextStyle: TextStyle(
-                                  color: AppColors.text,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                                leftChevronIcon: Icon(
-                                    Icons.chevron_left_rounded,
-                                    color: AppColors.muted),
-                                rightChevronIcon: Icon(
-                                    Icons.chevron_right_rounded,
-                                    color: AppColors.muted),
+                                titleTextStyle: TextStyle(color: AppColors.text, fontSize: 16, fontWeight: FontWeight.w700),
+                                leftChevronIcon: Icon(Icons.chevron_left_rounded, color: AppColors.muted),
+                                rightChevronIcon: Icon(Icons.chevron_right_rounded, color: AppColors.muted),
                               ),
                               daysOfWeekStyle: const DaysOfWeekStyle(
-                                weekdayStyle: TextStyle(
-                                    color: AppColors.muted,
-                                    fontSize: 12),
-                                weekendStyle: TextStyle(
-                                    color: AppColors.muted,
-                                    fontSize: 12),
+                                weekdayStyle: TextStyle(color: AppColors.muted, fontSize: 12),
+                                weekendStyle: TextStyle(color: AppColors.muted, fontSize: 12),
                               ),
-                              startingDayOfWeek:
-                                  StartingDayOfWeek.monday,
+                              startingDayOfWeek: StartingDayOfWeek.monday,
                               locale: 'de_DE',
                               calendarBuilders: CalendarBuilders(
-                                markerBuilder:
-                                    (context, day, events) {
-                                  final appts = events
-                                      .whereType<Appointment>()
-                                      .toList();
-                                  final avails = events
-                                      .whereType<
-                                          AvailabilityInterval>()
-                                      .toList();
+                                markerBuilder: (context, day, events) {
+                                  final appts = events.whereType<Appointment>().toList();
+                                  final avails = events.whereType<AvailabilityInterval>().toList();
+                                  if (appts.isEmpty && avails.isEmpty) return null;
 
-                                  if (appts.isEmpty &&
-                                      avails.isEmpty) return null;
-
-                                  final booked = appts
-                                      .where((a) =>
-                                          a.status.toLowerCase() ==
-                                              'booked' ||
-                                          a.status.toLowerCase() ==
-                                              'attended')
-                                      .length;
-                                  final cancelled = appts
-                                      .where((a) =>
-                                          a.status.toLowerCase() ==
-                                          'cancelled')
-                                      .length;
-                                  final missed = appts
-                                      .where((a) =>
-                                          a.status.toLowerCase() ==
-                                          'missed')
-                                      .length;
+                                  final booked = appts.where((a) =>
+                                      a.status.toLowerCase() == 'booked' || a.status.toLowerCase() == 'attended').length;
+                                  final cancelled = appts.where((a) => a.status.toLowerCase() == 'cancelled').length;
+                                  final missed = appts.where((a) => a.status.toLowerCase() == 'missed').length;
 
                                   return Positioned(
                                     bottom: 2,
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        if (avails.isNotEmpty)
-                                          _markerDot(AppColors.green),
-                                        if (booked > 0)
-                                          _markerCountDot(
-                                              AppColors.primary,
-                                              booked),
-                                        if (missed > 0)
-                                          _markerDot(AppColors.orange),
-                                        if (cancelled > 0)
-                                          _markerDot(AppColors.red),
-                                      ],
-                                    ),
+                                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                      if (avails.isNotEmpty) _markerDot(AppColors.green),
+                                      if (booked > 0) _markerCountDot(AppColors.primary, booked),
+                                      if (missed > 0) _markerDot(AppColors.orange),
+                                      if (cancelled > 0) _markerDot(AppColors.red),
+                                    ]),
                                   );
                                 },
                               ),
@@ -1299,123 +775,134 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           ),
                         ),
 
+                        // ── Filter Bar ──
+                        if (calData != null)
+                          SliverToBoxAdapter(
+                            child: _FilterBar(
+                              calData: calData,
+                              filterTrainerId: _filterTrainerId,
+                              filterTypeId: _filterTypeId,
+                              filterLocationId: _filterLocationId,
+                              onTrainerChanged: (v) => setState(() => _filterTrainerId = v),
+                              onTypeChanged: (v) => setState(() => _filterTypeId = v),
+                              onLocationChanged: (v) => setState(() => _filterLocationId = v),
+                            ),
+                          ),
+
                         // ── Day header ──
                         if (_selectedDay != null)
                           SliverToBoxAdapter(
                             child: Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                  16, 14, 16, 4),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      DateFormat(
-                                              'EEEE, d. MMMM', 'de_DE')
-                                          .format(_selectedDay!),
-                                      style: const TextStyle(
-                                        color: AppColors.text,
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600,
+                              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                              child: Row(children: [
+                                Expanded(child: Text(
+                                  DateFormat('EEEE, d. MMMM', 'de_DE').format(_selectedDay!),
+                                  style: const TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w600),
+                                )),
+                                if (availableSlots > 0)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.green.withAlpha(20),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                      Container(width: 6, height: 6, decoration: const BoxDecoration(color: AppColors.green, shape: BoxShape.circle)),
+                                      const SizedBox(width: 4),
+                                      Text('$availableSlots Slots frei', style: const TextStyle(color: AppColors.green, fontSize: 11, fontWeight: FontWeight.w500)),
+                                    ]),
+                                  ),
+                                if (calData != null && calData.credits > 0)
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 8),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary.withAlpha(20),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        '${calData.credits} Cr.',
+                                        style: const TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w500),
                                       ),
                                     ),
                                   ),
-                                  if (dayAvail.isNotEmpty)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color:
-                                            AppColors.green.withAlpha(20),
-                                        borderRadius:
-                                            BorderRadius.circular(10),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Container(
-                                            width: 6,
-                                            height: 6,
-                                            decoration:
-                                                const BoxDecoration(
-                                              color: AppColors.green,
-                                              shape: BoxShape.circle,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            '${dayAvail.length} verfügbar',
-                                            style: const TextStyle(
-                                              color: AppColors.green,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                ],
+                              ]),
+                            ),
+                          ),
+
+                        // ── Existing appointments for day ──
+                        if (events.isNotEmpty)
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                            sliver: SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (ctx, i) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: _CalendarEventCard(
+                                    appointment: events[i],
+                                    onTap: () => _showAppointmentDetail(events[i]),
+                                  ),
+                                ),
+                                childCount: events.length,
                               ),
                             ),
                           ),
 
-                        // ── Events for selected day ──
-                        SliverPadding(
-                          padding:
-                              const EdgeInsets.fromLTRB(16, 6, 16, 80),
-                          sliver: events.isEmpty
-                              ? SliverToBoxAdapter(
-                                  child: Container(
-                                    padding: const EdgeInsets.all(20),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.surface,
-                                      borderRadius:
-                                          BorderRadius.circular(14),
-                                      border: Border.all(
-                                          color: AppColors.border),
-                                    ),
-                                    child: Column(
-                                      children: [
-                                        const Icon(Icons.event_outlined,
-                                            color: AppColors.muted, size: 28),
-                                        const SizedBox(height: 8),
-                                        const Text(
-                                          'Keine Termine an diesem Tag',
-                                          style: TextStyle(
-                                              color: AppColors.muted,
-                                              fontSize: 14),
-                                        ),
-                                        if (dayAvail.isNotEmpty) ...[
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            'Tippe + um einen Termin zu buchen',
-                                            style: TextStyle(
-                                                color: AppColors.primary
-                                                    .withAlpha(180),
-                                                fontSize: 12),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                )
-                              : SliverList(
-                                  delegate: SliverChildBuilderDelegate(
-                                    (ctx, i) => Padding(
-                                      padding: const EdgeInsets.only(
-                                          bottom: 10),
-                                      child: _CalendarEventCard(
-                                        appointment:
-                                            events[i] as Appointment,
-                                        onTap: () =>
-                                            _showAppointmentDetail(
-                                                events[i]
-                                                    as Appointment),
-                                      ),
-                                    ),
-                                    childCount: events.length,
-                                  ),
+                        // ── Slot Grid ──
+                        if (slots.isNotEmpty)
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+                            sliver: SliverToBoxAdapter(
+                              child: _SlotGrid(
+                                slots: slots,
+                                onSlotTap: _bookSlot,
+                              ),
+                            ),
+                          )
+                        else if (_selectedDay != null && dayAvail.isEmpty)
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+                              child: Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: AppColors.border),
                                 ),
-                        ),
+                                child: const Column(children: [
+                                  Icon(Icons.event_busy_outlined, color: AppColors.muted, size: 28),
+                                  SizedBox(height: 8),
+                                  Text('Keine Verfuegbarkeit an diesem Tag',
+                                      style: TextStyle(color: AppColors.muted, fontSize: 14)),
+                                ]),
+                              ),
+                            ),
+                          )
+                        else if (_selectedDay != null && slots.isEmpty && dayAvail.isNotEmpty)
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+                              child: Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: AppColors.border),
+                                ),
+                                child: const Column(children: [
+                                  Icon(Icons.filter_alt_outlined, color: AppColors.orange, size: 28),
+                                  SizedBox(height: 8),
+                                  Text('Keine Slots fuer aktuelle Filter',
+                                      style: TextStyle(color: AppColors.orange, fontSize: 14)),
+                                  SizedBox(height: 4),
+                                  Text('Passe Trainer, Typ oder Standort an',
+                                      style: TextStyle(color: AppColors.muted, fontSize: 12)),
+                                ]),
+                              ),
+                            ),
+                          ),
                       ],
                     ),
         ),
@@ -1425,8 +912,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Widget _markerDot(Color color) {
     return Container(
-      width: 6,
-      height: 6,
+      width: 6, height: 6,
       margin: const EdgeInsets.symmetric(horizontal: 1),
       decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
@@ -1440,17 +926,133 @@ class _CalendarScreenState extends State<CalendarScreen> {
       height: 10,
       constraints: const BoxConstraints(minWidth: 10),
       alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(5),
+      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(5)),
+      child: Text(count.toString(), style: const TextStyle(color: Colors.white, fontSize: 7, fontWeight: FontWeight.bold, height: 1)),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Filter Bar Widget
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _FilterBar extends StatelessWidget {
+  final CalendarData calData;
+  final String? filterTrainerId;
+  final String? filterTypeId;
+  final String? filterLocationId;
+  final ValueChanged<String?> onTrainerChanged;
+  final ValueChanged<String?> onTypeChanged;
+  final ValueChanged<String?> onLocationChanged;
+
+  const _FilterBar({
+    required this.calData,
+    this.filterTrainerId,
+    this.filterTypeId,
+    this.filterLocationId,
+    required this.onTrainerChanged,
+    required this.onTypeChanged,
+    required this.onLocationChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(children: [
+              Icon(Icons.tune, size: 14, color: AppColors.muted),
+              SizedBox(width: 6),
+              Text('Filter', style: TextStyle(color: AppColors.muted, fontSize: 11, fontWeight: FontWeight.w600)),
+            ]),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                // Trainer chips
+                if (calData.trainers.length > 1)
+                  ...calData.trainers.map((t) => _FilterChip(
+                    label: t.fullName,
+                    selected: filterTrainerId == t.id,
+                    onTap: () => onTrainerChanged(filterTrainerId == t.id ? null : t.id),
+                    color: AppColors.primary,
+                  )),
+                if (calData.trainers.length == 1)
+                  _FilterChip(
+                    label: calData.trainers.first.fullName,
+                    selected: true,
+                    onTap: () {},
+                    color: AppColors.primary,
+                  ),
+
+                // Divider dot
+                if (calData.trainers.length > 1 && calData.locations.isNotEmpty)
+                  Container(
+                    width: 3, height: 3, margin: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: const BoxDecoration(color: AppColors.muted, shape: BoxShape.circle),
+                  ),
+
+                // Location chips
+                ...calData.locations.map((l) => _FilterChip(
+                  label: l.name,
+                  selected: filterLocationId == l.id,
+                  onTap: () => onLocationChanged(filterLocationId == l.id ? null : l.id),
+                  color: AppColors.blue,
+                  suffix: l.bufferMinutes == 60 ? ' (ext.)' : null,
+                )),
+              ],
+            ),
+          ],
+        ),
       ),
-      child: Text(
-        count.toString(),
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 7,
-          fontWeight: FontWeight.bold,
-          height: 1,
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final Color color;
+  final String? suffix;
+
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    required this.color,
+    this.suffix,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: selected ? color.withAlpha(25) : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: selected ? color.withAlpha(80) : AppColors.border),
+        ),
+        child: Text(
+          '$label${suffix ?? ''}',
+          style: TextStyle(
+            color: selected ? color : AppColors.muted,
+            fontSize: 12,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+          ),
         ),
       ),
     );
@@ -1458,15 +1060,178 @@ class _CalendarScreenState extends State<CalendarScreen> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Slot Grid Widget
+// ═══════════════════════════════════════════════════════════════════════════════
+
+enum _SlotStatus { available, tooSoon, clientConflict, trainerConflict }
+
+class _TimeSlot {
+  final int startMin;
+  final String timeStr;
+  final String endTimeStr;
+  final _SlotStatus status;
+  final String? trainerId;
+  final String? locationId;
+  final String? message;
+
+  const _TimeSlot({
+    required this.startMin,
+    required this.timeStr,
+    required this.endTimeStr,
+    required this.status,
+    this.trainerId,
+    this.locationId,
+    this.message,
+  });
+}
+
+class _SlotGrid extends StatelessWidget {
+  final List<_TimeSlot> slots;
+  final ValueChanged<_TimeSlot> onSlotTap;
+
+  const _SlotGrid({required this.slots, required this.onSlotTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(14, 12, 14, 4),
+            child: Row(children: [
+              Icon(Icons.grid_view_rounded, size: 14, color: AppColors.muted),
+              SizedBox(width: 6),
+              Text('Verfuegbare Slots', style: TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600)),
+            ]),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 4, 10, 10),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: slots.map((slot) => _SlotTile(slot: slot, onTap: onSlotTap)).toList(),
+            ),
+          ),
+          // Legend
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+            child: Row(children: [
+              _legendDot(AppColors.green, 'Frei'),
+              const SizedBox(width: 12),
+              _legendDot(AppColors.muted, 'Belegt'),
+              const SizedBox(width: 12),
+              _legendDot(AppColors.orange, 'Puffer'),
+            ]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _legendDot(Color color, String label) {
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Container(width: 8, height: 8, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
+      const SizedBox(width: 4),
+      Text(label, style: TextStyle(color: color, fontSize: 10)),
+    ]);
+  }
+}
+
+class _SlotTile extends StatelessWidget {
+  final _TimeSlot slot;
+  final ValueChanged<_TimeSlot> onTap;
+
+  const _SlotTile({required this.slot, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    Color bgColor;
+    Color borderColor;
+    Color textColor;
+    IconData? icon;
+
+    switch (slot.status) {
+      case _SlotStatus.available:
+        bgColor = AppColors.green.withAlpha(15);
+        borderColor = AppColors.green.withAlpha(60);
+        textColor = AppColors.green;
+        break;
+      case _SlotStatus.tooSoon:
+        bgColor = AppColors.muted.withAlpha(10);
+        borderColor = AppColors.border;
+        textColor = AppColors.muted;
+        icon = Icons.schedule;
+        break;
+      case _SlotStatus.clientConflict:
+        bgColor = AppColors.red.withAlpha(10);
+        borderColor = AppColors.red.withAlpha(40);
+        textColor = AppColors.red;
+        icon = Icons.block;
+        break;
+      case _SlotStatus.trainerConflict:
+        bgColor = AppColors.orange.withAlpha(10);
+        borderColor = AppColors.orange.withAlpha(40);
+        textColor = AppColors.orange;
+        icon = Icons.timer_outlined;
+        break;
+    }
+
+    return Tooltip(
+      message: slot.message ?? '${slot.timeStr} – ${slot.endTimeStr}',
+      child: GestureDetector(
+        onTap: slot.status == _SlotStatus.available ? () => onTap(slot) : null,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: 80,
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: borderColor),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Icon(icon, size: 12, color: textColor),
+                ),
+              Text(
+                slot.timeStr,
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 13,
+                  fontWeight: slot.status == _SlotStatus.available ? FontWeight.w700 : FontWeight.w400,
+                ),
+              ),
+              Text(
+                slot.endTimeStr,
+                style: TextStyle(color: textColor.withAlpha(150), fontSize: 10),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Calendar Event Card
+// ═══════════════════════════════════════════════════════════════════════════════
 
 class _CalendarEventCard extends StatelessWidget {
   final Appointment appointment;
   final VoidCallback onTap;
 
-  const _CalendarEventCard({
-    required this.appointment,
-    required this.onTap,
-  });
+  const _CalendarEventCard({required this.appointment, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1476,15 +1241,10 @@ class _CalendarEventCard extends StatelessWidget {
     final isMissed = statusLower == 'missed';
 
     Color accentColor;
-    if (isCancelled) {
-      accentColor = AppColors.red;
-    } else if (isAttended) {
-      accentColor = AppColors.green;
-    } else if (isMissed) {
-      accentColor = AppColors.orange;
-    } else {
-      accentColor = AppColors.primary;
-    }
+    if (isCancelled) { accentColor = AppColors.red; }
+    else if (isAttended) { accentColor = AppColors.green; }
+    else if (isMissed) { accentColor = AppColors.orange; }
+    else { accentColor = AppColors.primary; }
 
     final timeStr = DateFormat('HH:mm').format(appointment.startDate);
     final endTime = appointment.startDate.add(Duration(minutes: appointment.duration));
@@ -1499,103 +1259,57 @@ class _CalendarEventCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: accentColor.withAlpha(40)),
         ),
-        child: Row(
-          children: [
+        child: Row(children: [
+          Container(width: 4, height: 44, decoration: BoxDecoration(color: accentColor, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(width: 12),
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                appointment.trainingTypeName.isNotEmpty ? appointment.trainingTypeName : 'Training',
+                style: TextStyle(
+                  color: isCancelled ? AppColors.muted : AppColors.text,
+                  fontSize: 14, fontWeight: FontWeight.w700,
+                  decoration: isCancelled ? TextDecoration.lineThrough : null,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(children: [
+                const Icon(Icons.access_time, size: 12, color: AppColors.muted),
+                const SizedBox(width: 3),
+                Text('$timeStr – $endTimeStr (${appointment.duration} Min.)',
+                    style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                const SizedBox(width: 8),
+                const Icon(Icons.person_outline, size: 12, color: AppColors.muted),
+                const SizedBox(width: 3),
+                Expanded(child: Text(appointment.trainerName,
+                    style: const TextStyle(color: AppColors.muted, fontSize: 12), overflow: TextOverflow.ellipsis)),
+              ]),
+              if (appointment.locationName.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Row(children: [
+                  const Icon(Icons.location_on_outlined, size: 12, color: AppColors.muted),
+                  const SizedBox(width: 3),
+                  Text(appointment.locationName, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                ]),
+              ],
+            ],
+          )),
+          if (isCancelled)
             Container(
-              width: 4,
-              height: 44,
-              decoration: BoxDecoration(
-                color: accentColor,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    appointment.trainingTypeName.isNotEmpty
-                        ? appointment.trainingTypeName
-                        : 'Training',
-                    style: TextStyle(
-                      color: isCancelled ? AppColors.muted : AppColors.text,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      decoration:
-                          isCancelled ? TextDecoration.lineThrough : null,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(Icons.access_time,
-                          size: 12, color: AppColors.muted),
-                      const SizedBox(width: 3),
-                      Text(
-                        '$timeStr – $endTimeStr (${appointment.duration} Min.)',
-                        style: const TextStyle(
-                            color: AppColors.muted, fontSize: 12),
-                      ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.person_outline,
-                          size: 12, color: AppColors.muted),
-                      const SizedBox(width: 3),
-                      Expanded(
-                        child: Text(
-                          appointment.trainerName,
-                          style: const TextStyle(
-                              color: AppColors.muted, fontSize: 12),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (appointment.locationName.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        const Icon(Icons.location_on_outlined,
-                            size: 12, color: AppColors.muted),
-                        const SizedBox(width: 3),
-                        Text(
-                          appointment.locationName,
-                          style: const TextStyle(
-                              color: AppColors.muted, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            if (isCancelled)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.red.withAlpha(25),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Text('Abgesagt',
-                    style: TextStyle(color: AppColors.red, fontSize: 11)),
-              )
-            else if (isMissed)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.orange.withAlpha(25),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Text('Verpasst',
-                    style: TextStyle(color: AppColors.orange, fontSize: 11)),
-              )
-            else
-              const Icon(Icons.chevron_right,
-                  color: AppColors.muted, size: 18),
-          ],
-        ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(color: AppColors.red.withAlpha(25), borderRadius: BorderRadius.circular(8)),
+              child: const Text('Abgesagt', style: TextStyle(color: AppColors.red, fontSize: 11)),
+            )
+          else if (isMissed)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(color: AppColors.orange.withAlpha(25), borderRadius: BorderRadius.circular(8)),
+              child: const Text('Verpasst', style: TextStyle(color: AppColors.orange, fontSize: 11)),
+            )
+          else
+            const Icon(Icons.chevron_right, color: AppColors.muted, size: 18),
+        ]),
       ),
     );
   }
