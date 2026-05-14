@@ -231,6 +231,43 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }).toList();
   }
 
+  /// Check if a trainer is free at [startMin] for a given [chosenLocationId],
+  /// considering buffer times against existing bookings.
+  bool _isTrainerFreeForLocation({
+    required String trainerId,
+    required String chosenLocationId,
+    required int startMin,
+    required String dateStr,
+    required CalendarData calData,
+  }) {
+    final endMin = startMin + 60;
+    final locationMap = <String, int>{};
+    for (final loc in calData.locations) {
+      locationMap[loc.id] = loc.bufferMinutes;
+    }
+
+    for (final b in calData.trainerBookings) {
+      if (b.trainerId != trainerId) continue;
+      if (b.date != dateStr) continue;
+      if (b.status.toLowerCase() == 'cancelled') continue;
+      final parts = b.starttime.split(':');
+      if (parts.length < 2) continue;
+      final bStart = int.parse(parts[0]) * 60 + int.parse(parts[1]);
+      final bEnd = bStart + b.duration;
+      final sameLocation = b.locationId != null && b.locationId == chosenLocationId;
+      int buffer = 0;
+      if (!sameLocation) {
+        final chosenBuffer = locationMap[chosenLocationId] ?? 30;
+        final existBuffer = b.locationId != null ? (locationMap[b.locationId!] ?? 30) : 30;
+        buffer = chosenBuffer > existBuffer ? chosenBuffer : existBuffer;
+      }
+      if (startMin < bEnd + buffer && bStart < endMin + buffer) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   String _minutesToTime(int minutes) {
     return '${(minutes ~/ 60).toString().padLeft(2, '0')}:${(minutes % 60).toString().padLeft(2, '0')}';
   }
@@ -318,8 +355,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
   ) {
     final pref = context.read<PreferenceProvider>();
     final trainerIds = options.map((o) => o.trainerId).toSet().toList();
-    // All active locations — client can choose any location
     final allLocationIds = calData.locations.map((l) => l.id).toList();
+    final dateStr = DateFormat('yyyy-MM-dd').format(day);
 
     // Pre-select from preferences or single option
     String? initTrainer = trainerIds.contains(pref.trainerId)
@@ -345,9 +382,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
         return StatefulBuilder(
           builder: (ctx, setModalState) {
-            // Show ALL active locations — location is a client choice
-            final availLocations = allLocationIds;
+            // Filter locations by buffer — only show locations where trainer is actually free
+            final availLocations = selTrainer != null
+                ? allLocationIds.where((locId) => _isTrainerFreeForLocation(
+                    trainerId: selTrainer!,
+                    chosenLocationId: locId,
+                    startMin: slot.startMin,
+                    dateStr: dateStr,
+                    calData: calData,
+                  )).toList()
+                : allLocationIds;
 
+            // Reset location if not available with buffer
+            if (selLocation != null && !availLocations.contains(selLocation)) {
+              selLocation = availLocations.length == 1 ? availLocations.first : null;
+            }
             // Auto-select singles
             if (selTrainer == null && trainerIds.length == 1) selTrainer = trainerIds.first;
             if (selLocation == null && availLocations.length == 1) selLocation = availLocations.first;
