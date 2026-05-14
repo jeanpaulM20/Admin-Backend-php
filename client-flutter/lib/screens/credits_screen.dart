@@ -621,9 +621,12 @@ class _PackageCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final priceFormatted = NumberFormat('#,##0', 'de_CH').format(package.price);
+    final perSession = package.pricePerSession != null
+        ? 'CHF ${package.pricePerSession!.toStringAsFixed(0)} / Lektion'
+        : null;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -633,34 +636,45 @@ class _PackageCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Name + price per session
-          Row(children: [
-            Expanded(child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(package.name, style: const TextStyle(
-                  color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w800,
-                )),
-                if (package.pricePerSession != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    'CHF ${package.pricePerSession!.toStringAsFixed(0)} / Lektion',
-                    style: const TextStyle(color: AppColors.primary, fontSize: 14, fontWeight: FontWeight.w700),
-                  ),
+          // Top row: Name left, Price right
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(package.name, style: const TextStyle(
+                    color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w800,
+                  )),
+                  if (package.description != null) ...[
+                    const SizedBox(height: 4),
+                    Text(package.description!, style: const TextStyle(
+                      color: AppColors.muted, fontSize: 13,
+                    )),
+                  ],
                 ],
-              ],
-            )),
-            Text(
-              'CHF $priceFormatted',
-              style: const TextStyle(
-                color: AppColors.primary, fontSize: 20, fontWeight: FontWeight.w800,
+              )),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    "CHF $priceFormatted",
+                    style: const TextStyle(
+                      color: AppColors.primary, fontSize: 22, fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  if (perSession != null) ...[
+                    const SizedBox(height: 2),
+                    Text(perSession, style: const TextStyle(
+                      color: AppColors.muted, fontSize: 12,
+                    )),
+                  ],
+                ],
               ),
-            ),
-          ]),
-          const SizedBox(height: 6),
-          if (package.description != null)
-            Text(package.description!, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
-          const SizedBox(height: 10),
+            ],
+          ),
+          const SizedBox(height: 12),
 
           // Details row
           Row(children: [
@@ -673,16 +687,16 @@ class _PackageCard extends StatelessWidget {
           ]),
 
           if (package.includes != null && package.includes!.isNotEmpty) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             const Divider(color: AppColors.border, height: 1),
             const SizedBox(height: 10),
             ...package.includes!.split(', ').map((item) => Padding(
-              padding: const EdgeInsets.only(bottom: 4),
+              padding: const EdgeInsets.only(bottom: 5),
               child: Row(children: [
-                const Icon(Icons.check_circle_outlined, size: 14, color: AppColors.green),
-                const SizedBox(width: 6),
+                const Icon(Icons.check_circle_outlined, size: 15, color: AppColors.green),
+                const SizedBox(width: 8),
                 Expanded(child: Text(item, style: const TextStyle(
-                  color: AppColors.text, fontSize: 12,
+                  color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w500,
                 ))),
               ]),
             )),
@@ -700,8 +714,9 @@ class _PackageCard extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.symmetric(vertical: 13),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
               ),
             ),
           ),
