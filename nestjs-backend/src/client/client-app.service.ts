@@ -212,68 +212,76 @@ export class ClientAppService {
 
   /** Purchase a credit package — creates credits + invoice + sends email */
   async purchasePackage(clientId: number, packageId: number) {
-    // 1. Load client
-    const client = await this.clientRepo.findOne({ where: { id: clientId } });
-    if (!client) throw new NotFoundException('Client not found');
+    const logger = new (require('@nestjs/common').Logger)('PurchasePackage');
+    try {
+      // 1. Load client
+      logger.log(`Loading client ${clientId}`);
+      const client = await this.clientRepo.findOne({ where: { id: clientId } });
+      if (!client) throw new NotFoundException('Client not found');
 
-    // 2. Load package
-    const [pkg]: any = await this.dataSource.query(
-      'SELECT * FROM credit_package WHERE id = ? AND active = 1',
-      [packageId],
-    );
-    if (!pkg) throw new NotFoundException('Package not found');
+      // 2. Load package
+      logger.log(`Loading package ${packageId}`);
+      const [pkg]: any = await this.dataSource.query(
+        'SELECT * FROM credit_package WHERE id = ? AND active = 1',
+        [packageId],
+      );
+      if (!pkg) throw new NotFoundException('Package not found');
 
-    const credits = pkg.credits;
-    const price = parseFloat(pkg.price);
-    const durationMonths = pkg.duration_months;
-    const packageName = pkg.name;
+      const credits = pkg.credits;
+      const price = parseFloat(pkg.price);
+      const durationMonths = pkg.duration_months;
+      const packageName = pkg.name;
 
-    // 3. Calculate dates
-    const now = new Date();
-    const startDate = now.toISOString().split('T')[0];
-    const expiresDate = new Date(now);
-    expiresDate.setMonth(expiresDate.getMonth() + (durationMonths ?? 1));
-    const expiresStr = expiresDate.toISOString().split('T')[0];
+      // 3. Calculate dates
+      const now = new Date();
+      const startDate = now.toISOString().split('T')[0];
+      const expiresDate = new Date(now);
+      expiresDate.setMonth(expiresDate.getMonth() + (durationMonths ?? 1));
+      const expiresStr = expiresDate.toISOString().split('T')[0];
 
-    // 4. Create client_credits entry
-    await this.creditsRepo.save({
-      clientId,
-      paid: credits,
-      attended: 0,
-      startdate: startDate,
-      expires: expiresStr,
-      sellDate: startDate,
-    });
+      // 4. Create client_credits entry
+      logger.log(`Creating credits: paid=${credits}, start=${startDate}, expires=${expiresStr}`);
+      await this.dataSource.query(
+        `INSERT INTO client_credits (client_id, paid, attended, startdate, expires, sell_date)
+         VALUES (?, ?, 0, ?, ?, ?)`,
+        [clientId, credits, startDate, expiresStr, startDate],
+      );
 
-    // 5. Create invoice
-    const invoiceNumber = await this.invoiceService.createInvoice({
-      clientId,
-      packageName,
-      amount: price,
-      credits,
-      durationMonths: durationMonths ?? 1,
-    });
+      // 5. Create invoice
+      logger.log('Creating invoice');
+      const invoiceNumber = await this.invoiceService.createInvoice({
+        clientId,
+        packageName,
+        amount: price,
+        credits,
+        durationMonths: durationMonths ?? 1,
+      });
 
-    // 6. Send invoice email
-    const clientName = `${client.firstname} ${client.lastname}`.trim();
-    const emailSent = await this.invoiceService.sendInvoiceEmail({
-      invoiceNumber,
-      clientName,
-      clientEmail: client.email,
-      packageName,
-      credits,
-      durationMonths: durationMonths ?? 1,
-      amount: price,
-    });
+      // 6. Send invoice email
+      const clientName = `${client.firstname} ${client.lastname}`.trim();
+      logger.log(`Sending email to ${client.email}`);
+      const emailSent = await this.invoiceService.sendInvoiceEmail({
+        invoiceNumber,
+        clientName,
+        clientEmail: client.email,
+        packageName,
+        credits,
+        durationMonths: durationMonths ?? 1,
+        amount: price,
+      });
 
-    return {
-      success: true,
-      invoiceNumber,
-      emailSent,
-      message: emailSent
-        ? `Rechnung ${invoiceNumber} wurde an ${client.email} gesendet.`
-        : `Paket gebucht. Rechnung ${invoiceNumber} erstellt (E-Mail-Versand nicht konfiguriert).`,
-    };
+      return {
+        success: true,
+        invoiceNumber,
+        emailSent,
+        message: emailSent
+          ? `Rechnung ${invoiceNumber} wurde an ${client.email} gesendet.`
+          : `Paket gebucht. Rechnung ${invoiceNumber} erstellt (E-Mail-Versand nicht konfiguriert).`,
+      };
+    } catch (err: any) {
+      logger.error(`Purchase failed: ${err.message}`, err.stack);
+      throw err;
+    }
   }
 
   /** Performance tests – transformed into sectioned format for Flutter */
