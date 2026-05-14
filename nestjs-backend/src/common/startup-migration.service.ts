@@ -31,22 +31,32 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       `ALTER TABLE location ADD COLUMN buffer_minutes INT DEFAULT 30`,
     ];
 
-    // Create preference table if it doesn't exist
-    const createPreferenceSql = `
-      CREATE TABLE IF NOT EXISTS preference (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        client_id INT NOT NULL,
-        \`key\` VARCHAR(50) DEFAULT NULL,
-        value VARCHAR(255) DEFAULT NULL,
-        INDEX idx_pref_client (client_id),
-        UNIQUE KEY uk_client_key (client_id, \`key\`)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    `;
+    // Ensure preference table has correct schema (key/value columns)
+    // Old PHP table may exist with different columns, so check and migrate
     try {
-      await this.dataSource.query(createPreferenceSql);
-      this.logger.log('preference table ready');
+      const [cols]: any = await this.dataSource.query(
+        `SELECT COUNT(*) as cnt FROM information_schema.columns
+         WHERE table_schema = DATABASE() AND table_name = 'preference' AND column_name = 'key'`,
+      );
+      if (!cols || cols.cnt === 0) {
+        // Table missing or has wrong schema — recreate
+        await this.dataSource.query(`DROP TABLE IF EXISTS preference`);
+        await this.dataSource.query(`
+          CREATE TABLE preference (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            client_id INT NOT NULL,
+            \`key\` VARCHAR(50) DEFAULT NULL,
+            \`value\` VARCHAR(255) DEFAULT NULL,
+            INDEX idx_pref_client (client_id),
+            UNIQUE KEY uk_client_key (client_id, \`key\`)
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `);
+        this.logger.log('preference table created (fresh)');
+      } else {
+        this.logger.log('preference table already has correct schema');
+      }
     } catch (err: any) {
-      this.logger.warn(`preference table creation: ${err.message}`);
+      this.logger.warn(`preference table setup: ${err.message}`);
     }
 
     // Create push_subscription table if it doesn't exist
