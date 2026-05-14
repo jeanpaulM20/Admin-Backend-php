@@ -824,57 +824,100 @@ export class ClientAppService {
 
   /** Get client booking preferences (trainer, type, location defaults) */
   async getPreferences(clientId: number) {
-    // Raw query — `key` is a MySQL reserved word, bypass TypeORM entity
-    const rows: any[] = await this.dataSource.query(
-      'SELECT `key`, `value` FROM `preference` WHERE `client_id` = ?',
-      [clientId],
-    );
-    const result: Record<string, string | null> = {};
-    for (const key of ClientAppService.PREF_KEYS) {
-      const row = rows.find((r: any) => r.key === key);
-      result[key] = row?.value ?? null;
+    try {
+      // Raw query — `key` is a MySQL reserved word, bypass TypeORM entity
+      const rows: any[] = await this.dataSource.query(
+        'SELECT `key`, `value` FROM `preference` WHERE `client_id` = ?',
+        [clientId],
+      );
+      const result: Record<string, string | null> = {};
+      for (const key of ClientAppService.PREF_KEYS) {
+        const row = rows.find((r: any) => r.key === key);
+        result[key] = row?.value ?? null;
+      }
+      return result;
+    } catch (err: any) {
+      // Table may not exist or have wrong schema — try to fix, then return defaults
+      if (err?.code === 'ER_BAD_FIELD_ERROR' || err?.code === 'ER_NO_SUCH_TABLE') {
+        try {
+          await this.dataSource.query(`DROP TABLE IF EXISTS preference`);
+          await this.dataSource.query(`
+            CREATE TABLE preference (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              client_id INT NOT NULL,
+              \`key\` VARCHAR(50) DEFAULT NULL,
+              \`value\` VARCHAR(255) DEFAULT NULL,
+              INDEX idx_pref_client (client_id),
+              UNIQUE KEY uk_client_key (client_id, \`key\`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+          `);
+        } catch { /* ignore */ }
+        return { trainer_id: null, training_type_id: null, location_id: null };
+      }
+      throw err;
     }
-    return result;
   }
 
   /** Save client booking preferences (partial update — only provided keys are updated) */
   async savePreferences(clientId: number, prefs: Record<string, string | null>) {
     const saved: Record<string, string | null> = {};
 
+    // Ensure table has correct schema (idempotent)
+    try {
+      await this.dataSource.query(
+        'SELECT `key` FROM `preference` LIMIT 1',
+      );
+    } catch {
+      // Table missing or wrong schema — try to create
+      try {
+        await this.dataSource.query(`DROP TABLE IF EXISTS preference`);
+        await this.dataSource.query(`
+          CREATE TABLE preference (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            client_id INT NOT NULL,
+            \`key\` VARCHAR(50) DEFAULT NULL,
+            \`value\` VARCHAR(255) DEFAULT NULL,
+            INDEX idx_pref_client (client_id),
+            UNIQUE KEY uk_client_key (client_id, \`key\`)
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `);
+      } catch { /* ignore if we can't create */ }
+    }
+
     for (const key of ClientAppService.PREF_KEYS) {
       if (!(key in prefs)) continue;
 
       const value = prefs[key];
 
-      // Check if row exists
-      const existing: any[] = await this.dataSource.query(
-        'SELECT id FROM `preference` WHERE `client_id` = ? AND `key` = ?',
-        [clientId, key],
-      );
+      try {
+        const existing: any[] = await this.dataSource.query(
+          'SELECT id FROM `preference` WHERE `client_id` = ? AND `key` = ?',
+          [clientId, key],
+        );
 
-      if (value === null || value === '') {
-        // Delete preference
-        if (existing.length > 0) {
+        if (value === null || value === '') {
+          if (existing.length > 0) {
+            await this.dataSource.query(
+              'DELETE FROM `preference` WHERE `client_id` = ? AND `key` = ?',
+              [clientId, key],
+            );
+          }
+          saved[key] = null;
+        } else if (existing.length > 0) {
           await this.dataSource.query(
-            'DELETE FROM `preference` WHERE `client_id` = ? AND `key` = ?',
-            [clientId, key],
+            'UPDATE `preference` SET `value` = ? WHERE `client_id` = ? AND `key` = ?',
+            [String(value), clientId, key],
           );
+          saved[key] = String(value);
+        } else {
+          await this.dataSource.query(
+            'INSERT INTO `preference` (`client_id`, `key`, `value`) VALUES (?, ?, ?)',
+            [clientId, key, String(value)],
+          );
+          saved[key] = String(value);
         }
+      } catch {
         saved[key] = null;
-      } else if (existing.length > 0) {
-        // Update
-        await this.dataSource.query(
-          'UPDATE `preference` SET `value` = ? WHERE `client_id` = ? AND `key` = ?',
-          [String(value), clientId, key],
-        );
-        saved[key] = String(value);
-      } else {
-        // Insert
-        await this.dataSource.query(
-          'INSERT INTO `preference` (`client_id`, `key`, `value`) VALUES (?, ?, ?)',
-          [clientId, key, String(value)],
-        );
-        saved[key] = String(value);
       }
     }
 
