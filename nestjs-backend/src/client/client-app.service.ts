@@ -187,6 +187,27 @@ export class ClientAppService {
     }));
   }
 
+  /** Available credit packages (from sihltraining.ch pricing) */
+  async getPackages() {
+    try {
+      const rows: any[] = await this.dataSource.query(
+        'SELECT * FROM credit_package WHERE active = 1 ORDER BY sort_order',
+      );
+      return rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        credits: r.credits,
+        price: parseFloat(r.price),
+        pricePerSession: r.price_per_session ? parseFloat(r.price_per_session) : null,
+        durationMonths: r.duration_months,
+        description: r.description,
+        includes: r.includes,
+      }));
+    } catch {
+      return [];
+    }
+  }
+
   /** Performance tests – transformed into sectioned format for Flutter */
   async getTests(clientId: number) {
     const rows = await this.perfTestRepo.find({

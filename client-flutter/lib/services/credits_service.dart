@@ -15,6 +15,16 @@ class CreditsService {
     return [];
   }
 
-  // Note: Credit purchasing requires direct contact with the studio.
-  // No online buy endpoint — credits are sold in person.
+  /// Fetch available credit packages (pricing from website)
+  Future<List<CreditPackage>> listPackages() async {
+    final data = await apiClient.get('api/client/packages');
+    if (data == null) return [];
+    if (data is List) {
+      return data
+          .whereType<Map<String, dynamic>>()
+          .map(CreditPackage.fromJson)
+          .toList();
+    }
+    return [];
+  }
 }

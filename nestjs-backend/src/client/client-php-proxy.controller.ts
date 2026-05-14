@@ -49,6 +49,12 @@ export class ClientAppController {
     return this.appService.getCredits(clientId);
   }
 
+  /** Available credit packages (pricing from website) */
+  @Get('packages')
+  packages() {
+    return this.appService.getPackages();
+  }
+
   /** Invoices (stub — Bexio integration to be migrated) */
   @Get('invoices/:clientId')
   invoices(@Param('clientId', ParseIntPipe) clientId: number) {

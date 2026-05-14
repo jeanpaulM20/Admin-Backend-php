@@ -1,25 +1,39 @@
-class BuyableCredit {
-  final String creditId;
+/// A credit package available for purchase (from sihltraining.ch pricing)
+class CreditPackage {
+  final String id;
   final String name;
-  final String desc;
-  final String unit;
+  final int credits;
   final double price;
+  final double? pricePerSession;
+  final int? durationMonths;
+  final String? description;
+  final String? includes;
 
-  BuyableCredit({
-    required this.creditId,
+  CreditPackage({
+    required this.id,
     required this.name,
-    required this.desc,
-    required this.unit,
+    required this.credits,
     required this.price,
+    this.pricePerSession,
+    this.durationMonths,
+    this.description,
+    this.includes,
   });
 
-  factory BuyableCredit.fromJson(Map<String, dynamic> json) {
-    return BuyableCredit(
-      creditId: json['creditId']?.toString() ?? json['id']?.toString() ?? '',
+  factory CreditPackage.fromJson(Map<String, dynamic> json) {
+    return CreditPackage(
+      id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
-      desc: json['desc']?.toString() ?? json['description']?.toString() ?? '',
-      unit: json['unit']?.toString() ?? '',
+      credits: int.tryParse(json['credits']?.toString() ?? '0') ?? 0,
       price: double.tryParse(json['price']?.toString() ?? '0') ?? 0,
+      pricePerSession: json['pricePerSession'] != null
+          ? double.tryParse(json['pricePerSession'].toString())
+          : null,
+      durationMonths: json['durationMonths'] != null
+          ? int.tryParse(json['durationMonths'].toString())
+          : null,
+      description: json['description']?.toString(),
+      includes: json['includes']?.toString(),
     );
   }
 }

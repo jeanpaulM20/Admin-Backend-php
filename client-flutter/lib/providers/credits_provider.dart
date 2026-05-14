@@ -9,11 +9,13 @@ class CreditsProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   List<ClientCredit> _data = [];
+  List<CreditPackage> _packages = [];
   bool _isMock = false;
 
   bool get isLoading => _isLoading;
   String? get error => _error;
   List<ClientCredit> get data => _data;
+  List<CreditPackage> get packages => _packages;
 
   Future<void> fetch(String clientId) async {
     if (_isMock) return;
@@ -22,7 +24,12 @@ class CreditsProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _data = await _service.listClientCredits(clientId);
+      final results = await Future.wait([
+        _service.listClientCredits(clientId),
+        _service.listPackages(),
+      ]);
+      _data = results[0] as List<ClientCredit>;
+      _packages = results[1] as List<CreditPackage>;
     } catch (e) {
       _error = e.toString().replaceFirst('Exception: ', '');
     } finally {
@@ -39,6 +46,7 @@ class CreditsProvider extends ChangeNotifier {
   void loadMockData() {
     _isMock = true;
     _data = MockData.clientCredits;
+    _packages = [];
     _isLoading = false;
     _error = null;
     notifyListeners();

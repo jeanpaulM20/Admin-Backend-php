@@ -95,6 +95,9 @@ export class StartupMigrationService implements OnApplicationBootstrap {
     // Ensure correct locations with buffer_minutes values
     await this.ensureLocations();
 
+    // Ensure credit packages from website pricing
+    await this.ensureCreditPackages();
+
     // Copy missing file records from old PHP database
     await this.copyMissingFiles();
   }
@@ -152,6 +155,86 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       this.logger.log('Location setup complete');
     } catch (err: any) {
       this.logger.warn(`Location setup error: ${err.message}`);
+    }
+  }
+
+  /**
+   * Ensures credit packages from sihltraining.ch/preise/ exist.
+   * Einzellektion (1 credit), Basic (10), Advanced (30).
+   */
+  private async ensureCreditPackages() {
+    try {
+      // Create table if not exists
+      await this.dataSource.query(`
+        CREATE TABLE IF NOT EXISTS credit_package (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          name VARCHAR(100) NOT NULL,
+          credits INT NOT NULL DEFAULT 0,
+          price DECIMAL(10,2) NOT NULL DEFAULT 0,
+          price_per_session DECIMAL(10,2) DEFAULT NULL,
+          duration_months INT DEFAULT NULL,
+          description TEXT DEFAULT NULL,
+          \`includes\` TEXT DEFAULT NULL,
+          sort_order INT DEFAULT 0,
+          active TINYINT(1) DEFAULT 1
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+
+      const packages = [
+        {
+          name: 'Einzellektion',
+          credits: 1,
+          price: 175.00,
+          pricePerSession: 175.00,
+          durationMonths: 1,
+          description: '1 × 60 Min. Personal Training',
+          includes: 'Training Service',
+          sortOrder: 1,
+        },
+        {
+          name: 'Basic',
+          credits: 10,
+          price: 1350.00,
+          pricePerSession: 135.00,
+          durationMonths: 3,
+          description: '10 × 60 Min. Personal Training',
+          includes: '1× Leistungsanalyse, Training Service',
+          sortOrder: 2,
+        },
+        {
+          name: 'Advanced',
+          credits: 30,
+          price: 3750.00,
+          pricePerSession: 125.00,
+          durationMonths: 6,
+          description: '30 × 60 Min. Personal Training',
+          includes: 'Spiroergometrie, 2× Leistungsanalyse, Training Service',
+          sortOrder: 3,
+        },
+      ];
+
+      for (const pkg of packages) {
+        const [existing]: any = await this.dataSource.query(
+          'SELECT id FROM credit_package WHERE name = ?',
+          [pkg.name],
+        );
+        if (existing) {
+          await this.dataSource.query(
+            'UPDATE credit_package SET credits = ?, price = ?, price_per_session = ?, duration_months = ?, description = ?, `includes` = ?, sort_order = ?, active = 1 WHERE id = ?',
+            [pkg.credits, pkg.price, pkg.pricePerSession, pkg.durationMonths, pkg.description, pkg.includes, pkg.sortOrder, existing.id],
+          );
+          this.logger.log(`Package "${pkg.name}" updated`);
+        } else {
+          await this.dataSource.query(
+            'INSERT INTO credit_package (name, credits, price, price_per_session, duration_months, description, `includes`, sort_order, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)',
+            [pkg.name, pkg.credits, pkg.price, pkg.pricePerSession, pkg.durationMonths, pkg.description, pkg.includes, pkg.sortOrder],
+          );
+          this.logger.log(`Package "${pkg.name}" created`);
+        }
+      }
+      this.logger.log('Credit packages setup complete');
+    } catch (err: any) {
+      this.logger.warn(`Credit packages setup error: ${err.message}`);
     }
   }
 

@@ -124,13 +124,16 @@ class MockData {
         ),
       ];
 
-  static List<BuyableCredit> get buyableCredits => [
-        BuyableCredit(
-          creditId: 'ST-10',
-          name: '10er Abo Personal Training',
-          desc: '10 Einheiten a 60 Minuten Personal Training',
-          unit: '10 Einheiten',
-          price: 990.00,
+  static List<CreditPackage> get creditPackages => [
+        CreditPackage(
+          id: '1',
+          name: 'Basic',
+          credits: 10,
+          price: 1350.00,
+          pricePerSession: 135.00,
+          durationMonths: 3,
+          description: '10 x 60 Min. Personal Training',
+          includes: '1x Leistungsanalyse, Training Service',
         ),
       ];
 
