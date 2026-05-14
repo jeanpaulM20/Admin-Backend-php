@@ -318,24 +318,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
   ) {
     final pref = context.read<PreferenceProvider>();
     final trainerIds = options.map((o) => o.trainerId).toSet().toList();
-    final allLocationIds = options.map((o) => o.locationId).whereType<String>().toSet().toList();
+    // All active locations — client can choose any location
+    final allLocationIds = calData.locations.map((l) => l.id).toList();
 
     // Pre-select from preferences or single option
     String? initTrainer = trainerIds.contains(pref.trainerId)
         ? pref.trainerId
         : (trainerIds.length == 1 ? trainerIds.first : null);
     String? initLocation;
-    if (initTrainer != null) {
-      final trainerLocs = options
-          .where((o) => o.trainerId == initTrainer)
-          .map((o) => o.locationId).whereType<String>().toSet().toList();
-      initLocation = trainerLocs.contains(pref.locationId)
-          ? pref.locationId
-          : (trainerLocs.length == 1 ? trainerLocs.first : null);
-    } else {
-      initLocation = allLocationIds.contains(pref.locationId)
-          ? pref.locationId
-          : (allLocationIds.length == 1 ? allLocationIds.first : null);
+    if (allLocationIds.contains(pref.locationId)) {
+      initLocation = pref.locationId;
+    } else if (allLocationIds.length == 1) {
+      initLocation = allLocationIds.first;
     }
 
     return showModalBottomSheet<_SlotSelection>(
@@ -351,15 +345,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
         return StatefulBuilder(
           builder: (ctx, setModalState) {
-            final availLocations = selTrainer != null
-                ? options.where((o) => o.trainerId == selTrainer)
-                    .map((o) => o.locationId).whereType<String>().toSet().toList()
-                : allLocationIds;
+            // Show ALL active locations — location is a client choice
+            final availLocations = allLocationIds;
 
-            // Reset location if not available for this trainer
-            if (selLocation != null && !availLocations.contains(selLocation)) {
-              selLocation = availLocations.length == 1 ? availLocations.first : null;
-            }
             // Auto-select singles
             if (selTrainer == null && trainerIds.length == 1) selTrainer = trainerIds.first;
             if (selLocation == null && availLocations.length == 1) selLocation = availLocations.first;
@@ -429,15 +417,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         }).toList(),
                         onChanged: (v) => setModalState(() {
                           selTrainer = v;
-                          if (v != null) {
-                            final locs = options.where((o) => o.trainerId == v)
-                                .map((o) => o.locationId).whereType<String>().toSet().toList();
-                            if (locs.length == 1) {
-                              selLocation = locs.first;
-                            } else if (selLocation != null && !locs.contains(selLocation)) {
-                              selLocation = null;
-                            }
-                          }
+                          // Location stays — client can pick any location independently
                         }),
                       ),
                     ),
@@ -500,12 +480,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     Expanded(flex: 2, child: ElevatedButton(
                       onPressed: canConfirm
                           ? () {
-                              final match = options.where((o) =>
-                                  o.trainerId == selTrainer && o.locationId == selLocation).firstOrNull;
+                              // Get training type from trainer's availability (location is client choice)
+                              final trainerOpt = options.where((o) =>
+                                  o.trainerId == selTrainer).firstOrNull;
                               Navigator.pop(ctx, _SlotSelection(
                                 trainerId: selTrainer!,
                                 locationId: selLocation!,
-                                trainingTypeId: match?.trainingTypeId,
+                                trainingTypeId: trainerOpt?.trainingTypeId,
                               ));
                             }
                           : null,
