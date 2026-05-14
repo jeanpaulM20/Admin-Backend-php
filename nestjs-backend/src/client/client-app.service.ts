@@ -413,6 +413,7 @@ export class ClientAppService {
   async bookAppointment(clientId: number, body: any) {
     const DURATION = 60; // Training is always 60 minutes
     const BUFFER_MINUTES = 30; // Buffer between trainings at different locations
+    const MIN_ADVANCE_HOURS = 12; // Minimum hours in advance for booking
 
     // ── 1. Parse & validate input ─────────────────────────────────
     const trainerId = Number(body.trainer_id ?? body.trainerId);
@@ -430,10 +431,21 @@ export class ClientAppService {
     }
 
     // ── 2. Date must not be in the past ───────────────────────────
-    const today = new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10);
     if (date < today) {
       throw new BadRequestException(
         'Buchungen in der Vergangenheit sind nicht möglich.',
+      );
+    }
+
+    // ── 2b. Must book at least 12 hours in advance ──────────────
+    const appointmentDate = new Date(`${date}T${starttime}`);
+    const hoursUntilAppointment =
+      (appointmentDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+    if (hoursUntilAppointment < MIN_ADVANCE_HOURS) {
+      throw new BadRequestException(
+        `Buchungen müssen mindestens ${MIN_ADVANCE_HOURS} Stunden im Voraus erfolgen.`,
       );
     }
 
@@ -597,8 +609,16 @@ export class ClientAppService {
       throw new BadRequestException('Termin ist bereits abgesagt.');
     }
 
-    // Refund credit if one was charged
-    if (training.creditsCharged && training.creditsCharged > 0) {
+    // Check if this is a late cancellation (less than 12 hours before appointment)
+    const MIN_CANCEL_HOURS = 12;
+    const now = new Date();
+    const appointmentDate = new Date(`${training.date}T${training.starttime}`);
+    const hoursUntilAppointment =
+      (appointmentDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+    const isLateCancellation = hoursUntilAppointment < MIN_CANCEL_HOURS;
+
+    // Refund credit only for timely cancellations (>= 12 hours before)
+    if (training.creditsCharged && training.creditsCharged > 0 && !isLateCancellation) {
       // Try to refund to the exact pack that was charged
       if (training.creditPackId) {
         const originalPack = await this.creditsRepo.findOne({
@@ -627,9 +647,16 @@ export class ClientAppService {
     training.status = TrainingStatus.CANCELLED;
     training.cancelledAt = new Date().toISOString();
     training.cancelledByClientId = clientId;
-    training.creditsCharged = 0;
+    if (!isLateCancellation) {
+      training.creditsCharged = 0;
+    }
+    // Late cancellation: creditsCharged stays 1 (penalty)
     await this.trainingRepo.save(training);
-    return { success: true };
+    return {
+      success: true,
+      lateCancellation: isLateCancellation,
+      creditRefunded: !isLateCancellation,
+    };
   }
 
   /** Client files — returns proxy download URLs (no direct URLs exposed) */

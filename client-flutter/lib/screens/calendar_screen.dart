@@ -212,9 +212,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
             return null;
           }
 
+          // Check 12-hour advance booking rule
+          bool isTooShortNotice() {
+            final appointmentDT = DateTime(
+              bookingDay.year, bookingDay.month, bookingDay.day,
+              selectedTime.hour, selectedTime.minute,
+            );
+            final hoursUntil =
+                appointmentDT.difference(DateTime.now()).inMinutes / 60.0;
+            return hoursUntil < 12;
+          }
+
           final timeValid = isTimeValid();
           final conflict = hasConflict();
           final trainerConflict = trainerConflictMsg();
+          final tooShortNotice = isTooShortNotice();
 
           return AlertDialog(
             backgroundColor: AppColors.surface,
@@ -570,6 +582,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         ],
                       ),
                     ),
+
+                  // 12-hour advance booking rule
+                  if (tooShortNotice)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.schedule,
+                              color: AppColors.red, size: 14),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              'Buchungen müssen mind. 12 Stunden im Voraus erfolgen.',
+                              style: TextStyle(
+                                  color: AppColors.red, fontSize: 11),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -584,7 +616,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         selectedTrainerId == null ||
                         selectedTypeId == null ||
                         conflict ||
-                        trainerConflict != null
+                        trainerConflict != null ||
+                        tooShortNotice
                     ? null
                     : () async {
                         // Fix 9: Confirmation dialog
@@ -964,6 +997,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Future<void> _cancelAppointment(Appointment appt) async {
+    // Check if this is a late cancellation (< 12 hours before appointment)
+    final hoursUntil =
+        appt.startDate.difference(DateTime.now()).inMinutes / 60.0;
+    final isLateCancellation = hoursUntil < 12;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -980,28 +1018,53 @@ class _CalendarScreenState extends State<CalendarScreen> {
               style: TextStyle(color: AppColors.text),
             ),
             const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.green.withAlpha(15),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.green.withAlpha(40)),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.toll_outlined,
-                      color: AppColors.green, size: 14),
-                  SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Dein Credit wird automatisch zurückerstattet.',
-                      style: TextStyle(
-                          color: AppColors.green, fontSize: 12),
+            if (isLateCancellation)
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.red.withAlpha(15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.red.withAlpha(40)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded,
+                        color: AppColors.red, size: 14),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Verspätete Absage (weniger als 12 Stunden vor dem Termin). '
+                        'Dein Credit wird nicht zurückerstattet.',
+                        style: TextStyle(
+                            color: AppColors.red, fontSize: 12),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.green.withAlpha(15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.green.withAlpha(40)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.toll_outlined,
+                        color: AppColors.green, size: 14),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Dein Credit wird automatisch zurückerstattet.',
+                        style: TextStyle(
+                            color: AppColors.green, fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
           ],
         ),
         actions: [
@@ -1050,9 +1113,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(success
-              ? 'Termin abgesagt – Credit wurde zurückerstattet.'
+              ? (isLateCancellation
+                  ? 'Termin abgesagt – Credit wurde nicht zurückerstattet (verspätete Absage).'
+                  : 'Termin abgesagt – Credit wurde zurückerstattet.')
               : provider.error ?? 'Absage fehlgeschlagen'),
-          backgroundColor: success ? AppColors.green : AppColors.red,
+          backgroundColor: success
+              ? (isLateCancellation ? AppColors.orange : AppColors.green)
+              : AppColors.red,
         ),
       );
     }
