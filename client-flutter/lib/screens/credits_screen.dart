@@ -709,8 +709,8 @@ class _PackageCard extends StatelessWidget {
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: onPurchase,
-              icon: const Icon(Icons.shopping_cart_outlined, size: 18),
-              label: Text('Paket kaufen – CHF $priceFormatted'),
+              icon: const Icon(Icons.shopping_bag_outlined, size: 18),
+              label: const Text('Paket kaufen'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.white,
