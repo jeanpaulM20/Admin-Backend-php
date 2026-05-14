@@ -707,16 +707,21 @@ class _PackageCard extends StatelessWidget {
           // Buy button
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton.icon(
+            child: ElevatedButton(
               onPressed: onPurchase,
-              icon: const Icon(Icons.shopping_bag_outlined, size: 18),
-              label: const Text('Paket kaufen'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.white,
                 padding: const EdgeInsets.symmetric(vertical: 13),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(Icons.store_rounded, size: 20, color: Colors.white),
+                  SizedBox(width: 8),
+                  Text('Paket kaufen', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                ],
               ),
             ),
           ),
