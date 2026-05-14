@@ -166,23 +166,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
         orElse: () => filteredAvail.first,
       );
 
-      // 12h advance check
+      // 12h advance check — skip slot if too soon
       final slotDateTime = DateTime(day.year, day.month, day.day, startMin ~/ 60, startMin % 60);
       final hoursUntil = slotDateTime.difference(now).inMinutes / 60.0;
-      if (hoursUntil < 12) {
-        slots.add(_TimeSlot(
-          startMin: startMin,
-          timeStr: timeStr,
-          endTimeStr: endTimeStr,
-          status: _SlotStatus.tooSoon,
-          trainerId: matchingAvail.trainerId,
-          locationId: matchingAvail.locationId,
-          message: 'Mind. 12h im Voraus',
-        ));
-        continue;
-      }
+      if (hoursUntil < 12) continue;
 
-      // Client double-booking check
+      // Client double-booking check — skip slot if conflict
       bool clientConflict = false;
       for (final a in calData.appointments) {
         if (a.status.toLowerCase() == 'cancelled') continue;
@@ -194,21 +183,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
           break;
         }
       }
-      if (clientConflict) {
-        slots.add(_TimeSlot(
-          startMin: startMin,
-          timeStr: timeStr,
-          endTimeStr: endTimeStr,
-          status: _SlotStatus.clientConflict,
-          trainerId: matchingAvail.trainerId,
-          locationId: matchingAvail.locationId,
-          message: 'Du hast schon einen Termin',
-        ));
-        continue;
-      }
+      if (clientConflict) continue;
 
-      // Trainer conflict + buffer check
-      String? trainerMsg;
+      // Trainer conflict + buffer check — skip slot if conflict
+      bool trainerConflict = false;
       for (final b in calData.trainerBookings) {
         if (_filterTrainerId != null && b.trainerId != _filterTrainerId) continue;
         if (b.trainerId != matchingAvail.trainerId) continue;
@@ -231,34 +209,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
         }
 
         if (startMin < bEnd + buffer && bStart < endMin + buffer) {
-          if (buffer > 0) {
-            trainerMsg = 'Puffer ${buffer}min (anderer Standort)';
-          } else {
-            trainerMsg = 'Trainer belegt';
-          }
+          trainerConflict = true;
           break;
         }
       }
-
-      if (trainerMsg != null) {
-        slots.add(_TimeSlot(
-          startMin: startMin,
-          timeStr: timeStr,
-          endTimeStr: endTimeStr,
-          status: _SlotStatus.trainerConflict,
-          trainerId: matchingAvail.trainerId,
-          locationId: matchingAvail.locationId,
-          message: trainerMsg,
-        ));
-        continue;
-      }
+      if (trainerConflict) continue;
 
       // Available!
       slots.add(_TimeSlot(
         startMin: startMin,
         timeStr: timeStr,
         endTimeStr: endTimeStr,
-        status: _SlotStatus.available,
         trainerId: matchingAvail.trainerId,
         locationId: matchingAvail.locationId,
       ));
@@ -684,7 +645,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final slots = (_selectedDay != null && calData != null)
         ? _generateSlots(_selectedDay!, calData)
         : <_TimeSlot>[];
-    final availableSlots = slots.where((s) => s.status == _SlotStatus.available).length;
+    final availableSlots = slots.length;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -1063,25 +1024,19 @@ class _FilterChip extends StatelessWidget {
 // Slot Grid Widget
 // ═══════════════════════════════════════════════════════════════════════════════
 
-enum _SlotStatus { available, tooSoon, clientConflict, trainerConflict }
-
 class _TimeSlot {
   final int startMin;
   final String timeStr;
   final String endTimeStr;
-  final _SlotStatus status;
   final String? trainerId;
   final String? locationId;
-  final String? message;
 
   const _TimeSlot({
     required this.startMin,
     required this.timeStr,
     required this.endTimeStr,
-    required this.status,
     this.trainerId,
     this.locationId,
-    this.message,
   });
 }
 
@@ -1122,11 +1077,7 @@ class _SlotGrid extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
             child: Row(children: [
-              _legendDot(AppColors.green, 'Frei'),
-              const SizedBox(width: 12),
-              _legendDot(AppColors.muted, 'Belegt'),
-              const SizedBox(width: 12),
-              _legendDot(AppColors.orange, 'Puffer'),
+              _legendDot(AppColors.green, 'Antippen zum Buchen'),
             ]),
           ),
         ],
@@ -1151,69 +1102,33 @@ class _SlotTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color bgColor;
-    Color borderColor;
-    Color textColor;
-    IconData? icon;
-
-    switch (slot.status) {
-      case _SlotStatus.available:
-        bgColor = AppColors.green.withAlpha(15);
-        borderColor = AppColors.green.withAlpha(60);
-        textColor = AppColors.green;
-        break;
-      case _SlotStatus.tooSoon:
-        bgColor = AppColors.muted.withAlpha(10);
-        borderColor = AppColors.border;
-        textColor = AppColors.muted;
-        icon = Icons.schedule;
-        break;
-      case _SlotStatus.clientConflict:
-        bgColor = AppColors.red.withAlpha(10);
-        borderColor = AppColors.red.withAlpha(40);
-        textColor = AppColors.red;
-        icon = Icons.block;
-        break;
-      case _SlotStatus.trainerConflict:
-        bgColor = AppColors.orange.withAlpha(10);
-        borderColor = AppColors.orange.withAlpha(40);
-        textColor = AppColors.orange;
-        icon = Icons.timer_outlined;
-        break;
-    }
-
     return Tooltip(
-      message: slot.message ?? '${slot.timeStr} – ${slot.endTimeStr}',
+      message: '${slot.timeStr} – ${slot.endTimeStr}',
       child: GestureDetector(
-        onTap: slot.status == _SlotStatus.available ? () => onTap(slot) : null,
+        onTap: () => onTap(slot),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           width: 80,
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
           decoration: BoxDecoration(
-            color: bgColor,
+            color: AppColors.green.withAlpha(15),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: borderColor),
+            border: Border.all(color: AppColors.green.withAlpha(60)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (icon != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 2),
-                  child: Icon(icon, size: 12, color: textColor),
-                ),
               Text(
                 slot.timeStr,
-                style: TextStyle(
-                  color: textColor,
+                style: const TextStyle(
+                  color: AppColors.green,
                   fontSize: 13,
-                  fontWeight: slot.status == _SlotStatus.available ? FontWeight.w700 : FontWeight.w400,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               Text(
                 slot.endTimeStr,
-                style: TextStyle(color: textColor.withAlpha(150), fontSize: 10),
+                style: TextStyle(color: AppColors.green.withAlpha(150), fontSize: 10),
               ),
             ],
           ),
