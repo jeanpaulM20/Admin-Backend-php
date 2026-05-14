@@ -132,7 +132,12 @@ export class ClientAppService {
         location_id: t.locationId,
         status: t.status,
       })),
-      locations: locations.map((l) => ({ id: l.id, name: l.name, address: l.address })),
+      locations: locations.map((l) => ({
+        id: l.id,
+        name: l.name,
+        address: l.address,
+        buffer_minutes: l.bufferMinutes ?? 30,
+      })),
     };
   }
 
@@ -412,8 +417,8 @@ export class ClientAppService {
   /** Book a training appointment — with full validation */
   async bookAppointment(clientId: number, body: any) {
     const DURATION = 60; // Training is always 60 minutes
-    const BUFFER_MINUTES = 30; // Buffer between trainings at different locations
     const MIN_ADVANCE_HOURS = 12; // Minimum hours in advance for booking
+    // Buffer is now dynamic per location (3-tier: same=0, different=30, Andere=60)
 
     // ── 1. Parse & validate input ─────────────────────────────────
     const trainerId = Number(body.trainer_id ?? body.trainerId);
@@ -497,7 +502,11 @@ export class ClientAppService {
       }
     }
 
-    // ── 6. No trainer conflict (with location buffer) ─────────────
+    // ── 6. No trainer conflict (with dynamic 3-tier location buffer) ──
+    // Buffer logic:
+    //   Same location     → 0 min
+    //   Different location → MAX(buffer_a, buffer_b) (typically 30 min)
+    //   "Andere" involved  → MAX(buffer_a, buffer_b) = MAX(60, x) = 60 min
     const trainerTrainings = await this.trainingRepo.find({
       where: {
         trainerId,
@@ -506,23 +515,37 @@ export class ClientAppService {
       },
     });
 
+    // Load locations to get buffer_minutes values
+    const allLocations = await this.locationRepo.find();
+    const locationMap = new Map(allLocations.map(l => [l.id, l]));
+
+    // Get buffer_minutes for the requested location
+    const reqLocation = locationId ? locationMap.get(locationId) : null;
+    const reqBuffer = reqLocation?.bufferMinutes ?? 30;
+
     for (const t of trainerTrainings) {
       const [eH, eM] = (t.starttime || '00:00').split(':').map(Number);
       const existStart = eH * 60 + eM;
       const existEnd = existStart + (t.duration || DURATION);
 
-      // Buffer: 30 min if different location, 0 if same
+      // 3-tier buffer: same location = 0, different = MAX(both buffers)
       const sameLocation =
         locationId != null &&
         t.locationId != null &&
         Number(t.locationId) === locationId;
-      const buffer = sameLocation ? 0 : BUFFER_MINUTES;
+
+      let buffer = 0;
+      if (!sameLocation) {
+        const existLocation = t.locationId ? locationMap.get(Number(t.locationId)) : null;
+        const existBuffer = existLocation?.bufferMinutes ?? 30;
+        buffer = Math.max(reqBuffer, existBuffer);
+      }
 
       if (reqStart < existEnd + buffer && existStart < reqEnd + buffer) {
         if (buffer > 0) {
           throw new BadRequestException(
-            'Trainer hat einen Termin an einem anderen Standort. ' +
-              '30 Minuten Pufferzeit zwischen verschiedenen Standorten erforderlich.',
+            `Trainer hat einen Termin an einem anderen Standort. ` +
+              `${buffer} Minuten Pufferzeit erforderlich.`,
           );
         }
         throw new BadRequestException(

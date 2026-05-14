@@ -27,6 +27,8 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       `ALTER TABLE exercise ADD COLUMN primary_muscle_group VARCHAR(50) DEFAULT NULL`,
       `ALTER TABLE exercise ADD COLUMN target_joint VARCHAR(30) DEFAULT NULL`,
       `ALTER TABLE exercise ADD COLUMN movement_pattern VARCHAR(20) DEFAULT NULL`,
+      // Location buffer for 3-tier dynamic buffer system
+      `ALTER TABLE location ADD COLUMN buffer_minutes INT DEFAULT 30`,
     ];
 
     // Create push_subscription table if it doesn't exist
@@ -62,8 +64,67 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       }
     }
 
+    // Ensure correct locations with buffer_minutes values
+    await this.ensureLocations();
+
     // Copy missing file records from old PHP database
     await this.copyMissingFiles();
+  }
+
+  /**
+   * Ensures the 4 production locations exist with correct buffer_minutes.
+   * Deactivates old/unused locations and creates missing ones.
+   *
+   * Locations:
+   *  1. Sportanlage Sihlhölzli  → 30 min buffer (between different locations)
+   *  2. Sportanlage Allmend Brunau → 30 min buffer
+   *  3. Rieterpark → 30 min buffer
+   *  4. Andere → 60 min buffer (external / unknown location)
+   */
+  private async ensureLocations() {
+    const targetLocations = [
+      { name: 'Sportanlage Sihlhölzli', buffer_minutes: 30 },
+      { name: 'Sportanlage Allmend Brunau', buffer_minutes: 30 },
+      { name: 'Rieterpark', buffer_minutes: 30 },
+      { name: 'Andere', buffer_minutes: 60 },
+    ];
+
+    try {
+      for (const loc of targetLocations) {
+        // Check if location already exists (by name)
+        const [existing]: any = await this.dataSource.query(
+          'SELECT id, buffer_minutes, active FROM location WHERE name = ?',
+          [loc.name],
+        );
+
+        if (existing) {
+          // Update buffer_minutes and ensure active
+          await this.dataSource.query(
+            'UPDATE location SET buffer_minutes = ?, active = 1 WHERE id = ?',
+            [loc.buffer_minutes, existing.id],
+          );
+          this.logger.log(`Location "${loc.name}" updated (buffer=${loc.buffer_minutes})`);
+        } else {
+          // Create new location
+          await this.dataSource.query(
+            'INSERT INTO location (name, buffer_minutes, active) VALUES (?, ?, 1)',
+            [loc.name, loc.buffer_minutes],
+          );
+          this.logger.log(`Location "${loc.name}" created (buffer=${loc.buffer_minutes})`);
+        }
+      }
+
+      // Deactivate old locations not in the target list
+      const targetNames = targetLocations.map(l => l.name);
+      const placeholders = targetNames.map(() => '?').join(', ');
+      await this.dataSource.query(
+        `UPDATE location SET active = 0 WHERE name NOT IN (${placeholders}) AND active = 1`,
+        targetNames,
+      );
+      this.logger.log('Location setup complete');
+    } catch (err: any) {
+      this.logger.warn(`Location setup error: ${err.message}`);
+    }
   }
 
   /**

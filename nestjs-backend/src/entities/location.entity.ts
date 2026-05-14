@@ -11,6 +11,9 @@ export class Location {
   @Column({ nullable: true })
   address: string;
 
+  @Column({ name: 'buffer_minutes', default: 30 })
+  bufferMinutes: number;
+
   @Column({ default: 1 })
   active: number;
 }

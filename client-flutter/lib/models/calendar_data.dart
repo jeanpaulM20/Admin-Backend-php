@@ -71,14 +71,21 @@ class LocationInfo {
   final String id;
   final String name;
   final String? address;
+  final int bufferMinutes;
 
-  LocationInfo({required this.id, required this.name, this.address});
+  LocationInfo({
+    required this.id,
+    required this.name,
+    this.address,
+    this.bufferMinutes = 30,
+  });
 
   factory LocationInfo.fromJson(Map<String, dynamic> json) {
     return LocationInfo(
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
       address: json['address']?.toString(),
+      bufferMinutes: int.tryParse(json['buffer_minutes']?.toString() ?? '30') ?? 30,
     );
   }
 }
