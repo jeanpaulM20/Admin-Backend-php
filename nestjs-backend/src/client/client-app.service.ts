@@ -824,10 +824,14 @@ export class ClientAppService {
 
   /** Get client booking preferences (trainer, type, location defaults) */
   async getPreferences(clientId: number) {
-    const rows = await this.preferenceRepo.find({ where: { clientId } });
+    // Use raw query because `key` is a MySQL reserved word
+    const rows: any[] = await this.preferenceRepo.manager.query(
+      'SELECT `key`, `value` FROM `preference` WHERE `client_id` = ?',
+      [clientId],
+    );
     const result: Record<string, string | null> = {};
     for (const key of ClientAppService.PREF_KEYS) {
-      const row = rows.find(r => r.key === key);
+      const row = rows.find((r: any) => r.key === key);
       result[key] = row?.value ?? null;
     }
     return result;
@@ -836,35 +840,42 @@ export class ClientAppService {
   /** Save client booking preferences (partial update — only provided keys are updated) */
   async savePreferences(clientId: number, prefs: Record<string, string | null>) {
     const saved: Record<string, string | null> = {};
+    const mgr = this.preferenceRepo.manager;
 
     for (const key of ClientAppService.PREF_KEYS) {
       if (!(key in prefs)) continue;
 
       const value = prefs[key];
-      const existing = await this.preferenceRepo.findOne({
-        where: { clientId, key },
-      });
+
+      // Check if row exists
+      const existing: any[] = await mgr.query(
+        'SELECT id FROM `preference` WHERE `client_id` = ? AND `key` = ?',
+        [clientId, key],
+      );
 
       if (value === null || value === '') {
         // Delete preference
-        if (existing) {
-          await this.preferenceRepo.remove(existing);
+        if (existing.length > 0) {
+          await mgr.query(
+            'DELETE FROM `preference` WHERE `client_id` = ? AND `key` = ?',
+            [clientId, key],
+          );
         }
         saved[key] = null;
-      } else if (existing) {
+      } else if (existing.length > 0) {
         // Update
-        existing.value = String(value);
-        await this.preferenceRepo.save(existing);
-        saved[key] = existing.value;
+        await mgr.query(
+          'UPDATE `preference` SET `value` = ? WHERE `client_id` = ? AND `key` = ?',
+          [String(value), clientId, key],
+        );
+        saved[key] = String(value);
       } else {
         // Insert
-        const pref = this.preferenceRepo.create({
-          clientId,
-          key,
-          value: String(value),
-        });
-        await this.preferenceRepo.save(pref);
-        saved[key] = pref.value;
+        await mgr.query(
+          'INSERT INTO `preference` (`client_id`, `key`, `value`) VALUES (?, ?, ?)',
+          [clientId, key, String(value)],
+        );
+        saved[key] = String(value);
       }
     }
 
