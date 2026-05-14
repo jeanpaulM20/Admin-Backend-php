@@ -177,6 +177,29 @@ export class StartupMigrationService implements OnApplicationBootstrap {
         `UPDATE location SET active = 0 WHERE name NOT IN (${placeholders}) AND active = 1`,
         targetNames,
       );
+
+      // Fix orphaned availability/booking records pointing to inactive locations
+      // Redirect them to the first active location (Sportanlage Sihlhölzli)
+      const [firstActive]: any = await this.dataSource.query(
+        `SELECT id FROM location WHERE name = 'Sportanlage Sihlhölzli' AND active = 1 LIMIT 1`,
+      );
+      if (firstActive) {
+        const activeIds = await this.dataSource.query(
+          `SELECT id FROM location WHERE active = 1`,
+        );
+        const activeIdSet = activeIds.map((r: any) => r.id);
+        if (activeIdSet.length > 0) {
+          const ph = activeIdSet.map(() => '?').join(', ');
+          const [result]: any = await this.dataSource.query(
+            `UPDATE trainer_availability SET location_id = ? WHERE location_id NOT IN (${ph})`,
+            [firstActive.id, ...activeIdSet],
+          );
+          if (result?.affectedRows > 0) {
+            this.logger.log(`Redirected ${result.affectedRows} availability records to Sportanlage Sihlhölzli`);
+          }
+        }
+      }
+
       this.logger.log('Location setup complete');
     } catch (err: any) {
       this.logger.warn(`Location setup error: ${err.message}`);
