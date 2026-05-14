@@ -7,7 +7,7 @@ import { Trainer } from '../entities/trainer.entity';
 import { TrainerAvailability } from '../entities/trainer-availability.entity';
 import { Location } from '../entities/location.entity';
 import {
-  ClientCredits, TrainingType, PerformanceTest, File as ClientFile, Preference,
+  ClientCredits, TrainingType, PerformanceTest, File as ClientFile,
 } from '../entities/remaining.entities';
 import { Metric } from '../entities/metric.entity';
 import { Feedback } from '../entities/feedback.entity';
@@ -34,7 +34,6 @@ import { ClientAppController } from './client-php-proxy.controller';
       ClientFile,
       Feedback,
       Metric,
-      Preference,
     ]),
     ReviewModule,
     FileModule,

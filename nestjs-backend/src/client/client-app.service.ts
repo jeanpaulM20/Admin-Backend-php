@@ -1,11 +1,11 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThanOrEqual, In } from 'typeorm';
+import { Repository, DataSource, MoreThanOrEqual, In } from 'typeorm';
 import { Client } from '../entities/client.entity';
 import { Training, TrainingStatus } from '../entities/training.entity';
 import { TrainerAvailability } from '../entities/trainer-availability.entity';
 import { Trainer } from '../entities/trainer.entity';
-import { ClientCredits, TrainingType, PerformanceTest, File as ClientFile, Preference } from '../entities/remaining.entities';
+import { ClientCredits, TrainingType, PerformanceTest, File as ClientFile } from '../entities/remaining.entities';
 import { Metric } from '../entities/metric.entity';
 import { Location } from '../entities/location.entity';
 import { ReviewService } from '../review/review.service';
@@ -23,7 +23,7 @@ export class ClientAppService {
     @InjectRepository(PerformanceTest) private readonly perfTestRepo: Repository<PerformanceTest>,
     @InjectRepository(ClientFile) private readonly fileRepo: Repository<ClientFile>,
     @InjectRepository(Metric) private readonly metricRepo: Repository<Metric>,
-    @InjectRepository(Preference) private readonly preferenceRepo: Repository<Preference>,
+    private readonly dataSource: DataSource,
     private readonly reviewService: ReviewService,
   ) {}
 
@@ -824,8 +824,8 @@ export class ClientAppService {
 
   /** Get client booking preferences (trainer, type, location defaults) */
   async getPreferences(clientId: number) {
-    // Use raw query because `key` is a MySQL reserved word
-    const rows: any[] = await this.preferenceRepo.manager.query(
+    // Raw query — `key` is a MySQL reserved word, bypass TypeORM entity
+    const rows: any[] = await this.dataSource.query(
       'SELECT `key`, `value` FROM `preference` WHERE `client_id` = ?',
       [clientId],
     );
@@ -840,7 +840,6 @@ export class ClientAppService {
   /** Save client booking preferences (partial update — only provided keys are updated) */
   async savePreferences(clientId: number, prefs: Record<string, string | null>) {
     const saved: Record<string, string | null> = {};
-    const mgr = this.preferenceRepo.manager;
 
     for (const key of ClientAppService.PREF_KEYS) {
       if (!(key in prefs)) continue;
@@ -848,7 +847,7 @@ export class ClientAppService {
       const value = prefs[key];
 
       // Check if row exists
-      const existing: any[] = await mgr.query(
+      const existing: any[] = await this.dataSource.query(
         'SELECT id FROM `preference` WHERE `client_id` = ? AND `key` = ?',
         [clientId, key],
       );
@@ -856,7 +855,7 @@ export class ClientAppService {
       if (value === null || value === '') {
         // Delete preference
         if (existing.length > 0) {
-          await mgr.query(
+          await this.dataSource.query(
             'DELETE FROM `preference` WHERE `client_id` = ? AND `key` = ?',
             [clientId, key],
           );
@@ -864,14 +863,14 @@ export class ClientAppService {
         saved[key] = null;
       } else if (existing.length > 0) {
         // Update
-        await mgr.query(
+        await this.dataSource.query(
           'UPDATE `preference` SET `value` = ? WHERE `client_id` = ? AND `key` = ?',
           [String(value), clientId, key],
         );
         saved[key] = String(value);
       } else {
         // Insert
-        await mgr.query(
+        await this.dataSource.query(
           'INSERT INTO `preference` (`client_id`, `key`, `value`) VALUES (?, ?, ?)',
           [clientId, key, String(value)],
         );
