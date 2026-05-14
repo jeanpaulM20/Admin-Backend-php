@@ -78,6 +78,27 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       this.logger.warn(`push_subscription table creation: ${err.message}`);
     }
 
+    // Create invoice table
+    try {
+      await this.dataSource.query(`
+        CREATE TABLE IF NOT EXISTS invoice (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          invoice_number VARCHAR(20) NOT NULL UNIQUE,
+          client_id INT NOT NULL,
+          package_name VARCHAR(100) NOT NULL,
+          amount DECIMAL(10,2) NOT NULL,
+          credits INT NOT NULL DEFAULT 0,
+          duration_months INT DEFAULT NULL,
+          status VARCHAR(20) DEFAULT 'pending',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_invoice_client (client_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+      this.logger.log('invoice table ready');
+    } catch (err: any) {
+      this.logger.warn(`invoice table creation: ${err.message}`);
+    }
+
     for (const sql of migrations) {
       try {
         await this.dataSource.query(sql);

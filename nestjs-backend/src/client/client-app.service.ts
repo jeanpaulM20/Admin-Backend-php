@@ -9,6 +9,7 @@ import { ClientCredits, TrainingType, PerformanceTest, File as ClientFile } from
 import { Metric } from '../entities/metric.entity';
 import { Location } from '../entities/location.entity';
 import { ReviewService } from '../review/review.service';
+import { InvoiceService } from '../invoice/invoice.service';
 
 @Injectable()
 export class ClientAppService {
@@ -25,6 +26,7 @@ export class ClientAppService {
     @InjectRepository(Metric) private readonly metricRepo: Repository<Metric>,
     private readonly dataSource: DataSource,
     private readonly reviewService: ReviewService,
+    private readonly invoiceService: InvoiceService,
   ) {}
 
   /** Dashboard: credits + upcoming appointments */
@@ -206,6 +208,72 @@ export class ClientAppService {
     } catch {
       return [];
     }
+  }
+
+  /** Purchase a credit package — creates credits + invoice + sends email */
+  async purchasePackage(clientId: number, packageId: number) {
+    // 1. Load client
+    const client = await this.clientRepo.findOne({ where: { id: clientId } });
+    if (!client) throw new NotFoundException('Client not found');
+
+    // 2. Load package
+    const [pkg]: any = await this.dataSource.query(
+      'SELECT * FROM credit_package WHERE id = ? AND active = 1',
+      [packageId],
+    );
+    if (!pkg) throw new NotFoundException('Package not found');
+
+    const credits = pkg.credits;
+    const price = parseFloat(pkg.price);
+    const durationMonths = pkg.duration_months;
+    const packageName = pkg.name;
+
+    // 3. Calculate dates
+    const now = new Date();
+    const startDate = now.toISOString().split('T')[0];
+    const expiresDate = new Date(now);
+    expiresDate.setMonth(expiresDate.getMonth() + (durationMonths ?? 1));
+    const expiresStr = expiresDate.toISOString().split('T')[0];
+
+    // 4. Create client_credits entry
+    await this.creditsRepo.save({
+      clientId,
+      paid: credits,
+      attended: 0,
+      startdate: startDate,
+      expires: expiresStr,
+      sellDate: startDate,
+    });
+
+    // 5. Create invoice
+    const invoiceNumber = await this.invoiceService.createInvoice({
+      clientId,
+      packageName,
+      amount: price,
+      credits,
+      durationMonths: durationMonths ?? 1,
+    });
+
+    // 6. Send invoice email
+    const clientName = `${client.firstname} ${client.lastname}`.trim();
+    const emailSent = await this.invoiceService.sendInvoiceEmail({
+      invoiceNumber,
+      clientName,
+      clientEmail: client.email,
+      packageName,
+      credits,
+      durationMonths: durationMonths ?? 1,
+      amount: price,
+    });
+
+    return {
+      success: true,
+      invoiceNumber,
+      emailSent,
+      message: emailSent
+        ? `Rechnung ${invoiceNumber} wurde an ${client.email} gesendet.`
+        : `Paket gebucht. Rechnung ${invoiceNumber} erstellt (E-Mail-Versand nicht konfiguriert).`,
+    };
   }
 
   /** Performance tests – transformed into sectioned format for Flutter */

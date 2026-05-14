@@ -27,4 +27,14 @@ class CreditsService {
     }
     return [];
   }
+
+  /// Purchase a credit package
+  Future<Map<String, dynamic>> purchasePackage(String clientId, String packageId) async {
+    final data = await apiClient.post(
+      'api/client/purchase/$clientId',
+      body: {'packageId': int.parse(packageId)},
+    );
+    if (data is Map<String, dynamic>) return data;
+    return {'success': false, 'message': 'Unbekannter Fehler'};
+  }
 }

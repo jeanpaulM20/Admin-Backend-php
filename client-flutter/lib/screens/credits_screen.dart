@@ -5,6 +5,7 @@ import '../config/app_colors.dart';
 import '../providers/auth_provider.dart';
 import '../providers/credits_provider.dart';
 import '../models/buyable_credit.dart';
+import '../services/credits_service.dart';
 import '../widgets/loading_indicator.dart';
 import '../widgets/error_view.dart';
 
@@ -29,6 +30,267 @@ class _CreditsScreenState extends State<CreditsScreen> {
     }
   }
 
+  // ── Purchase flow ──────────────────────────────────────────────────────────
+
+  Future<void> _startPurchase(CreditPackage pkg) async {
+    // Step 1: Show AGB
+    final agbAccepted = await _showAgbSheet(pkg);
+    if (agbAccepted != true || !mounted) return;
+
+    // Step 2: Confirm purchase
+    final confirmed = await _showConfirmDialog(pkg);
+    if (confirmed != true || !mounted) return;
+
+    // Step 3: Execute purchase
+    await _executePurchase(pkg);
+  }
+
+  Future<bool?> _showAgbSheet(CreditPackage pkg) {
+    return showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        bool accepted = false;
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return DraggableScrollableSheet(
+              initialChildSize: 0.85,
+              minChildSize: 0.5,
+              maxChildSize: 0.95,
+              expand: false,
+              builder: (ctx, scrollCtrl) => Column(
+                children: [
+                  // Handle
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12, bottom: 8),
+                    child: Center(child: Container(
+                      width: 40, height: 4,
+                      decoration: BoxDecoration(color: AppColors.muted, borderRadius: BorderRadius.circular(2)),
+                    )),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: Text('Allgemeine Geschaeftsbedingungen',
+                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
+                  const SizedBox(height: 12),
+                  // AGB content
+                  Expanded(
+                    child: ListView(
+                      controller: scrollCtrl,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      children: const [
+                        _AgbItem(num: '1', title: 'Terminvereinbarung',
+                            text: 'Fuer den Bezug saemtlicher Leistungen ist eine Terminvereinbarung (online oder telefonisch) erforderlich.'),
+                        _AgbItem(num: '2', title: 'Absagefrist',
+                            text: 'Verhindert der Klient die Wahrnehmung eines Termins, ist die SIHLHEALTH GmbH spaetestens 24 Stunden im Voraus zu informieren. Bei verspaeteter Absage oder Nichterscheinen gilt die Leistung als erbracht und ist vollumfaenglich geschuldet – auch bei unverschuldeter Verhinderung (ausgenommen aerztlich belegte Krankheit oder Unfall). Verspaetungen fuehren nicht zu einer Verlaengerung der Trainingszeit.'),
+                        _AgbItem(num: '3', title: 'Zahlungskonditionen',
+                            text: 'Der Preis ist vor Leistungsbezug faellig. Abos sind innert 7 Tagen ab Unterzeichnung zahlbar. Die SIHLHEALTH GmbH behaelt sich vor, Leistungen bei Zahlungsverzug auszusetzen.'),
+                        _AgbItem(num: '4', title: 'Gueltigkeit',
+                            text: 'Nicht genutzte Leistungen verfallen nach Ablauf der Abo-Gueltigkeit ohne Anspruch auf Rueckerstattung.'),
+                        _AgbItem(num: '5', title: 'Depot',
+                            text: 'Fuer den Herzfrequenzsensor wird ein Depot von CHF 20.00 erhoben, welches bei unbeschaedigter Rueckgabe nach Vertragsende erstattet wird.'),
+                        _AgbItem(num: '6', title: 'Gesundheitszustand',
+                            text: 'Der Klient bestaetigt seine Sporttauglichkeit. Er verpflichtet sich, die SIHLHEALTH GmbH ueber koerperliche Einschraenkungen oder gesundheitliche Risiken proaktiv zu informieren. Das Training erfolgt auf eigenes Risiko.'),
+                        _AgbItem(num: '7', title: 'Versicherung & Haftung',
+                            text: 'Versicherung ist Sache des Klienten. Soweit gesetzlich zulaessig, wird jegliche Haftung der SIHLHEALTH GmbH fuer Personen- oder Sachschaeden ausgeschlossen.'),
+                        _AgbItem(num: '8', title: 'Wertsachen',
+                            text: 'Fuer Verlust oder Beschaedigung von persoenlichen Gegenstaenden wird keine Haftung uebernommen.'),
+                        _AgbItem(num: '9', title: 'Uebertragbarkeit',
+                            text: 'Leistungsansprueche sind persoenlich und nicht auf Dritte uebertragbar.'),
+                        _AgbItem(num: '10', title: 'Datenschutz',
+                            text: 'Personenbezogene Daten werden nur im Rahmen der Leistungserbringung erhoben und verarbeitet.'),
+                        _AgbItem(num: '11', title: 'Schlussbestimmungen',
+                            text: 'Aenderungen beduerfen der Schriftform. Sollten einzelne Bestimmungen unwirksam sein, bleibt der Rest des Vertrages gueltig.'),
+                        _AgbItem(num: '12', title: 'Gerichtsstand',
+                            text: 'Gerichtsstand fuer alle Streitigkeiten ist Zuerich.'),
+                        SizedBox(height: 20),
+                      ],
+                    ),
+                  ),
+                  // Accept checkbox + button
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                    decoration: const BoxDecoration(
+                      border: Border(top: BorderSide(color: AppColors.border)),
+                    ),
+                    child: Column(
+                      children: [
+                        GestureDetector(
+                          onTap: () => setModalState(() => accepted = !accepted),
+                          child: Row(children: [
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              width: 22, height: 22,
+                              decoration: BoxDecoration(
+                                color: accepted ? AppColors.primary : Colors.transparent,
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: accepted ? AppColors.primary : AppColors.muted),
+                              ),
+                              child: accepted
+                                  ? const Icon(Icons.check, size: 16, color: Colors.white)
+                                  : null,
+                            ),
+                            const SizedBox(width: 10),
+                            const Expanded(child: Text(
+                              'Ich habe die AGB gelesen und akzeptiere diese.',
+                              style: TextStyle(color: AppColors.text, fontSize: 13),
+                            )),
+                          ]),
+                        ),
+                        const SizedBox(height: 14),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: accepted ? () => Navigator.pop(ctx, true) : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: AppColors.white,
+                              disabledBackgroundColor: AppColors.muted.withAlpha(40),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: const Text('AGB akzeptieren', style: TextStyle(fontWeight: FontWeight.w700)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<bool?> _showConfirmDialog(CreditPackage pkg) {
+    final priceFormatted = NumberFormat('#,##0.00', 'de_CH').format(pkg.price);
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: const Text('Kauf bestaetigen',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withAlpha(10),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.primary.withAlpha(30)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(pkg.name, style: const TextStyle(
+                    color: AppColors.text, fontSize: 16, fontWeight: FontWeight.w800,
+                  )),
+                  const SizedBox(height: 6),
+                  _metaRow('Lektionen', '${pkg.credits}'),
+                  if (pkg.durationMonths != null)
+                    _metaRow('Gueltigkeit', '${pkg.durationMonths} Monate'),
+                  _metaRow('Preis', 'CHF $priceFormatted'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Die Rechnung wird per E-Mail zugestellt und ist innert 7 Tagen zahlbar.',
+              style: TextStyle(color: AppColors.muted, fontSize: 12, height: 1.4),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen', style: TextStyle(color: AppColors.muted)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Kauf bestaetigen'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _metaRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(children: [
+        SizedBox(width: 90, child: Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 13))),
+        Text(value, style: const TextStyle(color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w600)),
+      ]),
+    );
+  }
+
+  Future<void> _executePurchase(CreditPackage pkg) async {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(children: [
+          SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+          SizedBox(width: 12),
+          Text('Paket wird gebucht...'),
+        ]),
+        backgroundColor: AppColors.primary,
+        duration: Duration(seconds: 15),
+      ),
+    );
+
+    try {
+      final auth = context.read<AuthProvider>();
+      final service = CreditsService();
+      final result = await service.purchasePackage(auth.clientId!, pkg.id);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      final success = result['success'] == true;
+      final message = result['message']?.toString() ?? (success ? 'Paket gebucht!' : 'Fehler beim Kauf');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: success ? AppColors.green : AppColors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+
+      if (success) {
+        // Reload credits
+        await _loadData();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Fehler: ${e.toString().replaceFirst("Exception: ", "")}'),
+          backgroundColor: AppColors.red,
+        ),
+      );
+    }
+  }
+
+  // ── Build ──────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     final credits = context.watch<CreditsProvider>();
@@ -47,6 +309,7 @@ class _CreditsScreenState extends State<CreditsScreen> {
                   : _CreditsContent(
                       credits: credits.data,
                       packages: credits.packages,
+                      onPurchase: _startPurchase,
                     ),
         ),
       ),
@@ -55,14 +318,61 @@ class _CreditsScreenState extends State<CreditsScreen> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Main content: client credits + available packages
+// AGB Item
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _AgbItem extends StatelessWidget {
+  final String num;
+  final String title;
+  final String text;
+
+  const _AgbItem({required this.num, required this.title, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 24, height: 24,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withAlpha(20),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(num, style: const TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w700)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 3),
+              Text(text, style: const TextStyle(color: AppColors.muted, fontSize: 12, height: 1.5)),
+            ],
+          )),
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Main content
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _CreditsContent extends StatelessWidget {
   final List<ClientCredit> credits;
   final List<CreditPackage> packages;
+  final ValueChanged<CreditPackage> onPurchase;
 
-  const _CreditsContent({required this.credits, required this.packages});
+  const _CreditsContent({
+    required this.credits,
+    required this.packages,
+    required this.onPurchase,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -82,21 +392,16 @@ class _CreditsContent extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: [
-        // ── Summary card ──
         _SummaryCard(activeCredits: activeCredits, packCount: credits.length),
         const SizedBox(height: 8),
-
-        // ── Active credit packs ──
         if (credits.isNotEmpty) ...[
           const _SectionHeader(icon: Icons.toll_outlined, title: 'Deine Credits'),
           ...credits.map((c) => _CreditPackCard(credit: c)),
           const SizedBox(height: 16),
         ],
-
-        // ── Available packages ──
         if (packages.isNotEmpty) ...[
           const _SectionHeader(icon: Icons.local_offer_outlined, title: 'Unsere Pakete'),
-          ...packages.map((p) => _PackageCard(package: p)),
+          ...packages.map((p) => _PackageCard(package: p, onPurchase: () => onPurchase(p))),
         ],
       ],
     );
@@ -154,7 +459,7 @@ class _SummaryCard extends StatelessWidget {
             Text(
               hasCredits
                   ? 'Aus $packCount Credit-Paket${packCount != 1 ? 'en' : ''}'
-                  : 'Waehle ein Paket und kontaktiere uns',
+                  : 'Waehle ein Paket und bestelle direkt',
               style: const TextStyle(color: AppColors.muted, fontSize: 12),
             ),
           ],
@@ -191,7 +496,7 @@ class _SectionHeader extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Client's owned credit pack card
+// Client's credit pack card
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _CreditPackCard extends StatelessWidget {
@@ -304,116 +609,104 @@ class _CreditPackCard extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Available package card (from website pricing)
+// Package card with buy button
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _PackageCard extends StatelessWidget {
   final CreditPackage package;
+  final VoidCallback onPurchase;
 
-  const _PackageCard({required this.package});
+  const _PackageCard({required this.package, required this.onPurchase});
 
   @override
   Widget build(BuildContext context) {
-    final isPopular = package.credits == 10; // Basic is most popular
     final priceFormatted = NumberFormat('#,##0', 'de_CH').format(package.price);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isPopular ? AppColors.primary.withAlpha(80) : AppColors.border,
-          width: isPopular ? 1.5 : 1,
-        ),
+        border: Border.all(color: AppColors.border),
       ),
-      child: Column(children: [
-        // Popular badge
-        if (isPopular)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Name + price per session
+          Row(children: [
+            Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(package.name, style: const TextStyle(
+                  color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w800,
+                )),
+                if (package.pricePerSession != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'CHF ${package.pricePerSession!.toStringAsFixed(0)} / Lektion',
+                    style: const TextStyle(color: AppColors.primary, fontSize: 14, fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ],
+            )),
+            Text(
+              'CHF $priceFormatted',
+              style: const TextStyle(
+                color: AppColors.primary, fontSize: 20, fontWeight: FontWeight.w800,
+              ),
             ),
-            child: const Text(
-              'BELIEBTESTES PAKET',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white, fontSize: 10,
-                fontWeight: FontWeight.w800, letterSpacing: 1,
+          ]),
+          const SizedBox(height: 6),
+          if (package.description != null)
+            Text(package.description!, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+          const SizedBox(height: 10),
+
+          // Details row
+          Row(children: [
+            _pkgDetail(Icons.fitness_center_rounded,
+                '${package.credits} ${package.credits == 1 ? "Lektion" : "Lektionen"}'),
+            const SizedBox(width: 16),
+            if (package.durationMonths != null)
+              _pkgDetail(Icons.schedule_outlined,
+                  '${package.durationMonths} ${package.durationMonths == 1 ? "Monat" : "Monate"} gueltig'),
+          ]),
+
+          if (package.includes != null && package.includes!.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            const Divider(color: AppColors.border, height: 1),
+            const SizedBox(height: 10),
+            ...package.includes!.split(', ').map((item) => Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(children: [
+                const Icon(Icons.check_circle_outlined, size: 14, color: AppColors.green),
+                const SizedBox(width: 6),
+                Expanded(child: Text(item, style: const TextStyle(
+                  color: AppColors.text, fontSize: 12,
+                ))),
+              ]),
+            )),
+          ],
+
+          const SizedBox(height: 14),
+
+          // Buy button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: onPurchase,
+              icon: const Icon(Icons.shopping_cart_outlined, size: 18),
+              label: Text('Paket kaufen – CHF $priceFormatted'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
           ),
-
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                Expanded(child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(package.name, style: const TextStyle(
-                      color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w800,
-                    )),
-                    const SizedBox(height: 2),
-                    if (package.description != null)
-                      Text(package.description!, style: const TextStyle(
-                        color: AppColors.muted, fontSize: 12,
-                      )),
-                  ],
-                )),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      'CHF $priceFormatted',
-                      style: const TextStyle(
-                        color: AppColors.primary, fontSize: 20, fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    if (package.pricePerSession != null)
-                      Text(
-                        'CHF ${package.pricePerSession!.toStringAsFixed(0)} / Lektion',
-                        style: const TextStyle(color: AppColors.muted, fontSize: 11),
-                      ),
-                  ],
-                ),
-              ]),
-              const SizedBox(height: 14),
-
-              // Details row
-              Row(children: [
-                _pkgDetail(Icons.fitness_center_rounded,
-                    '${package.credits} ${package.credits == 1 ? "Lektion" : "Lektionen"}'),
-                const SizedBox(width: 16),
-                if (package.durationMonths != null)
-                  _pkgDetail(Icons.schedule_outlined,
-                      '${package.durationMonths} ${package.durationMonths == 1 ? "Monat" : "Monate"} gueltig'),
-              ]),
-
-              if (package.includes != null && package.includes!.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                const Divider(color: AppColors.border, height: 1),
-                const SizedBox(height: 10),
-                ...package.includes!.split(', ').map((item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(children: [
-                    const Icon(Icons.check_circle_outlined, size: 14, color: AppColors.green),
-                    const SizedBox(width: 6),
-                    Expanded(child: Text(item, style: const TextStyle(
-                      color: AppColors.text, fontSize: 12,
-                    ))),
-                  ]),
-                )),
-              ],
-            ],
-          ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 

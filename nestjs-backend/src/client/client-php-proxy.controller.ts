@@ -55,6 +55,15 @@ export class ClientAppController {
     return this.appService.getPackages();
   }
 
+  /** Purchase a credit package (creates credits + invoice) */
+  @Post('purchase/:clientId')
+  purchase(
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Body() body: { packageId: number },
+  ) {
+    return this.appService.purchasePackage(clientId, body.packageId);
+  }
+
   /** Invoices (stub — Bexio integration to be migrated) */
   @Get('invoices/:clientId')
   invoices(@Param('clientId', ParseIntPipe) clientId: number) {
