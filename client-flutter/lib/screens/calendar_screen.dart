@@ -25,12 +25,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
-  // Filter state
-  String? _filterTrainerId;
-  String? _filterTypeId;
-  String? _filterLocationId;
-  bool _prefsApplied = false;
-
   @override
   void initState() {
     super.initState();
@@ -45,37 +39,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
         context.read<AppointmentProvider>().fetchCalendar(auth.clientId!),
         context.read<PreferenceProvider>().load(auth.clientId!),
       ]);
-      _applyPreferences();
+      if (mounted) setState(() {});
     }
-  }
-
-  void _applyPreferences() {
-    if (_prefsApplied) return;
-    final pref = context.read<PreferenceProvider>();
-    final calData = context.read<AppointmentProvider>().calendarData;
-    if (calData == null) return;
-
-    setState(() {
-      // Apply preferences only if valid IDs exist in current data
-      if (pref.trainerId != null &&
-          calData.trainers.any((t) => t.id == pref.trainerId)) {
-        _filterTrainerId = pref.trainerId;
-      } else if (calData.trainers.length == 1) {
-        _filterTrainerId = calData.trainers.first.id;
-      }
-
-      if (pref.trainingTypeId != null &&
-          calData.trainingTypes.any((t) => t.id == pref.trainingTypeId)) {
-        _filterTypeId = pref.trainingTypeId;
-      }
-
-      if (pref.locationId != null &&
-          calData.locations.any((l) => l.id == pref.locationId)) {
-        _filterLocationId = pref.locationId;
-      }
-
-      _prefsApplied = true;
-    });
   }
 
   // ── Data helpers ─────────────────────────────────────────────────────────────
@@ -100,78 +65,51 @@ class _CalendarScreenState extends State<CalendarScreen> {
         .toList();
   }
 
-  /// Generate 30-minute time slots for the selected day based on availability + filters.
+  /// Generate 30-minute time slots for the selected day.
+  /// Shows all times where at least one trainer+location combo is free.
   List<_TimeSlot> _generateSlots(DateTime day, CalendarData calData) {
-    const int slotDuration = 60; // training duration in minutes
-    const int slotStep = 30; // grid step
-
+    const int slotDuration = 60;
+    const int slotStep = 30;
     final dateStr = DateFormat('yyyy-MM-dd').format(day);
     final now = DateTime.now();
 
-    // 1. Filter availability by selected filters
-    final filteredAvail = calData.availabilityIntervals.where((a) {
-      if (a.date != dateStr) return false;
-      if (_filterTrainerId != null && a.trainerId != _filterTrainerId) return false;
-      if (_filterTypeId != null && a.trainingTypeId != null && a.trainingTypeId != _filterTypeId) return false;
-      if (_filterLocationId != null && a.locationId != null && a.locationId != _filterLocationId) return false;
-      return true;
-    }).toList();
+    // All availability for this day (no filters)
+    final dayAvail = calData.availabilityIntervals
+        .where((a) => a.date == dateStr)
+        .toList();
+    if (dayAvail.isEmpty) return [];
 
-    if (filteredAvail.isEmpty) return [];
+    // Location buffer map
+    final locationMap = <String, int>{};
+    for (final loc in calData.locations) {
+      locationMap[loc.id] = loc.bufferMinutes;
+    }
 
-    // 2. Collect all 30-min slots that fit within availability windows
-    final Set<int> availableMinutes = {};
-    for (final a in filteredAvail) {
+    // Collect all possible 30-min start minutes
+    final Set<int> allMinutes = {};
+    for (final a in dayAvail) {
       final fromParts = a.from.split(':');
       final toParts = a.to.split(':');
       if (fromParts.length < 2 || toParts.length < 2) continue;
       final fromMin = int.parse(fromParts[0]) * 60 + int.parse(fromParts[1]);
       final toMin = int.parse(toParts[0]) * 60 + int.parse(toParts[1]);
-
       for (int m = fromMin; m + slotDuration <= toMin; m += slotStep) {
-        availableMinutes.add(m);
+        allMinutes.add(m);
       }
     }
+    if (allMinutes.isEmpty) return [];
 
-    if (availableMinutes.isEmpty) return [];
-
-    // Get location buffer values
-    final locationMap = <String, int>{};
-    for (final loc in calData.locations) {
-      locationMap[loc.id] = loc.bufferMinutes;
-    }
-    final selectedBuffer = _filterLocationId != null
-        ? (locationMap[_filterLocationId!] ?? 30)
-        : 30;
-
-    // 3. Check each slot for conflicts
-    final sorted = availableMinutes.toList()..sort();
+    final sorted = allMinutes.toList()..sort();
     final slots = <_TimeSlot>[];
 
     for (final startMin in sorted) {
       final endMin = startMin + slotDuration;
-      final timeStr = _minutesToTime(startMin);
-      final endTimeStr = _minutesToTime(endMin);
 
-      // Available slot's trainer (pick from filtered availability)
-      final matchingAvail = filteredAvail.firstWhere(
-        (a) {
-          final fromParts = a.from.split(':');
-          final toParts = a.to.split(':');
-          if (fromParts.length < 2 || toParts.length < 2) return false;
-          final fromMin = int.parse(fromParts[0]) * 60 + int.parse(fromParts[1]);
-          final toMin = int.parse(toParts[0]) * 60 + int.parse(toParts[1]);
-          return startMin >= fromMin && endMin <= toMin;
-        },
-        orElse: () => filteredAvail.first,
-      );
-
-      // 12h advance check — skip slot if too soon
+      // 12h advance check
       final slotDateTime = DateTime(day.year, day.month, day.day, startMin ~/ 60, startMin % 60);
-      final hoursUntil = slotDateTime.difference(now).inMinutes / 60.0;
-      if (hoursUntil < 12) continue;
+      if (slotDateTime.difference(now).inMinutes / 60.0 < 12) continue;
 
-      // Client double-booking check — skip slot if conflict
+      // Client double-booking check
       bool clientConflict = false;
       for (final a in calData.appointments) {
         if (a.status.toLowerCase() == 'cancelled') continue;
@@ -185,47 +123,112 @@ class _CalendarScreenState extends State<CalendarScreen> {
       }
       if (clientConflict) continue;
 
-      // Trainer conflict + buffer check — skip slot if conflict
-      bool trainerConflict = false;
-      for (final b in calData.trainerBookings) {
-        if (_filterTrainerId != null && b.trainerId != _filterTrainerId) continue;
-        if (b.trainerId != matchingAvail.trainerId) continue;
-        if (b.date != dateStr) continue;
-        if (b.status.toLowerCase() == 'cancelled') continue;
+      // Check if ANY trainer+location combo is free at this time
+      bool anyFree = false;
+      for (final a in dayAvail) {
+        final fromParts = a.from.split(':');
+        final toParts = a.to.split(':');
+        if (fromParts.length < 2 || toParts.length < 2) continue;
+        final fromMin = int.parse(fromParts[0]) * 60 + int.parse(fromParts[1]);
+        final toMin = int.parse(toParts[0]) * 60 + int.parse(toParts[1]);
+        if (startMin < fromMin || endMin > toMin) continue;
 
-        final parts = b.starttime.split(':');
-        if (parts.length < 2) continue;
-        final bStart = int.parse(parts[0]) * 60 + int.parse(parts[1]);
-        final bEnd = bStart + b.duration;
-
-        // 3-tier buffer
-        final sameLocation = _filterLocationId != null &&
-            b.locationId != null &&
-            b.locationId == _filterLocationId;
-        int buffer = 0;
-        if (!sameLocation) {
-          final existingBuffer = b.locationId != null ? (locationMap[b.locationId!] ?? 30) : 30;
-          buffer = selectedBuffer > existingBuffer ? selectedBuffer : existingBuffer;
+        bool trainerBusy = false;
+        for (final b in calData.trainerBookings) {
+          if (b.trainerId != a.trainerId) continue;
+          if (b.date != dateStr) continue;
+          if (b.status.toLowerCase() == 'cancelled') continue;
+          final parts = b.starttime.split(':');
+          if (parts.length < 2) continue;
+          final bStart = int.parse(parts[0]) * 60 + int.parse(parts[1]);
+          final bEnd = bStart + b.duration;
+          final reqLocId = a.locationId;
+          final sameLocation = reqLocId != null && b.locationId != null && b.locationId == reqLocId;
+          int buffer = 0;
+          if (!sameLocation) {
+            final reqBuffer = reqLocId != null ? (locationMap[reqLocId] ?? 30) : 30;
+            final existBuffer = b.locationId != null ? (locationMap[b.locationId!] ?? 30) : 30;
+            buffer = reqBuffer > existBuffer ? reqBuffer : existBuffer;
+          }
+          if (startMin < bEnd + buffer && bStart < endMin + buffer) {
+            trainerBusy = true;
+            break;
+          }
         }
-
-        if (startMin < bEnd + buffer && bStart < endMin + buffer) {
-          trainerConflict = true;
-          break;
-        }
+        if (!trainerBusy) { anyFree = true; break; }
       }
-      if (trainerConflict) continue;
+      if (!anyFree) continue;
 
-      // Available!
       slots.add(_TimeSlot(
         startMin: startMin,
-        timeStr: timeStr,
-        endTimeStr: endTimeStr,
-        trainerId: matchingAvail.trainerId,
-        locationId: matchingAvail.locationId,
+        timeStr: _minutesToTime(startMin),
+        endTimeStr: _minutesToTime(endMin),
       ));
     }
 
     return slots;
+  }
+
+  /// Returns available (trainer, location) combos for a given time slot.
+  List<_SlotOption> _getOptionsForSlot(_TimeSlot slot, DateTime day, CalendarData calData) {
+    final dateStr = DateFormat('yyyy-MM-dd').format(day);
+    final startMin = slot.startMin;
+    final endMin = startMin + 60;
+
+    final locationMap = <String, int>{};
+    for (final loc in calData.locations) {
+      locationMap[loc.id] = loc.bufferMinutes;
+    }
+
+    final options = <_SlotOption>[];
+    final dayAvail = calData.availabilityIntervals.where((a) => a.date == dateStr).toList();
+
+    for (final a in dayAvail) {
+      final fromParts = a.from.split(':');
+      final toParts = a.to.split(':');
+      if (fromParts.length < 2 || toParts.length < 2) continue;
+      final fromMin = int.parse(fromParts[0]) * 60 + int.parse(fromParts[1]);
+      final toMin = int.parse(toParts[0]) * 60 + int.parse(toParts[1]);
+      if (startMin < fromMin || endMin > toMin) continue;
+
+      bool trainerBusy = false;
+      for (final b in calData.trainerBookings) {
+        if (b.trainerId != a.trainerId) continue;
+        if (b.date != dateStr) continue;
+        if (b.status.toLowerCase() == 'cancelled') continue;
+        final parts = b.starttime.split(':');
+        if (parts.length < 2) continue;
+        final bStart = int.parse(parts[0]) * 60 + int.parse(parts[1]);
+        final bEnd = bStart + b.duration;
+        final reqLocId = a.locationId;
+        final sameLocation = reqLocId != null && b.locationId != null && b.locationId == reqLocId;
+        int buffer = 0;
+        if (!sameLocation) {
+          final reqBuffer = reqLocId != null ? (locationMap[reqLocId] ?? 30) : 30;
+          final existBuffer = b.locationId != null ? (locationMap[b.locationId!] ?? 30) : 30;
+          buffer = reqBuffer > existBuffer ? reqBuffer : existBuffer;
+        }
+        if (startMin < bEnd + buffer && bStart < endMin + buffer) {
+          trainerBusy = true;
+          break;
+        }
+      }
+
+      if (!trainerBusy) {
+        options.add(_SlotOption(
+          trainerId: a.trainerId ?? '',
+          locationId: a.locationId,
+          trainingTypeId: a.trainingTypeId,
+        ));
+      }
+    }
+
+    // Deduplicate by trainer+location
+    final seen = <String>{};
+    return options.where((o) {
+      final key = '${o.trainerId}:${o.locationId}';
+      return seen.add(key);
+    }).toList();
   }
 
   String _minutesToTime(int minutes) {
@@ -245,69 +248,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
 
     final bookingDay = _selectedDay ?? DateTime.now();
-    final trainerId = slot.trainerId ?? _filterTrainerId ?? calData.defaultTrainerId;
-    final typeId = _filterTypeId ?? calData.defaultTypeId;
-    final locationId = slot.locationId ?? _filterLocationId;
+    final options = _getOptionsForSlot(slot, bookingDay, calData);
 
-    final trainerName = calData.trainers
-        .where((t) => t.id == trainerId)
-        .firstOrNull?.fullName ?? 'Trainer';
-    final typeName = calData.trainingTypes
-        .where((t) => t.id == typeId)
-        .firstOrNull?.name ?? 'Training';
-    final locationName = calData.locations
-        .where((l) => l.id == locationId)
-        .firstOrNull?.name ?? '';
+    if (options.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Slot nicht mehr verfuegbar.'), backgroundColor: AppColors.red),
+        );
+      }
+      return;
+    }
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: const Text('Buchung bestaetigen',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              DateFormat('EEEE, d. MMMM yyyy', 'de_DE').format(bookingDay),
-              style: const TextStyle(
-                color: AppColors.primary,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 10),
-            _confirmRow('Uhrzeit', '${slot.timeStr} – ${slot.endTimeStr}'),
-            _confirmRow('Trainer', trainerName),
-            _confirmRow('Typ', typeName),
-            if (locationName.isNotEmpty) _confirmRow('Ort', locationName),
-            _confirmRow('Dauer', '60 Min.'),
-            _confirmRow('Credits', '1 Credit'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Abbrechen', style: TextStyle(color: AppColors.muted)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text('Jetzt buchen'),
-          ),
-        ],
-      ),
-    );
+    // Show booking sheet with trainer/location selection
+    final selection = await _showBookingSheet(slot, bookingDay, calData, options);
+    if (selection == null || !mounted) return;
 
-    if (confirmed != true || !mounted) return;
-
-    // Show loading
+    // Execute booking
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Row(children: [
@@ -323,25 +279,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final auth = context.read<AuthProvider>();
     final success = await appt.bookAppointment(
       auth.clientId!,
-      trainerId: trainerId!,
-      trainingTypeId: typeId!,
+      trainerId: selection.trainerId,
+      trainingTypeId: selection.trainingTypeId ?? calData.defaultTypeId ?? '',
       date: DateFormat('yyyy-MM-dd').format(bookingDay),
       starttime: slot.timeStr,
-      locationId: locationId,
+      locationId: selection.locationId,
       duration: 60,
     );
 
     if (mounted) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-      // Save current filter as preference (auto-remember last booking choices)
       if (success) {
-        final prefProvider = context.read<PreferenceProvider>();
-        prefProvider.savePreferences(auth.clientId!, {
-          'trainer_id': trainerId,
-          'training_type_id': typeId,
-          'location_id': locationId,
-        }).catchError((_) {}); // fire-and-forget
+        context.read<PreferenceProvider>().savePreferences(auth.clientId!, {
+          'trainer_id': selection.trainerId,
+          'training_type_id': selection.trainingTypeId,
+          'location_id': selection.locationId,
+        }).catchError((_) {});
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -353,6 +307,225 @@ class _CalendarScreenState extends State<CalendarScreen> {
         ),
       );
     }
+  }
+
+  /// Bottom sheet with Trainer + Location dropdowns + confirm button.
+  Future<_SlotSelection?> _showBookingSheet(
+    _TimeSlot slot,
+    DateTime day,
+    CalendarData calData,
+    List<_SlotOption> options,
+  ) {
+    final pref = context.read<PreferenceProvider>();
+    final trainerIds = options.map((o) => o.trainerId).toSet().toList();
+    final allLocationIds = options.map((o) => o.locationId).whereType<String>().toSet().toList();
+
+    // Pre-select from preferences or single option
+    String? initTrainer = trainerIds.contains(pref.trainerId)
+        ? pref.trainerId
+        : (trainerIds.length == 1 ? trainerIds.first : null);
+    String? initLocation;
+    if (initTrainer != null) {
+      final trainerLocs = options
+          .where((o) => o.trainerId == initTrainer)
+          .map((o) => o.locationId).whereType<String>().toSet().toList();
+      initLocation = trainerLocs.contains(pref.locationId)
+          ? pref.locationId
+          : (trainerLocs.length == 1 ? trainerLocs.first : null);
+    } else {
+      initLocation = allLocationIds.contains(pref.locationId)
+          ? pref.locationId
+          : (allLocationIds.length == 1 ? allLocationIds.first : null);
+    }
+
+    return showModalBottomSheet<_SlotSelection>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        String? selTrainer = initTrainer;
+        String? selLocation = initLocation;
+
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            final availLocations = selTrainer != null
+                ? options.where((o) => o.trainerId == selTrainer)
+                    .map((o) => o.locationId).whereType<String>().toSet().toList()
+                : allLocationIds;
+
+            // Reset location if not available for this trainer
+            if (selLocation != null && !availLocations.contains(selLocation)) {
+              selLocation = availLocations.length == 1 ? availLocations.first : null;
+            }
+            // Auto-select singles
+            if (selTrainer == null && trainerIds.length == 1) selTrainer = trainerIds.first;
+            if (selLocation == null && availLocations.length == 1) selLocation = availLocations.first;
+
+            final canConfirm = selTrainer != null && selLocation != null;
+            final trainerName = selTrainer != null
+                ? (calData.trainers.where((t) => t.id == selTrainer).firstOrNull?.fullName ?? '')
+                : '';
+            final locationName = selLocation != null
+                ? (calData.locations.where((l) => l.id == selLocation).firstOrNull?.name ?? '')
+                : '';
+
+            return Padding(
+              padding: EdgeInsets.fromLTRB(20, 12, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(child: Container(
+                    width: 40, height: 4,
+                    decoration: BoxDecoration(color: AppColors.muted, borderRadius: BorderRadius.circular(2)),
+                  )),
+                  const SizedBox(height: 16),
+                  const Text('Termin buchen',
+                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.primary),
+                    const SizedBox(width: 6),
+                    Text(
+                      DateFormat('EEEE, d. MMMM', 'de_DE').format(day),
+                      style: const TextStyle(color: AppColors.primary, fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                  ]),
+                  const SizedBox(height: 4),
+                  Row(children: [
+                    const Icon(Icons.access_time_outlined, size: 14, color: AppColors.primary),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${slot.timeStr} – ${slot.endTimeStr} (60 Min.)',
+                      style: const TextStyle(color: AppColors.primary, fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                  ]),
+                  const SizedBox(height: 20),
+
+                  // Trainer dropdown
+                  const Text('Trainer', style: TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: selTrainer,
+                        isExpanded: true,
+                        dropdownColor: AppColors.surface,
+                        hint: const Text('Trainer waehlen', style: TextStyle(color: AppColors.muted)),
+                        style: const TextStyle(color: AppColors.text, fontSize: 14),
+                        icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.muted),
+                        items: trainerIds.map((id) {
+                          final t = calData.trainers.where((t) => t.id == id).firstOrNull;
+                          return DropdownMenuItem(value: id, child: Text(t?.fullName ?? id));
+                        }).toList(),
+                        onChanged: (v) => setModalState(() {
+                          selTrainer = v;
+                          if (v != null) {
+                            final locs = options.where((o) => o.trainerId == v)
+                                .map((o) => o.locationId).whereType<String>().toSet().toList();
+                            if (locs.length == 1) {
+                              selLocation = locs.first;
+                            } else if (selLocation != null && !locs.contains(selLocation)) {
+                              selLocation = null;
+                            }
+                          }
+                        }),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Location dropdown
+                  const Text('Standort', style: TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: availLocations.contains(selLocation) ? selLocation : null,
+                        isExpanded: true,
+                        dropdownColor: AppColors.surface,
+                        hint: const Text('Standort waehlen', style: TextStyle(color: AppColors.muted)),
+                        style: const TextStyle(color: AppColors.text, fontSize: 14),
+                        icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.muted),
+                        items: availLocations.map((id) {
+                          final l = calData.locations.where((l) => l.id == id).firstOrNull;
+                          return DropdownMenuItem(value: id, child: Text(l?.name ?? id));
+                        }).toList(),
+                        onChanged: (v) => setModalState(() => selLocation = v),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Summary when ready
+                  if (canConfirm)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: AppColors.green.withAlpha(10),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.green.withAlpha(30)),
+                      ),
+                      child: Column(children: [
+                        _confirmRow('Trainer', trainerName),
+                        _confirmRow('Ort', locationName),
+                        _confirmRow('Dauer', '60 Min.'),
+                        _confirmRow('Credits', '1 Credit'),
+                      ]),
+                    ),
+
+                  // Buttons
+                  Row(children: [
+                    Expanded(child: TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Abbrechen', style: TextStyle(color: AppColors.muted)),
+                    )),
+                    const SizedBox(width: 10),
+                    Expanded(flex: 2, child: ElevatedButton(
+                      onPressed: canConfirm
+                          ? () {
+                              final match = options.where((o) =>
+                                  o.trainerId == selTrainer && o.locationId == selLocation).firstOrNull;
+                              Navigator.pop(ctx, _SlotSelection(
+                                trainerId: selTrainer!,
+                                locationId: selLocation!,
+                                trainingTypeId: match?.trainingTypeId,
+                              ));
+                            }
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.white,
+                        disabledBackgroundColor: AppColors.muted.withAlpha(40),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Text('Jetzt buchen', style: TextStyle(fontWeight: FontWeight.w700)),
+                    )),
+                  ]),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _showNoCreditsDialog() {
@@ -736,20 +909,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           ),
                         ),
 
-                        // ── Filter Bar ──
-                        if (calData != null)
-                          SliverToBoxAdapter(
-                            child: _FilterBar(
-                              calData: calData,
-                              filterTrainerId: _filterTrainerId,
-                              filterTypeId: _filterTypeId,
-                              filterLocationId: _filterLocationId,
-                              onTrainerChanged: (v) => setState(() => _filterTrainerId = v),
-                              onTypeChanged: (v) => setState(() => _filterTypeId = v),
-                              onLocationChanged: (v) => setState(() => _filterLocationId = v),
-                            ),
-                          ),
-
                         // ── Day header ──
                         if (_selectedDay != null)
                           SliverToBoxAdapter(
@@ -853,12 +1012,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                   border: Border.all(color: AppColors.border),
                                 ),
                                 child: const Column(children: [
-                                  Icon(Icons.filter_alt_outlined, color: AppColors.orange, size: 28),
+                                  Icon(Icons.schedule_outlined, color: AppColors.orange, size: 28),
                                   SizedBox(height: 8),
-                                  Text('Keine Slots fuer aktuelle Filter',
+                                  Text('Alle Slots belegt oder zu kurzfristig',
                                       style: TextStyle(color: AppColors.orange, fontSize: 14)),
                                   SizedBox(height: 4),
-                                  Text('Passe Trainer, Typ oder Standort an',
+                                  Text('Bitte einen anderen Tag waehlen',
                                       style: TextStyle(color: AppColors.muted, fontSize: 12)),
                                 ]),
                               ),
@@ -894,133 +1053,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Filter Bar Widget
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class _FilterBar extends StatelessWidget {
-  final CalendarData calData;
-  final String? filterTrainerId;
-  final String? filterTypeId;
-  final String? filterLocationId;
-  final ValueChanged<String?> onTrainerChanged;
-  final ValueChanged<String?> onTypeChanged;
-  final ValueChanged<String?> onLocationChanged;
-
-  const _FilterBar({
-    required this.calData,
-    this.filterTrainerId,
-    this.filterTypeId,
-    this.filterLocationId,
-    required this.onTrainerChanged,
-    required this.onTypeChanged,
-    required this.onLocationChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(children: [
-              Icon(Icons.tune, size: 14, color: AppColors.muted),
-              SizedBox(width: 6),
-              Text('Filter', style: TextStyle(color: AppColors.muted, fontSize: 11, fontWeight: FontWeight.w600)),
-            ]),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: [
-                // Trainer chips
-                if (calData.trainers.length > 1)
-                  ...calData.trainers.map((t) => _FilterChip(
-                    label: t.fullName,
-                    selected: filterTrainerId == t.id,
-                    onTap: () => onTrainerChanged(filterTrainerId == t.id ? null : t.id),
-                    color: AppColors.primary,
-                  )),
-                if (calData.trainers.length == 1)
-                  _FilterChip(
-                    label: calData.trainers.first.fullName,
-                    selected: true,
-                    onTap: () {},
-                    color: AppColors.primary,
-                  ),
-
-                // Divider dot
-                if (calData.trainers.length > 1 && calData.locations.isNotEmpty)
-                  Container(
-                    width: 3, height: 3, margin: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: const BoxDecoration(color: AppColors.muted, shape: BoxShape.circle),
-                  ),
-
-                // Location chips
-                ...calData.locations.map((l) => _FilterChip(
-                  label: l.name,
-                  selected: filterLocationId == l.id,
-                  onTap: () => onLocationChanged(filterLocationId == l.id ? null : l.id),
-                  color: AppColors.blue,
-                  suffix: l.bufferMinutes == 60 ? ' (ext.)' : null,
-                )),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  final Color color;
-  final String? suffix;
-
-  const _FilterChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    required this.color,
-    this.suffix,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: selected ? color.withAlpha(25) : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: selected ? color.withAlpha(80) : AppColors.border),
-        ),
-        child: Text(
-          '$label${suffix ?? ''}',
-          style: TextStyle(
-            color: selected ? color : AppColors.muted,
-            fontSize: 12,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
 // Slot Grid Widget
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1028,15 +1060,35 @@ class _TimeSlot {
   final int startMin;
   final String timeStr;
   final String endTimeStr;
-  final String? trainerId;
-  final String? locationId;
 
   const _TimeSlot({
     required this.startMin,
     required this.timeStr,
     required this.endTimeStr,
-    this.trainerId,
+  });
+}
+
+class _SlotOption {
+  final String trainerId;
+  final String? locationId;
+  final String? trainingTypeId;
+
+  const _SlotOption({
+    required this.trainerId,
     this.locationId,
+    this.trainingTypeId,
+  });
+}
+
+class _SlotSelection {
+  final String trainerId;
+  final String locationId;
+  final String? trainingTypeId;
+
+  const _SlotSelection({
+    required this.trainerId,
+    required this.locationId,
+    this.trainingTypeId,
   });
 }
 
