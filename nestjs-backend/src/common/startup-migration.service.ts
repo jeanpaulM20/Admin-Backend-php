@@ -29,6 +29,10 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       `ALTER TABLE exercise ADD COLUMN movement_pattern VARCHAR(20) DEFAULT NULL`,
       // Location buffer for 3-tier dynamic buffer system
       `ALTER TABLE location ADD COLUMN buffer_minutes INT DEFAULT 30`,
+      // Allow null for purchase without specific training type
+      `ALTER TABLE client_credits MODIFY COLUMN training_type_id INT DEFAULT NULL`,
+      `ALTER TABLE client_credits MODIFY COLUMN abbonement_id INT DEFAULT NULL`,
+      `ALTER TABLE client_credits MODIFY COLUMN sold_by_id INT DEFAULT NULL`,
     ];
 
     // Ensure preference table has correct schema (key/value columns)

@@ -57,15 +57,11 @@ export class ClientAppController {
 
   /** Purchase a credit package (creates credits + invoice) */
   @Post('purchase/:clientId')
-  async purchase(
+  purchase(
     @Param('clientId', ParseIntPipe) clientId: number,
     @Body() body: { packageId: number },
   ) {
-    try {
-      return await this.appService.purchasePackage(clientId, body.packageId);
-    } catch (err: any) {
-      return { success: false, message: err.message, stack: err.stack?.split('\n').slice(0, 5) };
-    }
+    return this.appService.purchasePackage(clientId, body.packageId);
   }
 
   /** Invoices (stub — Bexio integration to be migrated) */

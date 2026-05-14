@@ -242,8 +242,8 @@ export class ClientAppService {
       // 4. Create client_credits entry
       logger.log(`Creating credits: paid=${credits}, start=${startDate}, expires=${expiresStr}`);
       await this.dataSource.query(
-        `INSERT INTO client_credits (client_id, paid, attended, startdate, expires, sell_date)
-         VALUES (?, ?, 0, ?, ?, ?)`,
+        `INSERT INTO client_credits (client_id, training_type_id, paid, attended, abbonement_id, sold_by_id, startdate, expires, sell_date)
+         VALUES (?, NULL, ?, 0, NULL, NULL, ?, ?, ?)`,
         [clientId, credits, startDate, expiresStr, startDate],
       );
 
