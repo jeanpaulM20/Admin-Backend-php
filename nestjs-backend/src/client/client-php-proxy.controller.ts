@@ -101,8 +101,13 @@ export class ClientAppController {
 
   /** Get booking preferences (default trainer, type, location) */
   @Get('preferences/:clientId')
-  preferences(@Param('clientId', ParseIntPipe) clientId: number) {
-    return this.appService.getPreferences(clientId);
+  async preferences(@Param('clientId', ParseIntPipe) clientId: number) {
+    try {
+      return await this.appService.getPreferences(clientId);
+    } catch (err: any) {
+      // Return error details for debugging (temporary)
+      return { error: true, message: err?.message ?? String(err), code: err?.code };
+    }
   }
 
   /** Save booking preferences (partial update) */
