@@ -105,8 +105,12 @@ export class InvoiceService {
 
     try {
       const body = params.toString();
+      const url = new URL(InvoiceService.QR_API_URL);
       const result = await new Promise<any>((resolve, reject) => {
-        const req = https.request(InvoiceService.QR_API_URL, {
+        const req = https.request({
+          hostname: url.hostname,
+          port: 443,
+          path: url.pathname,
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -117,11 +121,12 @@ export class InvoiceService {
           const chunks: Buffer[] = [];
           res.on('data', (c) => chunks.push(c));
           res.on('end', () => {
-            try { resolve(JSON.parse(Buffer.concat(chunks).toString())); }
-            catch { reject(new Error('QR API: invalid JSON response')); }
+            const raw = Buffer.concat(chunks).toString();
+            try { resolve(JSON.parse(raw)); }
+            catch { reject(new Error(`QR API: invalid JSON (status ${res.statusCode}): ${raw.substring(0, 200)}`)); }
           });
         });
-        req.on('error', reject);
+        req.on('error', (e) => reject(new Error(`QR API request error: ${e.message}`)));
         req.write(body);
         req.end();
       });
@@ -130,7 +135,7 @@ export class InvoiceService {
         this.logger.log(`QR bill generated for ${data.invoiceNumber}`);
         return result.base64Content;
       }
-      this.logger.warn(`QR API error: ${result.message}`);
+      this.logger.warn(`QR API returned no base64Content: ${JSON.stringify(result).substring(0, 300)}`);
       return null;
     } catch (err: any) {
       this.logger.warn(`QR bill generation failed: ${err.message}`);
