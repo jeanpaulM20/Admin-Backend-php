@@ -49,8 +49,8 @@ export class ClientAppService {
     ]);
 
     return {
-      firstname: client?.firstname ?? '',
-      lastname: client?.lastname ?? '',
+      firstname: (client?.firstname ?? '').trim(),
+      lastname: (client?.lastname ?? '').trim(),
       credits,
       appointments: trainings.map((t) => this.mapTraining(t)),
     };
@@ -105,8 +105,8 @@ export class ClientAppService {
       credits,
       trainers: (client.trainers ?? []).map((t) => ({
         id: t.id,
-        firstname: t.firstname,
-        lastname: t.lastname,
+        firstname: (t.firstname ?? '').trim(),
+        lastname: (t.lastname ?? '').trim(),
         picture: t.picture,
         color: t.color,
       })),
@@ -157,8 +157,8 @@ export class ClientAppService {
 
     return {
       id: client.id,
-      firstname: client.firstname,
-      lastname: client.lastname,
+      firstname: (client.firstname ?? '').trim(),
+      lastname: (client.lastname ?? '').trim(),
       email: client.email,
       phone: client.phone,
       photo: client.picture,
@@ -885,7 +885,7 @@ export class ClientAppService {
         ? (() => {
             const [h, m] = t.starttime.split(':').map(Number);
             const total = h * 60 + m + t.duration;
-            return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+            return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}:00`;
           })()
         : null;
 
@@ -906,8 +906,8 @@ export class ClientAppService {
       trainer: t.trainer
         ? {
             id: t.trainer.id,
-            firstname: t.trainer.firstname,
-            lastname: t.trainer.lastname,
+            firstname: (t.trainer.firstname ?? '').trim(),
+            lastname: (t.trainer.lastname ?? '').trim(),
             picture: t.trainer.picture,
           }
         : undefined,
@@ -927,10 +927,11 @@ export class ClientAppService {
         'SELECT `key`, `value` FROM `preference` WHERE `client_id` = ?',
         [clientId],
       );
-      const result: Record<string, string | null> = {};
+      const result: Record<string, number | null> = {};
       for (const key of ClientAppService.PREF_KEYS) {
         const row = rows.find((r: any) => r.key === key);
-        result[key] = row?.value ?? null;
+        const val = row?.value ?? null;
+        result[key] = val !== null ? Number(val) : null;
       }
       return result;
     } catch (err: any) {
