@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import * as nodemailer from 'nodemailer';
 import * as PDFDocument from 'pdfkit';
+import * as https from 'https';
 
 @Injectable()
 export class InvoiceService {
@@ -62,6 +63,81 @@ export class InvoiceService {
     });
   }
 
+  // ── QR-Rechnung (Swiss QR Bill) ─────────────────────────────────
+  private static readonly QR_API_URL = 'https://qr-rechnung-api.ch/api/v1/qr-bill/create';
+  private static readonly CREDITOR = {
+    Account: 'CH260020620655003901Z',
+    CreditorName: 'SIHLHEALTH GmbH',
+    CreditorStreetName: 'Nidelbadstrasse',
+    CreditorHouseNumber: '50',
+    CreditorZip: '8038',
+    CreditorTown: 'Zurich',
+    CreditorCountryCode: 'CH',
+  };
+
+  /**
+   * Generates a Swiss QR bill payment slip via qr-rechnung-api.ch.
+   * Returns base64-encoded PNG or null if API key is missing / call fails.
+   */
+  async generateQrBill(data: {
+    amount: number;
+    invoiceNumber: string;
+    debtorName?: string;
+  }): Promise<string | null> {
+    const apiKey = process.env.QR_BILL_API_KEY;
+    if (!apiKey) {
+      this.logger.warn('QR_BILL_API_KEY not set — QR bill skipped');
+      return null;
+    }
+
+    const params = new URLSearchParams({
+      ...InvoiceService.CREDITOR,
+      Amount: data.amount.toFixed(2),
+      Currency: 'CHF',
+      UnstructuredMessage: `Rechnung ${data.invoiceNumber}`,
+      GraphicsFormat: 'PNG',
+      OutputSize: 'bill-with-separator',
+      Language: 'DE',
+    });
+    if (data.debtorName) {
+      params.set('DebtorName', data.debtorName);
+    }
+
+    try {
+      const body = params.toString();
+      const result = await new Promise<any>((resolve, reject) => {
+        const req = https.request(InvoiceService.QR_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Content-Length': Buffer.byteLength(body),
+            'X-API-Key': apiKey,
+          },
+        }, (res) => {
+          const chunks: Buffer[] = [];
+          res.on('data', (c) => chunks.push(c));
+          res.on('end', () => {
+            try { resolve(JSON.parse(Buffer.concat(chunks).toString())); }
+            catch { reject(new Error('QR API: invalid JSON response')); }
+          });
+        });
+        req.on('error', reject);
+        req.write(body);
+        req.end();
+      });
+
+      if (result.base64Content) {
+        this.logger.log(`QR bill generated for ${data.invoiceNumber}`);
+        return result.base64Content;
+      }
+      this.logger.warn(`QR API error: ${result.message}`);
+      return null;
+    } catch (err: any) {
+      this.logger.warn(`QR bill generation failed: ${err.message}`);
+      return null;
+    }
+  }
+
   /**
    * Sends an invoice email to the client.
    */
@@ -93,7 +169,14 @@ export class InvoiceService {
     });
 
     const html = this.buildInvoiceHtml(data);
-    const pdfBuffer = await this.buildInvoicePdf(data);
+
+    // Generate QR bill payment slip (non-blocking — PDF still sent if QR fails)
+    const qrBase64 = await this.generateQrBill({
+      amount: data.amount,
+      invoiceNumber: data.invoiceNumber,
+      debtorName: data.clientName,
+    });
+    const pdfBuffer = await this.buildInvoicePdf(data, qrBase64);
 
     try {
       await transporter.sendMail({
@@ -136,7 +219,7 @@ export class InvoiceService {
     credits: number;
     durationMonths: number;
     amount: number;
-  }): Promise<Buffer> {
+  }, qrBase64?: string | null): Promise<Buffer> {
     const today = new Date();
     const dateStr = today.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const dueDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -295,6 +378,21 @@ export class InvoiceService {
       doc.text('Bank: UBS SWITZERLAND AG', 400, fY, NB);
       doc.text('IBAN: CH26 0020 6206 5500 3901 Z', 400, fY + 11, NB);
       doc.text('BIC: UBSWCHZH80A', 400, fY + 22, NB);
+
+      // ─── PAGE 2: QR Payment Slip (if available) ───
+      if (qrBase64) {
+        doc.addPage({ size: 'A4', margins: { top: 0, bottom: 0, left: 0, right: 0 } });
+        try {
+          const qrImageBuffer = Buffer.from(qrBase64, 'base64');
+          // Place the QR payment slip at the bottom of the A4 page
+          // Standard Swiss QR bill payment part is 105mm high = ~298pt
+          const qrHeight = 298;
+          const qrY = doc.page.height - qrHeight;
+          doc.image(qrImageBuffer, 0, qrY, { width: doc.page.width });
+        } catch (imgErr: any) {
+          this.logger.warn(`Failed to embed QR image in PDF: ${imgErr.message}`);
+        }
+      }
 
       doc.end();
     });

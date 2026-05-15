@@ -18,6 +18,7 @@ import '../services/push_notification_service.dart';
 import '../services/push_notification_stub.dart' if (dart.library.html) '../services/push_notification_web.dart' as push_js;
 import '../widgets/loading_indicator.dart';
 import '../widgets/error_view.dart';
+import '../widgets/invoice_detail_sheet.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -439,126 +440,7 @@ class _InvoiceCard extends StatelessWidget {
   const _InvoiceCard({required this.invoice});
 
   void _showDetail(BuildContext context) {
-    final inv = invoice;
-    final isPaid = inv.isPaid;
-    final statusColor = isPaid ? AppColors.green : AppColors.primary;
-    final statusBg = isPaid ? AppColors.green.withOpacity(0.12) : AppColors.primary.withOpacity(0.12);
-    final dateStr = inv.transactionDate != null
-        ? DateFormat('dd.MM.yyyy').format(inv.transactionDate!)
-        : '-';
-    final dueStr = inv.dueDate != null
-        ? DateFormat('dd.MM.yyyy').format(inv.dueDate!)
-        : '-';
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Drag handle
-            Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.muted.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-            // Header
-            Row(
-              children: [
-                Container(
-                  width: 48, height: 48,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.receipt_rounded, color: AppColors.primary, size: 24),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Rechnung ${inv.invoiceNumber}',
-                          style: const TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 2),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(6)),
-                        child: Text(isPaid ? 'Bezahlt' : 'Offen',
-                            style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w700)),
-                      ),
-                    ],
-                  ),
-                ),
-                Text('${inv.currency} ${inv.amount.toStringAsFixed(2)}',
-                    style: const TextStyle(color: AppColors.text, fontSize: 20, fontWeight: FontWeight.w800)),
-              ],
-            ),
-            const SizedBox(height: 20),
-            const Divider(color: AppColors.border, height: 1),
-            const SizedBox(height: 16),
-            // Details
-            if (inv.packageName != null)
-              _detailRow('Paket', inv.packageName!),
-            if (inv.credits != null)
-              _detailRow('Lektionen', '${inv.credits} × 60 Min. Personal Training'),
-            if (inv.durationMonths != null)
-              _detailRow('Gültigkeit', '${inv.durationMonths} ${inv.durationMonths == 1 ? "Monat" : "Monate"}'),
-            _detailRow('Rechnungsdatum', dateStr),
-            _detailRow('Fällig am', dueStr),
-            const SizedBox(height: 16),
-            // Payment info box
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.06),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.primary.withOpacity(0.15)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Zahlungsinformationen',
-                      style: TextStyle(color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 6),
-                  Text('SIHLHEALTH GmbH\nVerwendungszweck: ${inv.invoiceNumber}',
-                      style: const TextStyle(color: AppColors.muted, fontSize: 12, height: 1.5)),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static Widget _detailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 130,
-            child: Text(label,
-                style: const TextStyle(color: AppColors.muted, fontSize: 13)),
-          ),
-          Expanded(
-            child: Text(value,
-                style: const TextStyle(color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-    );
+    InvoiceDetailSheet.show(context, invoice: invoice);
   }
 
   @override

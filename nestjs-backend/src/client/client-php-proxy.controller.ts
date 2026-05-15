@@ -72,6 +72,28 @@ export class ClientAppController {
     return this.invoiceService.getInvoices(clientId);
   }
 
+  /** QR payment slip for a specific invoice (returns base64 PNG) */
+  @Get('invoice-qr/:invoiceNumber')
+  async invoiceQr(
+    @Param('invoiceNumber') invoiceNumber: string,
+    @Query('amount') amount: string,
+    @Query('name') name?: string,
+  ) {
+    const numAmount = parseFloat(amount);
+    if (!numAmount || numAmount <= 0) {
+      return { success: false, error: 'Invalid amount' };
+    }
+    const qrBase64 = await this.invoiceService.generateQrBill({
+      amount: numAmount,
+      invoiceNumber,
+      debtorName: name,
+    });
+    if (!qrBase64) {
+      return { success: false, error: 'QR bill generation failed' };
+    }
+    return { success: true, base64: qrBase64 };
+  }
+
   /** Tests / Performance data */
   @Get('tests/:clientId')
   tests(@Param('clientId', ParseIntPipe) clientId: number) {
