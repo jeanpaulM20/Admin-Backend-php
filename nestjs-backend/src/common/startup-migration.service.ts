@@ -198,35 +198,46 @@ export class StartupMigrationService implements OnApplicationBootstrap {
             this.logger.log(`Redirected ${availResult.affectedRows} availability records to Sportanlage Sihlhölzli`);
           }
           // Fix training (bookings) table
-          const [bookResult]: any = await this.dataSource.query(
-            `UPDATE training SET location_id = ? WHERE location_id IS NOT NULL AND location_id NOT IN (${ph})`,
-            [firstActive.id, ...activeIdSet],
-          );
-          if (bookResult?.affectedRows > 0) {
-            this.logger.log(`Redirected ${bookResult.affectedRows} booking records to Sportanlage Sihlhölzli`);
+          try {
+            const bookResult = await this.dataSource.query(
+              `UPDATE training SET location_id = ? WHERE location_id IS NOT NULL AND location_id NOT IN (${ph})`,
+              [firstActive.id, ...activeIdSet],
+            );
+            const bookAffected = bookResult?.affectedRows ?? bookResult?.[0]?.affectedRows ?? 0;
+            if (bookAffected > 0) {
+              this.logger.log(`Redirected ${bookAffected} booking records to Sportanlage Sihlhölzli`);
+            }
+          } catch (err: any) {
+            this.logger.warn(`Booking location fix: ${err.message}`);
           }
         }
       }
 
-      // Deduplicate availability: remove exact duplicates (same trainer, date, from, to, location)
+      // Deduplicate availability: keep only MIN(id) per (trainer, date, from, to, location)
       try {
-        const [dedup]: any = await this.dataSource.query(`
-          DELETE a FROM trainer_availability a
-          INNER JOIN trainer_availability b
-          ON a.trainer_id = b.trainer_id
-            AND a.date = b.date
-            AND a.\`from\` = b.\`from\`
-            AND a.\`to\` = b.\`to\`
-            AND a.location_id = b.location_id
-            AND a.id > b.id
+        // Step 1: Find IDs to keep (smallest id per unique combo)
+        const keepRows: any[] = await this.dataSource.query(`
+          SELECT MIN(id) as keep_id
+          FROM trainer_availability
+          GROUP BY trainer_id, date, location_id, \`from\`, \`to\`
         `);
-        if (dedup?.affectedRows > 0) {
-          this.logger.log(`Removed ${dedup.affectedRows} duplicate availability records`);
+        const keepIds = keepRows.map((r: any) => r.keep_id).filter(Boolean);
+        if (keepIds.length > 0) {
+          const keepPh = keepIds.map(() => '?').join(', ');
+          const dedupResult = await this.dataSource.query(
+            `DELETE FROM trainer_availability WHERE id NOT IN (${keepPh})`,
+            keepIds,
+          );
+          const affected = dedupResult?.affectedRows ?? dedupResult?.[0]?.affectedRows ?? 0;
+          if (affected > 0) {
+            this.logger.log(`Removed ${affected} duplicate availability records`);
+          }
         }
 
-        // Remove subset availability (e.g. 09:00-10:00 is subset of 06:00-10:00 for same trainer/date/location)
-        const [subset]: any = await this.dataSource.query(`
-          DELETE sub FROM trainer_availability sub
+        // Step 2: Remove subsets (e.g. 09:00-10:00 when 06:00-10:00 exists for same trainer/date/location)
+        const subsetRows: any[] = await this.dataSource.query(`
+          SELECT sub.id as sub_id
+          FROM trainer_availability sub
           INNER JOIN trainer_availability parent
           ON sub.trainer_id = parent.trainer_id
             AND sub.date = parent.date
@@ -236,8 +247,17 @@ export class StartupMigrationService implements OnApplicationBootstrap {
             AND sub.id != parent.id
             AND (sub.\`from\` > parent.\`from\` OR sub.\`to\` < parent.\`to\`)
         `);
-        if (subset?.affectedRows > 0) {
-          this.logger.log(`Removed ${subset.affectedRows} subset availability records`);
+        const subsetIds = subsetRows.map((r: any) => r.sub_id).filter(Boolean);
+        if (subsetIds.length > 0) {
+          const subPh = subsetIds.map(() => '?').join(', ');
+          const subResult = await this.dataSource.query(
+            `DELETE FROM trainer_availability WHERE id IN (${subPh})`,
+            subsetIds,
+          );
+          const subAffected = subResult?.affectedRows ?? subResult?.[0]?.affectedRows ?? 0;
+          if (subAffected > 0) {
+            this.logger.log(`Removed ${subAffected} subset availability records`);
+          }
         }
       } catch (err: any) {
         this.logger.warn(`Availability dedup: ${err.message}`);
