@@ -82,7 +82,6 @@ export class InvoiceService {
   async generateQrBill(data: {
     amount: number;
     invoiceNumber: string;
-    debtorName?: string;
   }): Promise<{ base64: string } | { error: string }> {
     const apiKey = process.env.QR_BILL_API_KEY;
     if (!apiKey) {
@@ -90,6 +89,9 @@ export class InvoiceService {
       return { error: 'QR_BILL_API_KEY not configured' };
     }
 
+    // Note: DebtorName omitted — the API requires full debtor address
+    // (street, zip, town, country) when a name is set. The invoice number
+    // in UnstructuredMessage is sufficient for payment matching.
     const params = new URLSearchParams({
       ...InvoiceService.CREDITOR,
       Amount: data.amount.toFixed(2),
@@ -99,9 +101,6 @@ export class InvoiceService {
       OutputSize: 'bill-with-separator',
       Language: 'DE',
     });
-    if (data.debtorName) {
-      params.set('DebtorName', data.debtorName);
-    }
 
     try {
       const body = params.toString();
@@ -180,7 +179,6 @@ export class InvoiceService {
     const qrResult = await this.generateQrBill({
       amount: data.amount,
       invoiceNumber: data.invoiceNumber,
-      debtorName: data.clientName,
     });
     const qrBase64 = 'base64' in qrResult ? qrResult.base64 : null;
     const pdfBuffer = await this.buildInvoicePdf(data, qrBase64);

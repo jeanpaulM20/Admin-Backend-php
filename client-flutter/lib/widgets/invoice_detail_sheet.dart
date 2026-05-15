@@ -13,18 +13,15 @@ import '../services/invoice_service.dart';
 /// ```
 class InvoiceDetailSheet extends StatefulWidget {
   final Invoice invoice;
-  final String? clientName;
 
   const InvoiceDetailSheet({
     super.key,
     required this.invoice,
-    this.clientName,
   });
 
   /// Convenience: opens the sheet as a modal bottom sheet.
   static void show(BuildContext context, {
     required Invoice invoice,
-    String? clientName,
   }) {
     showModalBottomSheet(
       context: context,
@@ -35,7 +32,6 @@ class InvoiceDetailSheet extends StatefulWidget {
       ),
       builder: (_) => InvoiceDetailSheet(
         invoice: invoice,
-        clientName: clientName,
       ),
     );
   }
@@ -60,7 +56,6 @@ class _InvoiceDetailSheetState extends State<InvoiceDetailSheet> {
     final bytes = await _service.fetchQrBill(
       invoiceNumber: inv.invoiceNumber,
       amount: inv.amount,
-      clientName: widget.clientName,
     );
     if (!mounted) return;
     setState(() {

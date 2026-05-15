@@ -77,7 +77,6 @@ export class ClientAppController {
   async invoiceQr(
     @Param('invoiceNumber') invoiceNumber: string,
     @Query('amount') amount: string,
-    @Query('name') name?: string,
   ) {
     const numAmount = parseFloat(amount);
     if (!numAmount || numAmount <= 0) {
@@ -86,7 +85,6 @@ export class ClientAppController {
     const qrResult = await this.invoiceService.generateQrBill({
       amount: numAmount,
       invoiceNumber,
-      debtorName: name,
     });
     if ('error' in qrResult) {
       return { success: false, error: qrResult.error };

@@ -21,16 +21,11 @@ class InvoiceService {
   Future<Uint8List?> fetchQrBill({
     required String invoiceNumber,
     required double amount,
-    String? clientName,
   }) async {
     try {
-      final query = StringBuffer(
+      final data = await apiClient.get(
         'api/client/invoice-qr/$invoiceNumber?amount=${amount.toStringAsFixed(2)}',
       );
-      if (clientName != null && clientName.isNotEmpty) {
-        query.write('&name=${Uri.encodeComponent(clientName)}');
-      }
-      final data = await apiClient.get(query.toString());
       if (data is Map && data['success'] == true && data['base64'] != null) {
         return base64Decode(data['base64']);
       }
