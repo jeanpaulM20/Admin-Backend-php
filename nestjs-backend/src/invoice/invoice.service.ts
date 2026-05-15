@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import * as nodemailer from 'nodemailer';
+import * as PDFDocument from 'pdfkit';
 
 @Injectable()
 export class InvoiceService {
@@ -92,6 +93,7 @@ export class InvoiceService {
     });
 
     const html = this.buildInvoiceHtml(data);
+    const pdfBuffer = await this.buildInvoicePdf(data);
 
     try {
       await transporter.sendMail({
@@ -99,8 +101,15 @@ export class InvoiceService {
         to: data.clientEmail,
         subject: `Rechnung ${data.invoiceNumber} – ${data.packageName}`,
         html,
+        attachments: [
+          {
+            filename: `Rechnung_${data.invoiceNumber}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf',
+          },
+        ],
       });
-      this.logger.log(`Invoice email sent to ${data.clientEmail}`);
+      this.logger.log(`Invoice email sent to ${data.clientEmail} with PDF attachment`);
       return true;
     } catch (err: any) {
       this.logger.warn(`Failed to send invoice email: ${err.message}`);
@@ -111,18 +120,23 @@ export class InvoiceService {
   /** Format number Swiss-style: 6'900.00 */
   private formatCHF(n: number): string {
     const [intPart, decPart] = n.toFixed(2).split('.');
-    const formatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '’');
+    const formatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, "'");
     return `${formatted}.${decPart}`;
   }
 
-  private buildInvoiceHtml(data: {
+  /**
+   * Generates a professional PDF invoice matching the RTF template.
+   * Uses PDFKit with built-in Helvetica fonts (supports WinAnsi/Latin-1 incl. umlauts).
+   * All positioned text uses lineBreak:false to prevent cursor-driven page breaks.
+   */
+  private async buildInvoicePdf(data: {
     invoiceNumber: string;
     clientName: string;
     packageName: string;
     credits: number;
     durationMonths: number;
     amount: number;
-  }): string {
+  }): Promise<Buffer> {
     const today = new Date();
     const dateStr = today.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const dueDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -131,122 +145,212 @@ export class InvoiceService {
     const lektionenLabel = data.credits === 1 ? 'Lektion' : 'Lektionen';
     const monateLabel = data.durationMonths === 1 ? 'Monat' : 'Monate';
 
+    return new Promise((resolve, reject) => {
+      const doc = new PDFDocument({
+        size: 'A4',
+        margins: { top: 50, bottom: 50, left: 50, right: 50 },
+        autoFirstPage: true,
+        bufferPages: true,
+        info: {
+          Title: `Rechnung ${data.invoiceNumber}`,
+          Author: 'SIHLHEALTH GmbH',
+          Creator: 'Sihl Training',
+        },
+      });
+
+      const chunks: Buffer[] = [];
+      doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
+      const pageWidth = doc.page.width - 100; // 495pt usable
+      const leftX = 50;
+      const rightEdge = 545;
+      // Shorthand: positioned text that must NOT advance the cursor
+      const NB = { lineBreak: false } as const;
+
+      // ─── HEADER: SIHLHEALTH GmbH (right-aligned) ───
+      doc.fontSize(18).font('Helvetica-Bold')
+        .text('SIHLHEALTH GmbH', leftX, 50, { align: 'right', width: pageWidth, lineBreak: false });
+
+      // ─── META SECTION ───
+      let y = 110;
+      doc.fontSize(16).font('Helvetica-Bold')
+        .text('Rechnung', leftX, y, NB);
+      y += 24;
+      doc.fontSize(10).font('Helvetica')
+        .text(`Datum: ${dateStr}`, leftX, y, NB);
+      y += 14;
+      doc.text(`Rechnungs-Nr.: ${data.invoiceNumber}`, leftX, y, NB);
+
+      // Client name (right side)
+      doc.fontSize(10).font('Helvetica')
+        .text(data.clientName, 300, 134, { align: 'right', width: rightEdge - 300, lineBreak: false });
+
+      // ─── TABLE ───
+      y = 185;
+      const colX = { desc: leftX, menge: 310, einheit: 360, preis: 410, betrag: 475 };
+
+      // Top border
+      doc.moveTo(leftX, y).lineTo(rightEdge, y).lineWidth(0.5).stroke();
+      y += 5;
+
+      // Table header row
+      doc.fontSize(9).font('Helvetica-Bold');
+      doc.text('Beschreibung', colX.desc, y, NB);
+      doc.text('Menge', colX.menge, y, { width: 45, align: 'right', lineBreak: false });
+      doc.text('Einheit', colX.einheit, y, { width: 45, align: 'right', lineBreak: false });
+      doc.text('Preis CHF', colX.preis, y, { width: 60, align: 'right', lineBreak: false });
+      doc.text('Betrag CHF', colX.betrag, y, { width: 70, align: 'right', lineBreak: false });
+      y += 14;
+
+      // Bottom border of header
+      doc.moveTo(leftX, y).lineTo(rightEdge, y).lineWidth(0.5).stroke();
+      y += 8;
+
+      // ─── Line item: description ───
+      const itemStartY = y;
+      doc.fontSize(9).font('Helvetica-Bold')
+        .text(`${data.packageName} Abonnement`, colX.desc, y, { width: 250, lineBreak: false });
+      y += 14;
+
+      doc.fontSize(8).font('Helvetica');
+      const descLine1 = `${data.credits} Persönliches Fitness- und Gesundheitstraining`;
+      const descLine2 = `${lektionenLabel} 50 Minuten pro Lektion`;
+      const descLine3 = `${data.durationMonths} ${monateLabel} Laufzeit`;
+      doc.text(descLine1, colX.desc, y, { width: 250, lineBreak: false });
+      y += 10;
+      doc.text(descLine2, colX.desc, y, { width: 250, lineBreak: false });
+      y += 10;
+      doc.text(descLine3, colX.desc, y, { width: 250, lineBreak: false });
+
+      // Right-side numeric values (vertically centered with item start)
+      const valY = itemStartY;
+      doc.fontSize(9).font('Helvetica');
+      doc.text('1', colX.menge, valY, { width: 45, align: 'right', lineBreak: false });
+      doc.text(`${data.credits}`, colX.einheit, valY, { width: 45, align: 'right', lineBreak: false });
+      doc.text(amountStr, colX.preis, valY, { width: 60, align: 'right', lineBreak: false });
+      doc.text(amountStr, colX.betrag, valY, { width: 70, align: 'right', lineBreak: false });
+
+      y += 18;
+
+      // ─── Inklusive section ───
+      doc.fontSize(9).font('Helvetica')
+        .text('Inklusive:', colX.desc, y, NB);
+      y += 13;
+      doc.fontSize(8);
+      doc.text('+ Leistungsanalyse', colX.desc, y, NB);
+      y += 11;
+      doc.text('+ Training Service', colX.desc, y, NB);
+      y += 20;
+
+      // ─── Total row ───
+      doc.moveTo(leftX, y).lineTo(rightEdge, y).lineWidth(0.5).stroke();
+      y += 6;
+      doc.fontSize(10).font('Helvetica-Bold');
+      doc.text('Rechnungsbetrag CHF', colX.desc, y, NB);
+      doc.text(amountStr, colX.betrag, y, { width: 70, align: 'right', lineBreak: false });
+      y += 15;
+      doc.moveTo(leftX, y).lineTo(rightEdge, y).lineWidth(0.5).stroke();
+
+      // ─── VAT note ───
+      y += 6;
+      doc.fontSize(7).font('Helvetica')
+        .text('SIHLHEALTH GmbH ist nicht MWST-pflichtig.', leftX, y, { align: 'right', width: pageWidth, lineBreak: false });
+
+      // ─── Payment text ───
+      y += 28;
+      doc.fontSize(10).font('Helvetica')
+        .text(`Ich bedanke mich für Ihre Überweisung innerhalb von`, leftX, y, NB);
+      y += 14;
+      doc.font('Helvetica-Bold').text('7 Tagen ', leftX, y, NB);
+      const w7 = doc.widthOfString('7 Tagen ');
+      doc.font('Helvetica').text(`bis zum ${dueDateStr}.`, leftX + w7, y, NB);
+      y += 18;
+      doc.text('Freundliche Grüsse', leftX, y, NB);
+
+      // ─── Signature ───
+      y += 24;
+      doc.fontSize(10).font('Helvetica')
+        .text('Jean-Paul Mvongo', leftX, y, NB);
+
+      // ─── FOOTER (fixed at bottom of page 1) ───
+      const footerY = doc.page.height - 75;
+      doc.moveTo(leftX, footerY).lineTo(rightEdge, footerY).lineWidth(0.5).stroke();
+
+      const fY = footerY + 8;
+      doc.fontSize(8).font('Helvetica');
+
+      // Col 1: Address
+      doc.text('Jean-Paul Mvongo', leftX, fY, NB);
+      doc.text('Nidelbadstrasse 50', leftX, fY + 11, NB);
+      doc.text('8038 Zürich', leftX, fY + 22, NB);
+
+      // Col 2: Contact
+      doc.text('Tel.: +41 79 522 30 83', 210, fY, NB);
+      doc.text('E-Mail: jean-paul.mvongo@sihltraining.ch', 210, fY + 11, NB);
+      doc.text('Web: www.sihltraining.ch', 210, fY + 22, NB);
+
+      // Col 3: Bank
+      doc.text('Bank: UBS SWITZERLAND AG', 400, fY, NB);
+      doc.text('IBAN: CH26 0020 6206 5500 3901 Z', 400, fY + 11, NB);
+      doc.text('BIC: UBSWCHZH80A', 400, fY + 22, NB);
+
+      doc.end();
+    });
+  }
+
+  /** Builds a concise HTML email body — the full invoice is in the PDF attachment. */
+  private buildInvoiceHtml(data: {
+    invoiceNumber: string;
+    clientName: string;
+    packageName: string;
+    credits: number;
+    durationMonths: number;
+    amount: number;
+  }): string {
+    const amountStr = this.formatCHF(data.amount);
+    const today = new Date();
+    const dueDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const dueDateStr = dueDate.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
     return `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><style>
-  body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; max-width: 640px; margin: 0 auto; padding: 32px 24px; font-size: 14px; line-height: 1.5; }
-  .header { text-align: right; margin-bottom: 32px; }
-  .logo { font-size: 20px; font-weight: bold; letter-spacing: 0.5px; }
-  .meta-section { display: table; width: 100%; margin-bottom: 28px; }
-  .meta-left, .meta-right { display: table-cell; vertical-align: top; }
-  .meta-left { width: 50%; }
-  .meta-right { width: 50%; text-align: right; padding-top: 4px; }
-  .invoice-title { font-size: 18px; font-weight: bold; margin: 0 0 10px; }
-  .meta-row { margin-bottom: 2px; font-size: 14px; }
-  .meta-label { color: #555; }
-  table { width: 100%; border-collapse: collapse; margin: 24px 0 6px; }
-  th { font-weight: bold; font-size: 13px; padding: 6px 8px; border-top: 1px solid #1a1a1a; border-bottom: 1px solid #1a1a1a; }
-  th.r { text-align: right; }
-  td { padding: 8px 8px 4px; font-size: 13px; vertical-align: top; }
-  td.r { text-align: right; }
-  .desc-sub { font-size: 12px; color: #444; line-height: 1.4; margin-top: 2px; }
-  .incl-section td { padding-top: 12px; }
-  .incl-title { font-size: 13px; margin-bottom: 4px; }
-  .incl-item { font-size: 12px; color: #444; margin-bottom: 2px; }
-  .total-row td { font-weight: bold; font-size: 14px; padding: 8px; border-top: 1px solid #1a1a1a; border-bottom: 1px solid #1a1a1a; }
-  .vat-note { text-align: right; font-size: 11px; color: #555; margin: 4px 0 24px; }
-  .payment-text { font-size: 14px; margin: 24px 0; line-height: 1.6; }
-  .signature { font-size: 14px; margin: 20px 0 40px; }
-  .divider { border: none; border-top: 1px solid #1a1a1a; margin: 0 0 12px; }
-  .footer-section { display: table; width: 100%; font-size: 12px; color: #444; }
-  .footer-col { display: table-cell; vertical-align: top; }
-  .footer-col.addr { width: 30%; }
-  .footer-col.contact { width: 35%; }
-  .footer-col.bank { width: 35%; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; max-width: 580px; margin: 0 auto; padding: 28px 20px; font-size: 14px; line-height: 1.6; }
+  .logo { font-size: 18px; font-weight: bold; margin-bottom: 24px; }
+  .summary { background: #f7f7f5; padding: 18px 20px; border-radius: 8px; margin: 20px 0; }
+  .summary-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .summary-label { color: #555; }
+  .summary-value { font-weight: bold; }
+  .amount { font-size: 18px; font-weight: bold; margin-top: 8px; }
+  .note { font-size: 12px; color: #888; margin-top: 20px; }
+  .footer { margin-top: 28px; font-size: 12px; color: #888; border-top: 1px solid #ddd; padding-top: 14px; }
 </style></head>
 <body>
-  <div class="header">
-    <div class="logo">SIHLHEALTH GmbH</div>
+  <div class="logo">SIHLHEALTH GmbH</div>
+
+  <p>Guten Tag ${data.clientName},</p>
+
+  <p>vielen Dank f&uuml;r Ihren Einkauf. Anbei finden Sie Ihre Rechnung als PDF.</p>
+
+  <div class="summary">
+    <div class="summary-row"><span class="summary-label">Rechnung:</span> <span class="summary-value">${data.invoiceNumber}</span></div>
+    <div class="summary-row"><span class="summary-label">Paket:</span> <span>${data.packageName} Abonnement</span></div>
+    <div class="summary-row"><span class="summary-label">Lektionen:</span> <span>${data.credits} &times; 50 Min. Personal Training</span></div>
+    <div class="summary-row"><span class="summary-label">Laufzeit:</span> <span>${data.durationMonths} ${data.durationMonths === 1 ? 'Monat' : 'Monate'}</span></div>
+    <div class="amount">CHF ${amountStr}</div>
   </div>
 
-  <div class="meta-section">
-    <div class="meta-left">
-      <div class="invoice-title">Rechnung</div>
-      <div class="meta-row"><span class="meta-label">Datum:</span> ${dateStr}</div>
-      <div class="meta-row"><span class="meta-label">Rechnungs-Nr.:</span> ${data.invoiceNumber}</div>
-    </div>
-    <div class="meta-right">
-      <div style="font-size:14px">${data.clientName}</div>
-    </div>
-  </div>
+  <p>Bitte &uuml;berweisen Sie den Betrag innerhalb von <strong>7 Tagen</strong> (bis ${dueDateStr}).<br>
+  Alle Zahlungsdetails finden Sie in der beigef&uuml;gten Rechnung.</p>
 
-  <table>
-    <thead>
-      <tr>
-        <th style="text-align:left">Beschreibung</th>
-        <th class="r">Menge</th>
-        <th class="r">Einheit</th>
-        <th class="r">Preis CHF</th>
-        <th class="r">Betrag CHF</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>
-          <strong>${data.packageName} Abonnement</strong>
-          <div class="desc-sub">
-            ${data.credits} Pers&ouml;nliches Fitness- und Gesundheitstraining ${lektionenLabel} 50 Minuten pro Lektion<br>
-            ${data.durationMonths} ${monateLabel} Laufzeit
-          </div>
-        </td>
-        <td class="r">1</td>
-        <td class="r">${data.credits}</td>
-        <td class="r">${amountStr}</td>
-        <td class="r">${amountStr}</td>
-      </tr>
-      <tr class="incl-section">
-        <td colspan="5">
-          <div class="incl-title">Inklusive:</div>
-          <div class="incl-item">+ Leistungsanalyse</div>
-          <div class="incl-item">+ Training Service</div>
-        </td>
-      </tr>
-      <tr class="total-row">
-        <td colspan="4"><strong>Rechnungsbetrag CHF</strong></td>
-        <td class="r"><strong>${amountStr}</strong></td>
-      </tr>
-    </tbody>
-  </table>
+  <p>Freundliche Gr&uuml;sse<br>Jean-Paul Mvongo</p>
 
-  <div class="vat-note">SIHLHEALTH GmbH ist nicht MWST-pflichtig.</div>
-
-  <div class="payment-text">
-    Ich bedanke mich f&uuml;r Ihre &Uuml;berweisung innerhalb von <strong>7 Tagen</strong> bis zum ${dueDateStr}.<br>
-    Freundliche Gr&uuml;sse
-  </div>
-
-  <div class="signature">Jean-Paul Mvongo</div>
-
-  <hr class="divider">
-
-  <div class="footer-section">
-    <div class="footer-col addr">
-      Jean-Paul Mvongo<br>
-      Nidelbadstrasse 50<br>
-      8038 Z&uuml;rich
-    </div>
-    <div class="footer-col contact">
-      Tel.: +41 79 522 30 83<br>
-      E-Mail: jean-paul.mvongo@sihltraining.ch<br>
-      Web: www.sihltraining.ch
-    </div>
-    <div class="footer-col bank">
-      Bank: UBS SWITZERLAND AG<br>
-      IBAN: CH26 0020 6206 5500 3901 Z<br>
-      BIC: UBSWCHZH80A<br>
-      Verwendungszweck: ${data.invoiceNumber}
-    </div>
+  <div class="footer">
+    SIHLHEALTH GmbH &middot; Nidelbadstrasse 50 &middot; 8038 Z&uuml;rich<br>
+    jean-paul.mvongo@sihltraining.ch &middot; www.sihltraining.ch
   </div>
 </body>
 </html>`;
