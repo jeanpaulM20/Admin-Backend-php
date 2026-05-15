@@ -178,8 +178,7 @@ export class StartupMigrationService implements OnApplicationBootstrap {
         targetNames,
       );
 
-      // Fix orphaned availability/booking records pointing to inactive locations
-      // Redirect them to the first active location (Sportanlage Sihlhölzli)
+      // Fix orphaned records pointing to inactive locations → redirect to Sihlhölzli
       const [firstActive]: any = await this.dataSource.query(
         `SELECT id FROM location WHERE name = 'Sportanlage Sihlhölzli' AND active = 1 LIMIT 1`,
       );
@@ -190,14 +189,66 @@ export class StartupMigrationService implements OnApplicationBootstrap {
         const activeIdSet = activeIds.map((r: any) => r.id);
         if (activeIdSet.length > 0) {
           const ph = activeIdSet.map(() => '?').join(', ');
-          const [result]: any = await this.dataSource.query(
-            `UPDATE trainer_availability SET location_id = ? WHERE location_id NOT IN (${ph})`,
+          // Fix trainer_availability
+          const [availResult]: any = await this.dataSource.query(
+            `UPDATE trainer_availability SET location_id = ? WHERE location_id IS NOT NULL AND location_id NOT IN (${ph})`,
             [firstActive.id, ...activeIdSet],
           );
-          if (result?.affectedRows > 0) {
-            this.logger.log(`Redirected ${result.affectedRows} availability records to Sportanlage Sihlhölzli`);
+          if (availResult?.affectedRows > 0) {
+            this.logger.log(`Redirected ${availResult.affectedRows} availability records to Sportanlage Sihlhölzli`);
+          }
+          // Fix training (bookings) table
+          const [bookResult]: any = await this.dataSource.query(
+            `UPDATE training SET location_id = ? WHERE location_id IS NOT NULL AND location_id NOT IN (${ph})`,
+            [firstActive.id, ...activeIdSet],
+          );
+          if (bookResult?.affectedRows > 0) {
+            this.logger.log(`Redirected ${bookResult.affectedRows} booking records to Sportanlage Sihlhölzli`);
           }
         }
+      }
+
+      // Deduplicate availability: remove exact duplicates (same trainer, date, from, to, location)
+      try {
+        const [dedup]: any = await this.dataSource.query(`
+          DELETE a FROM trainer_availability a
+          INNER JOIN trainer_availability b
+          ON a.trainer_id = b.trainer_id
+            AND a.date = b.date
+            AND a.\`from\` = b.\`from\`
+            AND a.\`to\` = b.\`to\`
+            AND a.location_id = b.location_id
+            AND a.id > b.id
+        `);
+        if (dedup?.affectedRows > 0) {
+          this.logger.log(`Removed ${dedup.affectedRows} duplicate availability records`);
+        }
+
+        // Remove subset availability (e.g. 09:00-10:00 is subset of 06:00-10:00 for same trainer/date/location)
+        const [subset]: any = await this.dataSource.query(`
+          DELETE sub FROM trainer_availability sub
+          INNER JOIN trainer_availability parent
+          ON sub.trainer_id = parent.trainer_id
+            AND sub.date = parent.date
+            AND sub.location_id = parent.location_id
+            AND sub.\`from\` >= parent.\`from\`
+            AND sub.\`to\` <= parent.\`to\`
+            AND sub.id != parent.id
+            AND (sub.\`from\` > parent.\`from\` OR sub.\`to\` < parent.\`to\`)
+        `);
+        if (subset?.affectedRows > 0) {
+          this.logger.log(`Removed ${subset.affectedRows} subset availability records`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`Availability dedup: ${err.message}`);
+      }
+
+      // Trim trailing spaces from training type names
+      try {
+        await this.dataSource.query(`UPDATE training_type SET name_de = TRIM(name_de) WHERE name_de LIKE '% '`);
+        await this.dataSource.query(`UPDATE training_type SET name_en = TRIM(name_en) WHERE name_en LIKE '% '`);
+      } catch (err: any) {
+        this.logger.warn(`Training type trim: ${err.message}`);
       }
 
       this.logger.log('Location setup complete');
