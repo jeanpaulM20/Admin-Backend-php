@@ -36,6 +36,32 @@ export class InvoiceService {
   }
 
   /**
+   * Returns all invoices for a given client.
+   */
+  async getInvoices(clientId: number) {
+    const rows: any[] = await this.dataSource.query(
+      `SELECT invoice_number, package_name, amount, credits, duration_months, status, created_at
+       FROM invoice WHERE client_id = ? ORDER BY created_at DESC`,
+      [clientId],
+    );
+    return rows.map((r) => {
+      const createdAt = r.created_at ? new Date(r.created_at) : new Date();
+      const dueDate = new Date(createdAt.getTime() + 7 * 24 * 60 * 60 * 1000);
+      return {
+        invoiceNumber: r.invoice_number,
+        packageName: r.package_name,
+        amount: parseFloat(r.amount),
+        credits: r.credits,
+        durationMonths: r.duration_months,
+        status: r.status,
+        currency: 'CHF',
+        transactionDate: createdAt.toISOString(),
+        dueDate: dueDate.toISOString(),
+      };
+    });
+  }
+
+  /**
    * Sends an invoice email to the client.
    */
   async sendInvoiceEmail(data: {

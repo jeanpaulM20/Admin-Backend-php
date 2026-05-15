@@ -4,6 +4,7 @@ import {
 } from '@nestjs/common';
 import { ClientAppService } from './client-app.service';
 import { ClientChatService } from './client-chat.service';
+import { InvoiceService } from '../invoice/invoice.service';
 import { Public } from '../auth/decorators/public.decorator';
 
 /**
@@ -23,6 +24,7 @@ export class ClientAppController {
   constructor(
     private readonly appService: ClientAppService,
     private readonly chatService: ClientChatService,
+    private readonly invoiceService: InvoiceService,
   ) {}
 
   /** Dashboard — credits + upcoming trainings */
@@ -64,10 +66,10 @@ export class ClientAppController {
     return this.appService.purchasePackage(clientId, body.packageId);
   }
 
-  /** Invoices (stub — Bexio integration to be migrated) */
+  /** Invoices */
   @Get('invoices/:clientId')
   invoices(@Param('clientId', ParseIntPipe) clientId: number) {
-    return [];
+    return this.invoiceService.getInvoices(clientId);
   }
 
   /** Tests / Performance data */
