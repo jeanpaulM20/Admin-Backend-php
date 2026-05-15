@@ -2,6 +2,7 @@ import {
   Controller, Get, Post, Put, Delete, Param, Body, Query,
   ParseIntPipe, NotFoundException,
 } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { ClientAppService } from './client-app.service';
 import { ClientChatService } from './client-chat.service';
 import { Public } from '../auth/decorators/public.decorator';
@@ -23,6 +24,7 @@ export class ClientAppController {
   constructor(
     private readonly appService: ClientAppService,
     private readonly chatService: ClientChatService,
+    private readonly dataSource: DataSource,
   ) {}
 
   /** Dashboard — credits + upcoming trainings */
@@ -183,5 +185,63 @@ export class ClientAppController {
     @Param('trainerId', ParseIntPipe) trainerId: number,
   ) {
     return this.chatService.markAsRead(clientId, trainerId);
+  }
+
+  // ── TEMP DEBUG: Data cleanup ─────────────────────────────────────
+  @Get('debug/cleanup')
+  async debugCleanup() {
+    const log: string[] = [];
+    try {
+      // 1. Fix booking location_ids
+      const activeLocations: any[] = await this.dataSource.query('SELECT id FROM location WHERE active = 1');
+      const activeIds = activeLocations.map(r => r.id);
+      log.push(`Active locations: ${JSON.stringify(activeIds)}`);
+
+      const [sihl]: any = await this.dataSource.query("SELECT id FROM location WHERE name = 'Sportanlage Sihlhölzli' AND active = 1 LIMIT 1");
+      if (sihl && activeIds.length > 0) {
+        const ph = activeIds.map(() => '?').join(', ');
+        const bookRes = await this.dataSource.query(
+          `UPDATE training SET location_id = ? WHERE location_id IS NOT NULL AND location_id NOT IN (${ph})`,
+          [sihl.id, ...activeIds],
+        );
+        log.push(`Booking fix: ${JSON.stringify(bookRes)}`);
+      }
+
+      // 2. Dedup availability
+      const keepRows: any[] = await this.dataSource.query(
+        'SELECT MIN(id) as keep_id FROM trainer_availability GROUP BY trainer_id, date, location_id, `from`, `to`',
+      );
+      const keepIds = keepRows.map(r => r.keep_id);
+      log.push(`Keep ${keepIds.length} unique availability IDs`);
+
+      if (keepIds.length > 0) {
+        const kph = keepIds.map(() => '?').join(', ');
+        const dedupRes = await this.dataSource.query(
+          `DELETE FROM trainer_availability WHERE id NOT IN (${kph})`,
+          keepIds,
+        );
+        log.push(`Dedup: ${JSON.stringify(dedupRes)}`);
+      }
+
+      // 3. Remove subsets
+      const subsetRows: any[] = await this.dataSource.query(
+        'SELECT sub.id as sub_id FROM trainer_availability sub INNER JOIN trainer_availability parent ON sub.trainer_id = parent.trainer_id AND sub.date = parent.date AND sub.location_id = parent.location_id AND sub.`from` >= parent.`from` AND sub.`to` <= parent.`to` AND sub.id != parent.id AND (sub.`from` > parent.`from` OR sub.`to` < parent.`to`)',
+      );
+      log.push(`Subset rows to remove: ${subsetRows.length}`);
+      if (subsetRows.length > 0) {
+        const sids = subsetRows.map(r => r.sub_id);
+        const sph = sids.map(() => '?').join(', ');
+        const subRes = await this.dataSource.query(`DELETE FROM trainer_availability WHERE id IN (${sph})`, sids);
+        log.push(`Subset removal: ${JSON.stringify(subRes)}`);
+      }
+
+      // 4. Trim training type names
+      await this.dataSource.query("UPDATE training_type SET name_de = TRIM(name_de) WHERE name_de LIKE '% '");
+      log.push('Trimmed training type names');
+
+      return { success: true, log };
+    } catch (err: any) {
+      return { success: false, error: err.message, stack: err.stack?.split('\n').slice(0, 5), log };
+    }
   }
 }
