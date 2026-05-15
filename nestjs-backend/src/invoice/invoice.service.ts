@@ -83,11 +83,11 @@ export class InvoiceService {
     amount: number;
     invoiceNumber: string;
     debtorName?: string;
-  }): Promise<string | null> {
+  }): Promise<{ base64: string } | { error: string }> {
     const apiKey = process.env.QR_BILL_API_KEY;
     if (!apiKey) {
       this.logger.warn('QR_BILL_API_KEY not set — QR bill skipped');
-      return null;
+      return { error: 'QR_BILL_API_KEY not configured' };
     }
 
     const params = new URLSearchParams({
@@ -133,13 +133,14 @@ export class InvoiceService {
 
       if (result.base64Content) {
         this.logger.log(`QR bill generated for ${data.invoiceNumber}`);
-        return result.base64Content;
+        return { base64: result.base64Content };
       }
-      this.logger.warn(`QR API returned no base64Content: ${JSON.stringify(result).substring(0, 300)}`);
-      return null;
+      const msg = `QR API: ${result.message ?? 'no base64Content in response'}`;
+      this.logger.warn(msg);
+      return { error: msg };
     } catch (err: any) {
       this.logger.warn(`QR bill generation failed: ${err.message}`);
-      return null;
+      return { error: err.message };
     }
   }
 
@@ -176,11 +177,12 @@ export class InvoiceService {
     const html = this.buildInvoiceHtml(data);
 
     // Generate QR bill payment slip (non-blocking — PDF still sent if QR fails)
-    const qrBase64 = await this.generateQrBill({
+    const qrResult = await this.generateQrBill({
       amount: data.amount,
       invoiceNumber: data.invoiceNumber,
       debtorName: data.clientName,
     });
+    const qrBase64 = 'base64' in qrResult ? qrResult.base64 : null;
     const pdfBuffer = await this.buildInvoicePdf(data, qrBase64);
 
     try {

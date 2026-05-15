@@ -83,15 +83,15 @@ export class ClientAppController {
     if (!numAmount || numAmount <= 0) {
       return { success: false, error: 'Invalid amount' };
     }
-    const qrBase64 = await this.invoiceService.generateQrBill({
+    const qrResult = await this.invoiceService.generateQrBill({
       amount: numAmount,
       invoiceNumber,
       debtorName: name,
     });
-    if (!qrBase64) {
-      return { success: false, error: 'QR bill generation failed' };
+    if ('error' in qrResult) {
+      return { success: false, error: qrResult.error };
     }
-    return { success: true, base64: qrBase64 };
+    return { success: true, base64: qrResult.base64 };
   }
 
   /** Tests / Performance data */
