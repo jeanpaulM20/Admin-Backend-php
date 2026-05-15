@@ -190,7 +190,7 @@ export class StartupMigrationService implements OnApplicationBootstrap {
         if (activeIdSet.length > 0) {
           const ph = activeIdSet.map(() => '?').join(', ');
           // Fix trainer_availability
-          const [availResult]: any = await this.dataSource.query(
+          const availResult: any = await this.dataSource.query(
             `UPDATE trainer_availability SET location_id = ? WHERE location_id IS NOT NULL AND location_id NOT IN (${ph})`,
             [firstActive.id, ...activeIdSet],
           );
@@ -199,13 +199,12 @@ export class StartupMigrationService implements OnApplicationBootstrap {
           }
           // Fix training (bookings) table
           try {
-            const bookResult = await this.dataSource.query(
+            const bookResult: any = await this.dataSource.query(
               `UPDATE training SET location_id = ? WHERE location_id IS NOT NULL AND location_id NOT IN (${ph})`,
               [firstActive.id, ...activeIdSet],
             );
-            const bookAffected = bookResult?.affectedRows ?? bookResult?.[0]?.affectedRows ?? 0;
-            if (bookAffected > 0) {
-              this.logger.log(`Redirected ${bookAffected} booking records to Sportanlage Sihlhölzli`);
+            if (bookResult?.affectedRows > 0) {
+              this.logger.log(`Redirected ${bookResult.affectedRows} booking records to Sportanlage Sihlhölzli`);
             }
           } catch (err: any) {
             this.logger.warn(`Booking location fix: ${err.message}`);
@@ -224,13 +223,12 @@ export class StartupMigrationService implements OnApplicationBootstrap {
         const keepIds = keepRows.map((r: any) => r.keep_id).filter(Boolean);
         if (keepIds.length > 0) {
           const keepPh = keepIds.map(() => '?').join(', ');
-          const dedupResult = await this.dataSource.query(
+          const dedupResult: any = await this.dataSource.query(
             `DELETE FROM trainer_availability WHERE id NOT IN (${keepPh})`,
             keepIds,
           );
-          const affected = dedupResult?.affectedRows ?? dedupResult?.[0]?.affectedRows ?? 0;
-          if (affected > 0) {
-            this.logger.log(`Removed ${affected} duplicate availability records`);
+          if (dedupResult?.affectedRows > 0) {
+            this.logger.log(`Removed ${dedupResult.affectedRows} duplicate availability records`);
           }
         }
 
@@ -250,13 +248,12 @@ export class StartupMigrationService implements OnApplicationBootstrap {
         const subsetIds = subsetRows.map((r: any) => r.sub_id).filter(Boolean);
         if (subsetIds.length > 0) {
           const subPh = subsetIds.map(() => '?').join(', ');
-          const subResult = await this.dataSource.query(
+          const subResult: any = await this.dataSource.query(
             `DELETE FROM trainer_availability WHERE id IN (${subPh})`,
             subsetIds,
           );
-          const subAffected = subResult?.affectedRows ?? subResult?.[0]?.affectedRows ?? 0;
-          if (subAffected > 0) {
-            this.logger.log(`Removed ${subAffected} subset availability records`);
+          if (subResult?.affectedRows > 0) {
+            this.logger.log(`Removed ${subResult.affectedRows} subset availability records`);
           }
         }
       } catch (err: any) {
