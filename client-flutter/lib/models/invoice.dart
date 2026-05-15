@@ -5,6 +5,9 @@ class Invoice {
   final DateTime? dueDate;
   final String currency;
   final double amount;
+  final String? packageName;
+  final int? credits;
+  final int? durationMonths;
 
   Invoice({
     required this.invoiceNumber,
@@ -13,6 +16,9 @@ class Invoice {
     this.dueDate,
     required this.currency,
     required this.amount,
+    this.packageName,
+    this.credits,
+    this.durationMonths,
   });
 
   bool get isPaid =>
@@ -38,6 +44,9 @@ class Invoice {
       dueDate: parseDate(json['dueDate'] ?? json['due_date']),
       currency: json['currency']?.toString() ?? 'CHF',
       amount: double.tryParse(json['amount']?.toString() ?? '0') ?? 0,
+      packageName: json['packageName']?.toString() ?? json['package_name']?.toString(),
+      credits: int.tryParse(json['credits']?.toString() ?? ''),
+      durationMonths: int.tryParse(json['durationMonths']?.toString() ?? json['duration_months']?.toString() ?? ''),
     );
   }
 }
