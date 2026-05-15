@@ -108,6 +108,13 @@ export class InvoiceService {
     }
   }
 
+  /** Format number Swiss-style: 6'900.00 */
+  private formatCHF(n: number): string {
+    const [intPart, decPart] = n.toFixed(2).split('.');
+    const formatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '’');
+    return `${formatted}.${decPart}`;
+  }
+
   private buildInvoiceHtml(data: {
     invoiceNumber: string;
     clientName: string;
@@ -120,75 +127,126 @@ export class InvoiceService {
     const dateStr = today.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const dueDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
     const dueDateStr = dueDate.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    const amountStr = data.amount.toLocaleString('de-CH', { minimumFractionDigits: 2 });
+    const amountStr = this.formatCHF(data.amount);
+    const lektionenLabel = data.credits === 1 ? 'Lektion' : 'Lektionen';
+    const monateLabel = data.durationMonths === 1 ? 'Monat' : 'Monate';
 
     return `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><style>
-  body { font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
-  .header { border-bottom: 2px solid #c8a964; padding-bottom: 16px; margin-bottom: 24px; }
-  .logo { font-size: 22px; font-weight: bold; color: #1a1a1a; }
-  .logo span { color: #c8a964; }
-  .invoice-title { font-size: 20px; font-weight: bold; margin: 20px 0 16px; }
-  .meta { margin-bottom: 20px; }
-  .meta-row { display: flex; margin-bottom: 4px; }
-  .meta-label { width: 140px; color: #666; }
-  table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-  th { background: #f5f5f5; text-align: left; padding: 10px; border-bottom: 2px solid #ddd; }
-  td { padding: 10px; border-bottom: 1px solid #eee; }
-  .total-row td { font-weight: bold; border-top: 2px solid #333; border-bottom: none; }
-  .footer { margin-top: 30px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 12px; color: #888; }
-  .payment-info { background: #f9f7f2; padding: 16px; border-radius: 8px; margin: 20px 0; }
-  .note { font-size: 12px; color: #888; margin-top: 16px; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; max-width: 640px; margin: 0 auto; padding: 32px 24px; font-size: 14px; line-height: 1.5; }
+  .header { text-align: right; margin-bottom: 32px; }
+  .logo { font-size: 20px; font-weight: bold; letter-spacing: 0.5px; }
+  .meta-section { display: table; width: 100%; margin-bottom: 28px; }
+  .meta-left, .meta-right { display: table-cell; vertical-align: top; }
+  .meta-left { width: 50%; }
+  .meta-right { width: 50%; text-align: right; padding-top: 4px; }
+  .invoice-title { font-size: 18px; font-weight: bold; margin: 0 0 10px; }
+  .meta-row { margin-bottom: 2px; font-size: 14px; }
+  .meta-label { color: #555; }
+  table { width: 100%; border-collapse: collapse; margin: 24px 0 6px; }
+  th { font-weight: bold; font-size: 13px; padding: 6px 8px; border-top: 1px solid #1a1a1a; border-bottom: 1px solid #1a1a1a; }
+  th.r { text-align: right; }
+  td { padding: 8px 8px 4px; font-size: 13px; vertical-align: top; }
+  td.r { text-align: right; }
+  .desc-sub { font-size: 12px; color: #444; line-height: 1.4; margin-top: 2px; }
+  .incl-section td { padding-top: 12px; }
+  .incl-title { font-size: 13px; margin-bottom: 4px; }
+  .incl-item { font-size: 12px; color: #444; margin-bottom: 2px; }
+  .total-row td { font-weight: bold; font-size: 14px; padding: 8px; border-top: 1px solid #1a1a1a; border-bottom: 1px solid #1a1a1a; }
+  .vat-note { text-align: right; font-size: 11px; color: #555; margin: 4px 0 24px; }
+  .payment-text { font-size: 14px; margin: 24px 0; line-height: 1.6; }
+  .signature { font-size: 14px; margin: 20px 0 40px; }
+  .divider { border: none; border-top: 1px solid #1a1a1a; margin: 0 0 12px; }
+  .footer-section { display: table; width: 100%; font-size: 12px; color: #444; }
+  .footer-col { display: table-cell; vertical-align: top; }
+  .footer-col.addr { width: 30%; }
+  .footer-col.contact { width: 35%; }
+  .footer-col.bank { width: 35%; }
 </style></head>
 <body>
   <div class="header">
-    <div class="logo">SIHL<span>HEALTH</span> GmbH</div>
+    <div class="logo">SIHLHEALTH GmbH</div>
   </div>
 
-  <div class="invoice-title">Rechnung</div>
-
-  <div class="meta">
-    <div class="meta-row"><span class="meta-label">Rechnungs-Nr.:</span> <strong>${data.invoiceNumber}</strong></div>
-    <div class="meta-row"><span class="meta-label">Datum:</span> ${dateStr}</div>
-    <div class="meta-row"><span class="meta-label">Kunde:</span> ${data.clientName}</div>
-    <div class="meta-row"><span class="meta-label">Zahlbar bis:</span> ${dueDateStr}</div>
+  <div class="meta-section">
+    <div class="meta-left">
+      <div class="invoice-title">Rechnung</div>
+      <div class="meta-row"><span class="meta-label">Datum:</span> ${dateStr}</div>
+      <div class="meta-row"><span class="meta-label">Rechnungs-Nr.:</span> ${data.invoiceNumber}</div>
+    </div>
+    <div class="meta-right">
+      <div style="font-size:14px">${data.clientName}</div>
+    </div>
   </div>
 
   <table>
     <thead>
-      <tr><th>Beschreibung</th><th>Menge</th><th style="text-align:right">Betrag CHF</th></tr>
+      <tr>
+        <th style="text-align:left">Beschreibung</th>
+        <th class="r">Menge</th>
+        <th class="r">Einheit</th>
+        <th class="r">Preis CHF</th>
+        <th class="r">Betrag CHF</th>
+      </tr>
     </thead>
     <tbody>
       <tr>
         <td>
-          <strong>Abonnement ${data.packageName}</strong><br>
-          <span style="font-size:13px;color:#666">${data.credits} ${data.credits === 1 ? 'Lektion' : 'Lektionen'} &agrave; 60 Min. Personal Training<br>
-          G&uuml;ltigkeit: ${data.durationMonths} ${data.durationMonths === 1 ? 'Monat' : 'Monate'}</span>
+          <strong>${data.packageName} Abonnement</strong>
+          <div class="desc-sub">
+            ${data.credits} Pers&ouml;nliches Fitness- und Gesundheitstraining ${lektionenLabel} 50 Minuten pro Lektion<br>
+            ${data.durationMonths} ${monateLabel} Laufzeit
+          </div>
         </td>
-        <td>1</td>
-        <td style="text-align:right">${amountStr}</td>
+        <td class="r">1</td>
+        <td class="r">${data.credits}</td>
+        <td class="r">${amountStr}</td>
+        <td class="r">${amountStr}</td>
+      </tr>
+      <tr class="incl-section">
+        <td colspan="5">
+          <div class="incl-title">Inklusive:</div>
+          <div class="incl-item">+ Leistungsanalyse</div>
+          <div class="incl-item">+ Training Service</div>
+        </td>
       </tr>
       <tr class="total-row">
-        <td colspan="2">Rechnungsbetrag CHF</td>
-        <td style="text-align:right">${amountStr}</td>
+        <td colspan="4"><strong>Rechnungsbetrag CHF</strong></td>
+        <td class="r"><strong>${amountStr}</strong></td>
       </tr>
     </tbody>
   </table>
 
-  <div class="payment-info">
-    <strong>Zahlungsinformationen</strong><br><br>
-    SIHLHEALTH GmbH<br>
-    IBAN: CH00 0000 0000 0000 0000 0 (bitte beim Studio erfragen)<br>
-    Verwendungszweck: ${data.invoiceNumber}
+  <div class="vat-note">SIHLHEALTH GmbH ist nicht MWST-pflichtig.</div>
+
+  <div class="payment-text">
+    Ich bedanke mich f&uuml;r Ihre &Uuml;berweisung innerhalb von <strong>7 Tagen</strong> bis zum ${dueDateStr}.<br>
+    Freundliche Gr&uuml;sse
   </div>
 
-  <p class="note">SIHLHEALTH GmbH ist nicht MWST-pflichtig.</p>
+  <div class="signature">Jean-Paul Mvongo</div>
 
-  <div class="footer">
-    SIHLHEALTH GmbH &middot; Z&uuml;rich<br>
-    info@sihltraining.ch &middot; sihltraining.ch
+  <hr class="divider">
+
+  <div class="footer-section">
+    <div class="footer-col addr">
+      Jean-Paul Mvongo<br>
+      Nidelbadstrasse 50<br>
+      8038 Z&uuml;rich
+    </div>
+    <div class="footer-col contact">
+      Tel.: +41 79 522 30 83<br>
+      E-Mail: jean-paul.mvongo@sihltraining.ch<br>
+      Web: www.sihltraining.ch
+    </div>
+    <div class="footer-col bank">
+      Bank: UBS SWITZERLAND AG<br>
+      IBAN: CH26 0020 6206 5500 3901 Z<br>
+      BIC: UBSWCHZH80A<br>
+      Verwendungszweck: ${data.invoiceNumber}
+    </div>
   </div>
 </body>
 </html>`;
