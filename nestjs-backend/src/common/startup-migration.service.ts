@@ -37,6 +37,10 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       `ALTER TABLE client_credits MODIFY COLUMN training_type_id INT DEFAULT NULL`,
       `ALTER TABLE client_credits MODIFY COLUMN abbonement_id INT DEFAULT NULL`,
       `ALTER TABLE client_credits MODIFY COLUMN sold_by_id INT DEFAULT NULL`,
+      // Saferpay payment integration columns on invoice
+      `ALTER TABLE invoice ADD COLUMN saferpay_token VARCHAR(100) DEFAULT NULL`,
+      `ALTER TABLE invoice ADD COLUMN paid_at DATETIME DEFAULT NULL`,
+      `ALTER TABLE invoice ADD COLUMN payment_method VARCHAR(50) DEFAULT NULL`,
     ];
 
     // Ensure preference table has correct schema (key/value columns)

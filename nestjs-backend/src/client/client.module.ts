@@ -14,6 +14,7 @@ import { Feedback } from '../entities/feedback.entity';
 import { ReviewModule } from '../review/review.module';
 import { FileModule } from '../file/file.module';
 import { InvoiceModule } from '../invoice/invoice.module';
+import { PaymentModule } from '../payment/payment.module';
 import { ClientService } from './client.service';
 import { ClientAppService } from './client-app.service';
 import { ClientChatService } from './client-chat.service';
@@ -39,6 +40,7 @@ import { ClientAppController } from './client-php-proxy.controller';
     ReviewModule,
     FileModule,
     InvoiceModule,
+    PaymentModule,
   ],
   providers: [ClientService, ClientAppService, ClientChatService],
   controllers: [ClientAppController, ClientController],

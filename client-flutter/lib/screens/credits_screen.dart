@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../config/app_colors.dart';
 import '../providers/auth_provider.dart';
 import '../providers/credits_provider.dart';
 import '../models/buyable_credit.dart';
 import '../services/credits_service.dart';
+import '../services/payment_service.dart';
 import '../widgets/loading_indicator.dart';
 import '../widgets/error_view.dart';
 
@@ -30,6 +32,8 @@ class _CreditsScreenState extends State<CreditsScreen> {
     }
   }
 
+  final PaymentService _paymentService = PaymentService();
+
   // ── Purchase flow ──────────────────────────────────────────────────────────
 
   Future<void> _startPurchase(CreditPackage pkg) async {
@@ -37,12 +41,155 @@ class _CreditsScreenState extends State<CreditsScreen> {
     final agbAccepted = await _showAgbSheet(pkg);
     if (agbAccepted != true || !mounted) return;
 
-    // Step 2: Confirm purchase
-    final confirmed = await _showConfirmDialog(pkg);
-    if (confirmed != true || !mounted) return;
+    // Step 2: Payment method choice
+    final method = await _showPaymentMethodSheet(pkg);
+    if (method == null || !mounted) return;
 
-    // Step 3: Execute purchase
-    await _executePurchase(pkg);
+    if (method == 'online') {
+      // Step 3a: Online payment (Saferpay)
+      await _executeOnlinePayment(pkg);
+    } else {
+      // Step 3b: Bank transfer (existing flow)
+      final confirmed = await _showConfirmDialog(pkg);
+      if (confirmed != true || !mounted) return;
+      await _executePurchase(pkg);
+    }
+  }
+
+  /// Shows a bottom sheet to choose payment method.
+  Future<String?> _showPaymentMethodSheet(CreditPackage pkg) {
+    final priceFormatted = NumberFormat('#,##0.00', 'de_CH').format(pkg.price);
+    return showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.muted.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text('Zahlungsmethode waehlen',
+                style: TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 6),
+            Text('${pkg.name} – CHF $priceFormatted',
+                style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+            const SizedBox(height: 20),
+
+            // Online payment option
+            _PaymentMethodTile(
+              icon: Icons.credit_card_rounded,
+              title: 'Online bezahlen',
+              subtitle: 'Kreditkarte, TWINT, PostFinance, Apple Pay',
+              onTap: () => Navigator.pop(ctx, 'online'),
+            ),
+            const SizedBox(height: 10),
+
+            // Bank transfer / QR-Rechnung option
+            _PaymentMethodTile(
+              icon: Icons.account_balance_rounded,
+              title: 'Bankueberweisung',
+              subtitle: 'Rechnung per E-Mail mit QR-Einzahlungsschein',
+              onTap: () => Navigator.pop(ctx, 'bank'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Execute online payment via Saferpay.
+  Future<void> _executeOnlinePayment(CreditPackage pkg) async {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(children: [
+          SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+          SizedBox(width: 12),
+          Text('Zahlung wird vorbereitet...'),
+        ]),
+        backgroundColor: AppColors.primary,
+        duration: Duration(seconds: 15),
+      ),
+    );
+
+    try {
+      final auth = context.read<AuthProvider>();
+      final result = await _paymentService.initialize(
+        clientId: auth.clientId!,
+        packageId: int.parse(pkg.id),
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      // Open Saferpay payment page in browser
+      final uri = Uri.parse(result.redirectUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+        // Show polling dialog
+        if (mounted) {
+          await _showPaymentPendingDialog(result.invoiceNumber);
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Browser konnte nicht geoeffnet werden'),
+            backgroundColor: AppColors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Fehler: ${e.toString().replaceFirst("Exception: ", "")}'),
+          backgroundColor: AppColors.red,
+        ),
+      );
+    }
+  }
+
+  /// Shows a dialog while the user completes payment in the browser.
+  /// Polls payment status until paid or user dismisses.
+  Future<void> _showPaymentPendingDialog(String invoiceNumber) async {
+    bool isPaid = false;
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => _PaymentPendingDialog(
+        invoiceNumber: invoiceNumber,
+        paymentService: _paymentService,
+        onPaid: () {
+          isPaid = true;
+          Navigator.pop(ctx);
+        },
+        onCancel: () => Navigator.pop(ctx),
+      ),
+    );
+
+    if (isPaid && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Zahlung erfolgreich! Paket aktiviert.'),
+          backgroundColor: AppColors.green,
+          duration: Duration(seconds: 4),
+        ),
+      );
+      await _loadData();
+    }
   }
 
   Future<bool?> _showAgbSheet(CreditPackage pkg) {
@@ -736,5 +883,171 @@ class _PackageCard extends StatelessWidget {
       const SizedBox(width: 4),
       Text(text, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
     ]);
+  }
+}
+
+// ═══════════════════════════════���═══════════════════════════════════════════════
+// Payment method tile
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _PaymentMethodTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _PaymentMethodTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.background,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: AppColors.primary, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(
+                  color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700,
+                )),
+                const SizedBox(height: 2),
+                Text(subtitle, style: const TextStyle(
+                  color: AppColors.muted, fontSize: 12,
+                )),
+              ],
+            )),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.muted, size: 22),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════��═══════════════════════════════════════════════════════════════════════
+// Payment pending dialog (polls status while user pays in browser)
+// ═══════════════════════════════════════���═══════════════════════════════════════
+
+class _PaymentPendingDialog extends StatefulWidget {
+  final String invoiceNumber;
+  final PaymentService paymentService;
+  final VoidCallback onPaid;
+  final VoidCallback onCancel;
+
+  const _PaymentPendingDialog({
+    required this.invoiceNumber,
+    required this.paymentService,
+    required this.onPaid,
+    required this.onCancel,
+  });
+
+  @override
+  State<_PaymentPendingDialog> createState() => _PaymentPendingDialogState();
+}
+
+class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
+  bool _polling = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _pollStatus();
+  }
+
+  Future<void> _pollStatus() async {
+    while (_polling && mounted) {
+      await Future.delayed(const Duration(seconds: 3));
+      if (!_polling || !mounted) break;
+
+      final status = await widget.paymentService.checkStatus(widget.invoiceNumber);
+      if (status == 'paid') {
+        _polling = false;
+        if (mounted) widget.onPaid();
+        return;
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _polling = false;
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      title: const Row(children: [
+        SizedBox(width: 20, height: 20, child: CircularProgressIndicator(
+          strokeWidth: 2.5, color: AppColors.primary,
+        )),
+        SizedBox(width: 14),
+        Text('Zahlung laeuft...', style: TextStyle(
+          color: AppColors.text, fontSize: 16, fontWeight: FontWeight.w700,
+        )),
+      ]),
+      content: const Text(
+        'Bitte schliesse die Zahlung im Browser ab.\n\nDieses Fenster schliesst automatisch nach erfolgreicher Zahlung.',
+        style: TextStyle(color: AppColors.muted, fontSize: 13, height: 1.5),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            _polling = false;
+            widget.onCancel();
+          },
+          child: const Text('Abbrechen', style: TextStyle(color: AppColors.muted)),
+        ),
+        ElevatedButton(
+          onPressed: () async {
+            // Manual check
+            final status = await widget.paymentService.checkStatus(widget.invoiceNumber);
+            if (status == 'paid' && mounted) {
+              _polling = false;
+              widget.onPaid();
+            } else if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Zahlung noch nicht abgeschlossen'),
+                  backgroundColor: AppColors.orange,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: AppColors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          child: const Text('Status pruefen'),
+        ),
+      ],
+    );
   }
 }

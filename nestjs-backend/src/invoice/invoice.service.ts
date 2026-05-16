@@ -63,6 +63,45 @@ export class InvoiceService {
     });
   }
 
+  /**
+   * Marks an invoice as paid (e.g. after successful Saferpay payment).
+   */
+  async markInvoicePaid(invoiceNumber: string, paymentMethod?: string): Promise<boolean> {
+    const result: any = await this.dataSource.query(
+      `UPDATE invoice SET status = 'paid', paid_at = NOW(), payment_method = ? WHERE invoice_number = ? AND status = 'pending'`,
+      [paymentMethod ?? 'online', invoiceNumber],
+    );
+    const affected = result?.affectedRows ?? result?.changes ?? 0;
+    if (affected > 0) {
+      this.logger.log(`Invoice ${invoiceNumber} marked as paid (${paymentMethod ?? 'online'})`);
+      return true;
+    }
+    this.logger.warn(`Invoice ${invoiceNumber} not updated — either not found or already paid`);
+    return false;
+  }
+
+  /**
+   * Gets an invoice by its number — used by payment flow to verify.
+   */
+  async getInvoiceByNumber(invoiceNumber: string): Promise<any | null> {
+    const [row]: any = await this.dataSource.query(
+      `SELECT * FROM invoice WHERE invoice_number = ?`,
+      [invoiceNumber],
+    );
+    return row ?? null;
+  }
+
+  /**
+   * Stores the Saferpay payment token on the invoice for later assert/capture.
+   */
+  async storePaymentToken(invoiceNumber: string, token: string): Promise<void> {
+    await this.dataSource.query(
+      `UPDATE invoice SET saferpay_token = ? WHERE invoice_number = ?`,
+      [token, invoiceNumber],
+    );
+    this.logger.log(`Stored Saferpay token for invoice ${invoiceNumber}`);
+  }
+
   // ── QR-Rechnung (Swiss QR Bill) ─────────────────────────────────
   private static readonly QR_API_URL = 'https://qr-rechnung-api.ch/api/v1/qr-bill/create';
   private static readonly CREDITOR = {
