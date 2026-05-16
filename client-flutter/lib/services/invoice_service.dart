@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import '../models/invoice.dart';
 import 'api_client.dart';
 
@@ -30,7 +31,8 @@ class InvoiceService {
         return base64Decode(data['base64']);
       }
       return null;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('fetchQrBill error: $e');
       return null;
     }
   }

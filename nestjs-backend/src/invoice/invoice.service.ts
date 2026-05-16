@@ -125,6 +125,10 @@ export class InvoiceService {
             catch { reject(new Error(`QR API: invalid JSON (status ${res.statusCode}): ${raw.substring(0, 200)}`)); }
           });
         });
+        req.setTimeout(10000, () => {
+          req.destroy();
+          reject(new Error('QR API request timed out after 10s'));
+        });
         req.on('error', (e) => reject(new Error(`QR API request error: ${e.message}`)));
         req.write(body);
         req.end();
