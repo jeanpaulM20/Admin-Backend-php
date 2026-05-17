@@ -1,7 +1,7 @@
+import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../config/app_colors.dart';
 import '../providers/auth_provider.dart';
 import '../providers/credits_provider.dart';
@@ -133,9 +133,8 @@ class _CreditsScreenState extends State<CreditsScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-      // Open Saferpay payment page in browser/new tab
-      final uri = Uri.parse(result.redirectUrl);
-      await launchUrl(uri, mode: LaunchMode.platformDefault);
+      // Open Saferpay payment page in new browser tab
+      html.window.open(result.redirectUrl, '_blank');
 
       // Show polling dialog
       if (mounted) {
