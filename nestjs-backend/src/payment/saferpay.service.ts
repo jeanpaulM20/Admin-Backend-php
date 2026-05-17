@@ -86,7 +86,7 @@ export class SaferpayService {
       },
     };
 
-    this.logger.log(`Initializing payment for ${data.invoiceNumber}, CHF ${data.amount}`);
+    this.logger.log(`Initializing payment for ${data.invoiceNumber}, CHF ${data.amount} | body: ${JSON.stringify(requestBody)}`);
     return this.callApi('/Payment/v1/PaymentPage/Initialize', requestBody);
   }
 
@@ -205,8 +205,9 @@ export class SaferpayService {
             try {
               const parsed = JSON.parse(raw);
               if (res.statusCode && res.statusCode >= 400) {
+                const errDetail = parsed.ErrorDetail ?? [];
                 const errMsg = parsed.ErrorMessage ?? parsed.ErrorName ?? `HTTP ${res.statusCode}`;
-                this.logger.warn(`Saferpay ${endpoint} error: ${errMsg}`);
+                this.logger.warn(`Saferpay ${endpoint} error: ${errMsg} | detail: ${JSON.stringify(errDetail)} | full: ${raw.substring(0, 500)}`);
                 resolve({ error: errMsg });
               } else {
                 resolve(parsed);
