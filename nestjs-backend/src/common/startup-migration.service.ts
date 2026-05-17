@@ -131,6 +131,9 @@ export class StartupMigrationService implements OnApplicationBootstrap {
     // Ensure credit packages from website pricing
     await this.ensureCreditPackages();
 
+    // Sync trainer-client assignments from old PHP database
+    await this.syncTrainerClients();
+
     // Copy missing file records from old PHP database
     await this.copyMissingFiles();
   }
@@ -359,6 +362,73 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       this.logger.log('Credit packages setup complete');
     } catch (err: any) {
       this.logger.warn(`Credit packages setup error: ${err.message}`);
+    }
+  }
+
+  /**
+   * Syncs trainer_client assignments from the old PHP DB to Railway.
+   * Without these, clients won't see any trainer availability in the calendar.
+   */
+  private async syncTrainerClients() {
+    let oldConn: mysql2.Connection | null = null;
+    try {
+      oldConn = await mysql2.createConnection({
+        host: 'sihltrai.mysql.db.internal',
+        user: 'sihltrai_admin',
+        password: 'sihltrai_admin',
+        database: 'sihltrai_admin',
+        connectTimeout: 5000,
+      });
+
+      const [oldRows]: any = await oldConn.execute(
+        'SELECT trainer_id, client_id FROM trainer_client',
+      );
+
+      const [existingRows]: any = await this.dataSource.query(
+        'SELECT trainer_id, client_id FROM trainer_client',
+      );
+      const existingSet = new Set(
+        existingRows.map((r: any) => `${r.trainer_id}:${r.client_id}`),
+      );
+
+      let inserted = 0;
+      for (const row of oldRows) {
+        const key = `${row.trainer_id}:${row.client_id}`;
+        if (existingSet.has(key)) continue;
+
+        try {
+          await this.dataSource.query(
+            'INSERT INTO trainer_client (trainer_id, client_id) VALUES (?, ?)',
+            [row.trainer_id, row.client_id],
+          );
+          inserted++;
+        } catch (err: any) {
+          // Duplicate key or FK constraint — skip
+          if (err?.errno !== 1062) {
+            this.logger.warn(`Failed to sync trainer_client ${row.trainer_id}→${row.client_id}: ${err.message}`);
+          }
+        }
+      }
+
+      if (inserted > 0) {
+        this.logger.log(`Synced ${inserted} trainer_client assignments from old DB`);
+      } else {
+        this.logger.log('All trainer_client assignments already present');
+      }
+    } catch (err: any) {
+      if (
+        err.code === 'ENOTFOUND' ||
+        err.code === 'ECONNREFUSED' ||
+        err.code === 'ETIMEDOUT'
+      ) {
+        this.logger.log('Old PHP DB not reachable, skipping trainer_client sync');
+      } else {
+        this.logger.warn(`Trainer_client sync error: ${err.message}`);
+      }
+    } finally {
+      if (oldConn) {
+        try { await oldConn.end(); } catch (_) {}
+      }
     }
   }
 
