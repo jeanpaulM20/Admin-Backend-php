@@ -84,12 +84,6 @@ export class SaferpayService {
       ReturnUrl: {
         Url: `${this.appUrl}/api/client/payment/return?invoiceNumber=${data.invoiceNumber}&clientId=${data.clientId}`,
       },
-      Abort: {
-        Url: `${this.appUrl}/api/client/payment/abort?invoiceNumber=${data.invoiceNumber}&clientId=${data.clientId}`,
-      },
-      Notification: {
-        NotifyUrl: `${this.appUrl}/api/client/payment/notify?invoiceNumber=${data.invoiceNumber}`,
-      },
     };
 
     this.logger.log(`Initializing payment for ${data.invoiceNumber}, CHF ${data.amount}`);
