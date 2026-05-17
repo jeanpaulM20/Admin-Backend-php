@@ -366,10 +366,13 @@ export class StartupMigrationService implements OnApplicationBootstrap {
   }
 
   /**
-   * Syncs trainer_client assignments from the old PHP DB to Railway.
-   * Without these, clients won't see any trainer availability in the calendar.
+   * Ensures every active client has at least one trainer assigned.
+   * 1) Syncs trainer_client from the old PHP DB (if reachable).
+   * 2) Fallback: infers assignments from training history for clients
+   *    that still have zero trainers assigned.
    */
   private async syncTrainerClients() {
+    // ── Step 1: sync from old PHP DB ──────────────────────────────
     let oldConn: mysql2.Connection | null = null;
     try {
       oldConn = await mysql2.createConnection({
@@ -403,7 +406,6 @@ export class StartupMigrationService implements OnApplicationBootstrap {
           );
           inserted++;
         } catch (err: any) {
-          // Duplicate key or FK constraint — skip
           if (err?.errno !== 1062) {
             this.logger.warn(`Failed to sync trainer_client ${row.trainer_id}→${row.client_id}: ${err.message}`);
           }
@@ -429,6 +431,59 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       if (oldConn) {
         try { await oldConn.end(); } catch (_) {}
       }
+    }
+
+    // ── Step 2: infer from training history ───────────────────────
+    // For any active client with zero trainers, assign trainers they
+    // have trained with (based on the training table).
+    try {
+      const orphaned: any[] = await this.dataSource.query(`
+        SELECT c.id AS client_id
+        FROM client c
+        WHERE c.active = 1
+          AND c.id NOT IN (SELECT client_id FROM trainer_client)
+      `);
+
+      if (orphaned.length === 0) {
+        this.logger.log('All active clients have trainer assignments');
+        return;
+      }
+
+      this.logger.log(`Found ${orphaned.length} active clients without trainer assignment`);
+
+      let inferred = 0;
+      for (const row of orphaned) {
+        // Find distinct trainers this client has trained with
+        const trainerRows: any[] = await this.dataSource.query(
+          `SELECT DISTINCT trainer_id FROM training WHERE client_id = ? AND trainer_id IS NOT NULL`,
+          [row.client_id],
+        );
+
+        // If no training history, assign all active trainers with availability
+        const trainers = trainerRows.length > 0
+          ? trainerRows
+          : await this.dataSource.query(
+              `SELECT DISTINCT t.id AS trainer_id FROM trainer t
+               WHERE t.active = 1
+                 AND EXISTS (SELECT 1 FROM trainer_availability ta WHERE ta.trainer_id = t.id)`,
+            );
+
+        for (const t of trainers) {
+          try {
+            await this.dataSource.query(
+              'INSERT IGNORE INTO trainer_client (trainer_id, client_id) VALUES (?, ?)',
+              [t.trainer_id, row.client_id],
+            );
+            inferred++;
+          } catch { /* skip duplicates */ }
+        }
+      }
+
+      if (inferred > 0) {
+        this.logger.log(`Inferred ${inferred} trainer_client assignments from training history`);
+      }
+    } catch (err: any) {
+      this.logger.warn(`Trainer_client inference error: ${err.message}`);
     }
   }
 
