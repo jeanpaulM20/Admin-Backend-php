@@ -83,7 +83,7 @@ export class ClientService {
         phone: true, picture: true, active: true, clientpasscode: true,
       },
     });
-    if (!client) throw new UnauthorizedException('Ungültige Anmeldedaten');
+    if (!client) throw new UnauthorizedException('Falsche E-Mail-Adresse oder Passwort.');
 
     const token = randomBytes(32).toString('hex');
     await this.tokenRepo.save(this.tokenRepo.create({ clientId: client.id, token }));
