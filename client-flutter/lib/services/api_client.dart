@@ -41,11 +41,10 @@ class ApiClient {
   }
 
   dynamic _decodeResponse(http.Response response) {
-    if (response.statusCode == 401) {
-      throw ApiException(401, 'Nicht autorisiert. Bitte erneut anmelden.');
-    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      String msg = 'Serverfehler (${response.statusCode})';
+      String msg = response.statusCode == 401
+          ? 'E-Mail oder Passwort falsch'
+          : 'Serverfehler (${response.statusCode})';
       try {
         final body = jsonDecode(response.body);
         if (body is Map && body['message'] != null) {

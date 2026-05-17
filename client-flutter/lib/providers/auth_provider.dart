@@ -65,7 +65,10 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _error = e.toString().replaceFirst('Exception: ', '');
+      final raw = e.toString();
+      // Strip technical prefix: "ApiException(401): ..." → "..."
+      final match = RegExp(r'ApiException\(\d+\):\s*').firstMatch(raw);
+      _error = match != null ? raw.substring(match.end) : raw.replaceFirst('Exception: ', '');
       _isLoading = false;
       notifyListeners();
       return false;
