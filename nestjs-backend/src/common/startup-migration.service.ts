@@ -125,9 +125,6 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       }
     }
 
-    // One-time cleanup: remove failed Saferpay test invoices + orphan credits
-    await this.cleanupTestInvoices();
-
     // Ensure correct locations with buffer_minutes values
     await this.ensureLocations();
 
@@ -136,39 +133,6 @@ export class StartupMigrationService implements OnApplicationBootstrap {
 
     // Copy missing file records from old PHP database
     await this.copyMissingFiles();
-  }
-
-  /**
-   * One-time cleanup: remove failed Saferpay test invoices and orphan credits.
-   * Safe: only deletes specific invoice numbers with status 'pending' for client 8.
-   */
-  private async cleanupTestInvoices() {
-    const testInvoices = ['R10', 'R11', 'R12', 'R14'];
-    try {
-      for (const inv of testInvoices) {
-        const [existing]: any = await this.dataSource.query(
-          `SELECT id FROM invoice WHERE invoice_number = ? AND status = 'pending' AND client_id = 8`,
-          [inv],
-        );
-        if (existing) {
-          await this.dataSource.query(
-            `DELETE FROM invoice WHERE invoice_number = ? AND status = 'pending' AND client_id = 8`,
-            [inv],
-          );
-          this.logger.log(`Cleaned up test invoice ${inv}`);
-        }
-      }
-
-      // Remove orphan credits created by test purchases (client 8, sell_date today-ish, no training usage)
-      const result: any = await this.dataSource.query(
-        `DELETE FROM client_credits WHERE client_id = 8 AND paid = 1 AND attended = 0 AND sell_date >= '2026-05-17'`,
-      );
-      if (result?.affectedRows > 0) {
-        this.logger.log(`Cleaned up ${result.affectedRows} orphan test credit(s) for client 8`);
-      }
-    } catch (err: any) {
-      this.logger.warn(`Test invoice cleanup: ${err.message}`);
-    }
   }
 
   /**
