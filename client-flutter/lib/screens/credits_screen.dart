@@ -133,22 +133,13 @@ class _CreditsScreenState extends State<CreditsScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-      // Open Saferpay payment page in browser
+      // Open Saferpay payment page in browser/new tab
       final uri = Uri.parse(result.redirectUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      await launchUrl(uri, mode: LaunchMode.platformDefault);
 
-        // Show polling dialog
-        if (mounted) {
-          await _showPaymentPendingDialog(result.invoiceNumber);
-        }
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Browser konnte nicht geoeffnet werden'),
-            backgroundColor: AppColors.red,
-          ),
-        );
+      // Show polling dialog
+      if (mounted) {
+        await _showPaymentPendingDialog(result.invoiceNumber);
       }
     } catch (e) {
       if (!mounted) return;
