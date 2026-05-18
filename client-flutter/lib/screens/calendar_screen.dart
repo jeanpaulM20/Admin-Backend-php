@@ -1044,7 +1044,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                 child: const Column(children: [
                                   Icon(Icons.event_busy_outlined, color: AppColors.orange, size: 28),
                                   SizedBox(height: 8),
-                                  Text('Kein Termin verfügbar.',
+                                  Text('Kein Termin an diesem Tag verfügbar.',
                                       style: TextStyle(color: AppColors.orange, fontSize: 14)),
                                   SizedBox(height: 4),
                                   Text('Bitte einen anderen Tag wählen.',
