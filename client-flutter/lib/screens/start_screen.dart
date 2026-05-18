@@ -33,7 +33,15 @@ class _StartScreenState extends State<StartScreen> {
   Widget build(BuildContext context) {
     final appt = context.watch<AppointmentProvider>();
     final auth = context.watch<AuthProvider>();
-    final lastName = appt.startData?.lastName ?? '';
+    final firstName = appt.startData?.firstName ?? '';
+
+    // Dynamic greeting based on time of day
+    final hour = DateTime.now().hour;
+    final greeting = hour < 12
+        ? 'Guten Morgen,'
+        : hour < 18
+            ? 'Guten Tag,'
+            : 'Guten Abend,';
     final appointments = appt.startData?.appointments ?? [];
 
     // Find the next appointment
@@ -63,17 +71,17 @@ class _StartScreenState extends State<StartScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 // Greeting
-                                const Text(
-                                  'Guten Tag,',
-                                  style: TextStyle(
+                                Text(
+                                  greeting,
+                                  style: const TextStyle(
                                     color: AppColors.muted,
                                     fontSize: 16,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  lastName.isNotEmpty
-                                      ? '$lastName!'
+                                  firstName.isNotEmpty
+                                      ? '$firstName!'
                                       : 'Willkommen!',
                                   style: const TextStyle(
                                     color: AppColors.text,
