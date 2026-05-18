@@ -205,7 +205,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   icon: Icons.credit_score_rounded,
                                   title: 'Meine Credits',
                                   subtitle: _creditsSubtitle(profile.data?.creditPacks),
-                                  initiallyExpanded: true,
+                                  initiallyExpanded: false,
                                   children: [
                                     if (_activePacks(profile.data?.creditPacks).isEmpty)
                                       _emptyHint('Keine aktiven Credit-Pakete')
@@ -754,7 +754,7 @@ class _PushNotificationCard extends StatelessWidget {
                 const Text('Push-Benachrichtigungen',
                     style: TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
                 Text(
-                  enabled ? 'Aktiv - du erhaeltst Benachrichtigungen' : 'Deaktiviert',
+                  enabled ? 'Aktiv – du erhältst Benachrichtigungen' : 'Deaktiviert',
                   style: TextStyle(color: enabled ? AppColors.green : AppColors.muted, fontSize: 12),
                 ),
               ],
