@@ -44,32 +44,6 @@ class _StartScreenState extends State<StartScreen> {
             : 'Guten Abend,';
     final appointments = appt.startData?.appointments ?? [];
 
-    // Motivation message logic
-    String? motivationMessage;
-    IconData? motivationIcon;
-    Color? motivationColor;
-
-    final lastTrainingDate = appt.startData?.lastTrainingDate;
-    final trainingsThisWeek = appt.startData?.trainingsThisWeek ?? 0;
-
-    if (trainingsThisWeek >= 3 && firstName.isNotEmpty) {
-      // 3+ trainings this week → praise
-      motivationMessage = 'Fleißig diese Woche, $firstName! Bravo!';
-      motivationIcon = Icons.emoji_events_rounded;
-      motivationColor = AppColors.primary;
-    } else if (lastTrainingDate != null && firstName.isNotEmpty) {
-      // Check if last training was 7+ days ago
-      final lastDate = DateTime.tryParse(lastTrainingDate);
-      if (lastDate != null) {
-        final daysSince = DateTime.now().difference(lastDate).inDays;
-        if (daysSince >= 7) {
-          motivationMessage = 'Schön, dass du wieder zurück im Training bist, $firstName!';
-          motivationIcon = Icons.fitness_center_rounded;
-          motivationColor = AppColors.primary;
-        }
-      }
-    }
-
     // Find the next appointment
     final now = DateTime.now();
     final upcoming = appointments.where((a) => a.startDate.isAfter(now)).toList()
@@ -115,34 +89,6 @@ class _StartScreenState extends State<StartScreen> {
                                     fontWeight: FontWeight.w800,
                                   ),
                                 ),
-                                if (motivationMessage != null) ...[
-                                  const SizedBox(height: 16),
-                                  Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                                    decoration: BoxDecoration(
-                                      color: motivationColor!.withOpacity(0.08),
-                                      borderRadius: BorderRadius.circular(14),
-                                      border: Border.all(color: motivationColor.withOpacity(0.2)),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Icon(motivationIcon, color: motivationColor, size: 24),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Text(
-                                            motivationMessage,
-                                            style: TextStyle(
-                                              color: motivationColor,
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
                                 const SizedBox(height: 24),
 
                                 // Two summary cards side by side

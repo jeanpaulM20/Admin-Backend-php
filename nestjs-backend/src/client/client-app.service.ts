@@ -29,20 +29,9 @@ export class ClientAppService {
     private readonly invoiceService: InvoiceService,
   ) {}
 
-  /** Dashboard: credits + upcoming appointments + motivation data */
+  /** Dashboard: credits + upcoming appointments */
   async getStartData(clientId: number) {
     const today = new Date().toISOString().slice(0, 10);
-
-    // Calculate Monday of current week (ISO: Mon=1)
-    const now = new Date();
-    const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, ...
-    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    const monday = new Date(now);
-    monday.setDate(monday.getDate() + mondayOffset);
-    const mondayStr = monday.toISOString().slice(0, 10);
-    const sunday = new Date(monday);
-    sunday.setDate(sunday.getDate() + 6);
-    const sundayStr = sunday.toISOString().slice(0, 10);
 
     const [client, credits, trainings] = await Promise.all([
       this.clientRepo.findOne({ where: { id: clientId } }),
@@ -59,34 +48,11 @@ export class ClientAppService {
       }),
     ]);
 
-    // Motivation data: last attended training + trainings this week
-    let lastTrainingDate: string | null = null;
-    let trainingsThisWeek = 0;
-    try {
-      // Last completed training (before today)
-      const lastResult: any[] = await this.dataSource.query(
-        `SELECT date FROM training WHERE client_id = ? AND status = 'attended' AND date < ? ORDER BY date DESC LIMIT 1`,
-        [clientId, today],
-      );
-      if (lastResult.length > 0) {
-        lastTrainingDate = lastResult[0].date;
-      }
-
-      // Count trainings this week (Mon–Sun, booked or attended)
-      const weekResult: any[] = await this.dataSource.query(
-        `SELECT COUNT(*) as cnt FROM training WHERE client_id = ? AND status IN ('booked','attended') AND date >= ? AND date <= ?`,
-        [clientId, mondayStr, sundayStr],
-      );
-      trainingsThisWeek = Number(weekResult[0]?.cnt ?? 0);
-    } catch { /* ignore – motivation data is non-critical */ }
-
     return {
       firstname: (client?.firstname ?? '').trim(),
       lastname: (client?.lastname ?? '').trim(),
       credits,
       appointments: trainings.map((t) => this.mapTraining(t)),
-      lastTrainingDate,
-      trainingsThisWeek,
     };
   }
 

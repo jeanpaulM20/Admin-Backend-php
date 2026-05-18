@@ -71,16 +71,11 @@ class StartData {
   final String lastName;
   final int totalCredits;
   final List<Appointment> appointments;
-  final String? lastTrainingDate;
-  final int trainingsThisWeek;
-
   StartData({
     required this.firstName,
     required this.lastName,
     this.totalCredits = 0,
     required this.appointments,
-    this.lastTrainingDate,
-    this.trainingsThisWeek = 0,
   });
 
   factory StartData.fromJson(Map<String, dynamic> json) {
@@ -98,8 +93,6 @@ class StartData {
       lastName: json['lastName']?.toString() ?? json['lastname']?.toString() ?? '',
       totalCredits: int.tryParse(json['credits']?.toString() ?? '0') ?? 0,
       appointments: appointments,
-      lastTrainingDate: json['lastTrainingDate']?.toString(),
-      trainingsThisWeek: int.tryParse(json['trainingsThisWeek']?.toString() ?? '0') ?? 0,
     );
   }
 }
