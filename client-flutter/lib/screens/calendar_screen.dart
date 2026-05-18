@@ -1041,18 +1041,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(color: AppColors.border),
                                 ),
-                                child: Column(children: [
-                                  const Icon(Icons.schedule_outlined, color: AppColors.orange, size: 28),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    isSameDay(_selectedDay!, DateTime.now())
-                                        ? 'Heute sind leider keine Termine mehr verfügbar.'
-                                        : 'An diesem Tag sind leider keine Termine mehr verfügbar.',
-                                    style: const TextStyle(color: AppColors.orange, fontSize: 14),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  const Text('Bitte einen anderen Tag wählen.',
+                                child: const Column(children: [
+                                  Icon(Icons.event_busy_outlined, color: AppColors.orange, size: 28),
+                                  SizedBox(height: 8),
+                                  Text('Kein Termin mehr verfügbar.',
+                                      style: TextStyle(color: AppColors.orange, fontSize: 14)),
+                                  SizedBox(height: 4),
+                                  Text('Bitte einen anderen Tag wählen.',
                                       style: TextStyle(color: AppColors.muted, fontSize: 12)),
                                 ]),
                               ),
