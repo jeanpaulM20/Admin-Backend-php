@@ -78,7 +78,7 @@ class _CreditsScreenState extends State<CreditsScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            const Text('Zahlungsmethode waehlen',
+            const Text('Zahlungsmethode wählen',
                 style: TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w800)),
             const SizedBox(height: 6),
             Text('${pkg.name} – CHF $priceFormatted',
@@ -585,7 +585,7 @@ class _SummaryCard extends StatelessWidget {
           children: [
             Text(
               hasCredits
-                  ? '$activeCredits Credit${activeCredits != 1 ? 's' : ''} verfuegbar'
+                  ? '$activeCredits Credit${activeCredits != 1 ? 's' : ''} verfügbar'
                   : 'Keine aktiven Credits',
               style: TextStyle(
                 color: hasCredits ? AppColors.primary : AppColors.orange,

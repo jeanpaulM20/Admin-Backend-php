@@ -792,7 +792,7 @@ class _ChatThreadState extends State<_ChatThread> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Schliessen',
+            child: const Text('Schließen',
                 style: TextStyle(color: AppColors.primary)),
           ),
         ],

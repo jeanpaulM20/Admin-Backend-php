@@ -290,7 +290,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     if (options.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Slot nicht mehr verfuegbar.'), backgroundColor: AppColors.red),
+          const SnackBar(content: Text('Slot nicht mehr verfügbar.'), backgroundColor: AppColors.red),
         );
       }
       return;
@@ -457,7 +457,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         value: selTrainer,
                         isExpanded: true,
                         dropdownColor: AppColors.surface,
-                        hint: const Text('Trainer waehlen', style: TextStyle(color: AppColors.muted)),
+                        hint: const Text('Trainer wählen', style: TextStyle(color: AppColors.muted)),
                         style: const TextStyle(color: AppColors.text, fontSize: 14),
                         icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.muted),
                         items: trainerIds.map((id) {
@@ -488,7 +488,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         value: availLocations.contains(selLocation) ? selLocation : null,
                         isExpanded: true,
                         dropdownColor: AppColors.surface,
-                        hint: const Text('Standort waehlen', style: TextStyle(color: AppColors.muted)),
+                        hint: const Text('Standort wählen', style: TextStyle(color: AppColors.muted)),
                         style: const TextStyle(color: AppColors.text, fontSize: 14),
                         icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.muted),
                         items: availLocations.map((id) {
@@ -565,18 +565,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         title: const Text(
-          'Keine Credits verfuegbar',
+          'Keine Credits verfügbar',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         content: const Text(
-          'Du hast keine verfuegbaren Credits mehr. '
-          'Bitte kaufe neue Credits, um Termine buchen zu koennen.',
+          'Du hast keine verfügbaren Credits mehr. '
+          'Bitte kaufe neue Credits, um Termine buchen zu können.',
           style: TextStyle(color: AppColors.text, fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Schliessen', style: TextStyle(color: AppColors.muted)),
+            child: const Text('Schließen', style: TextStyle(color: AppColors.muted)),
           ),
           ElevatedButton.icon(
             onPressed: () {
@@ -630,7 +630,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Moechtest du diesen Termin wirklich absagen?',
+            const Text('Möchtest du diesen Termin wirklich absagen?',
                 style: TextStyle(color: AppColors.text)),
             const SizedBox(height: 10),
             if (isLateCancellation)
@@ -645,7 +645,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   Icon(Icons.warning_amber_rounded, color: AppColors.red, size: 14),
                   SizedBox(width: 6),
                   Expanded(child: Text(
-                    'Verspaetete Absage (weniger als 12 Stunden). Dein Credit wird nicht zurueckerstattet.',
+                    'Verspätete Absage (weniger als 12 Stunden). Dein Credit wird nicht zurückerstattet.',
                     style: TextStyle(color: AppColors.red, fontSize: 12),
                   )),
                 ]),
@@ -662,7 +662,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   Icon(Icons.toll_outlined, color: AppColors.green, size: 14),
                   SizedBox(width: 6),
                   Expanded(child: Text(
-                    'Dein Credit wird automatisch zurueckerstattet.',
+                    'Dein Credit wird automatisch zurückerstattet.',
                     style: TextStyle(color: AppColors.green, fontSize: 12),
                   )),
                 ]),
@@ -706,8 +706,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
         SnackBar(
           content: Text(success
               ? (isLateCancellation
-                  ? 'Termin abgesagt – Credit wurde nicht zurueckerstattet.'
-                  : 'Termin abgesagt – Credit wurde zurueckerstattet.')
+                  ? 'Termin abgesagt – Credit wurde nicht zurückerstattet.'
+                  : 'Termin abgesagt – Credit wurde zurückerstattet.')
               : provider.error ?? 'Absage fehlgeschlagen'),
           backgroundColor: success
               ? (isLateCancellation ? AppColors.orange : AppColors.green)
@@ -1044,7 +1044,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                 child: const Column(children: [
                                   Icon(Icons.event_busy_outlined, color: AppColors.orange, size: 28),
                                   SizedBox(height: 8),
-                                  Text('Kein Termin an diesem Tag verfügbar.',
+                                  Text('Keine Termine an diesem Tag verfügbar.',
                                       style: TextStyle(color: AppColors.orange, fontSize: 14)),
                                   SizedBox(height: 4),
                                   Text('Bitte einen anderen Tag wählen.',
@@ -1144,7 +1144,7 @@ class _SlotGrid extends StatelessWidget {
             child: Row(children: [
               Icon(Icons.grid_view_rounded, size: 14, color: AppColors.muted),
               SizedBox(width: 6),
-              Text('Verfuegbare Slots', style: TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600)),
+              Text('Verfügbare Slots', style: TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600)),
             ]),
           ),
           Padding(

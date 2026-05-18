@@ -106,7 +106,7 @@ class _MainScreenState extends State<MainScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Abmelden',
             style: TextStyle(color: AppColors.text)),
-        content: const Text('Moechtest du dich wirklich abmelden?',
+        content: const Text('Möchtest du dich wirklich abmelden?',
             style: TextStyle(color: AppColors.muted)),
         actions: [
           TextButton(
