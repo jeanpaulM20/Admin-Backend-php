@@ -83,22 +83,23 @@ class AppointmentProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> cancelAppointment(String clientId, String appointmentId) async {
+  /// Returns the backend response map on success (includes `creditRefunded`), null on failure.
+  Future<Map<String, dynamic>?> cancelAppointment(String clientId, String appointmentId) async {
     _error = null;
     try {
-      final success =
+      final result =
           await _service.cancelAppointment(clientId, appointmentId);
-      if (success) {
+      if (result != null) {
         await Future.wait([
           fetchStart(clientId),
           fetchCalendar(clientId),
         ]);
       }
-      return success;
+      return result;
     } catch (e) {
       _error = e.toString().replaceFirst('Exception: ', '');
       notifyListeners();
-      return false;
+      return null;
     }
   }
 

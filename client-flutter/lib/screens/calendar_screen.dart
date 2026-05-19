@@ -24,6 +24,7 @@ class CalendarScreen extends StatefulWidget {
 class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
+  bool _booking = false;
 
   @override
   void initState() {
@@ -65,6 +66,58 @@ class _CalendarScreenState extends State<CalendarScreen> {
         .toList();
   }
 
+  // ── Shared helpers (single source of truth for buffer/time logic) ──────────
+
+  /// Safe time parsing — returns null instead of throwing on malformed strings.
+  int? _parseTimeToMinutes(String time) {
+    final parts = time.split(':');
+    if (parts.length < 2) return null;
+    final h = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    if (h == null || m == null) return null;
+    return h * 60 + m;
+  }
+
+  Map<String, int> _buildLocationBuffers(CalendarData calData) {
+    return { for (final loc in calData.locations) loc.id: loc.bufferMinutes };
+  }
+
+  /// Single source of truth: is [trainerId] free at [startMin]–[endMin]
+  /// for [locationId], considering buffer times from other bookings?
+  bool _isTrainerFree({
+    required String trainerId,
+    required String? locationId,
+    required int startMin,
+    required int endMin,
+    required String dateStr,
+    required CalendarData calData,
+    required Map<String, int> locationBuffers,
+  }) {
+    for (final b in calData.trainerBookings) {
+      if (b.trainerId != trainerId) continue;
+      if (b.date != dateStr) continue;
+      if (b.status.toLowerCase() == 'cancelled') continue;
+      final bStart = _parseTimeToMinutes(b.starttime);
+      if (bStart == null) continue;
+      final bEnd = bStart + b.duration;
+      final sameLocation = locationId != null &&
+          b.locationId != null &&
+          b.locationId == locationId;
+      int buffer = 0;
+      if (!sameLocation) {
+        final reqBuffer =
+            locationId != null ? (locationBuffers[locationId] ?? 30) : 30;
+        final existBuffer =
+            b.locationId != null ? (locationBuffers[b.locationId!] ?? 30) : 30;
+        buffer = reqBuffer > existBuffer ? reqBuffer : existBuffer;
+      }
+      if (startMin < bEnd + buffer && bStart < endMin + buffer) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   /// Generate 30-minute time slots for the selected day.
   /// Shows all times where at least one trainer+location combo is free.
   List<_TimeSlot> _generateSlots(DateTime day, CalendarData calData) {
@@ -72,27 +125,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
     const int slotStep = 30;
     final dateStr = DateFormat('yyyy-MM-dd').format(day);
     final now = DateTime.now();
+    final locationBuffers = _buildLocationBuffers(calData);
 
-    // All availability for this day (no filters)
+    // All availability for this day
     final dayAvail = calData.availabilityIntervals
         .where((a) => a.date == dateStr)
         .toList();
     if (dayAvail.isEmpty) return [];
 
-    // Location buffer map
-    final locationMap = <String, int>{};
-    for (final loc in calData.locations) {
-      locationMap[loc.id] = loc.bufferMinutes;
-    }
-
-    // Collect all possible 30-min start minutes
+    // Collect all possible 30-min start minutes (safe parsing)
     final Set<int> allMinutes = {};
     for (final a in dayAvail) {
-      final fromParts = a.from.split(':');
-      final toParts = a.to.split(':');
-      if (fromParts.length < 2 || toParts.length < 2) continue;
-      final fromMin = int.parse(fromParts[0]) * 60 + int.parse(fromParts[1]);
-      final toMin = int.parse(toParts[0]) * 60 + int.parse(toParts[1]);
+      final fromMin = _parseTimeToMinutes(a.from);
+      final toMin = _parseTimeToMinutes(a.to);
+      if (fromMin == null || toMin == null) continue;
       for (int m = fromMin; m + slotDuration <= toMin; m += slotStep) {
         allMinutes.add(m);
       }
@@ -126,36 +172,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
       // Check if ANY trainer+location combo is free at this time
       bool anyFree = false;
       for (final a in dayAvail) {
-        final fromParts = a.from.split(':');
-        final toParts = a.to.split(':');
-        if (fromParts.length < 2 || toParts.length < 2) continue;
-        final fromMin = int.parse(fromParts[0]) * 60 + int.parse(fromParts[1]);
-        final toMin = int.parse(toParts[0]) * 60 + int.parse(toParts[1]);
+        final fromMin = _parseTimeToMinutes(a.from);
+        final toMin = _parseTimeToMinutes(a.to);
+        if (fromMin == null || toMin == null) continue;
         if (startMin < fromMin || endMin > toMin) continue;
 
-        bool trainerBusy = false;
-        for (final b in calData.trainerBookings) {
-          if (b.trainerId != a.trainerId) continue;
-          if (b.date != dateStr) continue;
-          if (b.status.toLowerCase() == 'cancelled') continue;
-          final parts = b.starttime.split(':');
-          if (parts.length < 2) continue;
-          final bStart = int.parse(parts[0]) * 60 + int.parse(parts[1]);
-          final bEnd = bStart + b.duration;
-          final reqLocId = a.locationId;
-          final sameLocation = reqLocId != null && b.locationId != null && b.locationId == reqLocId;
-          int buffer = 0;
-          if (!sameLocation) {
-            final reqBuffer = reqLocId != null ? (locationMap[reqLocId] ?? 30) : 30;
-            final existBuffer = b.locationId != null ? (locationMap[b.locationId!] ?? 30) : 30;
-            buffer = reqBuffer > existBuffer ? reqBuffer : existBuffer;
-          }
-          if (startMin < bEnd + buffer && bStart < endMin + buffer) {
-            trainerBusy = true;
-            break;
-          }
+        if (_isTrainerFree(
+          trainerId: a.trainerId,
+          locationId: a.locationId,
+          startMin: startMin,
+          endMin: endMin,
+          dateStr: dateStr,
+          calData: calData,
+          locationBuffers: locationBuffers,
+        )) {
+          anyFree = true;
+          break;
         }
-        if (!trainerBusy) { anyFree = true; break; }
       }
       if (!anyFree) continue;
 
@@ -174,49 +207,28 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final dateStr = DateFormat('yyyy-MM-dd').format(day);
     final startMin = slot.startMin;
     final endMin = startMin + 60;
-
-    final locationMap = <String, int>{};
-    for (final loc in calData.locations) {
-      locationMap[loc.id] = loc.bufferMinutes;
-    }
+    final locationBuffers = _buildLocationBuffers(calData);
 
     final options = <_SlotOption>[];
     final dayAvail = calData.availabilityIntervals.where((a) => a.date == dateStr).toList();
 
     for (final a in dayAvail) {
-      final fromParts = a.from.split(':');
-      final toParts = a.to.split(':');
-      if (fromParts.length < 2 || toParts.length < 2) continue;
-      final fromMin = int.parse(fromParts[0]) * 60 + int.parse(fromParts[1]);
-      final toMin = int.parse(toParts[0]) * 60 + int.parse(toParts[1]);
+      final fromMin = _parseTimeToMinutes(a.from);
+      final toMin = _parseTimeToMinutes(a.to);
+      if (fromMin == null || toMin == null) continue;
       if (startMin < fromMin || endMin > toMin) continue;
 
-      bool trainerBusy = false;
-      for (final b in calData.trainerBookings) {
-        if (b.trainerId != a.trainerId) continue;
-        if (b.date != dateStr) continue;
-        if (b.status.toLowerCase() == 'cancelled') continue;
-        final parts = b.starttime.split(':');
-        if (parts.length < 2) continue;
-        final bStart = int.parse(parts[0]) * 60 + int.parse(parts[1]);
-        final bEnd = bStart + b.duration;
-        final reqLocId = a.locationId;
-        final sameLocation = reqLocId != null && b.locationId != null && b.locationId == reqLocId;
-        int buffer = 0;
-        if (!sameLocation) {
-          final reqBuffer = reqLocId != null ? (locationMap[reqLocId] ?? 30) : 30;
-          final existBuffer = b.locationId != null ? (locationMap[b.locationId!] ?? 30) : 30;
-          buffer = reqBuffer > existBuffer ? reqBuffer : existBuffer;
-        }
-        if (startMin < bEnd + buffer && bStart < endMin + buffer) {
-          trainerBusy = true;
-          break;
-        }
-      }
-
-      if (!trainerBusy) {
+      if (_isTrainerFree(
+        trainerId: a.trainerId,
+        locationId: a.locationId,
+        startMin: startMin,
+        endMin: endMin,
+        dateStr: dateStr,
+        calData: calData,
+        locationBuffers: locationBuffers,
+      )) {
         options.add(_SlotOption(
-          trainerId: a.trainerId ?? '',
+          trainerId: a.trainerId,
           locationId: a.locationId,
           trainingTypeId: a.trainingTypeId,
         ));
@@ -231,8 +243,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }).toList();
   }
 
-  /// Check if a trainer is free at [startMin] for a given [chosenLocationId],
-  /// considering buffer times against existing bookings.
+  /// Check if a trainer is free at [startMin] for a given [chosenLocationId].
+  /// Thin wrapper around [_isTrainerFree] for the booking sheet.
   bool _isTrainerFreeForLocation({
     required String trainerId,
     required String chosenLocationId,
@@ -240,32 +252,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
     required String dateStr,
     required CalendarData calData,
   }) {
-    final endMin = startMin + 60;
-    final locationMap = <String, int>{};
-    for (final loc in calData.locations) {
-      locationMap[loc.id] = loc.bufferMinutes;
-    }
-
-    for (final b in calData.trainerBookings) {
-      if (b.trainerId != trainerId) continue;
-      if (b.date != dateStr) continue;
-      if (b.status.toLowerCase() == 'cancelled') continue;
-      final parts = b.starttime.split(':');
-      if (parts.length < 2) continue;
-      final bStart = int.parse(parts[0]) * 60 + int.parse(parts[1]);
-      final bEnd = bStart + b.duration;
-      final sameLocation = b.locationId != null && b.locationId == chosenLocationId;
-      int buffer = 0;
-      if (!sameLocation) {
-        final chosenBuffer = locationMap[chosenLocationId] ?? 30;
-        final existBuffer = b.locationId != null ? (locationMap[b.locationId!] ?? 30) : 30;
-        buffer = chosenBuffer > existBuffer ? chosenBuffer : existBuffer;
-      }
-      if (startMin < bEnd + buffer && bStart < endMin + buffer) {
-        return false;
-      }
-    }
-    return true;
+    return _isTrainerFree(
+      trainerId: trainerId,
+      locationId: chosenLocationId,
+      startMin: startMin,
+      endMin: startMin + 60,
+      dateStr: dateStr,
+      calData: calData,
+      locationBuffers: _buildLocationBuffers(calData),
+    );
   }
 
   String _minutesToTime(int minutes) {
@@ -275,6 +270,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
   // ── Booking ─────────────────────────────────────────────────────────────────
 
   Future<void> _bookSlot(_TimeSlot slot) async {
+    if (_booking) return;
+    _booking = true;
+    try {
     final appt = context.read<AppointmentProvider>();
     final calData = appt.calendarData;
     if (calData == null) return;
@@ -344,6 +342,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
         ),
       );
     }
+    } finally {
+      _booking = false;
+    }
   }
 
   /// Bottom sheet with Trainer + Location dropdowns + confirm button.
@@ -393,10 +394,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   )).toList()
                 : allLocationIds;
 
-            // Reset location if not available with buffer
+            // Reset location if not available with buffer — track for user notification
+            final prevLocation = selLocation;
             if (selLocation != null && !availLocations.contains(selLocation)) {
               selLocation = availLocations.length == 1 ? availLocations.first : null;
             }
+            final locationWasReset = prevLocation != null && prevLocation != selLocation;
             // Auto-select singles
             if (selTrainer == null && trainerIds.length == 1) selTrainer = trainerIds.first;
             if (selLocation == null && availLocations.length == 1) selLocation = availLocations.first;
@@ -499,6 +502,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
                     ),
                   ),
+                  if (locationWasReset)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 6),
+                      child: Row(children: [
+                        Icon(Icons.info_outline, size: 13, color: AppColors.orange),
+                        SizedBox(width: 4),
+                        Expanded(child: Text(
+                          'Standort angepasst (Pufferzeit mit neuem Trainer)',
+                          style: TextStyle(color: AppColors.orange, fontSize: 11),
+                        )),
+                      ]),
+                    ),
                   const SizedBox(height: 20),
 
                   // Summary when ready
@@ -698,22 +713,29 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     final auth = context.read<AuthProvider>();
     final provider = context.read<AppointmentProvider>();
-    final success = await provider.cancelAppointment(auth.clientId!, appt.id);
+    final result = await provider.cancelAppointment(auth.clientId!, appt.id);
 
     if (mounted) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(success
-              ? (isLateCancellation
-                  ? 'Termin abgesagt – Credit wurde nicht zurückerstattet.'
-                  : 'Termin abgesagt – Credit wurde zurückerstattet.')
-              : provider.error ?? 'Absage fehlgeschlagen'),
-          backgroundColor: success
-              ? (isLateCancellation ? AppColors.orange : AppColors.green)
-              : AppColors.red,
-        ),
-      );
+      if (result != null) {
+        // Use backend's authoritative decision (not local time calculation)
+        final creditRefunded = result['creditRefunded'] == true;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(creditRefunded
+                ? 'Termin abgesagt – Credit wurde zurückerstattet.'
+                : 'Termin abgesagt – Credit wurde nicht zurückerstattet.'),
+            backgroundColor: creditRefunded ? AppColors.green : AppColors.orange,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(provider.error ?? 'Absage fehlgeschlagen'),
+            backgroundColor: AppColors.red,
+          ),
+        );
+      }
     }
   }
 

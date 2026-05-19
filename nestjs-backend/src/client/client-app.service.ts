@@ -652,65 +652,66 @@ export class ClientAppService {
       }
     }
 
-    // ── 7. Check client has available credits ─────────────────────
-    const creditPacks = await this.creditsRepo.find({
-      where: { clientId },
-      order: { expires: 'ASC' },
-    });
+    // ── 7+8. Deduct credit + create training in a single transaction ──
+    const saved = await this.dataSource.transaction(async (manager) => {
+      const creditPacks = await manager.find(ClientCredits, {
+        where: { clientId },
+        order: { expires: 'ASC' },
+      });
 
-    // Find a valid credit pack with remaining balance
-    let creditDeducted = false;
-    let usedPackId: number | null = null;
-    const todayDate = new Date();
-    todayDate.setHours(0, 0, 0, 0);
+      // Find a valid credit pack with remaining balance
+      let creditDeducted = false;
+      let usedPackId: number | null = null;
+      const todayDate = new Date();
+      todayDate.setHours(0, 0, 0, 0);
 
-    for (const pack of creditPacks) {
-      const remaining = (pack.paid ?? 0) - (pack.attended ?? 0);
-      if (remaining <= 0) continue;
+      for (const pack of creditPacks) {
+        const remaining = (pack.paid ?? 0) - (pack.attended ?? 0);
+        if (remaining <= 0) continue;
 
-      // Skip expired packs
-      if (pack.expires) {
-        const expiryDate = new Date(pack.expires);
-        expiryDate.setHours(23, 59, 59, 999);
-        if (expiryDate < todayDate) continue;
+        // Skip expired packs
+        if (pack.expires) {
+          const expiryDate = new Date(pack.expires);
+          expiryDate.setHours(23, 59, 59, 999);
+          if (expiryDate < todayDate) continue;
+        }
+
+        // Skip packs not yet active
+        if (pack.startdate) {
+          const startDate = new Date(pack.startdate);
+          startDate.setHours(0, 0, 0, 0);
+          if (startDate > todayDate) continue;
+        }
+
+        pack.attended = (pack.attended ?? 0) + 1;
+        await manager.save(pack);
+        usedPackId = pack.id;
+        creditDeducted = true;
+        break;
       }
 
-      // Skip packs not yet active
-      if (pack.startdate) {
-        const startDate = new Date(pack.startdate);
-        startDate.setHours(0, 0, 0, 0);
-        if (startDate > todayDate) continue;
+      if (!creditDeducted) {
+        throw new BadRequestException(
+          'Keine verfügbaren Credits. Bitte neue Credits kaufen.',
+        );
       }
 
-      pack.attended = (pack.attended ?? 0) + 1;
-      await this.creditsRepo.save(pack);
-      usedPackId = pack.id;
-      creditDeducted = true;
-      break;
-    }
-
-    if (!creditDeducted) {
-      throw new BadRequestException(
-        'Keine verfügbaren Credits. Bitte neue Credits kaufen.',
-      );
-    }
-
-    // ── 8. Create training ────────────────────────────────────────
-    const training = this.trainingRepo.create({
-      clientId,
-      trainerId,
-      trainingTypeId,
-      locationId: locationId ?? undefined,
-      date,
-      starttime,
-      duration: DURATION,
-      status: TrainingStatus.BOOKED,
-      creditsCharged: 1,
-      creditPackId: usedPackId ?? undefined,
+      const training = manager.create(Training, {
+        clientId,
+        trainerId,
+        trainingTypeId,
+        locationId: locationId ?? undefined,
+        date,
+        starttime,
+        duration: DURATION,
+        status: TrainingStatus.BOOKED,
+        creditsCharged: 1,
+        creditPackId: usedPackId ?? undefined,
+      });
+      return await manager.save(training) as Training;
     });
-    const saved = await this.trainingRepo.save(training) as Training;
 
-    // Load relations for full response
+    // Load relations for full response (outside transaction)
     const full = await this.trainingRepo.findOne({
       where: { id: saved.id },
       relations: ['trainer', 'trainingType', 'location'],
@@ -728,6 +729,12 @@ export class ClientAppService {
 
     if (training.status === TrainingStatus.CANCELLED) {
       throw new BadRequestException('Termin ist bereits abgesagt.');
+    }
+    if (training.status === TrainingStatus.ATTENDED) {
+      throw new BadRequestException('Absolvierte Termine können nicht storniert werden.');
+    }
+    if (training.status === TrainingStatus.MISSED) {
+      throw new BadRequestException('Verpasste Termine können nicht storniert werden.');
     }
 
     // Check if this is a late cancellation (less than 12 hours before appointment)

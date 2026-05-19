@@ -45,9 +45,11 @@ class AppointmentService {
     return data is Map<String, dynamic> ? data : {};
   }
 
-  Future<bool> cancelAppointment(String clientId, String appointmentId) async {
+  /// Returns the full response map on success (includes `creditRefunded`), null on failure.
+  Future<Map<String, dynamic>?> cancelAppointment(String clientId, String appointmentId) async {
     final data = await apiClient
         .delete('api/client/appointment/$clientId/$appointmentId');
-    return data != null && data['success'] == true;
+    if (data != null && data['success'] == true) return data;
+    return null;
   }
 }
