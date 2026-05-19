@@ -429,7 +429,6 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
       body: Column(
         children: [
           _buildHeroHeader(),
-          _buildDateStrip(),
           _buildSectionTabs(),
           _buildTimerViewer(),
           Expanded(
@@ -621,9 +620,9 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
   Widget _buildTimerViewer() {
     return Container(
       color: AppColors.background,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
@@ -640,8 +639,8 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
             GestureDetector(
               onTap: _toggleMainTimer,
               child: Container(
-                width: 44,
-                height: 44,
+                width: 52,
+                height: 52,
                 decoration: BoxDecoration(
                   color: _timerRunning
                       ? AppColors.primary.withAlpha(26)
@@ -654,7 +653,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
                       ? Icons.pause_rounded
                       : Icons.play_arrow_rounded,
                   color: _timerRunning ? AppColors.primary : Colors.white,
-                  size: 24,
+                  size: 28,
                 ),
               ),
             ),
@@ -671,9 +670,9 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
                           : _isCountdown && _countdownRemaining == 0
                               ? AppColors.red
                               : AppColors.text,
-                      fontSize: 52,
+                      fontSize: 64,
                       fontWeight: FontWeight.w800,
-                      letterSpacing: 4,
+                      letterSpacing: 6,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -682,7 +681,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
                         ? 'Countdown${_activeExName.isNotEmpty ? ' · $_activeExName' : ''}'
                         : 'Stoppuhr',
                     style: GoogleFonts.openSans(
-                        color: AppColors.muted, fontSize: 11),
+                        color: AppColors.muted, fontSize: 12),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -695,14 +694,14 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
                 GestureDetector(
                   onTap: _resetMainTimer,
                   child: Container(
-                    width: 36,
-                    height: 36,
+                    width: 42,
+                    height: 42,
                     decoration: const BoxDecoration(
                       color: AppColors.surface2,
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.replay_rounded,
-                        color: AppColors.muted, size: 18),
+                        color: AppColors.muted, size: 20),
                   ),
                 ),
                 if (_isCountdown) ...[
