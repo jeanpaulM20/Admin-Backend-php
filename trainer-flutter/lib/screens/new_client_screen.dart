@@ -15,7 +15,6 @@ class _NewClientScreenState extends State<NewClientScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _saving = false;
 
-  final _clientIdCtrl = TextEditingController();
   final _surnameCtrl = TextEditingController();
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
@@ -28,7 +27,7 @@ class _NewClientScreenState extends State<NewClientScreen> {
   @override
   void dispose() {
     for (final c in [
-      _clientIdCtrl, _surnameCtrl, _nameCtrl, _emailCtrl,
+      _surnameCtrl, _nameCtrl, _emailCtrl,
       _phoneCtrl, _mobileCtrl, _birthdayCtrl,
     ]) {
       c.dispose();
@@ -54,7 +53,7 @@ class _NewClientScreenState extends State<NewClientScreen> {
         child: child!,
       ),
     );
-    if (picked != null) {
+    if (picked != null && mounted) {
       setState(() {
         _birthday = picked;
         _birthdayCtrl.text =
@@ -68,12 +67,14 @@ class _NewClientScreenState extends State<NewClientScreen> {
     setState(() => _saving = true);
     try {
       await _apiService.post(ApiConfig.client, body: {
-        'clientid': _clientIdCtrl.text,
-        'surname': _surnameCtrl.text,
-        'name': _nameCtrl.text,
-        'e_mail': _emailCtrl.text,
-        'phone': _phoneCtrl.text,
-        'mobile': _mobileCtrl.text,
+        'surname': _surnameCtrl.text.trim(),
+        'name': _nameCtrl.text.trim(),
+        if (_emailCtrl.text.trim().isNotEmpty)
+          'e_mail': _emailCtrl.text.trim(),
+        if (_phoneCtrl.text.trim().isNotEmpty)
+          'phone': _phoneCtrl.text.trim(),
+        if (_mobileCtrl.text.trim().isNotEmpty)
+          'mobile': _mobileCtrl.text.trim(),
         if (_birthday != null)
           'birthday': _birthdayCtrl.text,
         if (_gender != null) 'gender': _gender,
@@ -125,17 +126,20 @@ class _NewClientScreenState extends State<NewClientScreen> {
           child: Column(
             children: [
               _card([
-                _field('Kunden-ID', _clientIdCtrl,
-                    validator: (v) => v == null || v.isEmpty ? 'Pflichtfeld' : null),
                 _field('Nachname', _surnameCtrl,
-                    validator: (v) => v == null || v.isEmpty ? 'Pflichtfeld' : null),
+                    validator: (v) => v == null || v.trim().isEmpty ? 'Pflichtfeld' : null),
                 _field('Vorname', _nameCtrl,
-                    validator: (v) => v == null || v.isEmpty ? 'Pflichtfeld' : null),
+                    validator: (v) => v == null || v.trim().isEmpty ? 'Pflichtfeld' : null),
               ], 'Name'),
               const SizedBox(height: 16),
               _card([
                 _field('E-Mail', _emailCtrl,
-                    keyboardType: TextInputType.emailAddress),
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return null; // optional
+                      final regex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+                      return regex.hasMatch(v.trim()) ? null : 'Ungültige E-Mail';
+                    }),
                 _field('Telefon', _phoneCtrl,
                     keyboardType: TextInputType.phone),
                 _field('Mobil', _mobileCtrl,

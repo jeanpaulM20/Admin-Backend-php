@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { randomBytes } from 'crypto';
@@ -27,13 +27,96 @@ export class ClientService {
     return client;
   }
 
-  create(data: Partial<Client>) {
-    return this.clientRepo.save(this.clientRepo.create(data));
+  /** Strip fields that clients must never set directly. */
+  private sanitizePayload(data: Partial<Client>): Partial<Client> {
+    const {
+      id, active, clientpasscode, doorAccess, qrcode, qrcodeStatic,
+      qrcodeValidTo, trainers, accessTokens, trainings, metrics, account,
+      ...safe
+    } = data as any;
+    return safe;
+  }
+
+  private validatePayload(data: Partial<Client>, requireFields = false) {
+    if (requireFields) {
+      if (!data.firstname || typeof data.firstname !== 'string' || data.firstname.trim().length === 0) {
+        throw new BadRequestException('Vorname ist erforderlich');
+      }
+      if (!data.lastname || typeof data.lastname !== 'string' || data.lastname.trim().length === 0) {
+        throw new BadRequestException('Nachname ist erforderlich');
+      }
+    }
+    if (data.email !== undefined && data.email !== null && data.email !== '') {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(data.email)) {
+        throw new BadRequestException('Ungültige E-Mail-Adresse');
+      }
+    }
+  }
+
+  /** Generate next clientid like "K0001", "K0002", etc. */
+  private async generateClientId(): Promise<string> {
+    const result = await this.clientRepo
+      .createQueryBuilder('c')
+      .select('c.clientid')
+      .where("c.clientid LIKE 'K%'")
+      .orderBy('c.clientid', 'DESC')
+      .getOne();
+
+    let nextNum = 1;
+    if (result?.clientid) {
+      const match = result.clientid.match(/^K(\d+)$/);
+      if (match) nextNum = parseInt(match[1], 10) + 1;
+    }
+    return `K${nextNum.toString().padStart(4, '0')}`;
+  }
+
+  async create(data: Partial<Client>) {
+    // Map form field names to entity property names
+    const mapped: any = { ...data };
+    if (mapped.name && !mapped.firstname) { mapped.firstname = mapped.name; delete mapped.name; }
+    if (mapped.surname && !mapped.lastname) { mapped.lastname = mapped.surname; delete mapped.surname; }
+    if (mapped.e_mail && !mapped.email) { mapped.email = mapped.e_mail; delete mapped.e_mail; }
+
+    const safe = this.sanitizePayload(mapped);
+    this.validatePayload(safe, true);
+
+    // Trim name fields
+    safe.firstname = safe.firstname!.trim();
+    safe.lastname = safe.lastname!.trim();
+    if (safe.email) safe.email = safe.email.trim().toLowerCase();
+
+    // Auto-generate clientid if not provided
+    if (!safe.clientid || (safe.clientid as string).trim() === '') {
+      (safe as any).clientid = await this.generateClientId();
+    }
+
+    // Check email uniqueness if provided
+    if (safe.email) {
+      const existing = await this.clientRepo.findOne({ where: { email: safe.email } });
+      if (existing) throw new BadRequestException('E-Mail-Adresse ist bereits vergeben');
+    }
+
+    return this.clientRepo.save(this.clientRepo.create(safe));
   }
 
   async update(id: number, data: Partial<Client>) {
+    const safe = this.sanitizePayload(data);
+    this.validatePayload(safe, false);
+    if (safe.firstname) safe.firstname = safe.firstname.trim();
+    if (safe.lastname) safe.lastname = safe.lastname.trim();
+    if (safe.email) safe.email = safe.email.trim().toLowerCase();
+
+    // Check email uniqueness on update
+    if (safe.email) {
+      const existing = await this.clientRepo.findOne({ where: { email: safe.email } });
+      if (existing && existing.id !== id) {
+        throw new BadRequestException('E-Mail-Adresse ist bereits vergeben');
+      }
+    }
+
     await this.findOne(id);
-    await this.clientRepo.update(id, data);
+    await this.clientRepo.update(id, safe);
     return this.findOne(id);
   }
 

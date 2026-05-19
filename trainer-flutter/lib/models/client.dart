@@ -1,5 +1,6 @@
 class Client {
   final int id;
+  final String? clientId;
   final String name;
   final String? email;
   final String? phone;
@@ -17,6 +18,7 @@ class Client {
 
   const Client({
     required this.id,
+    this.clientId,
     required this.name,
     this.email,
     this.phone,
@@ -36,6 +38,7 @@ class Client {
   factory Client.fromJson(Map<String, dynamic> json) {
     return Client(
       id: _parseInt(json['id'] ?? json['client_id'] ?? 0),
+      clientId: json['clientid']?.toString() ?? json['client_id_code']?.toString(),
       name: _buildName(json),
       email: json['email']?.toString(),
       phone: json['phone']?.toString() ??
