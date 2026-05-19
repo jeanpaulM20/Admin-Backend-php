@@ -25,10 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: RefreshIndicator(
         onRefresh: () async {
           if (trainer != null) {
-            await Future.wait([
-              trainerProvider.fetchAboutUs(),
-              trainerProvider.fetchTrainings(trainer.id),
-            ]);
+            await trainerProvider.fetchTrainings(trainer.id);
           }
         },
         color: AppColors.primary,
@@ -46,8 +43,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   _buildNextAppointment(context, trainerProvider),
                   const SizedBox(height: 8),
                   _buildStatsRow(context, trainerProvider),
-                  const SizedBox(height: 8),
-                  _buildAboutSection(context, trainerProvider),
                   const SizedBox(height: 80),
                 ],
               ),
@@ -169,16 +164,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  if (trainer.email != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      trainer.email!,
-                      style: const TextStyle(
-                        color: Colors.white60,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -245,14 +230,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildStatsRow(BuildContext context, TrainerProvider provider) {
-    final total = provider.trainings.length;
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final todayEnd = todayStart.add(const Duration(days: 1));
+    final todayCount = provider.trainings
+        .where((t) =>
+            !t.isCancelled &&
+            t.startTime != null &&
+            t.startTime!.isAfter(todayStart) &&
+            t.startTime!.isBefore(todayEnd))
+        .length;
     final upcoming = provider.trainings
         .where((t) =>
             !t.isCancelled &&
             t.startTime != null &&
             t.startTime!.isAfter(DateTime.now()))
         .length;
-    final clients = provider.clients.length;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -260,8 +253,8 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Expanded(
               child: _StatCard(
-            label: 'Trainings',
-            value: total.toString(),
+            label: 'Heute',
+            value: todayCount.toString(),
             icon: Icons.fitness_center,
             color: AppColors.primary,
           )),
@@ -272,14 +265,6 @@ class _HomeScreenState extends State<HomeScreen> {
             value: upcoming.toString(),
             icon: Icons.upcoming,
             color: const Color(0xFF1565C0),
-          )),
-          const SizedBox(width: 10),
-          Expanded(
-              child: _StatCard(
-            label: 'Kunden',
-            value: clients.toString(),
-            icon: Icons.people,
-            color: const Color(0xFF2E7D32),
           )),
         ],
       ),
