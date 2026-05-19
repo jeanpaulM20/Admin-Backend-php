@@ -71,17 +71,36 @@ export class ExerciseService {
     }
   }
 
-  create(data: Partial<Exercise>) {
+  /** Strip fields that clients must never set directly. */
+  private sanitizePayload(data: Partial<Exercise>): Partial<Exercise> {
+    const { id, archive, published, group, subgroup, exercisePictures, ...safe } = data as any;
+    return safe;
+  }
+
+  async create(data: Partial<Exercise>) {
     this.validatePayload(data, true);
-    data.name = data.name!.trim();
-    return this.exerciseRepo.save(this.exerciseRepo.create(data));
+    const safe = this.sanitizePayload(data);
+    safe.name = safe.name!.trim();
+    safe.archive = 0;
+    safe.published = 0;
+    // Validate group exists if provided
+    if (safe.groupId) {
+      const group = await this.groupRepo.findOne({ where: { id: safe.groupId } });
+      if (!group) throw new BadRequestException(`Group ${safe.groupId} not found`);
+    }
+    return this.exerciseRepo.save(this.exerciseRepo.create(safe));
   }
 
   async update(id: number, data: Partial<Exercise>) {
     this.validatePayload(data, false);
-    if (data.name !== undefined) data.name = data.name.trim();
+    const safe = this.sanitizePayload(data);
+    if (safe.name !== undefined) safe.name = safe.name.trim();
+    if (safe.groupId) {
+      const group = await this.groupRepo.findOne({ where: { id: safe.groupId } });
+      if (!group) throw new BadRequestException(`Group ${safe.groupId} not found`);
+    }
     await this.findOne(id);
-    await this.exerciseRepo.update(id, data);
+    await this.exerciseRepo.update(id, safe);
     return this.findOne(id);
   }
 

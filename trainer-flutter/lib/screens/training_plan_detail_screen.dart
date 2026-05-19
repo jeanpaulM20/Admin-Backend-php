@@ -36,6 +36,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
 
   final Set<String> _expanded = {};
   bool _hasUnsavedChanges = false;
+  bool _catalogOpen = false;
 
   // ─── Timer (separate ChangeNotifier) ──────────────────────────────────
   late final ExerciseTimer _timer;
@@ -108,6 +109,9 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
   // ─── Add / Remove exercise ──────────────────────────────────────────────
 
   Future<void> _addExercise(String prefix) async {
+    if (_catalogOpen) return;
+    _catalogOpen = true;
+    try {
     final result = await ExerciseCatalogSheet.show(context);
     if (result == null || !mounted) return;
     _markDirty();
@@ -125,6 +129,9 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
       s.disliked.add(false);
       s.timeSettings.add(0);
     });
+    } finally {
+      _catalogOpen = false;
+    }
   }
 
   void _removeExercise(String prefix, int index) {
@@ -149,7 +156,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
         ],
       ),
     ).then((confirmed) {
-      if (confirmed != true) return;
+      if (confirmed != true || !mounted) return;
       setState(() {
         final s = _s(prefix);
         for (final c in s.rowCtrls[index]) c.dispose();
@@ -238,7 +245,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
       ),
     ).then((seconds) {
       ctrl.dispose();
-      if (seconds != null && seconds > 0) {
+      if (seconds != null && seconds > 0 && mounted) {
         _selectExerciseTime(prefix, index, seconds);
       }
     });

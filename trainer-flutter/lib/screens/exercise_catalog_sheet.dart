@@ -56,6 +56,7 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
   // Filters
   String? _filterBodyRegion;
   int? _filterGroupId;
+  List<Exercise>? _filteredCache;
 
   // Create mode
   bool _showCreateForm = false;
@@ -67,7 +68,7 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
   @override
   void initState() {
     super.initState();
-    _searchCtrl.addListener(() => setState(() => _query = _searchCtrl.text));
+    _searchCtrl.addListener(() => setState(() { _query = _searchCtrl.text; _filteredCache = null; }));
     _newNameCtrl.addListener(() => setState(() {}));
     _load();
   }
@@ -102,15 +103,16 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
           .toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
-      setState(() => _loading = false);
+      setState(() { _loading = false; _filteredCache = null; });
     } on ApiException catch (e) {
-      setState(() { _error = e.message; _loading = false; });
+      setState(() { _error = e.message; _loading = false; _filteredCache = null; });
     } catch (e) {
       setState(() { _error = 'Fehler beim Laden'; _loading = false; });
     }
   }
 
   List<Exercise> get _filtered {
+    if (_filteredCache != null) return _filteredCache!;
     var list = _all;
     if (_filterBodyRegion != null) {
       list = list.where((e) => e.bodyRegion == _filterBodyRegion).toList();
@@ -127,6 +129,7 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
             (e.primaryMuscleGroup?.toLowerCase().contains(q) ?? false);
       }).toList();
     }
+    _filteredCache = list;
     return list;
   }
 
@@ -309,6 +312,7 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
                   onTap: () => setState(() {
                     _filterBodyRegion = null;
                     _filterGroupId = null;
+                    _filteredCache = null;
                   }),
                 ),
               ],
@@ -580,7 +584,7 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
                   ? const Icon(Icons.check_circle, color: AppColors.primary, size: 20)
                   : null,
               onTap: () {
-                setState(() => _filterBodyRegion = _filterBodyRegion == r ? null : r);
+                setState(() { _filterBodyRegion = _filterBodyRegion == r ? null : r; _filteredCache = null; });
                 Navigator.pop(ctx);
               },
             )),
@@ -621,7 +625,7 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
                         ? const Icon(Icons.check_circle, color: AppColors.primary, size: 20)
                         : null,
                     onTap: () {
-                      setState(() => _filterGroupId = _filterGroupId == g.id ? null : g.id);
+                      setState(() { _filterGroupId = _filterGroupId == g.id ? null : g.id; _filteredCache = null; });
                       Navigator.pop(ctx);
                     },
                   );
