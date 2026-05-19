@@ -253,7 +253,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
   }
 
   Widget _buildContactInfo() {
-    final hasContact = client.clientId != null ||
+    final hasContact = (client.clientId != null && client.clientId!.isNotEmpty) ||
         client.email != null ||
         client.phone != null ||
         client.address != null ||
@@ -282,7 +282,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            if (client.clientId != null)
+            if (client.clientId != null && client.clientId!.isNotEmpty)
               _ContactRow(
                   icon: Icons.badge_outlined, text: 'Kunden-ID: ${client.clientId}'),
             if (client.email != null)

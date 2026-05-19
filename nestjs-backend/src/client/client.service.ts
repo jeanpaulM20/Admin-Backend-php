@@ -30,7 +30,7 @@ export class ClientService {
   /** Strip fields that clients must never set directly. */
   private sanitizePayload(data: Partial<Client>): Partial<Client> {
     const {
-      id, active, clientpasscode, doorAccess, qrcode, qrcodeStatic,
+      id, active, clientid, clientpasscode, doorAccess, qrcode, qrcodeStatic,
       qrcodeValidTo, trainers, accessTokens, trainings, metrics, account,
       ...safe
     } = data as any;
@@ -54,14 +54,16 @@ export class ClientService {
     }
   }
 
-  /** Generate next clientid like "K0001", "K0002", etc. */
+  /** Generate next clientid like "K0001", "K0002", etc.
+   *  Uses CAST to numeric sort (avoids K9999 > K10000 string ordering bug). */
   private async generateClientId(): Promise<string> {
     const result = await this.clientRepo
       .createQueryBuilder('c')
-      .select('c.clientid')
-      .where("c.clientid LIKE 'K%'")
-      .orderBy('c.clientid', 'DESC')
-      .getOne();
+      .select('c.clientid', 'clientid')
+      .where("c.clientid REGEXP '^K[0-9]+$'")
+      .orderBy('CAST(SUBSTRING(c.clientid, 2) AS UNSIGNED)', 'DESC')
+      .limit(1)
+      .getRawOne();
 
     let nextNum = 1;
     if (result?.clientid) {
@@ -86,10 +88,8 @@ export class ClientService {
     safe.lastname = safe.lastname!.trim();
     if (safe.email) safe.email = safe.email.trim().toLowerCase();
 
-    // Auto-generate clientid if not provided
-    if (!safe.clientid || (safe.clientid as string).trim() === '') {
-      (safe as any).clientid = await this.generateClientId();
-    }
+    // Always auto-generate clientid (stripped by sanitize, never user-settable)
+    (safe as any).clientid = await this.generateClientId();
 
     // Check email uniqueness if provided
     if (safe.email) {
@@ -97,7 +97,14 @@ export class ClientService {
       if (existing) throw new BadRequestException('E-Mail-Adresse ist bereits vergeben');
     }
 
-    return this.clientRepo.save(this.clientRepo.create(safe));
+    try {
+      return await this.clientRepo.save(this.clientRepo.create(safe));
+    } catch (err: any) {
+      if (err?.code === 'ER_DUP_ENTRY' || err?.message?.includes('Duplicate entry')) {
+        throw new BadRequestException('E-Mail-Adresse oder Kunden-ID ist bereits vergeben');
+      }
+      throw err;
+    }
   }
 
   async update(id: number, data: Partial<Client>) {
@@ -116,7 +123,14 @@ export class ClientService {
     }
 
     await this.findOne(id);
-    await this.clientRepo.update(id, safe);
+    try {
+      await this.clientRepo.update(id, safe);
+    } catch (err: any) {
+      if (err?.code === 'ER_DUP_ENTRY' || err?.message?.includes('Duplicate entry')) {
+        throw new BadRequestException('E-Mail-Adresse ist bereits vergeben');
+      }
+      throw err;
+    }
     return this.findOne(id);
   }
 

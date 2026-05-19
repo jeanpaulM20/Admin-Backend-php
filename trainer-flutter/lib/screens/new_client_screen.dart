@@ -66,7 +66,7 @@ class _NewClientScreenState extends State<NewClientScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
     try {
-      await _apiService.post(ApiConfig.client, body: {
+      final response = await _apiService.post(ApiConfig.client, body: {
         'surname': _surnameCtrl.text.trim(),
         'name': _nameCtrl.text.trim(),
         if (_emailCtrl.text.trim().isNotEmpty)
@@ -80,10 +80,13 @@ class _NewClientScreenState extends State<NewClientScreen> {
         if (_gender != null) 'gender': _gender,
       });
       if (mounted) {
+        final newId = response is Map ? response['clientid']?.toString() : null;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Kunde erfolgreich erstellt'),
-            backgroundColor: Color(0xFF2E7D32),
+          SnackBar(
+            content: Text(newId != null
+                ? 'Kunde erstellt — Kunden-ID: $newId'
+                : 'Kunde erfolgreich erstellt'),
+            backgroundColor: const Color(0xFF2E7D32),
           ),
         );
         Navigator.pop(context, true);

@@ -18,7 +18,7 @@ export class Client {
   @Column({ name: 'surname' })
   lastname: string;
 
-  @Column({ name: 'e_mail', unique: true })
+  @Column({ name: 'e_mail', unique: true, nullable: true })
   email: string;
 
   @Column({ select: false, nullable: true })
