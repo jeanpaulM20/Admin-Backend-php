@@ -50,6 +50,23 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
 
   final Set<String> _expanded = {};
 
+  // ─── Timer state ──────────────────────────────────────────────────────
+  final Stopwatch _sw = Stopwatch();
+  Timer? _tickTimer;
+  String _timerDisplay = '00:00';
+  bool _isCountdown = false;
+  int _countdownFrom = 0;
+  int _countdownRemaining = 0;
+  bool _timerRunning = false;
+  String? _activeExPrefix;
+  int? _activeExIndex;
+  String _activeExName = '';
+
+  late List<int> _sTimeSettings;
+  late List<int> _mTimeSettings;
+  late List<int> _cTimeSettings;
+  late List<int> _mobTimeSettings;
+
   static const _sections = [
     _SectionMeta('AUFWÄRMEN',    'Warm-up / Sonsomo', Icons.accessibility_new, AppColors.primary),
     _SectionMeta('HAUPTTRAINING','Main',              Icons.fitness_center,    AppColors.blue),
@@ -81,6 +98,10 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
     _mDisliked    = _values.main.map((r) => r.disliked).toList();
     _cDisliked    = _values.core.map((r) => r.disliked).toList();
     _mobDisliked  = _values.mobility.map((r) => r.disliked).toList();
+    _sTimeSettings   = List.filled(_values.sonsomo.length, 0);
+    _mTimeSettings   = List.filled(_values.main.length, 0);
+    _cTimeSettings   = List.filled(_values.core.length, 0);
+    _mobTimeSettings = List.filled(_values.mobility.length, 0);
   }
 
   List<List<TextEditingController>> _buildRowCtrls(List<TrainingPlanRow> rows) =>
@@ -109,6 +130,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
       _dateCtrlsFor(prefix).add(List.generate(8, (_) => TextEditingController()));
       _likedFor(prefix).add(false);
       _dislikedFor(prefix).add(false);
+      _timeSettingsFor(prefix).add(0);
     });
   }
 
@@ -144,6 +166,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
         dc.removeAt(index);
         _likedFor(prefix).removeAt(index);
         _dislikedFor(prefix).removeAt(index);
+        _timeSettingsFor(prefix).removeAt(index);
         // Re-key expanded state
         final reKeyed = <String>{};
         for (final k in _expanded) {
@@ -172,6 +195,157 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
 
   List<bool> _dislikedFor(String p) =>
       p == 's' ? _sDisliked : p == 'm' ? _mDisliked : p == 'mob' ? _mobDisliked : _cDisliked;
+
+  List<int> _timeSettingsFor(String p) =>
+      p == 's' ? _sTimeSettings : p == 'm' ? _mTimeSettings : p == 'mob' ? _mobTimeSettings : _cTimeSettings;
+
+  // ─── Timer controls ─────────────────────────────────────────────────────
+
+  void _toggleMainTimer() {
+    if (_timerRunning) {
+      _pauseMainTimer();
+    } else {
+      _startMainTimer();
+    }
+  }
+
+  void _startMainTimer() {
+    setState(() => _timerRunning = true);
+    if (_isCountdown) {
+      _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        setState(() {
+          _countdownRemaining--;
+          if (_countdownRemaining <= 0) {
+            _countdownRemaining = 0;
+            _timerRunning = false;
+            _tickTimer?.cancel();
+          }
+          _updateTimerDisplay();
+        });
+      });
+    } else {
+      _sw.start();
+      _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        setState(() => _updateTimerDisplay());
+      });
+    }
+  }
+
+  void _pauseMainTimer() {
+    _tickTimer?.cancel();
+    if (!_isCountdown) _sw.stop();
+    setState(() => _timerRunning = false);
+  }
+
+  void _resetMainTimer() {
+    _tickTimer?.cancel();
+    _sw.stop();
+    _sw.reset();
+    setState(() {
+      _timerRunning = false;
+      if (_isCountdown) {
+        _countdownRemaining = _countdownFrom;
+      }
+      _updateTimerDisplay();
+    });
+  }
+
+  void _selectExerciseTime(String prefix, int index, int seconds) {
+    _tickTimer?.cancel();
+    _sw.stop();
+    _sw.reset();
+    setState(() {
+      _timeSettingsFor(prefix)[index] = seconds;
+      _isCountdown = true;
+      _countdownFrom = seconds;
+      _countdownRemaining = seconds;
+      _timerRunning = false;
+      _activeExPrefix = prefix;
+      _activeExIndex = index;
+      _activeExName = _rowCtrls(prefix)[index][0].text.isNotEmpty
+          ? _rowCtrls(prefix)[index][0].text
+          : 'Übung ${index + 1}';
+      _updateTimerDisplay();
+    });
+  }
+
+  void _switchToStopwatch() {
+    _tickTimer?.cancel();
+    _sw.stop();
+    _sw.reset();
+    setState(() {
+      _isCountdown = false;
+      _countdownFrom = 0;
+      _countdownRemaining = 0;
+      _timerRunning = false;
+      _activeExPrefix = null;
+      _activeExIndex = null;
+      _activeExName = '';
+      _updateTimerDisplay();
+    });
+  }
+
+  void _updateTimerDisplay() {
+    if (_isCountdown) {
+      final m = (_countdownRemaining ~/ 60).toString().padLeft(2, '0');
+      final s = (_countdownRemaining % 60).toString().padLeft(2, '0');
+      _timerDisplay = '$m:$s';
+    } else {
+      final total = _sw.elapsed.inSeconds;
+      final m = (total ~/ 60).toString().padLeft(2, '0');
+      final s = (total % 60).toString().padLeft(2, '0');
+      _timerDisplay = '$m:$s';
+    }
+  }
+
+  void _showManualTimeDialog(String prefix, int index) {
+    final ctrl = TextEditingController();
+    showDialog<int>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Zeit eingeben',
+            style: GoogleFonts.montserrat(
+                color: AppColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          style: GoogleFonts.montserrat(
+              color: AppColors.text, fontSize: 28, fontWeight: FontWeight.w700),
+          textAlign: TextAlign.center,
+          decoration: InputDecoration(
+            hintText: '90',
+            suffixText: 'Sek.',
+            suffixStyle: GoogleFonts.openSans(color: AppColors.muted, fontSize: 14),
+            hintStyle: GoogleFonts.montserrat(color: AppColors.muted.withAlpha(77), fontSize: 28),
+            filled: true,
+            fillColor: AppColors.surface2,
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Abbrechen')),
+          TextButton(
+              onPressed: () {
+                final val = int.tryParse(ctrl.text);
+                Navigator.pop(context, val);
+              },
+              style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+              child: const Text('Übernehmen')),
+        ],
+      ),
+    ).then((seconds) {
+      ctrl.dispose();
+      if (seconds != null && seconds > 0) {
+        _selectExerciseTime(prefix, index, seconds);
+      }
+    });
+  }
 
   // ─── Collect values for save ─────────────────────────────────────────────
 
@@ -236,6 +410,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
 
   @override
   void dispose() {
+    _tickTimer?.cancel();
     _tabCtrl.dispose();
     _nameCtrl.dispose();
     for (final c in _dateCtrls) c.dispose();
@@ -256,6 +431,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
           _buildHeroHeader(),
           _buildDateStrip(),
           _buildSectionTabs(),
+          _buildTimerViewer(),
           Expanded(
             child: TabBarView(
               controller: _tabCtrl,
@@ -440,6 +616,116 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
     );
   }
 
+  // ─── Timer viewer ─────────────────────────────────────────────────────────
+
+  Widget _buildTimerViewer() {
+    return Container(
+      color: AppColors.background,
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: _timerRunning
+                ? AppColors.primary.withAlpha(128)
+                : AppColors.border,
+            width: _timerRunning ? 1.2 : 0.8,
+          ),
+        ),
+        child: Row(
+          children: [
+            // Play / Pause
+            GestureDetector(
+              onTap: _toggleMainTimer,
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: _timerRunning
+                      ? AppColors.primary.withAlpha(26)
+                      : AppColors.primary,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.primary, width: 1.5),
+                ),
+                child: Icon(
+                  _timerRunning
+                      ? Icons.pause_rounded
+                      : Icons.play_arrow_rounded,
+                  color: _timerRunning ? AppColors.primary : Colors.white,
+                  size: 24,
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            // Time display + mode label
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _timerDisplay,
+                    style: GoogleFonts.montserrat(
+                      color: _timerRunning
+                          ? AppColors.primary
+                          : _isCountdown && _countdownRemaining == 0
+                              ? AppColors.red
+                              : AppColors.text,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _isCountdown
+                        ? 'Countdown${_activeExName.isNotEmpty ? ' · $_activeExName' : ''}'
+                        : 'Stoppuhr',
+                    style: GoogleFonts.openSans(
+                        color: AppColors.muted, fontSize: 11),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            // Reset
+            GestureDetector(
+              onTap: _resetMainTimer,
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(
+                  color: AppColors.surface2,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.replay_rounded,
+                    color: AppColors.muted, size: 18),
+              ),
+            ),
+            if (_isCountdown) ...[
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: _switchToStopwatch,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: const BoxDecoration(
+                    color: AppColors.surface2,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.timer_outlined,
+                      color: AppColors.muted, size: 18),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   // ─── Exercise tab ─────────────────────────────────────────────────────────
 
   Widget _buildTab(
@@ -509,6 +795,10 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
               if (disliked[i]) liked[i] = false;
             }),
             onDelete: () => _removeExercise(prefix, i),
+            timeSetting: _timeSettingsFor(prefix)[i],
+            isTimerTarget: _activeExPrefix == prefix && _activeExIndex == i,
+            onTimeSelect: (seconds) => _selectExerciseTime(prefix, i, seconds),
+            onManualTime: () => _showManualTimeDialog(prefix, i),
           );
         }),
 
@@ -565,7 +855,7 @@ class _SectionMeta {
 // Exercise Tile
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _ExerciseTile extends StatefulWidget {
+class _ExerciseTile extends StatelessWidget {
   final int number;
   final List<TextEditingController> ctrls;
   final List<TextEditingController> dateCtrls;
@@ -578,6 +868,10 @@ class _ExerciseTile extends StatefulWidget {
   final VoidCallback onLike;
   final VoidCallback onDislike;
   final VoidCallback onDelete;
+  final int timeSetting;
+  final bool isTimerTarget;
+  final ValueChanged<int> onTimeSelect;
+  final VoidCallback onManualTime;
 
   const _ExerciseTile({
     super.key,
@@ -593,67 +887,26 @@ class _ExerciseTile extends StatefulWidget {
     required this.onLike,
     required this.onDislike,
     required this.onDelete,
+    required this.timeSetting,
+    required this.isTimerTarget,
+    required this.onTimeSelect,
+    required this.onManualTime,
   });
 
   @override
-  State<_ExerciseTile> createState() => _ExerciseTileState();
-}
-
-class _ExerciseTileState extends State<_ExerciseTile> {
-  final Stopwatch _stopwatch = Stopwatch();
-  Timer? _timer;
-  String _elapsed = '00:00';
-
-  void _toggleTimer() {
-    setState(() {
-      if (_stopwatch.isRunning) {
-        _stopwatch.stop();
-        _timer?.cancel();
-        _timer = null;
-      } else {
-        _stopwatch.start();
-        _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-          setState(() {
-            final total = _stopwatch.elapsed.inSeconds;
-            final m = (total ~/ 60).toString().padLeft(2, '0');
-            final s = (total % 60).toString().padLeft(2, '0');
-            _elapsed = '$m:$s';
-          });
-        });
-      }
-    });
-  }
-
-  void _resetTimer() {
-    setState(() {
-      _stopwatch.stop();
-      _stopwatch.reset();
-      _timer?.cancel();
-      _timer = null;
-      _elapsed = '00:00';
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final hasContent = widget.ctrls[0].text.isNotEmpty;
-    final timerActive = _stopwatch.isRunning;
-    final timerPaused = !_stopwatch.isRunning && _stopwatch.elapsed.inSeconds > 0;
+    final hasContent = ctrls[0].text.isNotEmpty;
 
     // Determine tile accent: liked=green, disliked=red, else normal
-    final borderColor = widget.isLiked
-        ? AppColors.green.withAlpha(128)
-        : widget.isDisliked
-            ? AppColors.red.withAlpha(102)
-            : widget.isExpanded
-                ? widget.accentColor.withAlpha(89)
-                : AppColors.border.withAlpha(128);
+    final borderColor = isTimerTarget
+        ? AppColors.primary.withAlpha(128)
+        : isLiked
+            ? AppColors.green.withAlpha(128)
+            : isDisliked
+                ? AppColors.red.withAlpha(102)
+                : isExpanded
+                    ? accentColor.withAlpha(89)
+                    : AppColors.border.withAlpha(128);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -666,8 +919,8 @@ class _ExerciseTileState extends State<_ExerciseTile> {
         children: [
           // ── Header row ────────────────────────────────────────────────────
           InkWell(
-            onTap: widget.onToggle,
-            borderRadius: widget.isExpanded
+            onTap: onToggle,
+            borderRadius: isExpanded
                 ? const BorderRadius.vertical(top: Radius.circular(14))
                 : BorderRadius.circular(14),
             child: Padding(
@@ -679,25 +932,25 @@ class _ExerciseTileState extends State<_ExerciseTile> {
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: widget.isLiked
+                      color: isLiked
                           ? AppColors.green.withAlpha(38)
-                          : widget.isDisliked
+                          : isDisliked
                               ? AppColors.red.withAlpha(31)
                               : hasContent
-                                  ? widget.accentColor.withAlpha(38)
+                                  ? accentColor.withAlpha(38)
                                   : AppColors.surface2,
                       shape: BoxShape.circle,
                     ),
                     child: Center(
                       child: Text(
-                        '${widget.number}',
+                        '$number',
                         style: GoogleFonts.montserrat(
-                          color: widget.isLiked
+                          color: isLiked
                               ? AppColors.green
-                              : widget.isDisliked
+                              : isDisliked
                                   ? AppColors.red
                                   : hasContent
-                                      ? widget.accentColor
+                                      ? accentColor
                                       : AppColors.muted,
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -713,7 +966,7 @@ class _ExerciseTileState extends State<_ExerciseTile> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         TextField(
-                          controller: widget.ctrls[0],
+                          controller: ctrls[0],
                           style: GoogleFonts.openSans(
                             color: hasContent
                                 ? AppColors.text
@@ -731,11 +984,11 @@ class _ExerciseTileState extends State<_ExerciseTile> {
                             contentPadding: EdgeInsets.zero,
                           ),
                         ),
-                        if (!widget.isExpanded &&
-                            (widget.ctrls[1].text.isNotEmpty || widget.ctrls[2].text.isNotEmpty || widget.ctrls[4].text.isNotEmpty)) ...[
+                        if (!isExpanded &&
+                            (ctrls[1].text.isNotEmpty || ctrls[2].text.isNotEmpty || ctrls[4].text.isNotEmpty)) ...[
                           const SizedBox(height: 2),
                           Text(
-                            [widget.ctrls[1].text, widget.ctrls[2].text, if (widget.ctrls[4].text.isNotEmpty) widget.ctrls[4].text]
+                            [ctrls[1].text, ctrls[2].text, if (ctrls[4].text.isNotEmpty) ctrls[4].text]
                                 .where((s) => s.isNotEmpty)
                                 .join('  ·  '),
                             style: GoogleFonts.openSans(
@@ -749,64 +1002,11 @@ class _ExerciseTileState extends State<_ExerciseTile> {
                   ),
                   const SizedBox(width: 6),
 
-                  // Timer pill
-                  GestureDetector(
-                    onTap: _toggleTimer,
-                    onDoubleTap: _resetTimer,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: timerActive
-                            ? widget.accentColor.withAlpha(26)
-                            : timerPaused
-                                ? Colors.amber.withAlpha(26)
-                                : AppColors.surface2,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: timerActive
-                              ? widget.accentColor.withAlpha(102)
-                              : timerPaused
-                                  ? Colors.amber.withAlpha(102)
-                                  : Colors.transparent,
-                          width: 0.8,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            timerActive ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                            size: 12,
-                            color: timerActive
-                                ? widget.accentColor
-                                : timerPaused
-                                    ? Colors.amber
-                                    : AppColors.muted,
-                          ),
-                          const SizedBox(width: 3),
-                          Text(
-                            _elapsed,
-                            style: GoogleFonts.montserrat(
-                              color: timerActive
-                                  ? widget.accentColor
-                                  : timerPaused
-                                      ? Colors.amber
-                                      : AppColors.muted,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-
                   // Sets pill
                   SizedBox(
                     width: 52,
                     child: TextField(
-                      controller: widget.ctrls[4],
+                      controller: ctrls[4],
                       style: GoogleFonts.openSans(
                           color: AppColors.muted, fontSize: 11, fontWeight: FontWeight.w600),
                       textAlign: TextAlign.center,
@@ -823,7 +1023,7 @@ class _ExerciseTileState extends State<_ExerciseTile> {
                             borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
                         focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(20),
-                            borderSide: BorderSide(color: widget.accentColor, width: 1)),
+                            borderSide: BorderSide(color: accentColor, width: 1)),
                         isDense: true,
                       ),
                     ),
@@ -833,9 +1033,9 @@ class _ExerciseTileState extends State<_ExerciseTile> {
                   SizedBox(
                     width: 54,
                     child: TextField(
-                      controller: widget.ctrls[3],
+                      controller: ctrls[3],
                       style: GoogleFonts.openSans(
-                          color: widget.accentColor, fontSize: 12, fontWeight: FontWeight.w700),
+                          color: accentColor, fontSize: 12, fontWeight: FontWeight.w700),
                       textAlign: TextAlign.center,
                       decoration: InputDecoration(
                         hintText: 'kg',
@@ -843,14 +1043,14 @@ class _ExerciseTileState extends State<_ExerciseTile> {
                             color: AppColors.muted.withAlpha(77), fontSize: 11),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
                         filled: true,
-                        fillColor: widget.accentColor.withAlpha(26),
+                        fillColor: accentColor.withAlpha(26),
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
                         enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
                         focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(20),
-                            borderSide: BorderSide(color: widget.accentColor, width: 1)),
+                            borderSide: BorderSide(color: accentColor, width: 1)),
                         isDense: true,
                       ),
                     ),
@@ -859,7 +1059,7 @@ class _ExerciseTileState extends State<_ExerciseTile> {
 
                   // Chevron
                   AnimatedRotation(
-                    turns: widget.isExpanded ? 0.5 : 0,
+                    turns: isExpanded ? 0.5 : 0,
                     duration: const Duration(milliseconds: 200),
                     child: const Icon(Icons.keyboard_arrow_down,
                         color: AppColors.muted, size: 18),
@@ -870,8 +1070,8 @@ class _ExerciseTileState extends State<_ExerciseTile> {
           ),
 
           // ── Expanded details ───────────────────────────────────────────────
-          if (widget.isExpanded) ...[
-            Divider(color: widget.accentColor.withAlpha(51), height: 1, indent: 50),
+          if (isExpanded) ...[
+            Divider(color: accentColor.withAlpha(51), height: 1, indent: 50),
             Padding(
               padding: const EdgeInsets.fromLTRB(50, 12, 12, 14),
               child: Column(
@@ -879,9 +1079,9 @@ class _ExerciseTileState extends State<_ExerciseTile> {
                 children: [
                   // Device + Position
                   Row(children: [
-                    Expanded(child: _detailField('Gerät',    widget.ctrls[1])),
+                    Expanded(child: _detailField('Gerät',    ctrls[1])),
                     const SizedBox(width: 8),
-                    Expanded(child: _detailField('Position', widget.ctrls[2])),
+                    Expanded(child: _detailField('Position', ctrls[2])),
                   ]),
                   const SizedBox(height: 12),
 
@@ -897,11 +1097,56 @@ class _ExerciseTileState extends State<_ExerciseTile> {
                     spacing: 6,
                     runSpacing: 6,
                     children: List.generate(8, (j) {
-                      final lbl = j < widget.dateLabels.length && widget.dateLabels[j].isNotEmpty
-                          ? widget.dateLabels[j]
+                      final lbl = j < dateLabels.length && dateLabels[j].isNotEmpty
+                          ? dateLabels[j]
                           : '${j + 1}';
-                      return _dateResultField(lbl, widget.dateCtrls[j]);
+                      return _dateResultField(lbl, dateCtrls[j]);
                     }),
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  // Timer presets
+                  Text('TIMER',
+                      style: GoogleFonts.openSans(
+                          color: AppColors.muted.withAlpha(153),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.5)),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      _TimerPresetChip(
+                        label: '30s',
+                        isActive: timeSetting == 30 && isTimerTarget,
+                        accentColor: accentColor,
+                        onTap: () => onTimeSelect(30),
+                      ),
+                      const SizedBox(width: 6),
+                      _TimerPresetChip(
+                        label: '45s',
+                        isActive: timeSetting == 45 && isTimerTarget,
+                        accentColor: accentColor,
+                        onTap: () => onTimeSelect(45),
+                      ),
+                      const SizedBox(width: 6),
+                      _TimerPresetChip(
+                        label: '60s',
+                        isActive: timeSetting == 60 && isTimerTarget,
+                        accentColor: accentColor,
+                        onTap: () => onTimeSelect(60),
+                      ),
+                      const SizedBox(width: 6),
+                      _TimerPresetChip(
+                        label: timeSetting > 0 && timeSetting != 30 && timeSetting != 45 && timeSetting != 60
+                            ? '${timeSetting}s'
+                            : 'Eigene',
+                        isActive: timeSetting > 0 && timeSetting != 30 && timeSetting != 45 && timeSetting != 60 && isTimerTarget,
+                        accentColor: accentColor,
+                        onTap: onManualTime,
+                        icon: Icons.edit_outlined,
+                      ),
+                    ],
                   ),
 
                   const SizedBox(height: 14),
@@ -913,27 +1158,27 @@ class _ExerciseTileState extends State<_ExerciseTile> {
                     children: [
                       // Like
                       _ActionChip(
-                        icon: widget.isLiked ? Icons.favorite : Icons.favorite_border,
+                        icon: isLiked ? Icons.favorite : Icons.favorite_border,
                         label: 'Gefällt mir',
-                        color: widget.isLiked ? AppColors.green : AppColors.muted,
-                        filled: widget.isLiked,
+                        color: isLiked ? AppColors.green : AppColors.muted,
+                        filled: isLiked,
                         fillColor: AppColors.green.withAlpha(31),
-                        onTap: widget.onLike,
+                        onTap: onLike,
                       ),
                       const SizedBox(width: 8),
                       // Dislike
                       _ActionChip(
-                        icon: widget.isDisliked ? Icons.thumb_down : Icons.thumb_down_outlined,
+                        icon: isDisliked ? Icons.thumb_down : Icons.thumb_down_outlined,
                         label: 'Passt nicht',
-                        color: widget.isDisliked ? AppColors.red : AppColors.muted,
-                        filled: widget.isDisliked,
+                        color: isDisliked ? AppColors.red : AppColors.muted,
+                        filled: isDisliked,
                         fillColor: AppColors.red.withAlpha(26),
-                        onTap: widget.onDislike,
+                        onTap: onDislike,
                       ),
                       const Spacer(),
                       // Delete
                       GestureDetector(
-                        onTap: widget.onDelete,
+                        onTap: onDelete,
                         child: Container(
                           padding: const EdgeInsets.all(7),
                           decoration: BoxDecoration(
@@ -970,7 +1215,7 @@ class _ExerciseTileState extends State<_ExerciseTile> {
               borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
           focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: widget.accentColor, width: 1)),
+              borderSide: BorderSide(color: accentColor, width: 1)),
           isDense: true,
         ),
       );
@@ -996,7 +1241,7 @@ class _ExerciseTileState extends State<_ExerciseTile> {
                 borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
             focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: widget.accentColor, width: 1)),
+                borderSide: BorderSide(color: accentColor, width: 1)),
             isDense: true,
           ),
         ),
@@ -1043,6 +1288,54 @@ class _ActionChip extends StatelessWidget {
           Text(label,
               style: GoogleFonts.openSans(
                   color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+        ]),
+      ),
+    );
+  }
+}
+
+// ─── Timer preset chip ──────────────────────────────────────────────────────
+
+class _TimerPresetChip extends StatelessWidget {
+  final String label;
+  final bool isActive;
+  final Color accentColor;
+  final VoidCallback onTap;
+  final IconData? icon;
+
+  const _TimerPresetChip({
+    required this.label,
+    required this.isActive,
+    required this.accentColor,
+    required this.onTap,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isActive ? accentColor.withAlpha(26) : AppColors.surface2,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isActive ? accentColor.withAlpha(128) : AppColors.border,
+            width: isActive ? 1.2 : 0.8,
+          ),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          if (icon != null) ...[
+            Icon(icon, size: 12, color: isActive ? accentColor : AppColors.muted),
+            const SizedBox(width: 4),
+          ],
+          Text(label,
+              style: GoogleFonts.openSans(
+                  color: isActive ? accentColor : AppColors.muted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600)),
         ]),
       ),
     );
