@@ -40,9 +40,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 8),
                   if (trainer != null) _buildTrainerCard(context, trainer),
                   const SizedBox(height: 8),
-                  _buildNextAppointment(context, trainerProvider),
-                  const SizedBox(height: 8),
                   _buildStatsRow(context, trainerProvider),
+                  const SizedBox(height: 8),
+                  _buildNextAppointment(context, trainerProvider),
                   const SizedBox(height: 80),
                 ],
               ),
@@ -237,14 +237,20 @@ class _HomeScreenState extends State<HomeScreen> {
         .where((t) =>
             !t.isCancelled &&
             t.startTime != null &&
-            t.startTime!.isAfter(todayStart) &&
+            !t.startTime!.isBefore(todayStart) &&
             t.startTime!.isBefore(todayEnd))
         .length;
-    final upcoming = provider.trainings
+
+    // Trainings this week (Monday–Sunday)
+    final dayOfWeek = now.weekday; // 1=Mon, 7=Sun
+    final mondayStart = DateTime(now.year, now.month, now.day - (dayOfWeek - 1));
+    final sundayEnd = mondayStart.add(const Duration(days: 7));
+    final weekCount = provider.trainings
         .where((t) =>
             !t.isCancelled &&
             t.startTime != null &&
-            t.startTime!.isAfter(DateTime.now()))
+            !t.startTime!.isBefore(mondayStart) &&
+            t.startTime!.isBefore(sundayEnd))
         .length;
 
     return Padding(
@@ -261,9 +267,9 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(width: 10),
           Expanded(
               child: _StatCard(
-            label: 'Anstehend',
-            value: upcoming.toString(),
-            icon: Icons.upcoming,
+            label: 'Diese Woche',
+            value: weekCount.toString(),
+            icon: Icons.date_range_rounded,
             color: const Color(0xFF1565C0),
           )),
         ],
