@@ -4,7 +4,9 @@ import '../providers/auth_provider.dart';
 import '../providers/trainer_provider.dart';
 import '../models/trainer.dart';
 import '../models/training.dart';
+import '../models/client.dart';
 import '../config/app_colors.dart';
+import 'training_plan_list_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -218,7 +220,24 @@ class _HomeScreenState extends State<HomeScreen> {
           if (provider.trainingsLoading)
             const _LoadingCard()
           else if (nextTraining != null)
-            _AppointmentCard(training: nextTraining)
+            GestureDetector(
+              onTap: () {
+                if (nextTraining.clientId != null) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => TrainingPlanListScreen(
+                        client: Client(
+                          id: nextTraining.clientId!,
+                          name: nextTraining.clientName ?? 'Kunde',
+                        ),
+                      ),
+                    ),
+                  );
+                }
+              },
+              child: _AppointmentCard(training: nextTraining),
+            )
           else
             const _EmptyCard(
               icon: Icons.event_available,
