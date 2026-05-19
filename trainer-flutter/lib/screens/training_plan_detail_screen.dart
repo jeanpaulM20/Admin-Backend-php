@@ -500,17 +500,6 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
             ),
           ],
         ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: _saving ? null : _save,
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          icon: _saving
-              ? const SizedBox(width: 18, height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : const Icon(Icons.save_outlined),
-          label: Text(_saving ? 'Speichern…' : 'Speichern',
-              style: GoogleFonts.openSans(fontWeight: FontWeight.w700)),
-        ),
       ),
     );
   }
