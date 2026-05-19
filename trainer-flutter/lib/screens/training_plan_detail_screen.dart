@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/client.dart';
@@ -564,7 +565,7 @@ class _SectionMeta {
 // Exercise Tile
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _ExerciseTile extends StatelessWidget {
+class _ExerciseTile extends StatefulWidget {
   final int number;
   final List<TextEditingController> ctrls;
   final List<TextEditingController> dateCtrls;
@@ -595,16 +596,63 @@ class _ExerciseTile extends StatelessWidget {
   });
 
   @override
+  State<_ExerciseTile> createState() => _ExerciseTileState();
+}
+
+class _ExerciseTileState extends State<_ExerciseTile> {
+  final Stopwatch _stopwatch = Stopwatch();
+  Timer? _timer;
+  String _elapsed = '00:00';
+
+  void _toggleTimer() {
+    setState(() {
+      if (_stopwatch.isRunning) {
+        _stopwatch.stop();
+        _timer?.cancel();
+        _timer = null;
+      } else {
+        _stopwatch.start();
+        _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+          setState(() {
+            final total = _stopwatch.elapsed.inSeconds;
+            final m = (total ~/ 60).toString().padLeft(2, '0');
+            final s = (total % 60).toString().padLeft(2, '0');
+            _elapsed = '$m:$s';
+          });
+        });
+      }
+    });
+  }
+
+  void _resetTimer() {
+    setState(() {
+      _stopwatch.stop();
+      _stopwatch.reset();
+      _timer?.cancel();
+      _timer = null;
+      _elapsed = '00:00';
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final hasContent = ctrls[0].text.isNotEmpty;
+    final hasContent = widget.ctrls[0].text.isNotEmpty;
+    final timerActive = _stopwatch.isRunning;
+    final timerPaused = !_stopwatch.isRunning && _stopwatch.elapsed.inSeconds > 0;
 
     // Determine tile accent: liked=green, disliked=red, else normal
-    final borderColor = isLiked
+    final borderColor = widget.isLiked
         ? AppColors.green.withAlpha(128)
-        : isDisliked
+        : widget.isDisliked
             ? AppColors.red.withAlpha(102)
-            : isExpanded
-                ? accentColor.withAlpha(89)
+            : widget.isExpanded
+                ? widget.accentColor.withAlpha(89)
                 : AppColors.border.withAlpha(128);
 
     return Container(
@@ -618,8 +666,8 @@ class _ExerciseTile extends StatelessWidget {
         children: [
           // ── Header row ────────────────────────────────────────────────────
           InkWell(
-            onTap: onToggle,
-            borderRadius: isExpanded
+            onTap: widget.onToggle,
+            borderRadius: widget.isExpanded
                 ? const BorderRadius.vertical(top: Radius.circular(14))
                 : BorderRadius.circular(14),
             child: Padding(
@@ -631,25 +679,25 @@ class _ExerciseTile extends StatelessWidget {
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: isLiked
+                      color: widget.isLiked
                           ? AppColors.green.withAlpha(38)
-                          : isDisliked
+                          : widget.isDisliked
                               ? AppColors.red.withAlpha(31)
                               : hasContent
-                                  ? accentColor.withAlpha(38)
+                                  ? widget.accentColor.withAlpha(38)
                                   : AppColors.surface2,
                       shape: BoxShape.circle,
                     ),
                     child: Center(
                       child: Text(
-                        '$number',
+                        '${widget.number}',
                         style: GoogleFonts.montserrat(
-                          color: isLiked
+                          color: widget.isLiked
                               ? AppColors.green
-                              : isDisliked
+                              : widget.isDisliked
                                   ? AppColors.red
                                   : hasContent
-                                      ? accentColor
+                                      ? widget.accentColor
                                       : AppColors.muted,
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -665,7 +713,7 @@ class _ExerciseTile extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         TextField(
-                          controller: ctrls[0],
+                          controller: widget.ctrls[0],
                           style: GoogleFonts.openSans(
                             color: hasContent
                                 ? AppColors.text
@@ -683,11 +731,11 @@ class _ExerciseTile extends StatelessWidget {
                             contentPadding: EdgeInsets.zero,
                           ),
                         ),
-                        if (!isExpanded &&
-                            (ctrls[1].text.isNotEmpty || ctrls[2].text.isNotEmpty || ctrls[4].text.isNotEmpty)) ...[
+                        if (!widget.isExpanded &&
+                            (widget.ctrls[1].text.isNotEmpty || widget.ctrls[2].text.isNotEmpty || widget.ctrls[4].text.isNotEmpty)) ...[
                           const SizedBox(height: 2),
                           Text(
-                            [ctrls[1].text, ctrls[2].text, if (ctrls[4].text.isNotEmpty) ctrls[4].text]
+                            [widget.ctrls[1].text, widget.ctrls[2].text, if (widget.ctrls[4].text.isNotEmpty) widget.ctrls[4].text]
                                 .where((s) => s.isNotEmpty)
                                 .join('  ·  '),
                             style: GoogleFonts.openSans(
@@ -701,11 +749,64 @@ class _ExerciseTile extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
 
+                  // Timer pill
+                  GestureDetector(
+                    onTap: _toggleTimer,
+                    onDoubleTap: _resetTimer,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: timerActive
+                            ? widget.accentColor.withAlpha(26)
+                            : timerPaused
+                                ? Colors.amber.withAlpha(26)
+                                : AppColors.surface2,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: timerActive
+                              ? widget.accentColor.withAlpha(102)
+                              : timerPaused
+                                  ? Colors.amber.withAlpha(102)
+                                  : Colors.transparent,
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            timerActive ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                            size: 12,
+                            color: timerActive
+                                ? widget.accentColor
+                                : timerPaused
+                                    ? Colors.amber
+                                    : AppColors.muted,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            _elapsed,
+                            style: GoogleFonts.montserrat(
+                              color: timerActive
+                                  ? widget.accentColor
+                                  : timerPaused
+                                      ? Colors.amber
+                                      : AppColors.muted,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+
                   // Sets pill
                   SizedBox(
                     width: 52,
                     child: TextField(
-                      controller: ctrls[4],
+                      controller: widget.ctrls[4],
                       style: GoogleFonts.openSans(
                           color: AppColors.muted, fontSize: 11, fontWeight: FontWeight.w600),
                       textAlign: TextAlign.center,
@@ -722,7 +823,7 @@ class _ExerciseTile extends StatelessWidget {
                             borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
                         focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(20),
-                            borderSide: BorderSide(color: accentColor, width: 1)),
+                            borderSide: BorderSide(color: widget.accentColor, width: 1)),
                         isDense: true,
                       ),
                     ),
@@ -732,9 +833,9 @@ class _ExerciseTile extends StatelessWidget {
                   SizedBox(
                     width: 54,
                     child: TextField(
-                      controller: ctrls[3],
+                      controller: widget.ctrls[3],
                       style: GoogleFonts.openSans(
-                          color: accentColor, fontSize: 12, fontWeight: FontWeight.w700),
+                          color: widget.accentColor, fontSize: 12, fontWeight: FontWeight.w700),
                       textAlign: TextAlign.center,
                       decoration: InputDecoration(
                         hintText: 'kg',
@@ -742,14 +843,14 @@ class _ExerciseTile extends StatelessWidget {
                             color: AppColors.muted.withAlpha(77), fontSize: 11),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
                         filled: true,
-                        fillColor: accentColor.withAlpha(26),
+                        fillColor: widget.accentColor.withAlpha(26),
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
                         enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
                         focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(20),
-                            borderSide: BorderSide(color: accentColor, width: 1)),
+                            borderSide: BorderSide(color: widget.accentColor, width: 1)),
                         isDense: true,
                       ),
                     ),
@@ -758,7 +859,7 @@ class _ExerciseTile extends StatelessWidget {
 
                   // Chevron
                   AnimatedRotation(
-                    turns: isExpanded ? 0.5 : 0,
+                    turns: widget.isExpanded ? 0.5 : 0,
                     duration: const Duration(milliseconds: 200),
                     child: const Icon(Icons.keyboard_arrow_down,
                         color: AppColors.muted, size: 18),
@@ -769,8 +870,8 @@ class _ExerciseTile extends StatelessWidget {
           ),
 
           // ── Expanded details ───────────────────────────────────────────────
-          if (isExpanded) ...[
-            Divider(color: accentColor.withAlpha(51), height: 1, indent: 50),
+          if (widget.isExpanded) ...[
+            Divider(color: widget.accentColor.withAlpha(51), height: 1, indent: 50),
             Padding(
               padding: const EdgeInsets.fromLTRB(50, 12, 12, 14),
               child: Column(
@@ -778,9 +879,9 @@ class _ExerciseTile extends StatelessWidget {
                 children: [
                   // Device + Position
                   Row(children: [
-                    Expanded(child: _detailField('Gerät',    ctrls[1])),
+                    Expanded(child: _detailField('Gerät',    widget.ctrls[1])),
                     const SizedBox(width: 8),
-                    Expanded(child: _detailField('Position', ctrls[2])),
+                    Expanded(child: _detailField('Position', widget.ctrls[2])),
                   ]),
                   const SizedBox(height: 12),
 
@@ -796,10 +897,10 @@ class _ExerciseTile extends StatelessWidget {
                     spacing: 6,
                     runSpacing: 6,
                     children: List.generate(8, (j) {
-                      final lbl = j < dateLabels.length && dateLabels[j].isNotEmpty
-                          ? dateLabels[j]
+                      final lbl = j < widget.dateLabels.length && widget.dateLabels[j].isNotEmpty
+                          ? widget.dateLabels[j]
                           : '${j + 1}';
-                      return _dateResultField(lbl, dateCtrls[j]);
+                      return _dateResultField(lbl, widget.dateCtrls[j]);
                     }),
                   ),
 
@@ -812,27 +913,27 @@ class _ExerciseTile extends StatelessWidget {
                     children: [
                       // Like
                       _ActionChip(
-                        icon: isLiked ? Icons.favorite : Icons.favorite_border,
+                        icon: widget.isLiked ? Icons.favorite : Icons.favorite_border,
                         label: 'Gefällt mir',
-                        color: isLiked ? AppColors.green : AppColors.muted,
-                        filled: isLiked,
+                        color: widget.isLiked ? AppColors.green : AppColors.muted,
+                        filled: widget.isLiked,
                         fillColor: AppColors.green.withAlpha(31),
-                        onTap: onLike,
+                        onTap: widget.onLike,
                       ),
                       const SizedBox(width: 8),
                       // Dislike
                       _ActionChip(
-                        icon: isDisliked ? Icons.thumb_down : Icons.thumb_down_outlined,
+                        icon: widget.isDisliked ? Icons.thumb_down : Icons.thumb_down_outlined,
                         label: 'Passt nicht',
-                        color: isDisliked ? AppColors.red : AppColors.muted,
-                        filled: isDisliked,
+                        color: widget.isDisliked ? AppColors.red : AppColors.muted,
+                        filled: widget.isDisliked,
                         fillColor: AppColors.red.withAlpha(26),
-                        onTap: onDislike,
+                        onTap: widget.onDislike,
                       ),
                       const Spacer(),
                       // Delete
                       GestureDetector(
-                        onTap: onDelete,
+                        onTap: widget.onDelete,
                         child: Container(
                           padding: const EdgeInsets.all(7),
                           decoration: BoxDecoration(
@@ -869,7 +970,7 @@ class _ExerciseTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
           focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: accentColor, width: 1)),
+              borderSide: BorderSide(color: widget.accentColor, width: 1)),
           isDense: true,
         ),
       );
@@ -895,7 +996,7 @@ class _ExerciseTile extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
             focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: accentColor, width: 1)),
+                borderSide: BorderSide(color: widget.accentColor, width: 1)),
             isDense: true,
           ),
         ),
