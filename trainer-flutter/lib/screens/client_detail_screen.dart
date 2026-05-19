@@ -106,12 +106,6 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
               children: [
                 _buildHeaderCard(),
                 _buildContactInfo(),
-                if (upcomingTrainings.isNotEmpty)
-                  _buildTrainingsSection(
-                      context, 'Anstehende Termine', upcomingTrainings, true),
-                if (pastTrainings.isNotEmpty)
-                  _buildTrainingsSection(
-                      context, 'Vergangene Termine', pastTrainings, false),
                 if (clientTrainings.isEmpty)
                   const Padding(
                     padding: EdgeInsets.all(32),
