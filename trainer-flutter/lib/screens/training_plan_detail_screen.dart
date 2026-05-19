@@ -634,78 +634,64 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
             width: _timerRunning ? 1.2 : 0.8,
           ),
         ),
-        child: Column(
+        child: Row(
           children: [
-            // Mode label
-            Text(
-              _isCountdown
-                  ? 'Countdown${_activeExName.isNotEmpty ? ' · $_activeExName' : ''}'
-                  : 'Stoppuhr',
-              style: GoogleFonts.openSans(
-                  color: AppColors.muted, fontSize: 11),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 6),
-            // Time display
-            Text(
-              _timerDisplay,
-              style: GoogleFonts.montserrat(
-                color: _timerRunning
-                    ? AppColors.primary
-                    : _isCountdown && _countdownRemaining == 0
-                        ? AppColors.red
-                        : AppColors.text,
-                fontSize: 40,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 4,
+            // Play / Pause
+            GestureDetector(
+              onTap: _toggleMainTimer,
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: _timerRunning
+                      ? AppColors.primary.withAlpha(26)
+                      : AppColors.primary,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.primary, width: 1.5),
+                ),
+                child: Icon(
+                  _timerRunning
+                      ? Icons.pause_rounded
+                      : Icons.play_arrow_rounded,
+                  color: _timerRunning ? AppColors.primary : Colors.white,
+                  size: 24,
+                ),
               ),
             ),
-            const SizedBox(height: 10),
-            // Control buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (_isCountdown) ...[
-                  GestureDetector(
-                    onTap: _switchToStopwatch,
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: const BoxDecoration(
-                        color: AppColors.surface2,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.timer_outlined,
-                          color: AppColors.muted, size: 18),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                ],
-                // Play / Pause
-                GestureDetector(
-                  onTap: _toggleMainTimer,
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
+            // Time display centered
+            Expanded(
+              child: Column(
+                children: [
+                  Text(
+                    _timerDisplay,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.montserrat(
                       color: _timerRunning
-                          ? AppColors.primary.withAlpha(26)
-                          : AppColors.primary,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.primary, width: 1.5),
-                    ),
-                    child: Icon(
-                      _timerRunning
-                          ? Icons.pause_rounded
-                          : Icons.play_arrow_rounded,
-                      color: _timerRunning ? AppColors.primary : Colors.white,
-                      size: 26,
+                          ? AppColors.primary
+                          : _isCountdown && _countdownRemaining == 0
+                              ? AppColors.red
+                              : AppColors.text,
+                      fontSize: 52,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 4,
                     ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                // Reset
+                  const SizedBox(height: 2),
+                  Text(
+                    _isCountdown
+                        ? 'Countdown${_activeExName.isNotEmpty ? ' · $_activeExName' : ''}'
+                        : 'Stoppuhr',
+                    style: GoogleFonts.openSans(
+                        color: AppColors.muted, fontSize: 11),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            // Reset + Stopwatch toggle
+            Column(
+              children: [
                 GestureDetector(
                   onTap: _resetMainTimer,
                   child: Container(
@@ -719,6 +705,22 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
                         color: AppColors.muted, size: 18),
                   ),
                 ),
+                if (_isCountdown) ...[
+                  const SizedBox(height: 6),
+                  GestureDetector(
+                    onTap: _switchToStopwatch,
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: const BoxDecoration(
+                        color: AppColors.surface2,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.timer_outlined,
+                          color: AppColors.muted, size: 18),
+                    ),
+                  ),
+                ],
               ],
             ),
           ],
