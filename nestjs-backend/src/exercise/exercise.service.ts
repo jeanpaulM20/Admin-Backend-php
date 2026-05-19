@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Exercise } from '../entities/exercise.entity';
@@ -36,11 +36,50 @@ export class ExerciseService {
     return this.groupRepo.find();
   }
 
+  private static readonly VALID_BODY_REGIONS = [
+    'UpperBody', 'LowerBody', 'Core', 'FullBody', 'Foot',
+  ];
+
+  private static readonly VALID_MOVEMENT_PATTERNS = [
+    'Push', 'Pull', 'Squat', 'Hinge', 'Carry',
+    'Rotation', 'Static', 'Plyo', 'Sprint', 'Agility',
+  ];
+
+  /** Validate create/update payload and throw 400 on bad input. */
+  private validatePayload(data: Partial<Exercise>, requireName = false) {
+    if (requireName) {
+      if (!data.name || typeof data.name !== 'string' || data.name.trim().length === 0) {
+        throw new BadRequestException('Name is required and must be non-empty');
+      }
+      if (data.name.trim().length > 200) {
+        throw new BadRequestException('Name must be 200 characters or fewer');
+      }
+    }
+    if (data.bodyRegion !== undefined && data.bodyRegion !== null) {
+      if (!ExerciseService.VALID_BODY_REGIONS.includes(data.bodyRegion)) {
+        throw new BadRequestException(
+          `Invalid bodyRegion "${data.bodyRegion}". Allowed: ${ExerciseService.VALID_BODY_REGIONS.join(', ')}`,
+        );
+      }
+    }
+    if (data.movementPattern !== undefined && data.movementPattern !== null) {
+      if (!ExerciseService.VALID_MOVEMENT_PATTERNS.includes(data.movementPattern)) {
+        throw new BadRequestException(
+          `Invalid movementPattern "${data.movementPattern}". Allowed: ${ExerciseService.VALID_MOVEMENT_PATTERNS.join(', ')}`,
+        );
+      }
+    }
+  }
+
   create(data: Partial<Exercise>) {
+    this.validatePayload(data, true);
+    data.name = data.name!.trim();
     return this.exerciseRepo.save(this.exerciseRepo.create(data));
   }
 
   async update(id: number, data: Partial<Exercise>) {
+    this.validatePayload(data, false);
+    if (data.name !== undefined) data.name = data.name.trim();
     await this.findOne(id);
     await this.exerciseRepo.update(id, data);
     return this.findOne(id);

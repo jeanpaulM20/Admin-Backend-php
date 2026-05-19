@@ -68,6 +68,7 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
   void initState() {
     super.initState();
     _searchCtrl.addListener(() => setState(() => _query = _searchCtrl.text));
+    _newNameCtrl.addListener(() => setState(() {}));
     _load();
   }
 
@@ -139,13 +140,23 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
 
   Future<void> _createExercise() async {
     final name = _newNameCtrl.text.trim();
-    if (name.isEmpty) return;
+    if (name.isEmpty || name.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Name muss mindestens 2 Zeichen haben'),
+          backgroundColor: AppColors.red,
+        ),
+      );
+      return;
+    }
     setState(() => _creating = true);
     try {
       final body = <String, dynamic>{
         'name': name,
+        'archive': 0,
+        'published': 0,
         if (_newGroupId != null) 'groupId': _newGroupId,
-        if (_newBodyRegion != null) 'body_region': _newBodyRegion,
+        if (_newBodyRegion != null) 'bodyRegion': _newBodyRegion,
       };
       await _api.post(ApiConfig.exercise, body: body);
       if (mounted) {
@@ -213,7 +224,9 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
                   ),
                 if (!_showCreateForm)
                   Text(
-                    '${_all.length} Übungen',
+                    _filterBodyRegion != null || _filterGroupId != null || _query.isNotEmpty
+                        ? '${_filtered.length} von ${_all.length}'
+                        : '${_all.length} Übungen',
                     style: GoogleFonts.openSans(color: AppColors.muted, fontSize: 12),
                   ),
               ],
@@ -333,6 +346,31 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
     }
 
     final items = _filtered;
+
+    if (items.isEmpty) {
+      return Column(
+        children: [
+          const SizedBox(height: 48),
+          Icon(Icons.search_off, color: AppColors.muted.withAlpha(100), size: 48),
+          const SizedBox(height: 12),
+          Text(
+            'Keine Übungen gefunden',
+            style: GoogleFonts.montserrat(
+              color: AppColors.muted, fontSize: 15, fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _query.isNotEmpty
+                ? 'Versuch einen anderen Suchbegriff'
+                : 'Ändere die Filtereinstellungen',
+            style: GoogleFonts.openSans(color: AppColors.muted.withAlpha(153), fontSize: 12),
+          ),
+          const SizedBox(height: 20),
+          _buildCreateButton(),
+        ],
+      );
+    }
 
     return ListView.builder(
       controller: scrollCtrl,

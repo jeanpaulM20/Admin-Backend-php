@@ -61,12 +61,14 @@ class Exercise {
 
   Map<String, dynamic> toJson() => {
         'name': name,
+        'archive': 0,
+        'published': 0,
         if (groupId != null) 'groupId': groupId,
         if (subgroupId != null) 'subgroupId': subgroupId,
-        if (bodyRegion != null) 'body_region': bodyRegion,
-        if (primaryMuscleGroup != null) 'primary_muscle_group': primaryMuscleGroup,
-        if (targetJoint != null) 'target_joint': targetJoint,
-        if (movementPattern != null) 'movement_pattern': movementPattern,
+        if (bodyRegion != null) 'bodyRegion': bodyRegion,
+        if (primaryMuscleGroup != null) 'primaryMuscleGroup': primaryMuscleGroup,
+        if (targetJoint != null) 'targetJoint': targetJoint,
+        if (movementPattern != null) 'movementPattern': movementPattern,
       };
 
   /// Localized label for body region.
