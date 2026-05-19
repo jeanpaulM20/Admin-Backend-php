@@ -496,6 +496,48 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
     );
   }
 
+  Future<void> _deletePlan(TrainingPlan plan) async {
+    final name = plan.name?.isNotEmpty == true ? plan.name! : 'Diesen Plan';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Plan löschen?',
+            style: GoogleFonts.montserrat(
+                color: AppColors.text, fontWeight: FontWeight.w700)),
+        content: Text('„$name" wird unwiderruflich gelöscht.',
+            style: GoogleFonts.openSans(color: AppColors.muted, fontSize: 13)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Abbrechen')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: TextButton.styleFrom(foregroundColor: AppColors.red),
+              child: const Text('Löschen')),
+        ],
+      ),
+    );
+    if (confirmed != true || plan.id == null) return;
+    try {
+      await _api.delete('${ApiConfig.trainingPlan}/${plan.id}');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('„$name" gelöscht'),
+          backgroundColor: const Color(0xFF2E7D32),
+        ));
+        _load();
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: AppColors.red),
+        );
+      }
+    }
+  }
+
   int _countExercises(TrainingPlan p) =>
       p.values.sonsomo.where((r) => r.exercise.isNotEmpty).length +
       p.values.main.where((r) => r.exercise.isNotEmpty).length +
@@ -859,7 +901,20 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
         ? plan.createdAt!.substring(0, plan.createdAt!.length.clamp(0, 10))
         : null;
 
-    return InkWell(
+    return Dismissible(
+      key: ValueKey(plan.id ?? index),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) async {
+        await _deletePlan(plan);
+        return false; // We handle removal ourselves via _load()
+      },
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 24),
+        color: AppColors.red.withAlpha(30),
+        child: const Icon(Icons.delete_outline, color: AppColors.red, size: 24),
+      ),
+      child: InkWell(
       onTap: () => _open(plan),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
@@ -929,6 +984,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 }

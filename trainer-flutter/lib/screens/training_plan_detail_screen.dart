@@ -49,6 +49,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
   late List<bool> _mobDisliked;
 
   final Set<String> _expanded = {};
+  bool _hasUnsavedChanges = false;
 
   // ─── Timer state ──────────────────────────────────────────────────────
   final Stopwatch _sw = Stopwatch();
@@ -102,6 +103,39 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
     _mTimeSettings   = List.filled(_values.main.length, 0);
     _cTimeSettings   = List.filled(_values.core.length, 0);
     _mobTimeSettings = List.filled(_values.mobility.length, 0);
+
+    // Track unsaved changes via name controller
+    _nameCtrl.addListener(_markDirty);
+  }
+
+  void _markDirty() {
+    if (!_hasUnsavedChanges) setState(() => _hasUnsavedChanges = true);
+  }
+
+  Future<bool> _onWillPop() async {
+    if (!_hasUnsavedChanges) return true;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Änderungen verwerfen?',
+            style: GoogleFonts.montserrat(
+                color: AppColors.text, fontWeight: FontWeight.w700)),
+        content: Text('Du hast ungespeicherte Änderungen. Möchtest du wirklich zurückgehen?',
+            style: GoogleFonts.openSans(color: AppColors.muted, fontSize: 13)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Abbrechen')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: TextButton.styleFrom(foregroundColor: AppColors.red),
+              child: const Text('Verwerfen')),
+        ],
+      ),
+    );
+    return result ?? false;
   }
 
   List<List<TextEditingController>> _buildRowCtrls(List<TrainingPlanRow> rows) =>
@@ -119,6 +153,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
   // ─── Add / Remove exercise ──────────────────────────────────────────────
 
   void _addExercise(String prefix) {
+    _markDirty();
     setState(() {
       _rowCtrls(prefix).add([
         TextEditingController(),
@@ -167,6 +202,15 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
         _likedFor(prefix).removeAt(index);
         _dislikedFor(prefix).removeAt(index);
         _timeSettingsFor(prefix).removeAt(index);
+
+        // Reset timer if the deleted exercise was the active timer target
+        if (_activeExPrefix == prefix && _activeExIndex == index) {
+          _switchToStopwatch();
+        } else if (_activeExPrefix == prefix && _activeExIndex != null && _activeExIndex! > index) {
+          // Adjust index if active exercise was after the deleted one
+          _activeExIndex = _activeExIndex! - 1;
+        }
+
         // Re-key expanded state
         final reKeyed = <String>{};
         for (final k in _expanded) {
@@ -210,6 +254,11 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
   }
 
   void _startMainTimer() {
+    // Don't start a finished countdown — reset it first
+    if (_isCountdown && _countdownRemaining <= 0) {
+      _resetMainTimer();
+      return;
+    }
     setState(() => _timerRunning = true);
     if (_isCountdown) {
       _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -424,36 +473,44 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
   // ─────────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          _buildHeroHeader(),
-          _buildSectionTabs(),
-          _buildTimerViewer(),
-          Expanded(
-            child: TabBarView(
-              controller: _tabCtrl,
-              children: [
-                _buildTab('s', _sRowCtrls, _sDateCtrls, _sLiked, _sDisliked, 0),
-                _buildTab('m', _mRowCtrls, _mDateCtrls, _mLiked, _mDisliked, 1),
-                _buildTab('c', _cRowCtrls, _cDateCtrls, _cLiked, _cDisliked, 2),
-                _buildTab('mob', _mobRowCtrls, _mobDateCtrls, _mobLiked, _mobDisliked, 3),
-              ],
+    return PopScope(
+      canPop: !_hasUnsavedChanges,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final shouldPop = await _onWillPop();
+        if (shouldPop && mounted) Navigator.pop(context);
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: Column(
+          children: [
+            _buildHeroHeader(),
+            _buildSectionTabs(),
+            _buildTimerViewer(),
+            Expanded(
+              child: TabBarView(
+                controller: _tabCtrl,
+                children: [
+                  _buildTab('s', _sRowCtrls, _sDateCtrls, _sLiked, _sDisliked, 0),
+                  _buildTab('m', _mRowCtrls, _mDateCtrls, _mLiked, _mDisliked, 1),
+                  _buildTab('c', _cRowCtrls, _cDateCtrls, _cLiked, _cDisliked, 2),
+                  _buildTab('mob', _mobRowCtrls, _mobDateCtrls, _mobLiked, _mobDisliked, 3),
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _saving ? null : _save,
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        icon: _saving
-            ? const SizedBox(width: 18, height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : const Icon(Icons.save_outlined),
-        label: Text(_saving ? 'Speichern…' : 'Speichern',
-            style: GoogleFonts.openSans(fontWeight: FontWeight.w700)),
+          ],
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: _saving ? null : _save,
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          icon: _saving
+              ? const SizedBox(width: 18, height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : const Icon(Icons.save_outlined),
+          label: Text(_saving ? 'Speichern…' : 'Speichern',
+              style: GoogleFonts.openSans(fontWeight: FontWeight.w700)),
+        ),
       ),
     );
   }
@@ -479,7 +536,13 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
             children: [
               IconButton(
                 icon: const Icon(Icons.arrow_back_ios, color: AppColors.text, size: 20),
-                onPressed: () => Navigator.pop(context),
+                onPressed: () async {
+                  if (_hasUnsavedChanges) {
+                    final shouldPop = await _onWillPop();
+                    if (!shouldPop || !mounted) return;
+                  }
+                  if (mounted) Navigator.pop(context);
+                },
               ),
               const SizedBox(width: 4),
               Expanded(
@@ -525,59 +588,6 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  // ─── Date strip ───────────────────────────────────────────────────────────
-
-  Widget _buildDateStrip() {
-    return Container(
-      color: AppColors.background,
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('TRAININGSDATEN',
-              style: GoogleFonts.openSans(
-                  color: AppColors.muted, fontSize: 10,
-                  fontWeight: FontWeight.w800, letterSpacing: 1.8)),
-          const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
-              children: List.generate(8, (i) => Padding(
-                padding: const EdgeInsets.only(right: 7),
-                child: SizedBox(
-                  width: 76,
-                  child: TextField(
-                    controller: _dateCtrls[i],
-                    style: GoogleFonts.openSans(
-                        color: AppColors.text, fontSize: 11, fontWeight: FontWeight.w600),
-                    textAlign: TextAlign.center,
-                    decoration: InputDecoration(
-                      hintText: '${i + 1}. Datum',
-                      hintStyle: GoogleFonts.openSans(
-                          color: AppColors.muted.withAlpha(102), fontSize: 10),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                      filled: true,
-                      fillColor: AppColors.surface2,
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
-                      enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
-                      focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
-                      isDense: true,
-                    ),
-                  ),
-                ),
-              )),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -788,15 +798,16 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
                   ? _expanded.remove(key)
                   : _expanded.add(key);
             }),
-            onLike: () => setState(() {
+            onLike: () { _markDirty(); setState(() {
               liked[i] = !liked[i];
               if (liked[i]) disliked[i] = false;
-            }),
-            onDislike: () => setState(() {
+            }); },
+            onDislike: () { _markDirty(); setState(() {
               disliked[i] = !disliked[i];
               if (disliked[i]) liked[i] = false;
-            }),
+            }); },
             onDelete: () => _removeExercise(prefix, i),
+            onFieldChanged: _markDirty,
             timeSetting: _timeSettingsFor(prefix)[i],
             isTimerTarget: _activeExPrefix == prefix && _activeExIndex == i,
             onTimeSelect: (seconds) => _selectExerciseTime(prefix, i, seconds),
@@ -870,6 +881,7 @@ class _ExerciseTile extends StatelessWidget {
   final VoidCallback onLike;
   final VoidCallback onDislike;
   final VoidCallback onDelete;
+  final VoidCallback onFieldChanged;
   final int timeSetting;
   final bool isTimerTarget;
   final ValueChanged<int> onTimeSelect;
@@ -889,6 +901,7 @@ class _ExerciseTile extends StatelessWidget {
     required this.onLike,
     required this.onDislike,
     required this.onDelete,
+    required this.onFieldChanged,
     required this.timeSetting,
     required this.isTimerTarget,
     required this.onTimeSelect,
@@ -969,6 +982,7 @@ class _ExerciseTile extends StatelessWidget {
                       children: [
                         TextField(
                           controller: ctrls[0],
+                          onChanged: (_) => onFieldChanged(),
                           style: GoogleFonts.openSans(
                             color: hasContent
                                 ? AppColors.text
@@ -1009,6 +1023,7 @@ class _ExerciseTile extends StatelessWidget {
                     width: 52,
                     child: TextField(
                       controller: ctrls[4],
+                      onChanged: (_) => onFieldChanged(),
                       style: GoogleFonts.openSans(
                           color: AppColors.muted, fontSize: 11, fontWeight: FontWeight.w600),
                       textAlign: TextAlign.center,
@@ -1036,6 +1051,7 @@ class _ExerciseTile extends StatelessWidget {
                     width: 54,
                     child: TextField(
                       controller: ctrls[3],
+                      onChanged: (_) => onFieldChanged(),
                       style: GoogleFonts.openSans(
                           color: accentColor, fontSize: 12, fontWeight: FontWeight.w700),
                       textAlign: TextAlign.center,
@@ -1204,6 +1220,7 @@ class _ExerciseTile extends StatelessWidget {
 
   Widget _detailField(String label, TextEditingController ctrl) => TextField(
         controller: ctrl,
+        onChanged: (_) => onFieldChanged(),
         style: GoogleFonts.openSans(color: AppColors.text, fontSize: 12),
         decoration: InputDecoration(
           labelText: label,
@@ -1226,6 +1243,7 @@ class _ExerciseTile extends StatelessWidget {
         width: 60,
         child: TextField(
           controller: ctrl,
+          onChanged: (_) => onFieldChanged(),
           style: GoogleFonts.openSans(
               color: AppColors.text, fontSize: 12, fontWeight: FontWeight.w600),
           textAlign: TextAlign.center,
