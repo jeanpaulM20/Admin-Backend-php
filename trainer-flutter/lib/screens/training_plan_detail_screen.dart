@@ -30,23 +30,8 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
   final List<TextEditingController> _dateCtrls =
       List.generate(8, (_) => TextEditingController());
 
-  // Per-section: row controllers, date controllers, liked, disliked
-  late List<List<TextEditingController>> _sRowCtrls;
-  late List<List<TextEditingController>> _mRowCtrls;
-  late List<List<TextEditingController>> _cRowCtrls;
-  late List<List<TextEditingController>> _mobRowCtrls;
-  late List<List<TextEditingController>> _sDateCtrls;
-  late List<List<TextEditingController>> _mDateCtrls;
-  late List<List<TextEditingController>> _cDateCtrls;
-  late List<List<TextEditingController>> _mobDateCtrls;
-  late List<bool> _sLiked;
-  late List<bool> _mLiked;
-  late List<bool> _cLiked;
-  late List<bool> _mobLiked;
-  late List<bool> _sDisliked;
-  late List<bool> _mDisliked;
-  late List<bool> _cDisliked;
-  late List<bool> _mobDisliked;
+  // Per-section state (replaces 20 individual lists)
+  late final Map<String, _SectionData> _sec;
 
   final Set<String> _expanded = {};
   bool _hasUnsavedChanges = false;
@@ -63,10 +48,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
   int? _activeExIndex;
   String _activeExName = '';
 
-  late List<int> _sTimeSettings;
-  late List<int> _mTimeSettings;
-  late List<int> _cTimeSettings;
-  late List<int> _mobTimeSettings;
+  static const _sectionKeys = ['s', 'm', 'c', 'mob'];
 
   static const _sections = [
     _SectionMeta('AUFWÄRMEN',    'Warm-up / Sonsomo', Icons.accessibility_new, AppColors.primary),
@@ -83,26 +65,13 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
     _nameCtrl.text = widget.plan?.name ?? '';
     for (var i = 0; i < 8; i++) _dateCtrls[i].text = _values.dates[i];
 
-    _sRowCtrls    = _buildRowCtrls(_values.sonsomo);
-    _mRowCtrls    = _buildRowCtrls(_values.main);
-    _cRowCtrls    = _buildRowCtrls(_values.core);
-    _mobRowCtrls  = _buildRowCtrls(_values.mobility);
-    _sDateCtrls   = _buildDateCtrls(_values.sonsomo);
-    _mDateCtrls   = _buildDateCtrls(_values.main);
-    _cDateCtrls   = _buildDateCtrls(_values.core);
-    _mobDateCtrls = _buildDateCtrls(_values.mobility);
-    _sLiked       = _values.sonsomo.map((r) => r.liked).toList();
-    _mLiked       = _values.main.map((r) => r.liked).toList();
-    _cLiked       = _values.core.map((r) => r.liked).toList();
-    _mobLiked     = _values.mobility.map((r) => r.liked).toList();
-    _sDisliked    = _values.sonsomo.map((r) => r.disliked).toList();
-    _mDisliked    = _values.main.map((r) => r.disliked).toList();
-    _cDisliked    = _values.core.map((r) => r.disliked).toList();
-    _mobDisliked  = _values.mobility.map((r) => r.disliked).toList();
-    _sTimeSettings   = List.filled(_values.sonsomo.length, 0);
-    _mTimeSettings   = List.filled(_values.main.length, 0);
-    _cTimeSettings   = List.filled(_values.core.length, 0);
-    _mobTimeSettings = List.filled(_values.mobility.length, 0);
+    final rowsMap = {
+      's': _values.sonsomo, 'm': _values.main,
+      'c': _values.core, 'mob': _values.mobility,
+    };
+    _sec = { for (final key in _sectionKeys)
+      key: _SectionData.fromRows(rowsMap[key]!),
+    };
 
     // Track unsaved changes via name controller
     _nameCtrl.addListener(_markDirty);
@@ -138,34 +107,23 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
     return result ?? false;
   }
 
-  List<List<TextEditingController>> _buildRowCtrls(List<TrainingPlanRow> rows) =>
-      rows.map((r) => [
-            TextEditingController(text: r.exercise),  // 0
-            TextEditingController(text: r.device),     // 1
-            TextEditingController(text: r.position),   // 2
-            TextEditingController(text: r.weight),     // 3
-            TextEditingController(text: r.sets),       // 4
-          ]).toList();
-
-  List<List<TextEditingController>> _buildDateCtrls(List<TrainingPlanRow> rows) =>
-      rows.map((r) => List.generate(8, (i) => TextEditingController(text: r.dates[i]))).toList();
-
   // ─── Add / Remove exercise ──────────────────────────────────────────────
 
   void _addExercise(String prefix) {
     _markDirty();
     setState(() {
-      _rowCtrls(prefix).add([
+      final s = _s(prefix);
+      s.rowCtrls.add([
         TextEditingController(),
         TextEditingController(),
         TextEditingController(),
         TextEditingController(),
         TextEditingController(),  // sets
       ]);
-      _dateCtrlsFor(prefix).add(List.generate(8, (_) => TextEditingController()));
-      _likedFor(prefix).add(false);
-      _dislikedFor(prefix).add(false);
-      _timeSettingsFor(prefix).add(0);
+      s.dateCtrls.add(List.generate(8, (_) => TextEditingController()));
+      s.liked.add(false);
+      s.disliked.add(false);
+      s.timeSettings.add(0);
     });
   }
 
@@ -193,15 +151,14 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
     ).then((confirmed) {
       if (confirmed != true) return;
       setState(() {
-        final rc = _rowCtrls(prefix);
-        final dc = _dateCtrlsFor(prefix);
-        for (final c in rc[index]) c.dispose();
-        rc.removeAt(index);
-        for (final c in dc[index]) c.dispose();
-        dc.removeAt(index);
-        _likedFor(prefix).removeAt(index);
-        _dislikedFor(prefix).removeAt(index);
-        _timeSettingsFor(prefix).removeAt(index);
+        final s = _s(prefix);
+        for (final c in s.rowCtrls[index]) c.dispose();
+        s.rowCtrls.removeAt(index);
+        for (final c in s.dateCtrls[index]) c.dispose();
+        s.dateCtrls.removeAt(index);
+        s.liked.removeAt(index);
+        s.disliked.removeAt(index);
+        s.timeSettings.removeAt(index);
 
         // Reset timer if the deleted exercise was the active timer target
         if (_activeExPrefix == prefix && _activeExIndex == index) {
@@ -226,22 +183,9 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
     });
   }
 
-  // ─── Helpers to get lists by prefix ─────────────────────────────────────
+  // ─── Section data access ─────────────────────────────────────────────────
 
-  List<List<TextEditingController>> _rowCtrls(String p) =>
-      p == 's' ? _sRowCtrls : p == 'm' ? _mRowCtrls : p == 'mob' ? _mobRowCtrls : _cRowCtrls;
-
-  List<List<TextEditingController>> _dateCtrlsFor(String p) =>
-      p == 's' ? _sDateCtrls : p == 'm' ? _mDateCtrls : p == 'mob' ? _mobDateCtrls : _cDateCtrls;
-
-  List<bool> _likedFor(String p) =>
-      p == 's' ? _sLiked : p == 'm' ? _mLiked : p == 'mob' ? _mobLiked : _cLiked;
-
-  List<bool> _dislikedFor(String p) =>
-      p == 's' ? _sDisliked : p == 'm' ? _mDisliked : p == 'mob' ? _mobDisliked : _cDisliked;
-
-  List<int> _timeSettingsFor(String p) =>
-      p == 's' ? _sTimeSettings : p == 'm' ? _mTimeSettings : p == 'mob' ? _mobTimeSettings : _cTimeSettings;
+  _SectionData _s(String p) => _sec[p]!;
 
   // ─── Timer controls ─────────────────────────────────────────────────────
 
@@ -304,15 +248,16 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
     _sw.stop();
     _sw.reset();
     setState(() {
-      _timeSettingsFor(prefix)[index] = seconds;
+      final s = _s(prefix);
+      s.timeSettings[index] = seconds;
       _isCountdown = true;
       _countdownFrom = seconds;
       _countdownRemaining = seconds;
       _timerRunning = false;
       _activeExPrefix = prefix;
       _activeExIndex = index;
-      _activeExName = _rowCtrls(prefix)[index][0].text.isNotEmpty
-          ? _rowCtrls(prefix)[index][0].text
+      _activeExName = s.rowCtrls[index][0].text.isNotEmpty
+          ? s.rowCtrls[index][0].text
           : 'Übung ${index + 1}';
       _updateTimerDisplay();
     });
@@ -401,28 +346,25 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
   TrainingPlanValues _collectValues() {
     final dates = List.generate(8, (i) => _dateCtrls[i].text);
 
-    List<TrainingPlanRow> collect(
-      List<List<TextEditingController>> rc,
-      List<List<TextEditingController>> dc,
-      List<bool> liked,
-      List<bool> disliked,
-    ) =>
-        List.generate(rc.length, (i) => TrainingPlanRow(
-              exercise: rc[i][0].text,
-              device:   rc[i][1].text,
-              position: rc[i][2].text,
-              weight:   rc[i][3].text,
-              sets:     rc[i][4].text,
-              dates:    List.generate(8, (j) => dc[i][j].text),
-              liked:    liked[i],
-              disliked: disliked[i],
-            ));
+    List<TrainingPlanRow> collect(String prefix) {
+      final s = _s(prefix);
+      return List.generate(s.rowCtrls.length, (i) => TrainingPlanRow(
+            exercise: s.rowCtrls[i][0].text,
+            device:   s.rowCtrls[i][1].text,
+            position: s.rowCtrls[i][2].text,
+            weight:   s.rowCtrls[i][3].text,
+            sets:     s.rowCtrls[i][4].text,
+            dates:    List.generate(8, (j) => s.dateCtrls[i][j].text),
+            liked:    s.liked[i],
+            disliked: s.disliked[i],
+          ));
+    }
 
     return TrainingPlanValues(
-      sonsomo:  collect(_sRowCtrls, _sDateCtrls, _sLiked, _sDisliked),
-      main:     collect(_mRowCtrls, _mDateCtrls, _mLiked, _mDisliked),
-      core:     collect(_cRowCtrls, _cDateCtrls, _cLiked, _cDisliked),
-      mobility: collect(_mobRowCtrls, _mobDateCtrls, _mobLiked, _mobDisliked),
+      sonsomo:  collect('s'),
+      main:     collect('m'),
+      core:     collect('c'),
+      mobility: collect('mob'),
       dates:    dates,
     );
   }
@@ -463,10 +405,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
     _tabCtrl.dispose();
     _nameCtrl.dispose();
     for (final c in _dateCtrls) c.dispose();
-    for (final row in [..._sRowCtrls, ..._mRowCtrls, ..._cRowCtrls, ..._mobRowCtrls])
-      for (final c in row) c.dispose();
-    for (final sec in [..._sDateCtrls, ..._mDateCtrls, ..._cDateCtrls, ..._mobDateCtrls])
-      for (final c in sec) c.dispose();
+    for (final s in _sec.values) s.dispose();
     super.dispose();
   }
 
@@ -491,10 +430,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
               child: TabBarView(
                 controller: _tabCtrl,
                 children: [
-                  _buildTab('s', _sRowCtrls, _sDateCtrls, _sLiked, _sDisliked, 0),
-                  _buildTab('m', _mRowCtrls, _mDateCtrls, _mLiked, _mDisliked, 1),
-                  _buildTab('c', _cRowCtrls, _cDateCtrls, _cLiked, _cDisliked, 2),
-                  _buildTab('mob', _mobRowCtrls, _mobDateCtrls, _mobLiked, _mobDisliked, 3),
+                  ...List.generate(4, (i) => _buildTab(_sectionKeys[i], i)),
                 ],
               ),
             ),
@@ -729,16 +665,10 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
 
   // ─── Exercise tab ─────────────────────────────────────────────────────────
 
-  Widget _buildTab(
-    String prefix,
-    List<List<TextEditingController>> rowCtrls,
-    List<List<TextEditingController>> dateCtrls,
-    List<bool> liked,
-    List<bool> disliked,
-    int sectionIdx,
-  ) {
+  Widget _buildTab(String prefix, int sectionIdx) {
     final section = _sections[sectionIdx];
-    final filledCount = rowCtrls.where((r) => r[0].text.isNotEmpty).length;
+    final s = _s(prefix);
+    final filledCount = s.rowCtrls.where((r) => r[0].text.isNotEmpty).length;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 120),
@@ -770,17 +700,17 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
         ),
 
         // Exercise tiles
-        ...List.generate(rowCtrls.length, (i) {
+        ...List.generate(s.rowCtrls.length, (i) {
           final key = '$prefix-$i';
           return _ExerciseTile(
-            key: ValueKey('$prefix-$i-${rowCtrls.length}'),
+            key: ValueKey('$prefix-$i-${s.rowCtrls.length}'),
             number:      i + 1,
-            ctrls:       rowCtrls[i],
-            dateCtrls:   dateCtrls[i],
+            ctrls:       s.rowCtrls[i],
+            dateCtrls:   s.dateCtrls[i],
             dateLabels:  _dateCtrls.map((c) => c.text).toList(),
             accentColor: section.color,
-            isLiked:     liked[i],
-            isDisliked:  disliked[i],
+            isLiked:     s.liked[i],
+            isDisliked:  s.disliked[i],
             isExpanded:  _expanded.contains(key),
             onToggle: () => setState(() {
               _expanded.contains(key)
@@ -788,16 +718,16 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
                   : _expanded.add(key);
             }),
             onLike: () { _markDirty(); setState(() {
-              liked[i] = !liked[i];
-              if (liked[i]) disliked[i] = false;
+              s.liked[i] = !s.liked[i];
+              if (s.liked[i]) s.disliked[i] = false;
             }); },
             onDislike: () { _markDirty(); setState(() {
-              disliked[i] = !disliked[i];
-              if (disliked[i]) liked[i] = false;
+              s.disliked[i] = !s.disliked[i];
+              if (s.disliked[i]) s.liked[i] = false;
             }); },
             onDelete: () => _removeExercise(prefix, i),
             onFieldChanged: _markDirty,
-            timeSetting: _timeSettingsFor(prefix)[i],
+            timeSetting: s.timeSettings[i],
             isTimerTarget: _activeExPrefix == prefix && _activeExIndex == i,
             onTimeSelect: (seconds) => _selectExerciseTime(prefix, i, seconds),
             onManualTime: () => _showManualTimeDialog(prefix, i),
@@ -840,6 +770,53 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
         ),
       ),
     );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Per-section state container (replaces 20 individual lists)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SectionData {
+  final List<List<TextEditingController>> rowCtrls;
+  final List<List<TextEditingController>> dateCtrls;
+  final List<bool> liked;
+  final List<bool> disliked;
+  final List<int> timeSettings;
+
+  _SectionData({
+    required this.rowCtrls,
+    required this.dateCtrls,
+    required this.liked,
+    required this.disliked,
+    required this.timeSettings,
+  });
+
+  factory _SectionData.fromRows(List<TrainingPlanRow> rows) {
+    return _SectionData(
+      rowCtrls: rows.map((r) => [
+        TextEditingController(text: r.exercise),
+        TextEditingController(text: r.device),
+        TextEditingController(text: r.position),
+        TextEditingController(text: r.weight),
+        TextEditingController(text: r.sets),
+      ]).toList(),
+      dateCtrls: rows.map((r) =>
+        List.generate(8, (i) => TextEditingController(text: r.dates[i])),
+      ).toList(),
+      liked: rows.map((r) => r.liked).toList(),
+      disliked: rows.map((r) => r.disliked).toList(),
+      timeSettings: List.filled(rows.length, 0),
+    );
+  }
+
+  void dispose() {
+    for (final row in rowCtrls) {
+      for (final c in row) c.dispose();
+    }
+    for (final row in dateCtrls) {
+      for (final c in row) c.dispose();
+    }
   }
 }
 
