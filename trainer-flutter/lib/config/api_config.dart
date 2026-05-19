@@ -32,6 +32,10 @@ class ApiConfig {
   // Training plans
   static const String trainingPlan      = 'training-plan';
 
+  // Exercise catalog
+  static const String exercise          = 'exercise';
+  static const String exerciseGroups    = 'exercise/groups';
+
   // Performance / metrics
   static const String metric            = 'metric';
 

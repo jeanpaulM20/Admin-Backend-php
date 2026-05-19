@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 import '../config/api_config.dart';
 import '../config/app_colors.dart';
 import '../providers/exercise_timer.dart';
+import 'exercise_catalog_sheet.dart';
 
 class TrainingPlanDetailScreen extends StatefulWidget {
   final Client client;
@@ -106,13 +107,15 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
 
   // ─── Add / Remove exercise ──────────────────────────────────────────────
 
-  void _addExercise(String prefix) {
+  Future<void> _addExercise(String prefix) async {
+    final result = await ExerciseCatalogSheet.show(context);
+    if (result == null || !mounted) return;
     _markDirty();
     setState(() {
       final s = _s(prefix);
       s.rowCtrls.add([
-        TextEditingController(),
-        TextEditingController(),
+        TextEditingController(text: result.name),
+        TextEditingController(text: result.device),
         TextEditingController(),
         TextEditingController(),
         TextEditingController(),  // sets
