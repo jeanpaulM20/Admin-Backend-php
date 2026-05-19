@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/client.dart';
@@ -6,6 +5,7 @@ import '../models/training_plan.dart';
 import '../services/api_service.dart';
 import '../config/api_config.dart';
 import '../config/app_colors.dart';
+import '../providers/exercise_timer.dart';
 
 class TrainingPlanDetailScreen extends StatefulWidget {
   final Client client;
@@ -36,17 +36,8 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
   final Set<String> _expanded = {};
   bool _hasUnsavedChanges = false;
 
-  // ─── Timer state ──────────────────────────────────────────────────────
-  final Stopwatch _sw = Stopwatch();
-  Timer? _tickTimer;
-  String _timerDisplay = '00:00';
-  bool _isCountdown = false;
-  int _countdownFrom = 0;
-  int _countdownRemaining = 0;
-  bool _timerRunning = false;
-  String? _activeExPrefix;
-  int? _activeExIndex;
-  String _activeExName = '';
+  // ─── Timer (separate ChangeNotifier) ──────────────────────────────────
+  late final ExerciseTimer _timer;
 
   static const _sectionKeys = ['s', 'm', 'c', 'mob'];
 
@@ -73,8 +64,14 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
       key: _SectionData.fromRows(rowsMap[key]!),
     };
 
+    _timer = ExerciseTimer()..addListener(_onTimerChanged);
+
     // Track unsaved changes via name controller
     _nameCtrl.addListener(_markDirty);
+  }
+
+  void _onTimerChanged() {
+    if (mounted) setState(() {});
   }
 
   void _markDirty() {
@@ -161,12 +158,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
         s.timeSettings.removeAt(index);
 
         // Reset timer if the deleted exercise was the active timer target
-        if (_activeExPrefix == prefix && _activeExIndex == index) {
-          _switchToStopwatch();
-        } else if (_activeExPrefix == prefix && _activeExIndex != null && _activeExIndex! > index) {
-          // Adjust index if active exercise was after the deleted one
-          _activeExIndex = _activeExIndex! - 1;
-        }
+        _timer.onExerciseRemoved(prefix, index);
 
         // Re-key expanded state
         final reKeyed = <String>{};
@@ -187,109 +179,17 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
 
   _SectionData _s(String p) => _sec[p]!;
 
-  // ─── Timer controls ─────────────────────────────────────────────────────
-
-  void _toggleMainTimer() {
-    if (_timerRunning) {
-      _pauseMainTimer();
-    } else {
-      _startMainTimer();
-    }
-  }
-
-  void _startMainTimer() {
-    // Don't start a finished countdown — reset it first
-    if (_isCountdown && _countdownRemaining <= 0) {
-      _resetMainTimer();
-      return;
-    }
-    setState(() => _timerRunning = true);
-    if (_isCountdown) {
-      _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-        setState(() {
-          _countdownRemaining--;
-          if (_countdownRemaining <= 0) {
-            _countdownRemaining = 0;
-            _timerRunning = false;
-            _tickTimer?.cancel();
-          }
-          _updateTimerDisplay();
-        });
-      });
-    } else {
-      _sw.start();
-      _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-        setState(() => _updateTimerDisplay());
-      });
-    }
-  }
-
-  void _pauseMainTimer() {
-    _tickTimer?.cancel();
-    if (!_isCountdown) _sw.stop();
-    setState(() => _timerRunning = false);
-  }
-
-  void _resetMainTimer() {
-    _tickTimer?.cancel();
-    _sw.stop();
-    _sw.reset();
-    setState(() {
-      _timerRunning = false;
-      if (_isCountdown) {
-        _countdownRemaining = _countdownFrom;
-      }
-      _updateTimerDisplay();
-    });
-  }
+  // ─── Timer controls (delegated to ExerciseTimer) ────────────────────────
 
   void _selectExerciseTime(String prefix, int index, int seconds) {
-    _tickTimer?.cancel();
-    _sw.stop();
-    _sw.reset();
-    setState(() {
-      final s = _s(prefix);
-      s.timeSettings[index] = seconds;
-      _isCountdown = true;
-      _countdownFrom = seconds;
-      _countdownRemaining = seconds;
-      _timerRunning = false;
-      _activeExPrefix = prefix;
-      _activeExIndex = index;
-      _activeExName = s.rowCtrls[index][0].text.isNotEmpty
-          ? s.rowCtrls[index][0].text
-          : 'Übung ${index + 1}';
-      _updateTimerDisplay();
-    });
-  }
-
-  void _switchToStopwatch() {
-    _tickTimer?.cancel();
-    _sw.stop();
-    _sw.reset();
-    setState(() {
-      _isCountdown = false;
-      _countdownFrom = 0;
-      _countdownRemaining = 0;
-      _timerRunning = false;
-      _activeExPrefix = null;
-      _activeExIndex = null;
-      _activeExName = '';
-      _updateTimerDisplay();
-    });
-  }
-
-  void _updateTimerDisplay() {
-    if (_isCountdown) {
-      final m = (_countdownRemaining ~/ 60).toString().padLeft(2, '0');
-      final s = (_countdownRemaining % 60).toString().padLeft(2, '0');
-      _timerDisplay = '$m:$s';
-    } else {
-      final total = _sw.elapsed.inSeconds;
-      final m = (total ~/ 60).toString().padLeft(2, '0');
-      final s = (total % 60).toString().padLeft(2, '0');
-      _timerDisplay = '$m:$s';
-    }
+    final s = _s(prefix);
+    s.timeSettings[index] = seconds;
+    final name = s.rowCtrls[index][0].text.isNotEmpty
+        ? s.rowCtrls[index][0].text
+        : 'Übung ${index + 1}';
+    _timer.selectCountdown(
+      prefix: prefix, index: index, name: name, seconds: seconds,
+    );
   }
 
   void _showManualTimeDialog(String prefix, int index) {
@@ -401,7 +301,8 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
 
   @override
   void dispose() {
-    _tickTimer?.cancel();
+    _timer.removeListener(_onTimerChanged);
+    _timer.dispose();
     _tabCtrl.dispose();
     _nameCtrl.dispose();
     for (final c in _dateCtrls) c.dispose();
@@ -553,6 +454,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
   // ─── Timer viewer ─────────────────────────────────────────────────────────
 
   Widget _buildTimerViewer() {
+    final t = _timer;
     return Container(
       color: AppColors.background,
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
@@ -562,32 +464,32 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: _timerRunning
+            color: t.isRunning
                 ? AppColors.primary.withAlpha(128)
                 : AppColors.border,
-            width: _timerRunning ? 1.2 : 0.8,
+            width: t.isRunning ? 1.2 : 0.8,
           ),
         ),
         child: Row(
           children: [
             // Play / Pause
             GestureDetector(
-              onTap: _toggleMainTimer,
+              onTap: t.toggle,
               child: Container(
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: _timerRunning
+                  color: t.isRunning
                       ? AppColors.primary.withAlpha(26)
                       : AppColors.primary,
                   shape: BoxShape.circle,
                   border: Border.all(color: AppColors.primary, width: 1.5),
                 ),
                 child: Icon(
-                  _timerRunning
+                  t.isRunning
                       ? Icons.pause_rounded
                       : Icons.play_arrow_rounded,
-                  color: _timerRunning ? AppColors.primary : Colors.white,
+                  color: t.isRunning ? AppColors.primary : Colors.white,
                   size: 28,
                 ),
               ),
@@ -597,12 +499,12 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
               child: Column(
                 children: [
                   Text(
-                    _timerDisplay,
+                    t.display,
                     textAlign: TextAlign.center,
                     style: GoogleFonts.montserrat(
-                      color: _timerRunning
+                      color: t.isRunning
                           ? Colors.white
-                          : _isCountdown && _countdownRemaining == 0
+                          : t.isCountdown && t.countdownRemaining == 0
                               ? AppColors.red
                               : AppColors.text,
                       fontSize: 64,
@@ -612,8 +514,8 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    _isCountdown
-                        ? 'Countdown${_activeExName.isNotEmpty ? ' · $_activeExName' : ''}'
+                    t.isCountdown
+                        ? 'Countdown${t.activeName.isNotEmpty ? ' · ${t.activeName}' : ''}'
                         : 'Stoppuhr',
                     style: GoogleFonts.openSans(
                         color: AppColors.muted, fontSize: 12),
@@ -627,7 +529,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
             Column(
               children: [
                 GestureDetector(
-                  onTap: _resetMainTimer,
+                  onTap: t.reset,
                   child: Container(
                     width: 42,
                     height: 42,
@@ -639,10 +541,10 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
                         color: AppColors.muted, size: 20),
                   ),
                 ),
-                if (_isCountdown) ...[
+                if (t.isCountdown) ...[
                   const SizedBox(height: 6),
                   GestureDetector(
-                    onTap: _switchToStopwatch,
+                    onTap: t.switchToStopwatch,
                     child: Container(
                       width: 36,
                       height: 36,
@@ -728,7 +630,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
             onDelete: () => _removeExercise(prefix, i),
             onFieldChanged: _markDirty,
             timeSetting: s.timeSettings[i],
-            isTimerTarget: _activeExPrefix == prefix && _activeExIndex == i,
+            isTimerTarget: _timer.activePrefix == prefix && _timer.activeIndex == i,
             onTimeSelect: (seconds) => _selectExerciseTime(prefix, i, seconds),
             onManualTime: () => _showManualTimeDialog(prefix, i),
           );
