@@ -666,7 +666,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
                     textAlign: TextAlign.center,
                     style: GoogleFonts.montserrat(
                       color: _timerRunning
-                          ? AppColors.primary
+                          ? Colors.white
                           : _isCountdown && _countdownRemaining == 0
                               ? AppColors.red
                               : AppColors.text,
