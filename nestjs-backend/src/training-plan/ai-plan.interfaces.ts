@@ -14,7 +14,7 @@ export type AiTrainingType =
 
 export type AiDuration = 30 | 45 | 60 | null; // null = frei (KI entscheidet)
 
-export type AiEquipment = 'mft' | 'slackline' | 'springseil';
+export type AiEquipment = 'mft' | 'slackline' | 'springseil' | 'kettlebell' | 'ringe';
 
 /** Request body sent by the trainer to steer AI plan generation. */
 export interface AiPlanRequest {
@@ -32,7 +32,7 @@ export const AI_TRAINING_TYPES: AiTrainingType[] = [
 export const AI_DURATIONS: (number | null)[] = [30, 45, 60, null];
 
 /** Valid equipment options for runtime validation. */
-export const AI_EQUIPMENT_OPTIONS: AiEquipment[] = ['mft', 'slackline', 'springseil'];
+export const AI_EQUIPMENT_OPTIONS: AiEquipment[] = ['mft', 'slackline', 'springseil', 'kettlebell', 'ringe'];
 
 // ── Exercise row ───────────────────────────────────────────────────────────
 

@@ -546,6 +546,8 @@ WICHTIG: Schnelligkeitsübungen IMMER im erholten Zustand durchführen (am Anfan
     mft: 'MFT Board (propriozeptives Balance-Board)',
     slackline: 'Slackline (Balance und Koordination)',
     springseil: 'Springseil (Koordination, Cardio, Frequenztraining)',
+    kettlebell: 'Kettlebell (funktionelles Krafttraining, Swings, Cleans, Snatches)',
+    ringe: 'Gymnastikringe / Suspension Trainer (Bodyweight-Kraft, Instabilität, Pull/Push)',
   };
 
   /** Build the training-type / duration / equipment extension for the system prompt */

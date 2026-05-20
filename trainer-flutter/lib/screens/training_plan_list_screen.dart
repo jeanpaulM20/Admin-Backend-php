@@ -20,7 +20,6 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
   final _searchCtrl = TextEditingController();
   bool _loading = true;
   bool _generatingAi = false;
-  String _aiStep = '';
   int _aiStepIndex = 0;
   String? _error;
   List<TrainingPlan> _plans = [];
@@ -100,323 +99,510 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
       if (!_generatingAi || !mounted) return;
       setState(() {
         _aiStepIndex = i;
-        _aiStep = _aiSteps[i];
       });
       // Stagger the steps: first ones quick, last one long (waiting for AI)
       await Future.delayed(Duration(milliseconds: i < 4 ? 1200 : 2500));
     }
   }
 
-  // ── AI Config types ──────────────────────────────────────────────────────
+  // ── AI Config: Training Types ────────────────────────────────────────────
   static const _trainingTypes = <String, Map<String, dynamic>>{
-    'ausdauer':       {'label': 'Ausdauer',       'icon': Icons.directions_run},
-    'kraft':          {'label': 'Kraft',           'icon': Icons.fitness_center},
-    'propriozeptiv':  {'label': 'Propriozeptiv',   'icon': Icons.self_improvement},
-    'mental_health':  {'label': 'Mental Health',   'icon': Icons.spa},
-    'athletik':       {'label': 'Athletik',        'icon': Icons.sports_gymnastics},
-    'schnelligkeit':  {'label': 'Schnelligkeit',   'icon': Icons.bolt},
+    'ausdauer':       {'label': 'Ausdauer',       'icon': Icons.directions_run,     'desc': 'Cardio, HIIT, Intervalle',                          'intensity': 0.65},
+    'kraft':          {'label': 'Kraft',           'icon': Icons.fitness_center,     'desc': 'Compound-Lifts, Maximalkraft',                      'intensity': 0.85},
+    'propriozeptiv':  {'label': 'Propriozeptiv',   'icon': Icons.self_improvement,   'desc': 'Balance, Koordination, Sensorik',                   'intensity': 0.50},
+    'mental_health':  {'label': 'Mental Health',   'icon': Icons.spa,                'desc': 'Yoga, Flow, Klettern, Slackline',                   'intensity': 0.40},
+    'athletik':       {'label': 'Athletik',        'icon': Icons.sports_gymnastics,  'desc': 'Explosivkraft, Plyometrie, Agility',                'intensity': 0.90},
+    'schnelligkeit':  {'label': 'Schnelligkeit',   'icon': Icons.bolt,               'desc': 'Sprint, Reaktion, Barfuss-Training',                'intensity': 0.95},
   };
 
-  static const _durations = <int?, String>{
-    30:   '30 min',
-    45:   '45 min',
-    60:   '60 min',
-    null: 'Frei',
-  };
-
+  // ── AI Config: Equipment ────────────────────────────────────────────────
   static const _equipmentOptions = <String, Map<String, dynamic>>{
-    'mft':        {'label': 'MFT Board',   'icon': Icons.circle_outlined},
-    'slackline':  {'label': 'Slackline',   'icon': Icons.linear_scale},
-    'springseil': {'label': 'Springseil',  'icon': Icons.cable},
+    'mft':        {'label': 'MFT Board',        'icon': Icons.circle_outlined,    'desc': 'Balance & Propriozeption'},
+    'slackline':  {'label': 'Slackline',        'icon': Icons.linear_scale,       'desc': 'Balance & Flow'},
+    'springseil': {'label': 'Springseil',       'icon': Icons.cable,              'desc': 'Cardio & Koordination'},
+    'kettlebell': {'label': 'Kettlebell',       'icon': Icons.fitness_center,     'desc': 'Funktionelle Kraft'},
+    'ringe':      {'label': 'Ringe / TRX',      'icon': Icons.circle,             'desc': 'Bodyweight & Instabilität'},
   };
 
-  /// Shows the AI config bottom sheet, returns the selected config or null if cancelled.
+  // ── AI Config: Smart recommendations per type ──────────────────────────
+  static const _typeRecommendations = <String, Map<String, dynamic>>{
+    'ausdauer':       {'durations': [30, 45], 'equipment': <String>[], 'durationHint': '30-45 min'},
+    'kraft':          {'durations': [45, 60], 'equipment': ['kettlebell', 'ringe'], 'durationHint': '45-60 min'},
+    'propriozeptiv':  {'durations': [30, 45], 'equipment': ['mft', 'slackline'], 'durationHint': '30-45 min'},
+    'mental_health':  {'durations': [45, 60], 'equipment': ['slackline'], 'durationHint': '45-60 min'},
+    'athletik':       {'durations': [45, 60], 'equipment': ['kettlebell', 'springseil', 'ringe'], 'durationHint': '45-60 min'},
+    'schnelligkeit':  {'durations': [30, 45], 'equipment': ['slackline', 'springseil', 'kettlebell'], 'durationHint': '30-45 min'},
+  };
+
+  /// Multi-step wizard for AI training plan configuration.
   Future<Map<String, dynamic>?> _showAiConfigSheet() async {
     String? selectedType;
-    int? selectedDuration; // null = not explicitly set yet
+    int? selectedDuration;
     bool durationIsFrei = false;
     final selectedEquipment = <String>{};
     bool equipmentIsFrei = false;
+    int currentStep = 0;
+    final pageCtrl = PageController();
+
+    void goTo(int step, void Function(void Function()) ss) {
+      ss(() => currentStep = step);
+      pageCtrl.animateToPage(step,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeInOut);
+    }
 
     return showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) {
-          final canGenerate = selectedType != null &&
-              (selectedDuration != null || durationIsFrei);
+        builder: (ctx, ss) {
+          const accent = Color(0xFFAB47BC);
+          final recs = selectedType != null
+              ? _typeRecommendations[selectedType] ?? {}
+              : <String, dynamic>{};
+          final recDurations = (recs['durations'] as List<dynamic>?)?.cast<int>() ?? [];
+          final recEquipment = (recs['equipment'] as List<dynamic>?)?.cast<String>() ?? [];
+          final typeLabel = selectedType != null
+              ? (_trainingTypes[selectedType]?['label'] as String? ?? '')
+              : '';
 
-          return Padding(
-            padding: EdgeInsets.only(
-              left: 20, right: 20, top: 16,
-              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Handle bar
-                Center(
-                  child: Container(
-                    width: 40, height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.muted.withAlpha(80),
-                      borderRadius: BorderRadius.circular(2)),
-                  ),
+          // ── Reusable chip builder ──
+          Widget chip(String label, IconData icon, bool selected,
+              {VoidCallback? onTap, String? subtitle, bool recommended = false}) {
+            return GestureDetector(
+              onTap: onTap,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: selected ? accent.withAlpha(25) : AppColors.surface2.withAlpha(120),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: selected ? accent : AppColors.border.withAlpha(60),
+                    width: selected ? 1.5 : 1),
                 ),
-                const SizedBox(height: 16),
-
-                // Title
-                Row(children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFAB47BC).withAlpha(30),
-                      borderRadius: BorderRadius.circular(10)),
-                    child: const Icon(Icons.auto_awesome, color: Color(0xFFAB47BC), size: 22),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Neuer KI-Trainingsplan',
-                            style: GoogleFonts.montserrat(
-                                color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w800)),
-                        Text(widget.client.name,
-                            style: GoogleFonts.openSans(color: AppColors.muted, fontSize: 12)),
-                      ],
-                    ),
-                  ),
-                ]),
-                const SizedBox(height: 24),
-
-                // ── Training Type ──
-                Text('TRAINING TYP',
-                    style: GoogleFonts.openSans(
-                        color: AppColors.muted, fontSize: 10,
-                        fontWeight: FontWeight.w800, letterSpacing: 1.5)),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8, runSpacing: 8,
-                  children: _trainingTypes.entries.map((e) {
-                    final isSelected = selectedType == e.key;
-                    return GestureDetector(
-                      onTap: () => setModalState(() => selectedType = e.key),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? const Color(0xFFAB47BC).withAlpha(25)
-                              : AppColors.surface2.withAlpha(120),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isSelected
-                                ? const Color(0xFFAB47BC)
-                                : AppColors.border.withAlpha(60),
-                            width: isSelected ? 1.5 : 1,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(e.value['icon'] as IconData,
-                                size: 16,
-                                color: isSelected ? const Color(0xFFAB47BC) : AppColors.muted),
-                            const SizedBox(width: 6),
-                            Text(e.value['label'] as String,
-                                style: GoogleFonts.openSans(
-                                    color: isSelected ? const Color(0xFFAB47BC) : AppColors.text,
-                                    fontSize: 13,
-                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500)),
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 20),
-
-                // ── Duration ──
-                Text('DAUER',
-                    style: GoogleFonts.openSans(
-                        color: AppColors.muted, fontSize: 10,
-                        fontWeight: FontWeight.w800, letterSpacing: 1.5)),
-                const SizedBox(height: 10),
-                Row(
-                  children: _durations.entries.map((e) {
-                    final isFrei = e.key == null;
-                    final isSelected = isFrei ? durationIsFrei : (!durationIsFrei && selectedDuration == e.key);
-                    return Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: GestureDetector(
-                          onTap: () => setModalState(() {
-                            if (isFrei) {
-                              durationIsFrei = true;
-                              selectedDuration = null;
-                            } else {
-                              durationIsFrei = false;
-                              selectedDuration = e.key;
-                            }
-                          }),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? const Color(0xFFAB47BC).withAlpha(25)
-                                  : AppColors.surface2.withAlpha(120),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: isSelected
-                                    ? const Color(0xFFAB47BC)
-                                    : AppColors.border.withAlpha(60),
-                                width: isSelected ? 1.5 : 1,
-                              ),
-                            ),
-                            child: Text(e.value,
-                                style: GoogleFonts.openSans(
-                                    color: isSelected ? const Color(0xFFAB47BC) : AppColors.text,
-                                    fontSize: 13,
-                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500)),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 20),
-
-                // ── Equipment ──
-                Text('GERÄTE',
-                    style: GoogleFonts.openSans(
-                        color: AppColors.muted, fontSize: 10,
-                        fontWeight: FontWeight.w800, letterSpacing: 1.5)),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8, runSpacing: 8,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    ..._equipmentOptions.entries.map((e) {
-                      final isSelected = selectedEquipment.contains(e.key);
-                      return GestureDetector(
-                        onTap: () => setModalState(() {
-                          equipmentIsFrei = false;
-                          if (isSelected) {
-                            selectedEquipment.remove(e.key);
-                          } else {
-                            selectedEquipment.add(e.key);
-                          }
-                        }),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? const Color(0xFFAB47BC).withAlpha(25)
-                                : AppColors.surface2.withAlpha(120),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isSelected
-                                  ? const Color(0xFFAB47BC)
-                                  : AppColors.border.withAlpha(60),
-                              width: isSelected ? 1.5 : 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                isSelected ? Icons.check_box : Icons.check_box_outline_blank,
-                                size: 16,
-                                color: isSelected ? const Color(0xFFAB47BC) : AppColors.muted),
-                              const SizedBox(width: 6),
-                              Text(e.value['label'] as String,
-                                  style: GoogleFonts.openSans(
-                                      color: isSelected ? const Color(0xFFAB47BC) : AppColors.text,
-                                      fontSize: 13,
-                                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500)),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
-                    // "Frei" option
-                    GestureDetector(
-                      onTap: () => setModalState(() {
-                        equipmentIsFrei = !equipmentIsFrei;
-                        if (equipmentIsFrei) selectedEquipment.clear();
-                      }),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: equipmentIsFrei
-                              ? const Color(0xFFAB47BC).withAlpha(25)
-                              : AppColors.surface2.withAlpha(120),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: equipmentIsFrei
-                                ? const Color(0xFFAB47BC)
-                                : AppColors.border.withAlpha(60),
-                            width: equipmentIsFrei ? 1.5 : 1,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.auto_awesome,
-                                size: 16,
-                                color: equipmentIsFrei ? const Color(0xFFAB47BC) : AppColors.muted),
+                    Icon(icon, size: 18, color: selected ? accent : AppColors.muted),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(children: [
+                          Text(label,
+                              style: GoogleFonts.openSans(
+                                  color: selected ? accent : AppColors.text,
+                                  fontSize: 13, fontWeight: selected ? FontWeight.w700 : FontWeight.w500)),
+                          if (recommended) ...[
                             const SizedBox(width: 6),
-                            Text('Frei (KI wählt)',
-                                style: GoogleFonts.openSans(
-                                    color: equipmentIsFrei ? const Color(0xFFAB47BC) : AppColors.text,
-                                    fontSize: 13,
-                                    fontWeight: equipmentIsFrei ? FontWeight.w700 : FontWeight.w500)),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: accent.withAlpha(30),
+                                borderRadius: BorderRadius.circular(4)),
+                              child: Text('Empfohlen', style: GoogleFonts.openSans(
+                                  color: accent, fontSize: 8, fontWeight: FontWeight.w800)),
+                            ),
                           ],
-                        ),
-                      ),
+                        ]),
+                        if (subtitle != null)
+                          Text(subtitle, style: GoogleFonts.openSans(
+                              color: AppColors.muted, fontSize: 10)),
+                      ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 28),
+              ),
+            );
+          }
 
-                // ── Generate button ──
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: canGenerate
-                        ? () {
-                            Navigator.pop(ctx, {
-                              'trainingType': selectedType,
-                              'duration': durationIsFrei ? null : selectedDuration,
-                              'equipment': equipmentIsFrei || selectedEquipment.isEmpty
-                                  ? null
-                                  : selectedEquipment.toList(),
-                            });
-                          }
-                        : null,
-                    icon: const Icon(Icons.auto_awesome, size: 18),
-                    label: const Text('Plan generieren'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFAB47BC),
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: AppColors.surface2,
-                      disabledForegroundColor: AppColors.muted,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          // ── Step header ──
+          Widget header(String step, String title, IconData icon) {
+            return Column(children: [
+              // Progress dots
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(3, (i) => Container(
+                  width: i == currentStep ? 24 : 8, height: 8,
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  decoration: BoxDecoration(
+                    color: i <= currentStep ? accent : AppColors.border.withAlpha(80),
+                    borderRadius: BorderRadius.circular(4)),
+                )),
+              ),
+              const SizedBox(height: 6),
+              // Progress bar
+              ClipRRect(
+                borderRadius: BorderRadius.circular(2),
+                child: LinearProgressIndicator(
+                  value: (currentStep + 1) / 3,
+                  minHeight: 3,
+                  backgroundColor: AppColors.border.withAlpha(40),
+                  valueColor: const AlwaysStoppedAnimation<Color>(accent)),
+              ),
+              const SizedBox(height: 20),
+              Row(children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: accent.withAlpha(30),
+                    borderRadius: BorderRadius.circular(10)),
+                  child: Icon(icon, color: accent, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(step, style: GoogleFonts.openSans(
+                        color: AppColors.muted, fontSize: 10,
+                        fontWeight: FontWeight.w800, letterSpacing: 1.5)),
+                    Text(title, style: GoogleFonts.montserrat(
+                        color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w800)),
+                  ],
+                )),
+              ]),
+              const SizedBox(height: 20),
+            ]);
+          }
+
+          // ── Step 1: Training Type ──
+          Widget step1() => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              header('SCHRITT 1 VON 3', 'Was ist das Ziel?', Icons.track_changes),
+              Text(widget.client.name,
+                  style: GoogleFonts.openSans(color: AppColors.muted, fontSize: 12)),
+              const SizedBox(height: 16),
+              ..._trainingTypes.entries.map((e) {
+                final isSelected = selectedType == e.key;
+                final intensity = (e.value['intensity'] as double?) ?? 0.5;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: GestureDetector(
+                    onTap: () {
+                      ss(() => selectedType = e.key);
+                      // Auto-advance after short delay
+                      Future.delayed(const Duration(milliseconds: 400),
+                          () { if (ctx.mounted) goTo(1, ss); });
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: isSelected ? accent.withAlpha(20) : AppColors.surface2.withAlpha(100),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isSelected ? accent : AppColors.border.withAlpha(50),
+                          width: isSelected ? 1.5 : 1),
+                      ),
+                      child: Row(children: [
+                        Icon(e.value['icon'] as IconData, size: 24,
+                            color: isSelected ? accent : AppColors.muted),
+                        const SizedBox(width: 12),
+                        Expanded(child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(e.value['label'] as String,
+                                style: GoogleFonts.openSans(
+                                    color: isSelected ? accent : AppColors.text,
+                                    fontSize: 15, fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 2),
+                            Text(e.value['desc'] as String,
+                                style: GoogleFonts.openSans(
+                                    color: AppColors.muted, fontSize: 11)),
+                          ],
+                        )),
+                        // Intensity bar
+                        SizedBox(
+                          width: 50,
+                          child: Column(children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(2),
+                              child: LinearProgressIndicator(
+                                value: intensity,
+                                minHeight: 4,
+                                backgroundColor: AppColors.border.withAlpha(40),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                    isSelected ? accent : AppColors.muted.withAlpha(120))),
+                            ),
+                            const SizedBox(height: 2),
+                            Text('${(intensity * 100).round()}%',
+                                style: GoogleFonts.openSans(
+                                    color: AppColors.muted, fontSize: 9)),
+                          ]),
+                        ),
+                      ]),
                     ),
                   ),
+                );
+              }),
+            ],
+          );
+
+          // ── Step 2: Duration ──
+          Widget step2() => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              header('SCHRITT 2 VON 3', 'Wie lange?', Icons.timer_outlined),
+              if (selectedType != null && recs['durationHint'] != null)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: accent.withAlpha(15),
+                    borderRadius: BorderRadius.circular(10)),
+                  child: Row(children: [
+                    const Icon(Icons.lightbulb_outline, size: 16, color: accent),
+                    const SizedBox(width: 8),
+                    Text('Empfohlen für $typeLabel: ${recs['durationHint']}',
+                        style: GoogleFonts.openSans(color: accent, fontSize: 12, fontWeight: FontWeight.w600)),
+                  ]),
                 ),
+              ...[30, 45, 60].map((dur) {
+                final isSelected = !durationIsFrei && selectedDuration == dur;
+                final isRec = recDurations.contains(dur);
+                final labels = {30: 'Quick Shot', 45: 'Sweet Spot', 60: 'Full Power'};
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: GestureDetector(
+                    onTap: () {
+                      ss(() { durationIsFrei = false; selectedDuration = dur; });
+                      Future.delayed(const Duration(milliseconds: 400),
+                          () { if (ctx.mounted) goTo(2, ss); });
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isSelected ? accent.withAlpha(20) : AppColors.surface2.withAlpha(100),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isSelected ? accent : AppColors.border.withAlpha(50),
+                          width: isSelected ? 1.5 : 1),
+                      ),
+                      child: Row(children: [
+                        Text('$dur', style: GoogleFonts.montserrat(
+                            color: isSelected ? accent : AppColors.text,
+                            fontSize: 28, fontWeight: FontWeight.w800)),
+                        const SizedBox(width: 4),
+                        Text('min', style: GoogleFonts.openSans(
+                            color: AppColors.muted, fontSize: 13)),
+                        const SizedBox(width: 12),
+                        Expanded(child: Text(labels[dur] ?? '',
+                            style: GoogleFonts.openSans(
+                                color: AppColors.muted, fontSize: 12))),
+                        if (isRec)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: accent.withAlpha(25),
+                              borderRadius: BorderRadius.circular(8)),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              const Icon(Icons.star_rounded, size: 14, color: accent),
+                              const SizedBox(width: 3),
+                              Text('Empfohlen', style: GoogleFonts.openSans(
+                                  color: accent, fontSize: 10, fontWeight: FontWeight.w700)),
+                            ]),
+                          ),
+                      ]),
+                    ),
+                  ),
+                );
+              }),
+              // Frei option
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: GestureDetector(
+                  onTap: () {
+                    ss(() { durationIsFrei = true; selectedDuration = null; });
+                    Future.delayed(const Duration(milliseconds: 400),
+                        () { if (ctx.mounted) goTo(2, ss); });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: durationIsFrei ? accent.withAlpha(20) : AppColors.surface2.withAlpha(100),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: durationIsFrei ? accent : AppColors.border.withAlpha(50),
+                        width: durationIsFrei ? 1.5 : 1),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.auto_awesome, size: 24, color: accent),
+                      const SizedBox(width: 12),
+                      Expanded(child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Frei', style: GoogleFonts.openSans(
+                              color: durationIsFrei ? accent : AppColors.text,
+                              fontSize: 15, fontWeight: FontWeight.w700)),
+                          Text('KI entscheidet basierend auf Fitnesslevel',
+                              style: GoogleFonts.openSans(color: AppColors.muted, fontSize: 11)),
+                        ],
+                      )),
+                    ]),
+                  ),
+                ),
+              ),
+            ],
+          );
+
+          // ── Step 3: Equipment + Summary ──
+          Widget step3() => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              header('SCHRITT 3 VON 3', 'Welche Geräte?', Icons.handyman_outlined),
+              if (recEquipment.isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: accent.withAlpha(15),
+                    borderRadius: BorderRadius.circular(10)),
+                  child: Row(children: [
+                    const Icon(Icons.lightbulb_outline, size: 16, color: accent),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(
+                        'Empfohlen für $typeLabel: ${recEquipment.map((e) => _equipmentOptions[e]?['label'] ?? e).join(', ')}',
+                        style: GoogleFonts.openSans(color: accent, fontSize: 12, fontWeight: FontWeight.w600))),
+                  ]),
+                ),
+              Wrap(
+                spacing: 8, runSpacing: 8,
+                children: _equipmentOptions.entries.map((e) {
+                  final isSelected = selectedEquipment.contains(e.key);
+                  final isRec = recEquipment.contains(e.key);
+                  return chip(
+                    e.value['label'] as String,
+                    isSelected ? Icons.check_box : Icons.check_box_outline_blank,
+                    isSelected,
+                    subtitle: e.value['desc'] as String?,
+                    recommended: isRec && !isSelected,
+                    onTap: () => ss(() {
+                      equipmentIsFrei = false;
+                      isSelected ? selectedEquipment.remove(e.key) : selectedEquipment.add(e.key);
+                    }),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 8),
+              // Frei option
+              chip('Frei (KI wählt)', Icons.auto_awesome, equipmentIsFrei,
+                  subtitle: 'Optimale Geräte basierend auf Profil',
+                  onTap: () => ss(() {
+                    equipmentIsFrei = !equipmentIsFrei;
+                    if (equipmentIsFrei) selectedEquipment.clear();
+                  })),
+              const SizedBox(height: 24),
+
+              // ── Summary + Generate ──
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [accent.withAlpha(15), accent.withAlpha(8)],
+                    begin: Alignment.topLeft, end: Alignment.bottomRight),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: accent.withAlpha(40))),
+                child: Column(children: [
+                  // Config summary chips
+                  Wrap(
+                    spacing: 6, runSpacing: 6,
+                    children: [
+                      if (selectedType != null)
+                        _buildConfigChip(typeLabel,
+                            _trainingTypes[selectedType]?['icon'] as IconData? ?? Icons.sports),
+                      if (selectedDuration != null)
+                        _buildConfigChip('$selectedDuration min', Icons.timer_outlined),
+                      if (durationIsFrei)
+                        _buildConfigChip('Dauer: Frei', Icons.timer_outlined),
+                      if (selectedEquipment.isNotEmpty)
+                        ...selectedEquipment.map((e) => _buildConfigChip(
+                            _equipmentOptions[e]?['label'] as String? ?? e,
+                            _equipmentOptions[e]?['icon'] as IconData? ?? Icons.build)),
+                      if (equipmentIsFrei || selectedEquipment.isEmpty)
+                        _buildConfigChip('Geräte: Frei', Icons.auto_awesome),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: (selectedType != null && (selectedDuration != null || durationIsFrei))
+                          ? () => Navigator.pop(ctx, {
+                                'trainingType': selectedType,
+                                'duration': durationIsFrei ? null : selectedDuration,
+                                'equipment': equipmentIsFrei || selectedEquipment.isEmpty
+                                    ? null : selectedEquipment.toList(),
+                              })
+                          : null,
+                      icon: const Icon(Icons.auto_awesome, size: 18),
+                      label: const Text('Plan generieren'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: accent,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: AppColors.surface2,
+                        disabledForegroundColor: AppColors.muted,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    ),
+                  ),
+                ]),
+              ),
+            ],
+          );
+
+          return SizedBox(
+            height: MediaQuery.of(ctx).size.height * 0.85,
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: 20, right: 20, top: 12,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 12),
+              child: Column(children: [
+                // Handle bar
+                Center(child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.muted.withAlpha(80),
+                    borderRadius: BorderRadius.circular(2)),
+                )),
+                const SizedBox(height: 12),
+                // Back button (steps 2+3)
+                if (currentStep > 0)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: GestureDetector(
+                      onTap: () => goTo(currentStep - 1, ss),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        const Icon(Icons.arrow_back_ios, size: 14, color: accent),
+                        const SizedBox(width: 4),
+                        Text('Zurück', style: GoogleFonts.openSans(
+                            color: accent, fontSize: 13, fontWeight: FontWeight.w600)),
+                      ]),
+                    ),
+                  ),
                 const SizedBox(height: 8),
-              ],
+                // PageView
+                Expanded(
+                  child: PageView(
+                    controller: pageCtrl,
+                    physics: const NeverScrollableScrollPhysics(),
+                    onPageChanged: (i) => ss(() => currentStep = i),
+                    children: [
+                      SingleChildScrollView(child: step1()),
+                      SingleChildScrollView(child: step2()),
+                      SingleChildScrollView(child: step3()),
+                    ],
+                  ),
+                ),
+              ]),
             ),
           );
         },
@@ -433,7 +619,6 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
     setState(() {
       _generatingAi = true;
       _aiStepIndex = 0;
-      _aiStep = _aiSteps[0];
     });
     _advanceAiSteps();
     try {
@@ -977,7 +1162,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
       opacity: _generatingAi ? 1.0 : 0.0,
       duration: const Duration(milliseconds: 300),
       child: Container(
-        color: Colors.black.withOpacity(0.85),
+        color: Colors.black.withValues(alpha: 0.85),
         child: Center(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -992,7 +1177,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                     color: const Color(0xFF1E2740),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFAB47BC).withOpacity(0.4),
+                        color: const Color(0xFFAB47BC).withValues(alpha: 0.4),
                         blurRadius: 30,
                         spreadRadius: 5,
                       ),
@@ -1053,7 +1238,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                                         color: Color(0xFFAB47BC),
                                       ),
                                     )
-                                  : Icon(Icons.circle_outlined,
+                                  : const Icon(Icons.circle_outlined,
                                       color: Colors.white24, size: 18),
                         ),
                         const SizedBox(width: 12),
@@ -1270,9 +1455,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
         ? plan.name!
         : 'Plan ${index + 1}';
     final count = _countExercises(plan);
-    final dateStr = plan.createdAt != null
-        ? plan.createdAt!.substring(0, plan.createdAt!.length.clamp(0, 10))
-        : null;
+    final dateStr = plan.createdAt?.substring(0, plan.createdAt!.length.clamp(0, 10));
 
     return Dismissible(
       key: ValueKey(plan.id ?? index),
