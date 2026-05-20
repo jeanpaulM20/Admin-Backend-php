@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, ParseIntPipe, BadRequestException } from '@nestjs/common';
 import { TrainingPlanService } from './training-plan.service';
 import { AiPlanService } from './ai-plan.service';
 import { TrainingPlan } from '../entities/training-plan.entity';
 import { CurrentClient } from '../auth/decorators/current-user.decorator';
 import { Client } from '../entities/client.entity';
+import { AiPlanRequest, AI_TRAINING_TYPES, AI_DURATIONS, AI_EQUIPMENT_OPTIONS } from './ai-plan.interfaces';
 
 @Controller('api/training-plan')
 export class TrainingPlanController {
@@ -25,13 +26,26 @@ export class TrainingPlanController {
 
   /**
    * Preview AI plan without saving — trainer can review before committing.
-   * GET /api/training-plan/ai/recommend/:clientId
+   * POST /api/training-plan/ai/recommend/:clientId
    *
+   * Body: { trainingType, duration, equipment }
    * Returns: AiPlanResult with sonsomo, main, core rows + ai_reasoning
    * Falls back to rule-based generation if ANTHROPIC_API_KEY is not set.
+   *
+   * Also accepts GET for backward compatibility (uses defaults).
    */
+  @Post('ai/recommend/:clientId')
+  recommend(
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Body() body: any,
+  ) {
+    const request = this.validatePlanRequest(body);
+    return this.aiService.generateAiPlan(clientId, request);
+  }
+
+  /** GET kept for backward compatibility — generates with default params */
   @Get('ai/recommend/:clientId')
-  recommend(@Param('clientId', ParseIntPipe) clientId: number) {
+  recommendGet(@Param('clientId', ParseIntPipe) clientId: number) {
     return this.aiService.generateAiPlan(clientId);
   }
 
@@ -56,11 +70,57 @@ export class TrainingPlanController {
    * Generate AI plan AND persist to DB + auto-create new exercises.
    * POST /api/training-plan/ai/generate/:clientId
    *
+   * Body: { trainingType, duration, equipment }
    * Returns: { plan: TrainingPlan, meta: { ai_reasoning, weaknesses, ... } }
    */
   @Post('ai/generate/:clientId')
-  generate(@Param('clientId', ParseIntPipe) clientId: number) {
-    return this.aiService.generateAndSave(clientId);
+  generate(
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Body() body: any,
+  ) {
+    const request = this.validatePlanRequest(body);
+    return this.aiService.generateAndSave(clientId, request);
+  }
+
+  // ── Validation helper ──────────────────────────────────────────────────
+
+  private validatePlanRequest(body: any): AiPlanRequest {
+    if (!body || typeof body !== 'object') {
+      throw new BadRequestException('Request body fehlt');
+    }
+
+    const { trainingType, duration, equipment } = body;
+
+    // trainingType — required, must be one of the allowed values
+    if (!trainingType || !AI_TRAINING_TYPES.includes(trainingType)) {
+      throw new BadRequestException(
+        `trainingType muss einer der Werte sein: ${AI_TRAINING_TYPES.join(', ')}`,
+      );
+    }
+
+    // duration — optional, null = frei, otherwise 30/45/60
+    const durNum = duration === undefined || duration === null ? null : Number(duration);
+    if (durNum !== null && ![30, 45, 60].includes(durNum)) {
+      throw new BadRequestException('duration muss 30, 45, 60 oder null sein');
+    }
+    const dur = durNum as AiPlanRequest['duration'];
+
+    // equipment — optional, null = frei, otherwise array of valid equipment
+    let equip: AiPlanRequest['equipment'] = null;
+    if (equipment !== undefined && equipment !== null) {
+      if (!Array.isArray(equipment)) {
+        throw new BadRequestException('equipment muss ein Array oder null sein');
+      }
+      const invalid = equipment.filter((e: any) => !AI_EQUIPMENT_OPTIONS.includes(e));
+      if (invalid.length > 0) {
+        throw new BadRequestException(
+          `Ungültige Geräte: ${invalid.join(', ')}. Erlaubt: ${AI_EQUIPMENT_OPTIONS.join(', ')}`,
+        );
+      }
+      equip = equipment.length > 0 ? equipment : null;
+    }
+
+    return { trainingType, duration: dur, equipment: equip };
   }
 
   @Put(':id')

@@ -107,7 +107,329 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
     }
   }
 
+  // ── AI Config types ──────────────────────────────────────────────────────
+  static const _trainingTypes = <String, Map<String, dynamic>>{
+    'ausdauer':       {'label': 'Ausdauer',       'icon': Icons.directions_run},
+    'kraft':          {'label': 'Kraft',           'icon': Icons.fitness_center},
+    'propriozeptiv':  {'label': 'Propriozeptiv',   'icon': Icons.self_improvement},
+    'mental_health':  {'label': 'Mental Health',   'icon': Icons.spa},
+    'athletik':       {'label': 'Athletik',        'icon': Icons.sports_gymnastics},
+    'schnelligkeit':  {'label': 'Schnelligkeit',   'icon': Icons.bolt},
+  };
+
+  static const _durations = <int?, String>{
+    30:   '30 min',
+    45:   '45 min',
+    60:   '60 min',
+    null: 'Frei',
+  };
+
+  static const _equipmentOptions = <String, Map<String, dynamic>>{
+    'mft':        {'label': 'MFT Board',   'icon': Icons.circle_outlined},
+    'slackline':  {'label': 'Slackline',   'icon': Icons.linear_scale},
+    'springseil': {'label': 'Springseil',  'icon': Icons.cable},
+  };
+
+  /// Shows the AI config bottom sheet, returns the selected config or null if cancelled.
+  Future<Map<String, dynamic>?> _showAiConfigSheet() async {
+    String? selectedType;
+    int? selectedDuration; // null = not explicitly set yet
+    bool durationIsFrei = false;
+    final selectedEquipment = <String>{};
+    bool equipmentIsFrei = false;
+
+    return showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          final canGenerate = selectedType != null &&
+              (selectedDuration != null || durationIsFrei);
+
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 20, right: 20, top: 16,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Handle bar
+                Center(
+                  child: Container(
+                    width: 40, height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.muted.withAlpha(80),
+                      borderRadius: BorderRadius.circular(2)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Title
+                Row(children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFAB47BC).withAlpha(30),
+                      borderRadius: BorderRadius.circular(10)),
+                    child: const Icon(Icons.auto_awesome, color: Color(0xFFAB47BC), size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Neuer KI-Trainingsplan',
+                            style: GoogleFonts.montserrat(
+                                color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w800)),
+                        Text(widget.client.name,
+                            style: GoogleFonts.openSans(color: AppColors.muted, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 24),
+
+                // ── Training Type ──
+                Text('TRAINING TYP',
+                    style: GoogleFonts.openSans(
+                        color: AppColors.muted, fontSize: 10,
+                        fontWeight: FontWeight.w800, letterSpacing: 1.5)),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8, runSpacing: 8,
+                  children: _trainingTypes.entries.map((e) {
+                    final isSelected = selectedType == e.key;
+                    return GestureDetector(
+                      onTap: () => setModalState(() => selectedType = e.key),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? const Color(0xFFAB47BC).withAlpha(25)
+                              : AppColors.surface2.withAlpha(120),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSelected
+                                ? const Color(0xFFAB47BC)
+                                : AppColors.border.withAlpha(60),
+                            width: isSelected ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(e.value['icon'] as IconData,
+                                size: 16,
+                                color: isSelected ? const Color(0xFFAB47BC) : AppColors.muted),
+                            const SizedBox(width: 6),
+                            Text(e.value['label'] as String,
+                                style: GoogleFonts.openSans(
+                                    color: isSelected ? const Color(0xFFAB47BC) : AppColors.text,
+                                    fontSize: 13,
+                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500)),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 20),
+
+                // ── Duration ──
+                Text('DAUER',
+                    style: GoogleFonts.openSans(
+                        color: AppColors.muted, fontSize: 10,
+                        fontWeight: FontWeight.w800, letterSpacing: 1.5)),
+                const SizedBox(height: 10),
+                Row(
+                  children: _durations.entries.map((e) {
+                    final isFrei = e.key == null;
+                    final isSelected = isFrei ? durationIsFrei : (!durationIsFrei && selectedDuration == e.key);
+                    return Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: GestureDetector(
+                          onTap: () => setModalState(() {
+                            if (isFrei) {
+                              durationIsFrei = true;
+                              selectedDuration = null;
+                            } else {
+                              durationIsFrei = false;
+                              selectedDuration = e.key;
+                            }
+                          }),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? const Color(0xFFAB47BC).withAlpha(25)
+                                  : AppColors.surface2.withAlpha(120),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isSelected
+                                    ? const Color(0xFFAB47BC)
+                                    : AppColors.border.withAlpha(60),
+                                width: isSelected ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Text(e.value,
+                                style: GoogleFonts.openSans(
+                                    color: isSelected ? const Color(0xFFAB47BC) : AppColors.text,
+                                    fontSize: 13,
+                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500)),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 20),
+
+                // ── Equipment ──
+                Text('GERÄTE',
+                    style: GoogleFonts.openSans(
+                        color: AppColors.muted, fontSize: 10,
+                        fontWeight: FontWeight.w800, letterSpacing: 1.5)),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8, runSpacing: 8,
+                  children: [
+                    ..._equipmentOptions.entries.map((e) {
+                      final isSelected = selectedEquipment.contains(e.key);
+                      return GestureDetector(
+                        onTap: () => setModalState(() {
+                          equipmentIsFrei = false;
+                          if (isSelected) {
+                            selectedEquipment.remove(e.key);
+                          } else {
+                            selectedEquipment.add(e.key);
+                          }
+                        }),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? const Color(0xFFAB47BC).withAlpha(25)
+                                : AppColors.surface2.withAlpha(120),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isSelected
+                                  ? const Color(0xFFAB47BC)
+                                  : AppColors.border.withAlpha(60),
+                              width: isSelected ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isSelected ? Icons.check_box : Icons.check_box_outline_blank,
+                                size: 16,
+                                color: isSelected ? const Color(0xFFAB47BC) : AppColors.muted),
+                              const SizedBox(width: 6),
+                              Text(e.value['label'] as String,
+                                  style: GoogleFonts.openSans(
+                                      color: isSelected ? const Color(0xFFAB47BC) : AppColors.text,
+                                      fontSize: 13,
+                                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500)),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                    // "Frei" option
+                    GestureDetector(
+                      onTap: () => setModalState(() {
+                        equipmentIsFrei = !equipmentIsFrei;
+                        if (equipmentIsFrei) selectedEquipment.clear();
+                      }),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: equipmentIsFrei
+                              ? const Color(0xFFAB47BC).withAlpha(25)
+                              : AppColors.surface2.withAlpha(120),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: equipmentIsFrei
+                                ? const Color(0xFFAB47BC)
+                                : AppColors.border.withAlpha(60),
+                            width: equipmentIsFrei ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.auto_awesome,
+                                size: 16,
+                                color: equipmentIsFrei ? const Color(0xFFAB47BC) : AppColors.muted),
+                            const SizedBox(width: 6),
+                            Text('Frei (KI wählt)',
+                                style: GoogleFonts.openSans(
+                                    color: equipmentIsFrei ? const Color(0xFFAB47BC) : AppColors.text,
+                                    fontSize: 13,
+                                    fontWeight: equipmentIsFrei ? FontWeight.w700 : FontWeight.w500)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 28),
+
+                // ── Generate button ──
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: canGenerate
+                        ? () {
+                            Navigator.pop(ctx, {
+                              'trainingType': selectedType,
+                              'duration': durationIsFrei ? null : selectedDuration,
+                              'equipment': equipmentIsFrei || selectedEquipment.isEmpty
+                                  ? null
+                                  : selectedEquipment.toList(),
+                            });
+                          }
+                        : null,
+                    icon: const Icon(Icons.auto_awesome, size: 18),
+                    label: const Text('Plan generieren'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFAB47BC),
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: AppColors.surface2,
+                      disabledForegroundColor: AppColors.muted,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Future<void> _generateAiPlan() async {
+    // Step 1: Show config sheet
+    final config = await _showAiConfigSheet();
+    if (config == null || !mounted) return; // cancelled
+
+    // Step 2: Start generation with loading overlay
     setState(() {
       _generatingAi = true;
       _aiStepIndex = 0;
@@ -115,8 +437,9 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
     });
     _advanceAiSteps();
     try {
-      final result = await _api.get(
+      final result = await _api.post(
         '${ApiConfig.trainingPlan}/ai/recommend/${widget.client.id}',
+        body: config,
       );
       if (!mounted) return;
       if (result is Map<String, dynamic>) {
@@ -152,6 +475,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
     final mobility = result['mobility'] as List<dynamic>? ?? [];
     final totalExercises = sonsomo.length + main.length + core.length + mobility.length;
     final isRuleBased = result['isRuleBased'] == true;
+    final requestEcho = result['request'] as Map<String, dynamic>?;
 
     final accepted = await showModalBottomSheet<bool>(
       context: context,
@@ -205,6 +529,34 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                 ),
               ),
             ]),
+
+            // ── Request config chips ──
+            if (requestEcho != null) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 6, runSpacing: 6,
+                children: [
+                  if (requestEcho['trainingType'] != null)
+                    _buildConfigChip(
+                      _trainingTypes[requestEcho['trainingType']]?['label'] as String? ?? requestEcho['trainingType'].toString(),
+                      _trainingTypes[requestEcho['trainingType']]?['icon'] as IconData? ?? Icons.sports,
+                    ),
+                  if (requestEcho['duration'] != null)
+                    _buildConfigChip('${requestEcho['duration']} min', Icons.timer_outlined),
+                  if (requestEcho['duration'] == null)
+                    _buildConfigChip('Dauer: Frei', Icons.timer_outlined),
+                  if (requestEcho['equipment'] is List)
+                    ...((requestEcho['equipment'] as List).map<Widget>((e) =>
+                      _buildConfigChip(
+                        _equipmentOptions[e.toString()]?['label'] as String? ?? e.toString(),
+                        _equipmentOptions[e.toString()]?['icon'] as IconData? ?? Icons.build,
+                      ),
+                    )),
+                  if (requestEcho['equipment'] == null)
+                    _buildConfigChip('Geräte: Frei', Icons.auto_awesome),
+                ],
+              ),
+            ],
             const SizedBox(height: 20),
 
             // Rule-based fallback warning
@@ -467,6 +819,27 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
         }),
         const SizedBox(height: 8),
       ],
+    );
+  }
+
+  Widget _buildConfigChip(String label, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFAB47BC).withAlpha(20),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFAB47BC).withAlpha(60)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: const Color(0xFFAB47BC)),
+          const SizedBox(width: 4),
+          Text(label,
+              style: GoogleFonts.openSans(
+                  color: const Color(0xFFAB47BC), fontSize: 11, fontWeight: FontWeight.w600)),
+        ],
+      ),
     );
   }
 

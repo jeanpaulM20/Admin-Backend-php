@@ -21,10 +21,12 @@ import { Goal } from '../entities/remaining.entities';
 import {
   AiPlanResult,
   AiPlanRow,
+  AiPlanRequest,
   AiWeakness,
   AiExerciseCatalog,
   AiPromptContext,
   AiLlmResponse,
+  AiTrainingType,
 } from './ai-plan.interfaces';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -171,7 +173,7 @@ export class AiPlanService {
     return status;
   }
 
-  async generateAiPlan(clientId: number): Promise<AiPlanResult> {
+  async generateAiPlan(clientId: number, request?: AiPlanRequest): Promise<AiPlanResult> {
     // 1. Load all required data in parallel
     const [client, test, anamnese, exercises, metric, goals, recentReviews] = await Promise.all([
       this.loadClient(clientId),
@@ -189,9 +191,9 @@ export class AiPlanService {
     // 3. Extract contraindications from anamnese
     const contraindications = this.extractContraindications(anamnese);
 
-    // 4. Build prompt context
+    // 4. Build prompt context (with optional plan request)
     const context = this.buildPromptContext(
-      client, test, anamnese, weaknesses, exercises, metric, goals, recentReviews,
+      client, test, anamnese, weaknesses, exercises, metric, goals, recentReviews, request,
     );
 
     // 5. Generate plan (AI or rule-based fallback)
@@ -241,6 +243,7 @@ export class AiPlanService {
       basedOnTestDate: test?.date ?? null,
       contraindications,
       ...(isRuleBased ? { isRuleBased: true, llmError } : {}),
+      ...(request ? { request } : {}),
     };
   }
 
@@ -248,11 +251,11 @@ export class AiPlanService {
    * Generate and immediately persist the plan to the DB.
    * Returns the saved TrainingPlan entity + AI metadata.
    */
-  async generateAndSave(clientId: number): Promise<{
+  async generateAndSave(clientId: number, request?: AiPlanRequest): Promise<{
     plan: TrainingPlan;
     meta: Omit<AiPlanResult, 'sonsomo' | 'main' | 'core' | 'mobility' | 'name'>;
   }> {
-    const result = await this.generateAiPlan(clientId);
+    const result = await this.generateAiPlan(clientId, request);
 
     const values = JSON.stringify({
       sonsomo: result.sonsomo.map(this.toPlanRow),
@@ -475,11 +478,134 @@ export class AiPlanService {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // TRAINING TYPE PROMPT EXTENSIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /** Training-type-specific prompt blocks injected into the system prompt */
+  private static readonly TRAINING_TYPE_PROMPTS: Record<AiTrainingType, string> = {
+    ausdauer: `TRAININGSTYP: AUSDAUER
+FOKUS: Cardio-Intervalle, Laufübungen, Seilspringen, HIIT-Zirkel.
+- Sonsomo: Kurze Aktivierung, Seilspringen, Lauf-ABC
+- Main: Zirkeltraining mit kurzen Pausen (30-60s), Intervall-Belastungen, Ausdauer-Kraftübungen mit hoher Wiederholungszahl (15-25 Rep)
+- Core: Dynamische Core-Übungen mit Cardio-Anteil (Mountain Climbers, Plank Jacks)
+- Mobility: Aktive Erholung, leichte Dehnungen, Atemübungen
+Pulsbereich: 65-85% der max. Herzfrequenz. Sätze: 3-4×15-25 Rep oder Zeitintervalle (30-60s Arbeit / 15-30s Pause).`,
+
+    kraft: `TRAININGSTYP: KRAFT
+FOKUS: Maximalkraft und Hypertrophie, Compound-Lifts.
+- Sonsomo: Gelenkspezifische Mobilisation, leichte Aktivierungsübungen
+- Main: Compound-Lifts (Squat, Deadlift, Press, Row) + isolierte Übungen für identifizierte Schwächen. Schwere Gewichte, niedrige Wiederholungen.
+- Core: Anti-Rotations- und Anti-Flexions-Übungen unter Last (Pallof Press, Farmer's Carry, Heavy Plank)
+- Mobility: Gelenkmobilisation der belasteten Bereiche
+Sätze: 4-5×5-8 Rep für Compound, 3×8-12 Rep für Isolation. Pausen: 90-180s zwischen Sätzen.`,
+
+    propriozeptiv: `TRAININGSTYP: PROPRIOZEPTIV
+FOKUS: Balance, Koordination, Sensorik, neuronale Ansteuerung.
+- Sonsomo: ERWEITERT auf 4-6 Übungen! Balance Board, MFT Board, Slackline, Einbeinstand mit geschlossenen Augen, Barfuß-Übungen, Kurzfuß nach Janda
+- Main: Instabile Untergründe (Bosu, Airex, Wackelbrett), unilaterale Übungen, kontralaterale Bewegungsmuster, Gleichgewichtsübungen mit kognitiver Doppelaufgabe (Dual-Task)
+- Core: Stabilisierung auf instabilem Untergrund, Anti-Rotations-Übungen im Einbeinstand
+- Mobility: CARs aller großen Gelenke, Sprunggelenk-Mobilisation, Fußgewölbe-Arbeit
+BEVORZUGE: Barfuß-Training, propriozeptive Geräte (MFT, Balance Board, Slackline, Airex), Einbeinstand-Varianten, geschlossene-Augen-Übungen.`,
+
+    mental_health: `TRAININGSTYP: MENTAL HEALTH
+FOKUS: Atemübungen, Yoga-Elemente, Meditation, Flow-Bewegungen, therapeutisches Klettern, Slackline, propriozeptives Training zur neuronalen Stimulation und Flow-Erlebnis.
+- Sonsomo: Atemübungen (Box Breathing, 4-7-8 Technik), achtsame Körperwahrnehmung, langsame Barfuß-Balanceübungen, Slackline für Achtsamkeit und Flow
+- Main: Flow-Bewegungen (Animal Flows, Yoga-Sequenzen), therapeutisches Klettern (Bouldern, Traversieren), Slackline-Training, propriozeptive Übungen mit bewusster neuronaler Stimulation, moderate Kraftübungen mit Fokus auf Körperwahrnehmung. Langsames kontrolliertes Tempo, Fokus auf Bewegungsqualität statt Intensität.
+- Core: Yoga-basierte Core-Übungen (Boat Pose, Plank-Flow), Atemgesteuerte Stabilisation, Pilates-Elemente
+- Mobility: Yoga-Flows, Meditation in Dehnpositionen, Faszien-Release, Progressive Muskelentspannung
+INTENSITÄT: Moderat (RPE 4-6/10). KEINE Maximalkraft, KEIN HIIT. Puls unter 70% HFmax. Fokus auf Parasympathikus-Aktivierung und Flow-Erlebnis.
+BEVORZUGE: Slackline, Kletterwand/Bouldern, Yoga-Matten, Faszienrollen, propriozeptive Geräte für neuronale Stimulation.`,
+
+    athletik: `TRAININGSTYP: ATHLETIK
+FOKUS: Explosivkraft, Plyometrie, Agility, sportartspezifische Leistung.
+- Sonsomo: Dynamische Mobilisation, Lauf-ABC, Sprunggelenk-Aktivierung, Reaktionsübungen
+- Main: Plyometrische Übungen (Box Jumps, Depth Jumps, Bounding), Sprint-Drills, Agility-Leiter, Medizinball-Würfe, olympische Lifts (Power Clean, Push Press), Reaktionstraining
+- Core: Explosive Core-Übungen (Med Ball Slams, Rotational Throws, Hanging Leg Raises)
+- Mobility: Dynamische Dehnungen, Hip Opener, Sprunggelenk-Mobilisation
+Sätze: 3-5×3-6 Rep für Explosivkraft, 4-6×10-20m für Sprints. Pausen: 120-180s (vollständige Erholung). Power-Übungen IMMER am Anfang (frisch).`,
+
+    schnelligkeit: `TRAININGSTYP: SCHNELLIGKEIT
+FOKUS: Sprint-Intervalle, Reaktionstraining, Frequenzübungen, maximale Geschwindigkeit, Barfußtraining zur Stärkung der Fußmuskulatur und Verbesserung der Feinmotorik, Propriozeptives Training zur Verbesserung der neuronalen Ansteuerung und Schnelligkeit, Barfuß Lauf-ABC.
+- Sonsomo: Barfuß-Training! Kurzfuß nach Janda, Zehengreifen, Fußgewölbe-Aktivierung, Barfuß Lauf-ABC (Kniehebelauf, Anfersen, Skippings, Fußgelenksarbeit barfuß), propriozeptive Übungen für neuronale Ansteuerung (Einbeinstand, Reaktionsbalance)
+- Main: Sprint-Intervalle (10-40m), Frequenzsprints (kurze Distanz, maximale Schrittfrequenz), Reaktionssprints (auf Signal), Agility-Drills, Plyometrie für Schnellkraft (Pogo Hops, Single Leg Bounds), Tapping-Übungen (Schnelle Fußkontakte), Koordinationsleiter
+- Core: Explosive Anti-Rotations-Übungen, Sprint-spezifische Core-Stabilität (Pallof Press dynamisch, Dead Bug schnell)
+- Mobility: Hüftbeuger-Mobilisation (essentiell für Sprintschrittlänge), Sprunggelenk-Mobilisation, aktive Wadendehnung
+BEVORZUGE: Barfuß-Training, Koordinationsleiter, Springseil für Frequenz, freie Sprintfläche.
+WICHTIG: Schnelligkeitsübungen IMMER im erholten Zustand durchführen (am Anfang des Trainings). Pausen: 180-300s zwischen Maximalsprints.`,
+  };
+
+  /** Duration-based exercise count mapping per section */
+  private static readonly DURATION_MAPPING: Record<number, { sonsomo: string; main: string; core: string; mobility: string }> = {
+    30: { sonsomo: '2', main: '3-4', core: '1-2', mobility: '1' },
+    45: { sonsomo: '3', main: '4-5', core: '2-3', mobility: '2' },
+    60: { sonsomo: '3-4', main: '5-7', core: '3', mobility: '2-3' },
+  };
+
+  /** Equipment labels for the prompt */
+  private static readonly EQUIPMENT_LABELS: Record<string, string> = {
+    mft: 'MFT Board (propriozeptives Balance-Board)',
+    slackline: 'Slackline (Balance und Koordination)',
+    springseil: 'Springseil (Koordination, Cardio, Frequenztraining)',
+  };
+
+  /** Build the training-type / duration / equipment extension for the system prompt */
+  private buildRequestPromptBlock(request?: AiPlanRequest): string {
+    if (!request) return '';
+
+    const blocks: string[] = [];
+
+    // 1. Training type block
+    const typePrompt = AiPlanService.TRAINING_TYPE_PROMPTS[request.trainingType];
+    if (typePrompt) {
+      blocks.push(typePrompt);
+    }
+
+    // 2. Duration block
+    if (request.duration) {
+      const mapping = AiPlanService.DURATION_MAPPING[request.duration];
+      if (mapping) {
+        blocks.push(
+          `TRAININGSDAUER: ${request.duration} Minuten\n` +
+          `Passe die Übungsanzahl an die Dauer an:\n` +
+          `- Sonsomo: ${mapping.sonsomo} Übungen\n` +
+          `- Main: ${mapping.main} Übungen\n` +
+          `- Core: ${mapping.core} Übungen\n` +
+          `- Mobility: ${mapping.mobility} Übungen\n` +
+          `Halte den Plan kompakt — lieber weniger Übungen mit guter Qualität als zu viele.`,
+        );
+      }
+    } else {
+      blocks.push(
+        'TRAININGSDAUER: Frei — wähle die optimale Übungsanzahl basierend auf dem Fitnesslevel und den Zielen des Kunden.',
+      );
+    }
+
+    // 3. Equipment block
+    if (request.equipment && request.equipment.length > 0) {
+      const labels = request.equipment
+        .map((e) => AiPlanService.EQUIPMENT_LABELS[e] ?? e)
+        .join(', ');
+      blocks.push(
+        `VERFÜGBARE GERÄTE: ${labels}\n` +
+        `BEVORZUGE diese Geräte bei der Übungsauswahl. Integriere sie aktiv in den Plan — ` +
+        `mindestens 2-3 Übungen sollten die angegebenen Geräte nutzen. ` +
+        `Gib das Gerät im "device"-Feld der jeweiligen Übung an.`,
+      );
+    } else {
+      blocks.push(
+        'GERÄTE: Frei — wähle die optimalen Geräte basierend auf den Übungen und dem Kundenprofil.',
+      );
+    }
+
+    return '\n\n' + blocks.join('\n\n');
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // LLM CALL — supports Groq and Anthropic
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /** Shared system prompt used by all providers */
-  private get systemPrompt(): string {
+  /** Shared system prompt — includes optional training type/duration/equipment blocks */
+  private buildSystemPrompt(request?: AiPlanRequest): string {
     return `Du bist ein erfahrener Sportwissenschaftler und Personal Trainer.
 Deine Aufgabe: Erstelle einen individualisierten Trainingsplan basierend auf den Leistungstest-Ergebnissen, der medizinischen Anamnese, der Körperzusammensetzung, den Kundenzielen und der Trainingshistorie des Kunden.
 
@@ -544,6 +670,8 @@ FUß:
 - Fibularis longus (Pronation): Push|Sprunggelenk → Ant: Tibialis anterior
 - Tibialis posterior (Supination): Push|Sprunggelenk → Ant: Ext. digitorum/hallucis longus
 
+${this.buildRequestPromptBlock(request)}
+
 Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
 {
   "plan_name": "Kurzer Planname (z.B. 'Kraft & Stabilität Phase 1')",
@@ -585,11 +713,23 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
       })
       .join('\n');
 
+    // Build request summary for the user prompt (reinforces system prompt)
+    const requestSummary = context.planRequest
+      ? [
+          '',
+          'TRAINER-VORGABEN:',
+          `- Trainingstyp: ${context.planRequest.trainingType.toUpperCase()}`,
+          `- Dauer: ${context.planRequest.duration ? context.planRequest.duration + ' Minuten' : 'Frei (KI entscheidet)'}`,
+          `- Geräte: ${context.planRequest.equipment?.length ? context.planRequest.equipment.join(', ') : 'Frei (KI wählt)'}`,
+          '',
+        ].join('\n')
+      : '';
+
     return [
       'Erstelle einen Trainingsplan für folgenden Kunden:',
       '',
       JSON.stringify(stripNulls(rest), null, 2),
-      '',
+      requestSummary,
       'VERFÜGBARE ÜBUNGEN (id|name|gruppe|muskel|gelenk|pattern):',
       catalogLines,
       '',
@@ -606,8 +746,10 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
     metric: Metric | null,
     goals: Goal[],
     recentReviews: Review[],
+    request?: AiPlanRequest,
   ): AiPromptContext {
     return {
+      planRequest: request ?? undefined,
       client: {
         id: client.id,
         name: `${client.firstname} ${client.lastname}`,
@@ -721,6 +863,7 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
     if (!this.groq) throw new ServiceUnavailableException('Groq API key not configured');
 
     const userPrompt = this.buildUserPrompt(context);
+    const systemPrompt = this.buildSystemPrompt(context.planRequest);
 
     const response = await Promise.race([
       this.groq.chat.completions.create({
@@ -728,7 +871,7 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
         max_tokens: 4096,
         temperature: 0.3,
         messages: [
-          { role: 'system', content: this.systemPrompt },
+          { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
       }),
@@ -749,12 +892,13 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
     if (!this.anthropic) throw new ServiceUnavailableException('Anthropic API key not configured');
 
     const userPrompt = this.buildUserPrompt(context);
+    const systemPrompt = this.buildSystemPrompt(context.planRequest);
 
     const response = await Promise.race([
       this.anthropic.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 4096,
-        system: this.systemPrompt,
+        system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
       }),
       new Promise<never>((_, reject) =>

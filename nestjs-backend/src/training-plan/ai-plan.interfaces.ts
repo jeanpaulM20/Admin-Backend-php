@@ -2,6 +2,40 @@
 // Interfaces for AI-powered training plan generation
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Training Type / Duration / Equipment selection ─────────────────────────
+
+export type AiTrainingType =
+  | 'ausdauer'
+  | 'kraft'
+  | 'propriozeptiv'
+  | 'mental_health'
+  | 'athletik'
+  | 'schnelligkeit';
+
+export type AiDuration = 30 | 45 | 60 | null; // null = frei (KI entscheidet)
+
+export type AiEquipment = 'mft' | 'slackline' | 'springseil';
+
+/** Request body sent by the trainer to steer AI plan generation. */
+export interface AiPlanRequest {
+  trainingType: AiTrainingType;
+  duration: AiDuration;                       // null = frei
+  equipment: AiEquipment[] | null;            // null = frei (KI wählt)
+}
+
+/** Valid training types for runtime validation. */
+export const AI_TRAINING_TYPES: AiTrainingType[] = [
+  'ausdauer', 'kraft', 'propriozeptiv', 'mental_health', 'athletik', 'schnelligkeit',
+];
+
+/** Valid durations for runtime validation. */
+export const AI_DURATIONS: (number | null)[] = [30, 45, 60, null];
+
+/** Valid equipment options for runtime validation. */
+export const AI_EQUIPMENT_OPTIONS: AiEquipment[] = ['mft', 'slackline', 'springseil'];
+
+// ── Exercise row ───────────────────────────────────────────────────────────
+
 /** Single exercise row as stored in the TrainingPlan JSON `values` blob. */
 export interface AiPlanRow {
   exercise: string;
@@ -28,6 +62,8 @@ export interface AiPlanResult {
   contraindications: string[];       // Active medical constraints
   isRuleBased?: boolean;             // true = LLM failed, rule-based fallback used
   llmError?: string;                 // Error message if LLM failed
+  // Echo back the request params so the frontend can display them
+  request?: AiPlanRequest;
 }
 
 /** A single identified weakness from the performance test. */
@@ -54,8 +90,9 @@ export interface AiExerciseCatalog {
   pattern: string | null;
 }
 
-/** The structured prompt context assembled for the LLM. */
+/** The structured prompt context assembled for the LLM. Includes optional plan request. */
 export interface AiPromptContext {
+  planRequest?: AiPlanRequest;        // Training type / duration / equipment selection
   client: {
     id: number;
     name: string;
