@@ -730,10 +730,19 @@ WICHTIG: Nur für gut trainierte Kunden. Bei Anfängern → kürzere/weniger Int
       }
 
       // Running-specific output format — adapt examples based on HR availability
+      // RPE example MUST match the active zone to prevent LLM from copying a wrong default
+      const RPE_EXAMPLES: Record<AiAusdauerIntensity, string> = {
+        regenerativ: 'RPE 2-3 / Sehr locker',
+        allgemeine:  'RPE 3-4 / Moderat',
+        spezial:     'RPE 5-6 / Anstrengend',
+        schwelle:    'RPE 7-8 / Sehr anstrengend',
+        hiit:        'RPE 9-10 / Maximal',
+      };
+      const activeRpeExample = RPE_EXAMPLES[request.ausdauerIntensity!] ?? 'RPE 5-6 / Anstrengend';
       const hrZonesAvailable = context ? this.calculateHrZones(context) : null;
       const posExample = hrZonesAvailable
         ? `Herzfrequenz-Zone (z.B. "Zone 2: ${hrZonesAvailable.zone2[0]}-${hrZonesAvailable.zone2[1]} bpm")`
-        : `RPE-Wert (z.B. "RPE 4-5 / Locker")`;
+        : `RPE-Wert passend zur Zone (z.B. "${activeRpeExample}")`;
       blocks.push(
         `LAUFPLAN-FORMAT: Der "main"-Bereich enthält NUR Laufprotokoll-Zeilen:\n` +
         `- "exercise_name": Phasenname (z.B. "Aufwärmen", "GA1 Dauerlauf", "Tempo-Intervall", "Aktive Pause", "Cool-down")\n` +
