@@ -27,6 +27,8 @@ import {
   AiPromptContext,
   AiLlmResponse,
   AiTrainingType,
+  AiAusdauerIntensity,
+  AiHrZones,
 } from './ai-plan.interfaces';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -212,9 +214,23 @@ export class AiPlanService {
     // 6. Match suggested exercises against DB
     const exerciseMap = new Map(exercises.map((e) => [e.id, e]));
     const exerciseByName = new Map(exercises.map((e) => [e.name.toLowerCase(), e]));
+    const isRunningPlan = request?.trainingType === 'ausdauer' && !!request?.ausdauerIntensity;
 
-    const mapRows = (rows: AiLlmResponse['sonsomo']): AiPlanRow[] =>
+    const mapRows = (rows: AiLlmResponse['sonsomo'], skipDbMatch = false): AiPlanRow[] =>
       rows.map((r) => {
+        // Running protocol rows in main don't match DB exercises
+        if (skipDbMatch) {
+          return {
+            exercise: r.exercise_name,
+            exerciseId: undefined,
+            isNew: false,
+            device: r.device || '',
+            position: r.position || '',
+            weight: r.weight || '',
+            sets: r.sets || '',
+            dates: Array(8).fill(''),
+          };
+        }
         // Try matching by ID first, then by name
         const byId = r.exercise_id ? exerciseMap.get(r.exercise_id) : null;
         const byName = exerciseByName.get(r.exercise_name.toLowerCase());
@@ -231,10 +247,13 @@ export class AiPlanService {
         };
       });
 
+    // For running plans, calculate HR zones to return to frontend
+    const hrZones = isRunningPlan ? this.calculateHrZones(context) : null;
+
     return {
       name: llmResponse.plan_name,
       sonsomo: mapRows(llmResponse.sonsomo),
-      main: mapRows(llmResponse.main),
+      main: mapRows(llmResponse.main, isRunningPlan), // Running: skip DB match for protocol rows
       core: mapRows(llmResponse.core),
       mobility: mapRows(llmResponse.mobility ?? []),
       ai_reasoning: llmResponse.reasoning,
@@ -244,6 +263,7 @@ export class AiPlanService {
       contraindications,
       ...(isRuleBased ? { isRuleBased: true, llmError } : {}),
       ...(request ? { request } : {}),
+      ...(hrZones ? { hrZones } : {}),
     };
   }
 
@@ -550,31 +570,195 @@ WICHTIG: Schnelligkeitsübungen IMMER im erholten Zustand durchführen (am Anfan
     ringe: 'Gymnastikringe / Suspension Trainer (Bodyweight-Kraft, Instabilität, Pull/Push)',
   };
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // AUSDAUER / RUNNING — Intensity zone prompts + HR zone calculation
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /** Ausdauer intensity zone definitions with running-specific prompts */
+  private static readonly AUSDAUER_INTENSITY_PROMPTS: Record<AiAusdauerIntensity, {
+    label: string;
+    hrPercent: [number, number]; // %HRR range
+    cadence: string;
+    protocol: string;
+  }> = {
+    regenerativ: {
+      label: 'Regenerativ (Zone 1 — Leicht)',
+      hrPercent: [50, 60],
+      cadence: '~155-160 spm',
+      protocol: `AUSDAUER-INTENSITÄT: REGENERATIV (Zone 1)
+FOKUS: Aktive Erholung, lockerer Dauerlauf, Fettverbrennung.
+PROTOKOLL:
+- Aufwärmen: 5 min sehr lockeres Gehen/Joggen
+- Hauptteil: Kontinuierlicher lockerer Dauerlauf, Konversationstempo, gleichmässiges Tempo
+- Cool-down: 5 min Auslaufen, Gehen
+TEMPO: Sehr locker — der Kunde sollte sich jederzeit unterhalten können.
+KEINE Intervalle, KEINE Tempowechsel. Rein regenerativ.
+KADENZ: ~155-160 Schritte pro Minute.`,
+    },
+    allgemeine: {
+      label: 'Allgemeine Ausdauer (Zone 2 — Mittel)',
+      hrPercent: [60, 70],
+      cadence: '~160-165 spm',
+      protocol: `AUSDAUER-INTENSITÄT: ALLGEMEINE AUSDAUER / GA1 (Zone 2)
+FOKUS: Grundlagenausdauer, aerobe Basis aufbauen, Ausschöpfung steigern.
+PROTOKOLL:
+- Aufwärmen: 5 min lockeres Einlaufen, Steigerung auf Zieltempo
+- Hauptteil: Kontinuierlicher Dauerlauf im GA1-Bereich. Gleichmässiges moderates Tempo über die gesamte Dauer.
+- Cool-down: 5 min lockeres Auslaufen
+TEMPO: Moderat — leicht anstrengend, aber noch gut durchhaltbar. Atemrhythmus 3:3 oder 4:4.
+KEINE harten Intervalle. Gleichmässiger Dauerlauf.
+KADENZ: ~160-165 Schritte pro Minute.`,
+    },
+    spezial: {
+      label: 'Speziale Ausdauer (Zone 3 — Hart)',
+      hrPercent: [70, 80],
+      cadence: '~165-172 spm',
+      protocol: `AUSDAUER-INTENSITÄT: SPEZIALE AUSDAUER / TEMPO (Zone 3)
+FOKUS: Ermüdungsresistenz steigern, Laktat-Clearance verbessern, Tempo-Intervalle.
+PROTOKOLL:
+- Aufwärmen: 5 min lockeres Einlaufen (Zone 1-2)
+- Hauptteil: 3-4 längere Intervalle (6-10 min) im Tempobereich, dazwischen jeweils 2-3 min aktive Pause (lockeres Joggen Zone 1)
+- Cool-down: 5 min lockeres Auslaufen
+TEMPO: Anstrengend — Atemrhythmus 2:2, Sprechen nur noch in kurzen Sätzen möglich.
+KADENZ: ~165-172 Schritte pro Minute.
+BEISPIEL-STRUKTUR: 5' Aufwärmen → 3×8 min Tempo (2 min Pause) → 5' Cool-down`,
+    },
+    schwelle: {
+      label: 'Schwellentraining (Zone 4 — Sehr Hart)',
+      hrPercent: [80, 90],
+      cadence: '~172-178 spm',
+      protocol: `AUSDAUER-INTENSITÄT: SCHWELLENTRAINING / THRESHOLD (Zone 4)
+FOKUS: Anaerobe Schwelle verschieben, Potenzial steigern, Leistungsfähigkeit erhöhen.
+PROTOKOLL:
+- Aufwärmen: 5 min lockeres Einlaufen (Zone 1-2), danach 2-3 min Steigerungen
+- Hauptteil: 4-6 Intervalle (3-5 min) an der anaeroben Schwelle, dazwischen jeweils 3 min aktive Pause (lockeres Joggen Zone 1-2)
+- Cool-down: 5 min lockeres Auslaufen
+TEMPO: Sehr anstrengend — Sprechen nur noch in einzelnen Wörtern möglich. 4×4-Minuten-Methode (z.B. nach norwegischem Modell).
+KADENZ: ~172-178 Schritte pro Minute.
+BEISPIEL-STRUKTUR: 5' Aufwärmen → 4×4 min Schwelle (3 min Pause) → 5' Cool-down`,
+    },
+    hiit: {
+      label: 'Hochintensives Intervalltraining (Zone 5 — Maximal)',
+      hrPercent: [90, 100],
+      cadence: '~178-185+ spm',
+      protocol: `AUSDAUER-INTENSITÄT: HIIT / VO2max (Zone 5)
+FOKUS: Maximale Sauerstoffaufnahme (VO2max) verbessern, anaerobe Kapazität, Spitzenleistung.
+PROTOKOLL:
+- Aufwärmen: 5-8 min progressives Einlaufen (Zone 1→3), 2-3 kurze Steigerungsläufe
+- Hauptteil: 6-10 kurze hochintensive Intervalle (30s-2 min) mit nahezu maximaler Belastung, dazwischen vollständige Erholung (2-3 min lockeres Gehen/Joggen)
+- Cool-down: 5-8 min sehr lockeres Auslaufen
+TEMPO: Maximal — alles geben, Sprint-ähnlich. Vollständige Erholung zwischen Intervallen essenziell!
+KADENZ: ~178-185+ Schritte pro Minute.
+BEISPIEL-STRUKTUR: 8' Aufwärmen → 8×1 min Sprint (2 min Pause) → 8' Cool-down
+WICHTIG: Nur für gut trainierte Kunden. Bei Anfängern → kürzere/weniger Intervalle.`,
+    },
+  };
+
+  /**
+   * Calculate HR zones using the Karvonen formula:
+   * Target HR = HRrest + (intensity% × (HRmax - HRrest))
+   */
+  private calculateHrZones(context: AiPromptContext): AiHrZones | null {
+    const maxHr = context.client.maxHeartRate;
+    if (!maxHr) return null;
+
+    const restHr = context.bodyComposition?.calmPulse ?? 65; // default 65 if unknown
+    const hrr = maxHr - restHr;
+
+    return {
+      restHr,
+      maxHr,
+      zone1: [Math.round(restHr + 0.50 * hrr), Math.round(restHr + 0.60 * hrr)],
+      zone2: [Math.round(restHr + 0.60 * hrr), Math.round(restHr + 0.70 * hrr)],
+      zone3: [Math.round(restHr + 0.70 * hrr), Math.round(restHr + 0.80 * hrr)],
+      zone4: [Math.round(restHr + 0.80 * hrr), Math.round(restHr + 0.90 * hrr)],
+      zone5: [Math.round(restHr + 0.90 * hrr), maxHr],
+    };
+  }
+
   /** Build the training-type / duration / equipment extension for the system prompt */
-  private buildRequestPromptBlock(request?: AiPlanRequest): string {
+  private buildRequestPromptBlock(request?: AiPlanRequest, context?: AiPromptContext): string {
     if (!request) return '';
 
     const blocks: string[] = [];
+    const isRunningPlan = request.trainingType === 'ausdauer' && request.ausdauerIntensity;
 
-    // 1. Training type block
-    const typePrompt = AiPlanService.TRAINING_TYPE_PROMPTS[request.trainingType];
-    if (typePrompt) {
-      blocks.push(typePrompt);
+    // 1. Training type block — running plans get intensity-specific prompt instead
+    if (isRunningPlan) {
+      const zoneConfig = AiPlanService.AUSDAUER_INTENSITY_PROMPTS[request.ausdauerIntensity!];
+      blocks.push(zoneConfig.protocol);
+
+      // Inject calculated HR zones if client data available
+      if (context) {
+        const hrZones = this.calculateHrZones(context);
+        if (hrZones) {
+          const zoneKey = request.ausdauerIntensity!;
+          const zoneMap: Record<AiAusdauerIntensity, keyof Pick<AiHrZones, 'zone1' | 'zone2' | 'zone3' | 'zone4' | 'zone5'>> = {
+            regenerativ: 'zone1', allgemeine: 'zone2', spezial: 'zone3', schwelle: 'zone4', hiit: 'zone5',
+          };
+          const activeZone = hrZones[zoneMap[zoneKey]];
+          blocks.push(
+            `HERZFREQUENZ-ZONEN (Karvonen-Formel, Ruhepuls ${hrZones.restHr} bpm, HFmax ${hrZones.maxHr} bpm):\n` +
+            `- Zone 1 (Regenerativ): ${hrZones.zone1[0]}-${hrZones.zone1[1]} bpm\n` +
+            `- Zone 2 (GA1): ${hrZones.zone2[0]}-${hrZones.zone2[1]} bpm\n` +
+            `- Zone 3 (Tempo): ${hrZones.zone3[0]}-${hrZones.zone3[1]} bpm\n` +
+            `- Zone 4 (Schwelle): ${hrZones.zone4[0]}-${hrZones.zone4[1]} bpm\n` +
+            `- Zone 5 (HIIT): ${hrZones.zone5[0]}-${hrZones.zone5[1]} bpm\n` +
+            `\nAKTIVE ZONE FÜR DIESES TRAINING: ${activeZone[0]}-${activeZone[1]} bpm\n` +
+            `Gib die Ziel-Herzfrequenz im "position"-Feld jeder Laufzeile an (z.B. "Zone 2: ${activeZone[0]}-${activeZone[1]} bpm").`,
+          );
+        } else {
+          blocks.push(
+            'HERZFREQUENZ: Keine HFmax-Daten vorhanden. Verwende subjektive Belastungsskala (RPE) und Borg-Skala statt absoluter HR-Werte. ' +
+            `Gib RPE-Werte im "position"-Feld an (z.B. "RPE 4-5 / Locker").`,
+          );
+        }
+      }
+
+      // Running-specific output format
+      blocks.push(
+        `LAUFPLAN-FORMAT: Der "main"-Bereich enthält NUR Laufprotokoll-Zeilen:\n` +
+        `- "exercise_name": Phasenname (z.B. "Aufwärmen", "GA1 Dauerlauf", "Tempo-Intervall", "Aktive Pause", "Cool-down")\n` +
+        `- "exercise_id": null (Laufphasen sind keine DB-Übungen)\n` +
+        `- "device": "Laufband" oder "Outdoor"\n` +
+        `- "position": Herzfrequenz-Zone (z.B. "Zone 2: 137-149 bpm") oder RPE\n` +
+        `- "weight": Tempo/Pace (z.B. "8.5 km/h" oder "5:30 min/km")\n` +
+        `- "sets": Dauer/Struktur (z.B. "20 min", "4×4 min", "3×8 min mit 2 min Pause")\n` +
+        `\nDie Sonsomo-Sektion enthält 2-3 Lauf-ABC/Aufwärm-Übungen (aus dem Katalog).\n` +
+        `Die Core-Sektion enthält 1-2 laufspezifische Core-Übungen (aus dem Katalog).\n` +
+        `Die Mobility-Sektion enthält 1-2 laufspezifische Dehnübungen (aus dem Katalog).`,
+      );
+    } else {
+      const typePrompt = AiPlanService.TRAINING_TYPE_PROMPTS[request.trainingType];
+      if (typePrompt) {
+        blocks.push(typePrompt);
+      }
     }
 
     // 2. Duration block
     if (request.duration) {
-      const mapping = AiPlanService.DURATION_MAPPING[request.duration];
-      if (mapping) {
+      if (isRunningPlan) {
+        // Running plans: duration = total training time, not exercise counts
         blocks.push(
-          `TRAININGSDAUER: ${request.duration} Minuten\n` +
-          `Passe die Übungsanzahl an die Dauer an:\n` +
-          `- Sonsomo: ${mapping.sonsomo} Übungen\n` +
-          `- Main: ${mapping.main} Übungen\n` +
-          `- Core: ${mapping.core} Übungen\n` +
-          `- Mobility: ${mapping.mobility} Übungen\n` +
-          `Halte den Plan kompakt — lieber weniger Übungen mit guter Qualität als zu viele.`,
+          `TRAININGSDAUER: ${request.duration} Minuten (Gesamtzeit inkl. Aufwärmen + Cool-down)\n` +
+          `Passe das Laufprotokoll an die verfügbare Zeit an. Aufwärmen ~5 min, Cool-down ~5 min, Rest = Hauptteil.\n` +
+          `- Sonsomo: 2-3 Aufwärm-Übungen (vor dem Laufen)\n` +
+          `- Core: 1-2 Übungen\n` +
+          `- Mobility: 1-2 Übungen`,
         );
+      } else {
+        const mapping = AiPlanService.DURATION_MAPPING[request.duration];
+        if (mapping) {
+          blocks.push(
+            `TRAININGSDAUER: ${request.duration} Minuten\n` +
+            `Passe die Übungsanzahl an die Dauer an:\n` +
+            `- Sonsomo: ${mapping.sonsomo} Übungen\n` +
+            `- Main: ${mapping.main} Übungen\n` +
+            `- Core: ${mapping.core} Übungen\n` +
+            `- Mobility: ${mapping.mobility} Übungen\n` +
+            `Halte den Plan kompakt — lieber weniger Übungen mit guter Qualität als zu viele.`,
+          );
+        }
       }
     } else {
       blocks.push(
@@ -607,7 +791,7 @@ WICHTIG: Schnelligkeitsübungen IMMER im erholten Zustand durchführen (am Anfan
   // ═══════════════════════════════════════════════════════════════════════════
 
   /** Shared system prompt — includes optional training type/duration/equipment blocks */
-  private buildSystemPrompt(request?: AiPlanRequest): string {
+  private buildSystemPrompt(request?: AiPlanRequest, context?: AiPromptContext): string {
     return `Du bist ein erfahrener Sportwissenschaftler und Personal Trainer.
 Deine Aufgabe: Erstelle einen individualisierten Trainingsplan basierend auf den Leistungstest-Ergebnissen, der medizinischen Anamnese, der Körperzusammensetzung, den Kundenzielen und der Trainingshistorie des Kunden.
 
@@ -672,7 +856,7 @@ FUß:
 - Fibularis longus (Pronation): Push|Sprunggelenk → Ant: Tibialis anterior
 - Tibialis posterior (Supination): Push|Sprunggelenk → Ant: Ext. digitorum/hallucis longus
 
-${this.buildRequestPromptBlock(request)}
+${this.buildRequestPromptBlock(request, context)}
 
 Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
 {
@@ -721,6 +905,11 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
           '',
           'TRAINER-VORGABEN:',
           `- Trainingstyp: ${context.planRequest.trainingType.toUpperCase()}`,
+          ...(context.planRequest.ausdauerIntensity
+            ? [`- Ausdauer-Intensität: ${context.planRequest.ausdauerIntensity.toUpperCase()} (${
+                AiPlanService.AUSDAUER_INTENSITY_PROMPTS[context.planRequest.ausdauerIntensity]?.label ?? context.planRequest.ausdauerIntensity
+              })`]
+            : []),
           `- Dauer: ${context.planRequest.duration ? context.planRequest.duration + ' Minuten' : 'Frei (KI entscheidet)'}`,
           `- Geräte: ${context.planRequest.equipment?.length ? context.planRequest.equipment.join(', ') : 'Frei (KI wählt)'}`,
           '',
@@ -865,7 +1054,7 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
     if (!this.groq) throw new ServiceUnavailableException('Groq API key not configured');
 
     const userPrompt = this.buildUserPrompt(context);
-    const systemPrompt = this.buildSystemPrompt(context.planRequest);
+    const systemPrompt = this.buildSystemPrompt(context.planRequest, context);
 
     const response = await Promise.race([
       this.groq.chat.completions.create({
@@ -894,7 +1083,7 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
     if (!this.anthropic) throw new ServiceUnavailableException('Anthropic API key not configured');
 
     const userPrompt = this.buildUserPrompt(context);
-    const systemPrompt = this.buildSystemPrompt(context.planRequest);
+    const systemPrompt = this.buildSystemPrompt(context.planRequest, context);
 
     const response = await Promise.race([
       this.anthropic.messages.create({

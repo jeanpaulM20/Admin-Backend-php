@@ -4,7 +4,7 @@ import { AiPlanService } from './ai-plan.service';
 import { TrainingPlan } from '../entities/training-plan.entity';
 import { CurrentClient } from '../auth/decorators/current-user.decorator';
 import { Client } from '../entities/client.entity';
-import { AiPlanRequest, AI_TRAINING_TYPES, AI_DURATIONS, AI_EQUIPMENT_OPTIONS } from './ai-plan.interfaces';
+import { AiPlanRequest, AI_TRAINING_TYPES, AI_DURATIONS, AI_EQUIPMENT_OPTIONS, AI_AUSDAUER_INTENSITIES } from './ai-plan.interfaces';
 
 @Controller('api/training-plan')
 export class TrainingPlanController {
@@ -89,13 +89,27 @@ export class TrainingPlanController {
       throw new BadRequestException('Request body fehlt');
     }
 
-    const { trainingType, duration, equipment } = body;
+    const { trainingType, duration, equipment, ausdauerIntensity } = body;
 
     // trainingType — required, must be one of the allowed values
     if (!trainingType || !AI_TRAINING_TYPES.includes(trainingType)) {
       throw new BadRequestException(
         `trainingType muss einer der Werte sein: ${AI_TRAINING_TYPES.join(', ')}`,
       );
+    }
+
+    // ausdauerIntensity — optional, only valid for trainingType 'ausdauer'
+    let intensity: AiPlanRequest['ausdauerIntensity'] = undefined;
+    if (ausdauerIntensity !== undefined && ausdauerIntensity !== null) {
+      if (trainingType !== 'ausdauer') {
+        throw new BadRequestException('ausdauerIntensity ist nur für trainingType "ausdauer" erlaubt');
+      }
+      if (!AI_AUSDAUER_INTENSITIES.includes(ausdauerIntensity)) {
+        throw new BadRequestException(
+          `ausdauerIntensity muss einer der Werte sein: ${AI_AUSDAUER_INTENSITIES.join(', ')}`,
+        );
+      }
+      intensity = ausdauerIntensity;
     }
 
     // duration — optional, null = frei, otherwise 30/45/60
@@ -120,7 +134,12 @@ export class TrainingPlanController {
       equip = equipment.length > 0 ? equipment : null;
     }
 
-    return { trainingType, duration: dur, equipment: equip };
+    return {
+      trainingType,
+      duration: dur,
+      equipment: equip,
+      ...(intensity ? { ausdauerIntensity: intensity } : {}),
+    };
   }
 
   @Put(':id')

@@ -16,11 +16,19 @@ export type AiDuration = 30 | 45 | 60 | null; // null = frei (KI entscheidet)
 
 export type AiEquipment = 'mft' | 'slackline' | 'springseil' | 'kettlebell' | 'ringe';
 
+export type AiAusdauerIntensity =
+  | 'regenerativ'       // Zone 1 — active recovery, easy pace
+  | 'allgemeine'        // Zone 2 — GA1 base endurance
+  | 'spezial'           // Zone 3 — tempo intervals
+  | 'schwelle'          // Zone 4 — lactate threshold intervals
+  | 'hiit';             // Zone 5 — VO2max short intervals
+
 /** Request body sent by the trainer to steer AI plan generation. */
 export interface AiPlanRequest {
   trainingType: AiTrainingType;
   duration: AiDuration;                       // null = frei
   equipment: AiEquipment[] | null;            // null = frei (KI wählt)
+  ausdauerIntensity?: AiAusdauerIntensity;    // Only when trainingType = 'ausdauer'
 }
 
 /** Valid training types for runtime validation. */
@@ -33,6 +41,11 @@ export const AI_DURATIONS: (number | null)[] = [30, 45, 60, null];
 
 /** Valid equipment options for runtime validation. */
 export const AI_EQUIPMENT_OPTIONS: AiEquipment[] = ['mft', 'slackline', 'springseil', 'kettlebell', 'ringe'];
+
+/** Valid ausdauer intensity zones for runtime validation. */
+export const AI_AUSDAUER_INTENSITIES: AiAusdauerIntensity[] = [
+  'regenerativ', 'allgemeine', 'spezial', 'schwelle', 'hiit',
+];
 
 // ── Exercise row ───────────────────────────────────────────────────────────
 
@@ -64,6 +77,19 @@ export interface AiPlanResult {
   llmError?: string;                 // Error message if LLM failed
   // Echo back the request params so the frontend can display them
   request?: AiPlanRequest;
+  // Calculated HR zones for running plans (Karvonen formula)
+  hrZones?: AiHrZones;
+}
+
+/** Heart rate zones calculated via Karvonen formula (HRrest + %HRR). */
+export interface AiHrZones {
+  restHr: number;
+  maxHr: number;
+  zone1: [number, number];  // Regenerativ   50-60% HRR
+  zone2: [number, number];  // Allgemeine    60-70% HRR
+  zone3: [number, number];  // Spezial       70-80% HRR
+  zone4: [number, number];  // Schwelle      80-90% HRR
+  zone5: [number, number];  // HIIT          90-100% HRR
 }
 
 /** A single identified weakness from the performance test. */

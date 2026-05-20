@@ -134,9 +134,64 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
     'schnelligkeit':  {'durations': [30, 45], 'equipment': ['slackline', 'springseil', 'kettlebell'], 'durationHint': '30-45 min'},
   };
 
+  // ── Ausdauer intensity zones ─────────────────────────────────────────
+  static const _ausdauerZones = <String, Map<String, dynamic>>{
+    'regenerativ': {
+      'label': 'Regenerativ',
+      'tag': 'Zone 1',
+      'desc': 'Lockerer Dauerlauf, aktive Erholung',
+      'icon': Icons.self_improvement,
+      'intensity': 0.20,
+      'color': 0xFF4CAF50, // green
+      'recDurations': [30, 45],
+      'durationHint': '30-45 min',
+    },
+    'allgemeine': {
+      'label': 'Allgemeine Ausdauer',
+      'tag': 'Zone 2',
+      'desc': 'GA1 Dauerlauf, aerobe Basis',
+      'icon': Icons.directions_run,
+      'intensity': 0.40,
+      'color': 0xFF2196F3, // blue
+      'recDurations': [30, 45, 60],
+      'durationHint': '30-60 min',
+    },
+    'spezial': {
+      'label': 'Speziale Ausdauer',
+      'tag': 'Zone 3',
+      'desc': 'Tempo-Intervalle, Ermüdungsresistenz',
+      'icon': Icons.speed,
+      'intensity': 0.65,
+      'color': 0xFFFFC107, // amber
+      'recDurations': [30, 45],
+      'durationHint': '30-45 min',
+    },
+    'schwelle': {
+      'label': 'Schwellentraining',
+      'tag': 'Zone 4',
+      'desc': 'Anaerobe Schwelle, Potenzial steigern',
+      'icon': Icons.whatshot,
+      'intensity': 0.82,
+      'color': 0xFFFF9800, // orange
+      'recDurations': [30, 45],
+      'durationHint': '30-45 min',
+    },
+    'hiit': {
+      'label': 'HIIT / VO2max',
+      'tag': 'Zone 5',
+      'desc': 'Hochintensive Kurzintervalle, maximal',
+      'icon': Icons.local_fire_department,
+      'intensity': 1.0,
+      'color': 0xFFF44336, // red
+      'recDurations': [30],
+      'durationHint': '20-30 min',
+    },
+  };
+
   /// Multi-step wizard for AI training plan configuration.
   Future<Map<String, dynamic>?> _showAiConfigSheet() async {
     String? selectedType;
+    String? selectedIntensity; // Ausdauer intensity zone
     int? selectedDuration;
     bool durationIsFrei = false;
     final selectedEquipment = <String>{};
@@ -161,13 +216,19 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, ss) {
           const accent = Color(0xFFAB47BC);
-          final recs = selectedType != null
-              ? _typeRecommendations[selectedType] ?? {}
-              : <String, dynamic>{};
-          final recDurations = (recs['durations'] as List<dynamic>?)?.cast<int>() ?? [];
+          final isAusdauer = selectedType == 'ausdauer';
+          // For Ausdauer, use zone-specific recs; for others, use type-based recs
+          final recs = isAusdauer && selectedIntensity != null
+              ? _ausdauerZones[selectedIntensity] ?? {}
+              : (selectedType != null ? _typeRecommendations[selectedType] ?? {} : <String, dynamic>{});
+          final recDurations = (recs['recDurations'] as List<dynamic>?)?.cast<int>()
+              ?? (recs['durations'] as List<dynamic>?)?.cast<int>() ?? [];
           final recEquipment = (recs['equipment'] as List<dynamic>?)?.cast<String>() ?? [];
           final typeLabel = selectedType != null
               ? (_trainingTypes[selectedType]?['label'] as String? ?? '')
+              : '';
+          final zoneLabel = selectedIntensity != null
+              ? (_ausdauerZones[selectedIntensity]?['label'] as String? ?? '')
               : '';
 
           // ── Reusable chip builder ──
@@ -345,219 +406,347 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
             ],
           );
 
-          // ── Step 2: Duration ──
-          Widget step2() => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              header('SCHRITT 2 VON 3', 'Wie lange?', Icons.timer_outlined),
-              if (selectedType != null && recs['durationHint'] != null)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: accent.withAlpha(15),
-                    borderRadius: BorderRadius.circular(10)),
-                  child: Row(children: [
-                    const Icon(Icons.lightbulb_outline, size: 16, color: accent),
-                    const SizedBox(width: 8),
-                    Text('Empfohlen für $typeLabel: ${recs['durationHint']}',
-                        style: GoogleFonts.openSans(color: accent, fontSize: 12, fontWeight: FontWeight.w600)),
-                  ]),
-                ),
-              ...[30, 45, 60].map((dur) {
-                final isSelected = !durationIsFrei && selectedDuration == dur;
-                final isRec = recDurations.contains(dur);
-                final labels = {30: 'Quick Shot', 45: 'Sweet Spot', 60: 'Full Power'};
-                return Padding(
+          // ── Duration picker widget (shared) ──
+          Widget durationPicker({required bool isLastStep}) {
+            final hintLabel = isAusdauer && selectedIntensity != null ? zoneLabel : typeLabel;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (recs['durationHint'] != null)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: accent.withAlpha(15),
+                      borderRadius: BorderRadius.circular(10)),
+                    child: Row(children: [
+                      const Icon(Icons.lightbulb_outline, size: 16, color: accent),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text('Empfohlen für $hintLabel: ${recs['durationHint']}',
+                          style: GoogleFonts.openSans(color: accent, fontSize: 12, fontWeight: FontWeight.w600))),
+                    ]),
+                  ),
+                ...[30, 45, 60].map((dur) {
+                  final isSelected = !durationIsFrei && selectedDuration == dur;
+                  final isRec = recDurations.contains(dur);
+                  final labels = {30: 'Quick Shot', 45: 'Sweet Spot', 60: 'Full Power'};
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: GestureDetector(
+                      onTap: () {
+                        ss(() { durationIsFrei = false; selectedDuration = dur; });
+                        if (!isLastStep) {
+                          Future.delayed(const Duration(milliseconds: 400),
+                              () { if (ctx.mounted) goTo(2, ss); });
+                        }
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: isSelected ? accent.withAlpha(20) : AppColors.surface2.withAlpha(100),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isSelected ? accent : AppColors.border.withAlpha(50),
+                            width: isSelected ? 1.5 : 1),
+                        ),
+                        child: Row(children: [
+                          Text('$dur', style: GoogleFonts.montserrat(
+                              color: isSelected ? accent : AppColors.text,
+                              fontSize: 28, fontWeight: FontWeight.w800)),
+                          const SizedBox(width: 4),
+                          Text('min', style: GoogleFonts.openSans(
+                              color: AppColors.muted, fontSize: 13)),
+                          const SizedBox(width: 12),
+                          Expanded(child: Text(labels[dur] ?? '',
+                              style: GoogleFonts.openSans(
+                                  color: AppColors.muted, fontSize: 12))),
+                          if (isRec)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: accent.withAlpha(25),
+                                borderRadius: BorderRadius.circular(8)),
+                              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                const Icon(Icons.star_rounded, size: 14, color: accent),
+                                const SizedBox(width: 3),
+                                Text('Empfohlen', style: GoogleFonts.openSans(
+                                    color: accent, fontSize: 10, fontWeight: FontWeight.w700)),
+                              ]),
+                            ),
+                        ]),
+                      ),
+                    ),
+                  );
+                }),
+                // Frei option
+                Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: GestureDetector(
                     onTap: () {
-                      ss(() { durationIsFrei = false; selectedDuration = dur; });
-                      Future.delayed(const Duration(milliseconds: 400),
-                          () { if (ctx.mounted) goTo(2, ss); });
+                      ss(() { durationIsFrei = true; selectedDuration = null; });
+                      if (!isLastStep) {
+                        Future.delayed(const Duration(milliseconds: 400),
+                            () { if (ctx.mounted) goTo(2, ss); });
+                      }
                     },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: isSelected ? accent.withAlpha(20) : AppColors.surface2.withAlpha(100),
+                        color: durationIsFrei ? accent.withAlpha(20) : AppColors.surface2.withAlpha(100),
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                          color: isSelected ? accent : AppColors.border.withAlpha(50),
-                          width: isSelected ? 1.5 : 1),
+                          color: durationIsFrei ? accent : AppColors.border.withAlpha(50),
+                          width: durationIsFrei ? 1.5 : 1),
                       ),
                       child: Row(children: [
-                        Text('$dur', style: GoogleFonts.montserrat(
-                            color: isSelected ? accent : AppColors.text,
-                            fontSize: 28, fontWeight: FontWeight.w800)),
-                        const SizedBox(width: 4),
-                        Text('min', style: GoogleFonts.openSans(
-                            color: AppColors.muted, fontSize: 13)),
+                        const Icon(Icons.auto_awesome, size: 24, color: accent),
                         const SizedBox(width: 12),
-                        Expanded(child: Text(labels[dur] ?? '',
-                            style: GoogleFonts.openSans(
-                                color: AppColors.muted, fontSize: 12))),
-                        if (isRec)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: accent.withAlpha(25),
-                              borderRadius: BorderRadius.circular(8)),
-                            child: Row(mainAxisSize: MainAxisSize.min, children: [
-                              const Icon(Icons.star_rounded, size: 14, color: accent),
-                              const SizedBox(width: 3),
-                              Text('Empfohlen', style: GoogleFonts.openSans(
-                                  color: accent, fontSize: 10, fontWeight: FontWeight.w700)),
-                            ]),
-                          ),
+                        Expanded(child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Frei', style: GoogleFonts.openSans(
+                                color: durationIsFrei ? accent : AppColors.text,
+                                fontSize: 15, fontWeight: FontWeight.w700)),
+                            Text('KI entscheidet basierend auf Fitnesslevel',
+                                style: GoogleFonts.openSans(color: AppColors.muted, fontSize: 11)),
+                          ],
+                        )),
                       ]),
                     ),
                   ),
-                );
-              }),
-              // Frei option
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: GestureDetector(
-                  onTap: () {
-                    ss(() { durationIsFrei = true; selectedDuration = null; });
-                    Future.delayed(const Duration(milliseconds: 400),
-                        () { if (ctx.mounted) goTo(2, ss); });
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.all(16),
+                ),
+              ],
+            );
+          }
+
+          // ── Step 2: Ausdauer → Intensity Zone / Others → Duration ──
+          Widget step2() {
+            if (isAusdauer) {
+              // Ausdauer: Intensity zone selection
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  header('SCHRITT 2 VON 3', 'Welche Intensität?', Icons.speed),
+                  ..._ausdauerZones.entries.map((e) {
+                    final isSelected = selectedIntensity == e.key;
+                    final zoneIntensity = (e.value['intensity'] as double?) ?? 0.5;
+                    final zoneColor = Color(e.value['color'] as int);
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: GestureDetector(
+                        onTap: () {
+                          ss(() => selectedIntensity = e.key);
+                          // Auto-advance after short delay
+                          Future.delayed(const Duration(milliseconds: 400),
+                              () { if (ctx.mounted) goTo(2, ss); });
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: isSelected ? zoneColor.withAlpha(25) : AppColors.surface2.withAlpha(100),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isSelected ? zoneColor : AppColors.border.withAlpha(50),
+                              width: isSelected ? 1.5 : 1),
+                          ),
+                          child: Row(children: [
+                            Icon(e.value['icon'] as IconData, size: 24,
+                                color: isSelected ? zoneColor : AppColors.muted),
+                            const SizedBox(width: 12),
+                            Expanded(child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(children: [
+                                  Text(e.value['label'] as String,
+                                      style: GoogleFonts.openSans(
+                                          color: isSelected ? zoneColor : AppColors.text,
+                                          fontSize: 15, fontWeight: FontWeight.w700)),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: zoneColor.withAlpha(30),
+                                      borderRadius: BorderRadius.circular(6)),
+                                    child: Text(e.value['tag'] as String,
+                                        style: GoogleFonts.montserrat(
+                                            color: zoneColor, fontSize: 9, fontWeight: FontWeight.w800)),
+                                  ),
+                                ]),
+                                const SizedBox(height: 2),
+                                Text(e.value['desc'] as String,
+                                    style: GoogleFonts.openSans(
+                                        color: AppColors.muted, fontSize: 11)),
+                              ],
+                            )),
+                            // Intensity bar with zone color
+                            SizedBox(
+                              width: 50,
+                              child: Column(children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(2),
+                                  child: LinearProgressIndicator(
+                                    value: zoneIntensity,
+                                    minHeight: 4,
+                                    backgroundColor: AppColors.border.withAlpha(40),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        isSelected ? zoneColor : zoneColor.withAlpha(120))),
+                                ),
+                                const SizedBox(height: 2),
+                                Text('${(zoneIntensity * 100).round()}%',
+                                    style: GoogleFonts.openSans(
+                                        color: AppColors.muted, fontSize: 9)),
+                              ]),
+                            ),
+                          ]),
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              );
+            }
+            // Others: Duration selection (auto-advance to step 3)
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                header('SCHRITT 2 VON 3', 'Wie lange?', Icons.timer_outlined),
+                durationPicker(isLastStep: false),
+              ],
+            );
+          }
+
+          // ── Summary + Generate button (shared) ──
+          Widget summaryAndGenerate() {
+            final canGenerate = selectedType != null && (selectedDuration != null || durationIsFrei)
+                && (!isAusdauer || selectedIntensity != null);
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [accent.withAlpha(15), accent.withAlpha(8)],
+                  begin: Alignment.topLeft, end: Alignment.bottomRight),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: accent.withAlpha(40))),
+              child: Column(children: [
+                Wrap(
+                  spacing: 6, runSpacing: 6,
+                  children: [
+                    if (selectedType != null)
+                      _buildConfigChip(typeLabel,
+                          _trainingTypes[selectedType]?['icon'] as IconData? ?? Icons.sports),
+                    if (isAusdauer && selectedIntensity != null)
+                      _buildConfigChip(zoneLabel, Icons.speed),
+                    if (selectedDuration != null)
+                      _buildConfigChip('$selectedDuration min', Icons.timer_outlined),
+                    if (durationIsFrei)
+                      _buildConfigChip('Dauer: Frei', Icons.timer_outlined),
+                    if (!isAusdauer && selectedEquipment.isNotEmpty)
+                      ...selectedEquipment.map((e) => _buildConfigChip(
+                          _equipmentOptions[e]?['label'] as String? ?? e,
+                          _equipmentOptions[e]?['icon'] as IconData? ?? Icons.build)),
+                    if (!isAusdauer && (equipmentIsFrei || selectedEquipment.isEmpty))
+                      _buildConfigChip('Geräte: Frei', Icons.auto_awesome),
+                    if (isAusdauer)
+                      _buildConfigChip('Lauftraining', Icons.directions_run),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: canGenerate
+                        ? () => Navigator.pop(ctx, {
+                              'trainingType': selectedType,
+                              'duration': durationIsFrei ? null : selectedDuration,
+                              'equipment': isAusdauer ? null
+                                  : (equipmentIsFrei || selectedEquipment.isEmpty
+                                      ? null : selectedEquipment.toList()),
+                              if (isAusdauer && selectedIntensity != null)
+                                'ausdauerIntensity': selectedIntensity,
+                            })
+                        : null,
+                    icon: const Icon(Icons.auto_awesome, size: 18),
+                    label: Text(isAusdauer ? 'Laufplan generieren' : 'Plan generieren'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accent,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: AppColors.surface2,
+                      disabledForegroundColor: AppColors.muted,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  ),
+                ),
+              ]),
+            );
+          }
+
+          // ── Step 3: Ausdauer → Duration + Generate / Others → Equipment + Generate ──
+          Widget step3() {
+            if (isAusdauer) {
+              // Ausdauer: Duration + Generate (no equipment)
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  header('SCHRITT 3 VON 3', 'Wie lange?', Icons.timer_outlined),
+                  durationPicker(isLastStep: true),
+                  const SizedBox(height: 24),
+                  summaryAndGenerate(),
+                ],
+              );
+            }
+            // Others: Equipment + Generate
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                header('SCHRITT 3 VON 3', 'Welche Geräte?', Icons.handyman_outlined),
+                if (recEquipment.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: durationIsFrei ? accent.withAlpha(20) : AppColors.surface2.withAlpha(100),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: durationIsFrei ? accent : AppColors.border.withAlpha(50),
-                        width: durationIsFrei ? 1.5 : 1),
-                    ),
+                      color: accent.withAlpha(15),
+                      borderRadius: BorderRadius.circular(10)),
                     child: Row(children: [
-                      const Icon(Icons.auto_awesome, size: 24, color: accent),
-                      const SizedBox(width: 12),
-                      Expanded(child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Frei', style: GoogleFonts.openSans(
-                              color: durationIsFrei ? accent : AppColors.text,
-                              fontSize: 15, fontWeight: FontWeight.w700)),
-                          Text('KI entscheidet basierend auf Fitnesslevel',
-                              style: GoogleFonts.openSans(color: AppColors.muted, fontSize: 11)),
-                        ],
-                      )),
+                      const Icon(Icons.lightbulb_outline, size: 16, color: accent),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(
+                          'Empfohlen für $typeLabel: ${recEquipment.map((e) => _equipmentOptions[e]?['label'] ?? e).join(', ')}',
+                          style: GoogleFonts.openSans(color: accent, fontSize: 12, fontWeight: FontWeight.w600))),
                     ]),
                   ),
+                Wrap(
+                  spacing: 8, runSpacing: 8,
+                  children: _equipmentOptions.entries.map((e) {
+                    final isSelected = selectedEquipment.contains(e.key);
+                    final isRec = recEquipment.contains(e.key);
+                    return chip(
+                      e.value['label'] as String,
+                      isSelected ? Icons.check_box : Icons.check_box_outline_blank,
+                      isSelected,
+                      subtitle: e.value['desc'] as String?,
+                      recommended: isRec && !isSelected,
+                      onTap: () => ss(() {
+                        equipmentIsFrei = false;
+                        isSelected ? selectedEquipment.remove(e.key) : selectedEquipment.add(e.key);
+                      }),
+                    );
+                  }).toList(),
                 ),
-              ),
-            ],
-          );
-
-          // ── Step 3: Equipment + Summary ──
-          Widget step3() => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              header('SCHRITT 3 VON 3', 'Welche Geräte?', Icons.handyman_outlined),
-              if (recEquipment.isNotEmpty)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: accent.withAlpha(15),
-                    borderRadius: BorderRadius.circular(10)),
-                  child: Row(children: [
-                    const Icon(Icons.lightbulb_outline, size: 16, color: accent),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(
-                        'Empfohlen für $typeLabel: ${recEquipment.map((e) => _equipmentOptions[e]?['label'] ?? e).join(', ')}',
-                        style: GoogleFonts.openSans(color: accent, fontSize: 12, fontWeight: FontWeight.w600))),
-                  ]),
-                ),
-              Wrap(
-                spacing: 8, runSpacing: 8,
-                children: _equipmentOptions.entries.map((e) {
-                  final isSelected = selectedEquipment.contains(e.key);
-                  final isRec = recEquipment.contains(e.key);
-                  return chip(
-                    e.value['label'] as String,
-                    isSelected ? Icons.check_box : Icons.check_box_outline_blank,
-                    isSelected,
-                    subtitle: e.value['desc'] as String?,
-                    recommended: isRec && !isSelected,
+                const SizedBox(height: 8),
+                chip('Frei (KI wählt)', Icons.auto_awesome, equipmentIsFrei,
+                    subtitle: 'Optimale Geräte basierend auf Profil',
                     onTap: () => ss(() {
-                      equipmentIsFrei = false;
-                      isSelected ? selectedEquipment.remove(e.key) : selectedEquipment.add(e.key);
-                    }),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 8),
-              // Frei option
-              chip('Frei (KI wählt)', Icons.auto_awesome, equipmentIsFrei,
-                  subtitle: 'Optimale Geräte basierend auf Profil',
-                  onTap: () => ss(() {
-                    equipmentIsFrei = !equipmentIsFrei;
-                    if (equipmentIsFrei) selectedEquipment.clear();
-                  })),
-              const SizedBox(height: 24),
-
-              // ── Summary + Generate ──
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [accent.withAlpha(15), accent.withAlpha(8)],
-                    begin: Alignment.topLeft, end: Alignment.bottomRight),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: accent.withAlpha(40))),
-                child: Column(children: [
-                  // Config summary chips
-                  Wrap(
-                    spacing: 6, runSpacing: 6,
-                    children: [
-                      if (selectedType != null)
-                        _buildConfigChip(typeLabel,
-                            _trainingTypes[selectedType]?['icon'] as IconData? ?? Icons.sports),
-                      if (selectedDuration != null)
-                        _buildConfigChip('$selectedDuration min', Icons.timer_outlined),
-                      if (durationIsFrei)
-                        _buildConfigChip('Dauer: Frei', Icons.timer_outlined),
-                      if (selectedEquipment.isNotEmpty)
-                        ...selectedEquipment.map((e) => _buildConfigChip(
-                            _equipmentOptions[e]?['label'] as String? ?? e,
-                            _equipmentOptions[e]?['icon'] as IconData? ?? Icons.build)),
-                      if (equipmentIsFrei || selectedEquipment.isEmpty)
-                        _buildConfigChip('Geräte: Frei', Icons.auto_awesome),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: (selectedType != null && (selectedDuration != null || durationIsFrei))
-                          ? () => Navigator.pop(ctx, {
-                                'trainingType': selectedType,
-                                'duration': durationIsFrei ? null : selectedDuration,
-                                'equipment': equipmentIsFrei || selectedEquipment.isEmpty
-                                    ? null : selectedEquipment.toList(),
-                              })
-                          : null,
-                      icon: const Icon(Icons.auto_awesome, size: 18),
-                      label: const Text('Plan generieren'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: accent,
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor: AppColors.surface2,
-                        disabledForegroundColor: AppColors.muted,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                    ),
-                  ),
-                ]),
-              ),
-            ],
-          );
+                      equipmentIsFrei = !equipmentIsFrei;
+                      if (equipmentIsFrei) selectedEquipment.clear();
+                    })),
+                const SizedBox(height: 24),
+                summaryAndGenerate(),
+              ],
+            );
+          }
 
           return SizedBox(
             height: MediaQuery.of(ctx).size.height * 0.85,
