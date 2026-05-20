@@ -198,15 +198,27 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
     bool equipmentIsFrei = false;
     int currentStep = 0;
     final pageCtrl = PageController();
+    bool autoAdvancing = false; // Guard against double-tap race condition
 
     void goTo(int step, void Function(void Function()) ss) {
+      autoAdvancing = false;
       ss(() => currentStep = step);
       pageCtrl.animateToPage(step,
           duration: const Duration(milliseconds: 350),
           curve: Curves.easeInOut);
     }
 
-    return showModalBottomSheet<Map<String, dynamic>>(
+    void autoAdvanceTo(int step, void Function(void Function()) ss,
+        BuildContext ctx) {
+      if (autoAdvancing) return;
+      autoAdvancing = true;
+      Future.delayed(const Duration(milliseconds: 400), () {
+        autoAdvancing = false;
+        if (ctx.mounted) goTo(step, ss);
+      });
+    }
+
+    final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.surface,
@@ -347,10 +359,16 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                   padding: const EdgeInsets.only(bottom: 8),
                   child: GestureDetector(
                     onTap: () {
-                      ss(() => selectedType = e.key);
-                      // Auto-advance after short delay
-                      Future.delayed(const Duration(milliseconds: 400),
-                          () { if (ctx.mounted) goTo(1, ss); });
+                      ss(() {
+                        selectedType = e.key;
+                        // Reset dependent state when switching type
+                        selectedIntensity = null;
+                        selectedDuration = null;
+                        durationIsFrei = false;
+                        selectedEquipment.clear();
+                        equipmentIsFrei = false;
+                      });
+                      autoAdvanceTo(1, ss, ctx);
                     },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
@@ -420,10 +438,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                     child: GestureDetector(
                       onTap: () {
                         ss(() { durationIsFrei = false; selectedDuration = dur; });
-                        if (!isLastStep) {
-                          Future.delayed(const Duration(milliseconds: 400),
-                              () { if (ctx.mounted) goTo(2, ss); });
-                        }
+                        if (!isLastStep) autoAdvanceTo(2, ss, ctx);
                       },
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
@@ -470,10 +485,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                   child: GestureDetector(
                     onTap: () {
                       ss(() { durationIsFrei = true; selectedDuration = null; });
-                      if (!isLastStep) {
-                        Future.delayed(const Duration(milliseconds: 400),
-                            () { if (ctx.mounted) goTo(2, ss); });
-                      }
+                      if (!isLastStep) autoAdvanceTo(2, ss, ctx);
                     },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
@@ -523,9 +535,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                       child: GestureDetector(
                         onTap: () {
                           ss(() => selectedIntensity = e.key);
-                          // Auto-advance after short delay
-                          Future.delayed(const Duration(milliseconds: 400),
-                              () { if (ctx.mounted) goTo(2, ss); });
+                          autoAdvanceTo(2, ss, ctx);
                         },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
@@ -782,6 +792,8 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
         },
       ),
     );
+    pageCtrl.dispose(); // Fix: prevent memory leak
+    return result;
   }
 
   Future<void> _generateAiPlan() async {
@@ -989,7 +1001,8 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
               Wrap(
                 spacing: 6, runSpacing: 6,
                 children: weaknesses.map<Widget>((w) {
-                  final m = w as Map<String, dynamic>;
+                  if (w is! Map<String, dynamic>) return const SizedBox.shrink();
+                  final m = w;
                   return Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
@@ -998,7 +1011,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                       border: Border.all(color: AppColors.red.withAlpha(60)),
                     ),
                     child: Text(
-                      '${m['label']} (−${m['deficit']}%)',
+                      '${m['label'] ?? '?'} (−${m['deficit'] ?? '?'}%)',
                       style: GoogleFonts.openSans(
                           color: AppColors.red, fontSize: 11, fontWeight: FontWeight.w600),
                     ),

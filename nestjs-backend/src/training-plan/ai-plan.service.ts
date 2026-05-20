@@ -204,17 +204,19 @@ export class AiPlanService {
     let llmError: string | undefined;
     try {
       llmResponse = await this.callLlm(context);
-    } catch (err) {
-      this.logger.warn(`LLM call failed, using rule-based fallback: ${err.message}`);
+    } catch (err: any) {
+      this.logger.warn(`LLM call failed, using rule-based fallback: ${err?.message ?? err}`);
       llmResponse = this.ruleBasedFallback(weaknesses, exercises, contraindications);
       isRuleBased = true;
-      llmError = err.message;
+      llmError = err?.message ?? String(err);
     }
 
     // 6. Match suggested exercises against DB
     const exerciseMap = new Map(exercises.map((e) => [e.id, e]));
     const exerciseByName = new Map(exercises.map((e) => [e.name.toLowerCase(), e]));
-    const isRunningPlan = request?.trainingType === 'ausdauer' && !!request?.ausdauerIntensity;
+    // Running plan detection — disabled when fallback is used (fallback generates gym exercises)
+    let isRunningPlan = request?.trainingType === 'ausdauer' && !!request?.ausdauerIntensity;
+    if (isRuleBased) isRunningPlan = false;
 
     const mapRows = (rows: AiLlmResponse['sonsomo'], skipDbMatch = false): AiPlanRow[] =>
       rows.map((r) => {
@@ -662,16 +664,18 @@ WICHTIG: Nur für gut trainierte Kunden. Bei Anfängern → kürzere/weniger Int
     const maxHr = context.client.maxHeartRate;
     if (!maxHr) return null;
 
-    const restHr = context.bodyComposition?.calmPulse ?? 65; // default 65 if unknown
+    const restHr = context.bodyComposition?.calmPulse;
+    if (!restHr) return null; // No resting HR → force RPE fallback (safer than guessing)
     const hrr = maxHr - restHr;
 
+    // Zone boundaries: upper = next zone lower - 1 (no overlap, convention like Garmin/Polar)
     return {
       restHr,
       maxHr,
-      zone1: [Math.round(restHr + 0.50 * hrr), Math.round(restHr + 0.60 * hrr)],
-      zone2: [Math.round(restHr + 0.60 * hrr), Math.round(restHr + 0.70 * hrr)],
-      zone3: [Math.round(restHr + 0.70 * hrr), Math.round(restHr + 0.80 * hrr)],
-      zone4: [Math.round(restHr + 0.80 * hrr), Math.round(restHr + 0.90 * hrr)],
+      zone1: [Math.round(restHr + 0.50 * hrr), Math.round(restHr + 0.60 * hrr) - 1],
+      zone2: [Math.round(restHr + 0.60 * hrr), Math.round(restHr + 0.70 * hrr) - 1],
+      zone3: [Math.round(restHr + 0.70 * hrr), Math.round(restHr + 0.80 * hrr) - 1],
+      zone4: [Math.round(restHr + 0.80 * hrr), Math.round(restHr + 0.90 * hrr) - 1],
       zone5: [Math.round(restHr + 0.90 * hrr), maxHr],
     };
   }
@@ -715,13 +719,17 @@ WICHTIG: Nur für gut trainierte Kunden. Bei Anfängern → kürzere/weniger Int
         }
       }
 
-      // Running-specific output format
+      // Running-specific output format — adapt examples based on HR availability
+      const hrZonesAvailable = context ? this.calculateHrZones(context) : null;
+      const posExample = hrZonesAvailable
+        ? `Herzfrequenz-Zone (z.B. "Zone 2: ${hrZonesAvailable.zone2[0]}-${hrZonesAvailable.zone2[1]} bpm")`
+        : `RPE-Wert (z.B. "RPE 4-5 / Locker")`;
       blocks.push(
         `LAUFPLAN-FORMAT: Der "main"-Bereich enthält NUR Laufprotokoll-Zeilen:\n` +
         `- "exercise_name": Phasenname (z.B. "Aufwärmen", "GA1 Dauerlauf", "Tempo-Intervall", "Aktive Pause", "Cool-down")\n` +
         `- "exercise_id": null (Laufphasen sind keine DB-Übungen)\n` +
         `- "device": "Laufband" oder "Outdoor"\n` +
-        `- "position": Herzfrequenz-Zone (z.B. "Zone 2: 137-149 bpm") oder RPE\n` +
+        `- "position": ${posExample}\n` +
         `- "weight": Tempo/Pace (z.B. "8.5 km/h" oder "5:30 min/km")\n` +
         `- "sets": Dauer/Struktur (z.B. "20 min", "4×4 min", "3×8 min mit 2 min Pause")\n` +
         `\nDie Sonsomo-Sektion enthält 2-3 Lauf-ABC/Aufwärm-Übungen (aus dem Katalog).\n` +
@@ -881,7 +889,7 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
       if (obj && typeof obj === 'object') {
         return Object.fromEntries(
           Object.entries(obj)
-            .filter(([, v]) => v !== null && v !== undefined && v !== '' && v !== false)
+            .filter(([, v]) => v !== null && v !== undefined && v !== '')
             .map(([k, v]) => [k, stripNulls(v)]),
         );
       }
