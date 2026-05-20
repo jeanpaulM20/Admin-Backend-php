@@ -1380,7 +1380,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                 const SizedBox(height: 32),
                 // Title
                 Text(
-                  'Trainingsplan wird erstellt',
+                  'ST-Trainingsplan',
                   style: GoogleFonts.montserrat(
                     color: Colors.white,
                     fontSize: 20,

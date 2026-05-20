@@ -109320,7 +109320,7 @@ if(s.r)p.push(s.acu())
 p=A.f6(B.bI,p,B.w,B.bz,r)
 return A.eD(r,B.ai,p,s.r?r:A.a8(A.a([new A.pF(B.a_7,"ST-Trainingsplan",B.E,B.Y,"ai",s.gahc(),r,!1,B.PL,r,r),B.cK,A.b_p(B.h,B.wW,B.o,"add",!1,new A.aPD(s),"Neuer Plan")],q),B.k,B.e,B.Z))},
 acu(){var s=this,r=null,q=s.w,p=s.r?1:0,o=B.u.FY(0.85)
-q=A.a([A.a3(r,B.ZC,B.l,r,r,new A.a1(B.Y,r,r,r,A.a([new A.bP(5,B.ah,B.E.FY(0.4),B.n,30)],t.V),r,B.aX),r,80,r,r,r,r,r,80),B.f7,A.o("Trainingsplan wird erstellt",r,r,r,r,A.dy().$3$color$fontSize$fontWeight(B.o,20,B.F),r,r,r),B.ao,A.o(s.a.c.c,r,r,r,r,A.b56().$2$color$fontSize(B.uo,14),r,r,r),B.f7,A.QG(A.T(4),A.Th(B.uQ,B.aA,r,4,(q+1)/7,B.tv),B.bK),B.ad],t.p)
+q=A.a([A.a3(r,B.ZC,B.l,r,r,new A.a1(B.Y,r,r,r,A.a([new A.bP(5,B.ah,B.E.FY(0.4),B.n,30)],t.V),r,B.aX),r,80,r,r,r,r,r,80),B.f7,A.o("ST-Trainingsplan",r,r,r,r,A.dy().$3$color$fontSize$fontWeight(B.o,20,B.F),r,r,r),B.ao,A.o(s.a.c.c,r,r,r,r,A.b56().$2$color$fontSize(B.uo,14),r,r,r),B.f7,A.QG(A.T(4),A.Th(B.uQ,B.aA,r,4,(q+1)/7,B.tv),B.bK),B.ad],t.p)
 B.b.K(q,A.uk(6,new A.aOx(s),!0,t.m))
 return A.Pq(A.a3(r,A.bz(new A.a6(B.Xb,A.a8(q,B.k,B.e,B.Z),r),r,r),B.l,o,r,r,r,r,r,r,r,r,r,r),B.W,B.c_,p)},
 acT(){var s,r,q,p=this,o=null,n=A.d1(o,o,B.wV,o,o,new A.aOB(p),o,o,o),m=A.o("Trainingspl\xe4ne",o,o,o,o,A.dy().$4$color$fontSize$fontWeight$letterSpacing(B.o,22,B.aT,-0.5),o,o,o),l=t.p,k=A.a([B.ZN,B.bi,A.o(p.a.c.c,o,o,o,o,A.aG().$2$color$fontSize(B.oz,12),o,o,o)],l)
