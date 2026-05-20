@@ -408,24 +408,9 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
 
           // ── Duration picker widget (shared) ──
           Widget durationPicker({required bool isLastStep}) {
-            final hintLabel = isAusdauer && selectedIntensity != null ? zoneLabel : typeLabel;
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (recs['durationHint'] != null)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: accent.withAlpha(15),
-                      borderRadius: BorderRadius.circular(10)),
-                    child: Row(children: [
-                      const Icon(Icons.lightbulb_outline, size: 16, color: accent),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text('Empfohlen für $hintLabel: ${recs['durationHint']}',
-                          style: GoogleFonts.openSans(color: accent, fontSize: 12, fontWeight: FontWeight.w600))),
-                    ]),
-                  ),
                 ...[30, 45, 60].map((dur) {
                   final isSelected = !durationIsFrei && selectedDuration == dur;
                   final isRec = recDurations.contains(dur);
@@ -529,25 +514,6 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   header('SCHRITT 2 VON 3', 'Welche Intensität?', Icons.speed),
-                  // Recommendation hint
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: accent.withAlpha(15),
-                      borderRadius: BorderRadius.circular(10)),
-                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      const Padding(
-                        padding: EdgeInsets.only(top: 2),
-                        child: Icon(Icons.lightbulb_outline, size: 16, color: accent),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(
-                          'Empfohlen: Zone 2 (GA1) für Grundlagentraining. '
-                          'Höhere Zonen für fortgeschrittene Kunden.',
-                          style: GoogleFonts.openSans(color: accent, fontSize: 12, fontWeight: FontWeight.w600))),
-                    ]),
-                  ),
                   ..._ausdauerZones.entries.map((e) {
                     final isSelected = selectedIntensity == e.key;
                     final zoneIntensity = (e.value['intensity'] as double?) ?? 0.5;
@@ -736,21 +702,6 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 header('SCHRITT 3 VON 3', 'Welche Geräte?', Icons.handyman_outlined),
-                if (recEquipment.isNotEmpty)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: accent.withAlpha(15),
-                      borderRadius: BorderRadius.circular(10)),
-                    child: Row(children: [
-                      const Icon(Icons.lightbulb_outline, size: 16, color: accent),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(
-                          'Empfohlen für $typeLabel: ${recEquipment.map((e) => _equipmentOptions[e]?['label'] ?? e).join(', ')}',
-                          style: GoogleFonts.openSans(color: accent, fontSize: 12, fontWeight: FontWeight.w600))),
-                    ]),
-                  ),
                 Wrap(
                   spacing: 8, runSpacing: 8,
                   children: _equipmentOptions.entries.map((e) {
