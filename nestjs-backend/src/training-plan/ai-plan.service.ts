@@ -382,8 +382,8 @@ export class AiPlanService {
         where: { client_id: clientId },
         order: { date: 'DESC' },
       });
-    } catch (err) {
-      this.logger.warn(`Failed to load metric for client ${clientId}: ${err.message}`);
+    } catch (err: any) {
+      this.logger.warn(`Failed to load metric for client ${clientId}: ${err?.message ?? err}`);
       return null;
     }
   }
@@ -393,8 +393,8 @@ export class AiPlanService {
       return await this.goalRepo.find({
         where: { clientId },
       });
-    } catch (err) {
-      this.logger.warn(`Failed to load goals for client ${clientId}: ${err.message}`);
+    } catch (err: any) {
+      this.logger.warn(`Failed to load goals for client ${clientId}: ${err?.message ?? err}`);
       return [];
     }
   }
@@ -413,8 +413,8 @@ export class AiPlanService {
         [clientId],
       );
       return reviews;
-    } catch (err) {
-      this.logger.warn(`Failed to load reviews for client ${clientId}: ${err.message}`);
+    } catch (err: any) {
+      this.logger.warn(`Failed to load reviews for client ${clientId}: ${err?.message ?? err}`);
       return [];
     }
   }
@@ -1125,9 +1125,9 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
     let parsed: AiLlmResponse;
     try {
       parsed = JSON.parse(cleaned);
-    } catch (e) {
+    } catch (e: any) {
       this.logger.error(`Failed to parse LLM JSON: ${cleaned.substring(0, 500)}`);
-      throw new Error(`LLM returned invalid JSON: ${e.message}`);
+      throw new Error(`LLM returned invalid JSON: ${e?.message ?? String(e)}`);
     }
 
     // Validate required fields (mobility is optional for backward compat)

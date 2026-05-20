@@ -68,7 +68,8 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
       });
     } on ApiException catch (e) {
       setState(() => _error = e.message);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('TrainingPlanList._load error: $e');
       setState(() => _error = 'Fehler beim Laden der Pläne');
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -824,11 +825,12 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
         SnackBar(content: Text(e.message), backgroundColor: AppColors.red),
       );
     } catch (e) {
+      debugPrint('AI generation error: $e');
       if (!mounted) return;
       setState(() => _generatingAi = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('KI-Generierung fehlgeschlagen: $e'),
+        const SnackBar(
+          content: Text('KI-Generierung fehlgeschlagen. Bitte erneut versuchen.'),
           backgroundColor: AppColors.red,
         ),
       );
@@ -1127,7 +1129,8 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
           ]),
         ),
         ...exercises.map<Widget>((e) {
-          final m = e as Map<String, dynamic>;
+          if (e is! Map<String, dynamic>) return const SizedBox.shrink();
+          final m = e;
           final isNew = m['isNew'] == true;
           return Container(
             margin: const EdgeInsets.only(bottom: 4),
@@ -1217,8 +1220,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
 
   TrainingPlan _aiResultToPlan(Map<String, dynamic> result) {
     List<TrainingPlanRow> mapRows(List<dynamic> rows) {
-      return rows.map((r) {
-        final m = r as Map<String, dynamic>;
+      return rows.whereType<Map<String, dynamic>>().map((m) {
         return TrainingPlanRow(
           exercise: m['exercise']?.toString() ?? '',
           device: m['device']?.toString() ?? '',
