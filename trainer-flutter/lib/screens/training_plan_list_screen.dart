@@ -92,7 +92,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
     'Körperzusammensetzung prüfen …',
     'Trainingshistorie auswerten …',
     'Schwächen identifizieren …',
-    'KI erstellt Trainingsplan …',
+    'Trainingsplan wird erstellt …',
   ];
 
   void _advanceAiSteps() async {
@@ -506,7 +506,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                             Text('Frei', style: GoogleFonts.openSans(
                                 color: durationIsFrei ? accent : AppColors.text,
                                 fontSize: 15, fontWeight: FontWeight.w700)),
-                            Text('KI entscheidet basierend auf Fitnesslevel',
+                            Text('Basierend auf Fitnesslevel',
                                 style: GoogleFonts.openSans(color: AppColors.muted, fontSize: 11)),
                           ],
                         )),
@@ -731,7 +731,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                   }).toList(),
                 ),
                 const SizedBox(height: 8),
-                chip('Frei (KI wählt)', Icons.auto_awesome, equipmentIsFrei,
+                chip('Frei (automatisch)', Icons.auto_awesome, equipmentIsFrei,
                     subtitle: 'Optimale Geräte basierend auf Profil',
                     onTap: () => ss(() {
                       equipmentIsFrei = !equipmentIsFrei;
@@ -829,7 +829,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
       setState(() => _generatingAi = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('KI-Generierung fehlgeschlagen. Bitte erneut versuchen.'),
+          content: Text('Plan-Generierung fehlgeschlagen. Bitte erneut versuchen.'),
           backgroundColor: AppColors.red,
         ),
       );
@@ -838,7 +838,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
 
   Future<void> _showAiPreview(Map<String, dynamic> result) async {
     final reasoning = result['ai_reasoning'] as String? ?? '';
-    final planName = result['name'] as String? ?? 'KI-Plan';
+    final planName = result['name'] as String? ?? 'ST-Plan';
     final weaknesses = result['weaknesses'] as List<dynamic>? ?? [];
     final contraindications = result['contraindications'] as List<dynamic>? ?? [];
     final sonsomo = result['sonsomo'] as List<dynamic>? ?? [];
@@ -892,7 +892,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('KI-Empfehlung',
+                    Text('ST-Empfehlung',
                         style: GoogleFonts.montserrat(
                             color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w800)),
                     Text('$totalExercises Übungen · $planName',
@@ -953,7 +953,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                               style: GoogleFonts.openSans(
                                   color: AppColors.orange, fontSize: 12, fontWeight: FontWeight.w700)),
                           const SizedBox(height: 4),
-                          Text('Die KI war nicht erreichbar. Dieser Plan wurde automatisch nach Regeln erstellt und sollte besonders sorgfältig geprüft werden.',
+                          Text('Dieser Plan wurde automatisch nach Regeln erstellt und sollte besonders sorgfältig geprüft werden.',
                               style: GoogleFonts.openSans(
                                   color: AppColors.text, fontSize: 12, height: 1.4)),
                         ],
@@ -1232,7 +1232,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
 
     return TrainingPlan(
       clientId: widget.client.id,
-      name: result['name']?.toString() ?? 'KI-Plan',
+      name: result['name']?.toString() ?? 'ST-Plan',
       values: TrainingPlanValues(
         sonsomo: mapRows(result['sonsomo'] as List<dynamic>? ?? []),
         main: mapRows(result['main'] as List<dynamic>? ?? []),
@@ -1326,7 +1326,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                   onPressed: _generateAiPlan,
                   backgroundColor: const Color(0xFF1E2740),
                   foregroundColor: const Color(0xFFAB47BC),
-                  tooltip: 'KI-Plan erstellen',
+                  tooltip: 'ST-Trainingsplan',
                   child: const Icon(Icons.auto_awesome, size: 20),
                 ),
                 const SizedBox(height: 10),
@@ -1377,7 +1377,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                 const SizedBox(height: 32),
                 // Title
                 Text(
-                  'KI-Trainingsplan',
+                  'Trainingsplan wird erstellt',
                   style: GoogleFonts.montserrat(
                     color: Colors.white,
                     fontSize: 20,
