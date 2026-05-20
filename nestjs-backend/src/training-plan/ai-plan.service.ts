@@ -536,7 +536,8 @@ FOKUS: Atemübungen, Yoga-Elemente, Meditation, Flow-Bewegungen, therapeutisches
 - Core: Yoga-basierte Core-Übungen (Boat Pose, Plank-Flow), Atemgesteuerte Stabilisation, Pilates-Elemente
 - Mobility: Yoga-Flows, Meditation in Dehnpositionen, Faszien-Release, Progressive Muskelentspannung
 INTENSITÄT: Moderat (RPE 4-6/10). KEINE Maximalkraft, KEIN HIIT. Puls unter 70% HFmax. Fokus auf Parasympathikus-Aktivierung und Flow-Erlebnis.
-BEVORZUGE: Slackline, Kletterwand/Bouldern, Yoga-Matten, Faszienrollen, propriozeptive Geräte für neuronale Stimulation.`,
+BEVORZUGE: Slackline, Kletterwand/Bouldern, Yoga-Matten, Faszienrollen, propriozeptive Geräte für neuronale Stimulation.
+WICHTIG: CARs (Controlled Articular Rotations) und Mobilisationsübungen gehören in die "mobility"-Sektion, NICHT in "main". Main soll Flow-Bewegungen (Animal Flows, Yoga-Sequenzen), therapeutisches Klettern, Slackline-Training und moderate Kraftübungen mit Achtsamkeitsfokus enthalten.`,
 
     athletik: `TRAININGSTYP: ATHLETIK
 FOKUS: Explosivkraft, Plyometrie, Agility, sportartspezifische Leistung.
@@ -553,7 +554,7 @@ FOKUS: Sprint-Intervalle, Reaktionstraining, Frequenzübungen, maximale Geschwin
 - Core: Explosive Anti-Rotations-Übungen, Sprint-spezifische Core-Stabilität (Pallof Press dynamisch, Dead Bug schnell)
 - Mobility: Hüftbeuger-Mobilisation (essentiell für Sprintschrittlänge), Sprunggelenk-Mobilisation, aktive Wadendehnung
 BEVORZUGE: Barfuß-Training, Koordinationsleiter, Springseil für Frequenz, freie Sprintfläche.
-WICHTIG: Schnelligkeitsübungen IMMER im erholten Zustand durchführen (am Anfang des Trainings). Pausen: 180-300s zwischen Maximalsprints.`,
+WICHTIG: Schnelligkeitsübungen IMMER im erholten Zustand durchführen (am Anfang des Trainings). Pausen: 180-300s zwischen Maximalsprints. Gib die Pausenzeiten EXPLIZIT im "sets"-Feld an (z.B. "5×20m mit 3 min Pause").`,
   };
 
   /** Duration-based exercise count mapping per section */
@@ -589,13 +590,15 @@ WICHTIG: Schnelligkeitsübungen IMMER im erholten Zustand durchführen (am Anfan
       cadence: '~155-160 spm',
       protocol: `AUSDAUER-INTENSITÄT: REGENERATIV (Zone 1)
 FOKUS: Aktive Erholung, lockerer Dauerlauf, Fettverbrennung.
+RPE-BEREICH: RPE 2-3 (Borg 9-11). Verwende im "position"-Feld IMMER "RPE 2-3 / Sehr locker".
 PROTOKOLL:
 - Aufwärmen: 5 min sehr lockeres Gehen/Joggen
 - Hauptteil: Kontinuierlicher lockerer Dauerlauf, Konversationstempo, gleichmässiges Tempo
 - Cool-down: 5 min Auslaufen, Gehen
 TEMPO: Sehr locker — der Kunde sollte sich jederzeit unterhalten können.
 KEINE Intervalle, KEINE Tempowechsel. Rein regenerativ.
-KADENZ: ~155-160 Schritte pro Minute.`,
+KADENZ: ~155-160 Schritte pro Minute.
+PLAN-NAME: Verwende "Regenerativ" im Titel. NICHT "GA1" — GA1 ist Zone 2, nicht Zone 1.`,
     },
     allgemeine: {
       label: 'Allgemeine Ausdauer (Zone 2 — Mittel)',
@@ -603,6 +606,7 @@ KADENZ: ~155-160 Schritte pro Minute.`,
       cadence: '~160-165 spm',
       protocol: `AUSDAUER-INTENSITÄT: ALLGEMEINE AUSDAUER / GA1 (Zone 2)
 FOKUS: Grundlagenausdauer, aerobe Basis aufbauen, Ausschöpfung steigern.
+RPE-BEREICH: RPE 3-4 (Borg 11-13). Verwende im "position"-Feld IMMER "RPE 3-4 / Moderat".
 PROTOKOLL:
 - Aufwärmen: 5 min lockeres Einlaufen, Steigerung auf Zieltempo
 - Hauptteil: Kontinuierlicher Dauerlauf im GA1-Bereich. Gleichmässiges moderates Tempo über die gesamte Dauer.
@@ -617,6 +621,7 @@ KADENZ: ~160-165 Schritte pro Minute.`,
       cadence: '~165-172 spm',
       protocol: `AUSDAUER-INTENSITÄT: SPEZIALE AUSDAUER / TEMPO (Zone 3)
 FOKUS: Ermüdungsresistenz steigern, Laktat-Clearance verbessern, Tempo-Intervalle.
+RPE-BEREICH: RPE 5-6 (Borg 13-15). Verwende im "position"-Feld IMMER "RPE 5-6 / Anstrengend".
 PROTOKOLL:
 - Aufwärmen: 5 min lockeres Einlaufen (Zone 1-2)
 - Hauptteil: 3-4 längere Intervalle (6-10 min) im Tempobereich, dazwischen jeweils 2-3 min aktive Pause (lockeres Joggen Zone 1)
@@ -631,6 +636,7 @@ BEISPIEL-STRUKTUR: 5' Aufwärmen → 3×8 min Tempo (2 min Pause) → 5' Cool-do
       cadence: '~172-178 spm',
       protocol: `AUSDAUER-INTENSITÄT: SCHWELLENTRAINING / THRESHOLD (Zone 4)
 FOKUS: Anaerobe Schwelle verschieben, Potenzial steigern, Leistungsfähigkeit erhöhen.
+RPE-BEREICH: RPE 7-8 (Borg 15-17). Verwende im "position"-Feld IMMER "RPE 7-8 / Sehr anstrengend".
 PROTOKOLL:
 - Aufwärmen: 5 min lockeres Einlaufen (Zone 1-2), danach 2-3 min Steigerungen
 - Hauptteil: 4-6 Intervalle (3-5 min) an der anaeroben Schwelle, dazwischen jeweils 3 min aktive Pause (lockeres Joggen Zone 1-2)
@@ -645,13 +651,17 @@ BEISPIEL-STRUKTUR: 5' Aufwärmen → 4×4 min Schwelle (3 min Pause) → 5' Cool
       cadence: '~178-185+ spm',
       protocol: `AUSDAUER-INTENSITÄT: HIIT / VO2max (Zone 5)
 FOKUS: Maximale Sauerstoffaufnahme (VO2max) verbessern, anaerobe Kapazität, Spitzenleistung.
+RPE-BEREICH: RPE 9-10 (Borg 17-20). Verwende im "position"-Feld IMMER "RPE 9-10 / Maximal".
 PROTOKOLL:
 - Aufwärmen: 5-8 min progressives Einlaufen (Zone 1→3), 2-3 kurze Steigerungsläufe
-- Hauptteil: 6-10 kurze hochintensive Intervalle (30s-2 min) mit nahezu maximaler Belastung, dazwischen vollständige Erholung (2-3 min lockeres Gehen/Joggen)
+- Hauptteil: EIN einziges Intervall-Protokoll wählen (NICHT mehrere kombinieren!):
+  Option A: 6-8×30-60s Sprints mit 2-3 min Pause (kurze Intervalle)
+  Option B: 4-6×90s-2min VO2max-Läufe mit 2-3 min Pause (mittlere Intervalle)
+  Option C: 8×20s/10s Tabata (nur für sehr gut Trainierte)
 - Cool-down: 5-8 min sehr lockeres Auslaufen
 TEMPO: Maximal — alles geben, Sprint-ähnlich. Vollständige Erholung zwischen Intervallen essenziell!
 KADENZ: ~178-185+ Schritte pro Minute.
-BEISPIEL-STRUKTUR: 8' Aufwärmen → 8×1 min Sprint (2 min Pause) → 8' Cool-down
+WICHTIG: NUR EIN Intervall-Protokoll pro Training! Nie zwei verschiedene HIIT-Protokolle in einer Session kombinieren — Überlastungsrisiko!
 WICHTIG: Nur für gut trainierte Kunden. Bei Anfängern → kürzere/weniger Intervalle.`,
     },
   };
@@ -734,7 +744,8 @@ WICHTIG: Nur für gut trainierte Kunden. Bei Anfängern → kürzere/weniger Int
         `- "sets": Dauer/Struktur (z.B. "20 min", "4×4 min", "3×8 min mit 2 min Pause")\n` +
         `\nDie Sonsomo-Sektion enthält 2-3 Lauf-ABC/Aufwärm-Übungen (aus dem Katalog).\n` +
         `Die Core-Sektion enthält 1-2 laufspezifische Core-Übungen (aus dem Katalog).\n` +
-        `Die Mobility-Sektion enthält 1-2 laufspezifische Dehnübungen (aus dem Katalog).`,
+        `Die Mobility-Sektion enthält 2-3 laufspezifische Dehnübungen (aus dem Katalog).\n` +
+        `PFLICHT in Mobility: Eine Hüftbeuger-Dehnung (Psoas/Iliopsoas) — verkürzte Hüftbeuger limitieren die Schrittlänge und verursachen LWS-Probleme bei Läufern.`,
       );
     } else {
       const typePrompt = AiPlanService.TRAINING_TYPE_PROMPTS[request.trainingType];
@@ -817,7 +828,7 @@ WICHTIGE REGELN:
 3. SCHWÄCHEN VOLLSTÄNDIG ABDECKEN: Adressiere JEDE identifizierte Schwäche aus dem Leistungstest mit mindestens einer gezielten Übung. Prüfe am Ende, ob alle Schwächen im Plan vertreten sind. WICHTIG: Wenn ein Test-Parameter als "notTested" markiert ist, wurde er NICHT durchgeführt. Behandle fehlende Tests NICHT als Schwäche — erwähne sie nur als "nicht getestet" im Reasoning.
 4. VERFÜGBARE ÜBUNGEN BEVORZUGEN: Wähle Übungen aus dem mitgelieferten Katalog (mit exercise_id). Der Katalog enthält pro Übung: Muskelgruppe, Zielgelenk und Bewegungsmuster (Push/Pull/Squat/Hinge/Plyo/Static/etc.). Nutze diese Metadaten für eine präzise Übungsauswahl. Nur wenn keine passende Übung im Katalog existiert, schlage eine neue vor (exercise_id: null).
 5. STRUKTUR:
-   - "sonsomo" (Aufwärmen/Sensomotorik): 2-4 Übungen. FOKUS: Propriozeptives Training, Koordination und Fußmuskulatur. ZIELE: (1) Propriorezeptoren aktivieren und verbessern — Einbeinstand, Balance Board, instabiler Untergrund, Augen-geschlossen-Varianten. (2) Neuronales Nervensystem aktivieren — Aufmerksamkeit, Achtsamkeit, den Kunden bewusst ins Hier-und-Jetzt bringen. (3) Koordinative Herausforderungen — Seilspringen, Reaktionsübungen, kontralaterale Bewegungen. (4) Fußmuskulatur stärken — Barfuß-Übungen, Kurzfuß nach Janda, Zehenarbeit, Fußgewölbe-Aktivierung. BEVORZUGE: Barfuß-Übungen, Balance Board, Einbeinstand, Slackline, Seilspringen, Short Foot Exercise, MFT Board. VERMEIDE: Klassische Dehnübungen, passives Aufwärmen, Scapula- oder Schulter-Übungen (gehören in main/core). Die Sonsomo-Phase ist REIN propriozeptiv und koordinativ.
+   - "sonsomo" (Aufwärmen/Sensomotorik): 2-4 Übungen. FOKUS: Propriozeptives Training, Koordination und Fußmuskulatur. ZIELE: (1) Propriorezeptoren aktivieren und verbessern — Einbeinstand, Balance Board, instabiler Untergrund, Augen-geschlossen-Varianten. (2) Neuronales Nervensystem aktivieren — Aufmerksamkeit, Achtsamkeit, den Kunden bewusst ins Hier-und-Jetzt bringen. (3) Koordinative Herausforderungen — Seilspringen, Reaktionsübungen, kontralaterale Bewegungen. (4) Fußmuskulatur stärken — Barfuß-Übungen, Kurzfuß nach Janda, Zehenarbeit, Fußgewölbe-Aktivierung. BEVORZUGE: Barfuß-Übungen, Balance Board, Einbeinstand, Slackline, Seilspringen, Short Foot Exercise, MFT Board. VERMEIDE: Klassische Dehnübungen, passives Aufwärmen, Scapula- oder Schulter-Übungen (gehören in main/core). Die Sonsomo-Phase ist REIN propriozeptiv und koordinativ. VARIATION: Wähle abwechslungsreiche Übungen — nicht immer dieselben (z.B. statt immer Short Foot + Einbeinstand, auch Zehengreifen, Zehenklavier, Fersenstand, Greifübungen, reaktive Balance mit Ballwurf, Barfuß-Lauf-ABC, Pogo Hops leicht, Therapiekreisel). Bringe Abwechslung in die Sonsomo-Phase!
    - "main" (Haupttraining): 4-6 Übungen für die identifizierten Schwächen
    - "core" (Core/Rumpf): 2-3 Übungen für Rumpfstabilität
    - "mobility" (Mobilität/Cool-Down): 2-3 Übungen. FOKUS: Aktive Beweglichkeit, CARs (Controlled Articular Rotations), Faszien-Release, Dehnübungen. ZIELE: (1) Bewegungsumfang (ROM) erhalten und verbessern. (2) Verkürzte Muskelketten adressieren — besonders Hüftbeuger bei sitzenden Berufen. (3) Gelenke durch volle ROM führen (CARs). BEVORZUGE: CARs (Hip, Shoulder, Spine, Ankle), aktive Dehnungen, PNF-Stretching, Foam Rolling, Faszien-Übungen. VERMEIDE: Statisches Dehnen ohne vorherige Aktivierung.
@@ -924,10 +935,25 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
         ].join('\n')
       : '';
 
+    // Warn about outdated test data (older than 6 months)
+    let testAgeWarning = '';
+    if (context.performanceTest?.date) {
+      const testDate = new Date(context.performanceTest.date);
+      const ageMonths = (Date.now() - testDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
+      if (ageMonths > 6) {
+        const ageText = ageMonths > 12
+          ? `${Math.round(ageMonths / 12)} Jahre`
+          : `${Math.round(ageMonths)} Monate`;
+        testAgeWarning = `\n⚠️ ACHTUNG: Der Leistungstest ist ${ageText} alt (${testDate.toISOString().split('T')[0]}). ` +
+          `Die Ergebnisse sind möglicherweise nicht mehr aktuell. Erwähne dies im Reasoning und trainiere konservativ.\n`;
+      }
+    }
+
     return [
       'Erstelle einen Trainingsplan für folgenden Kunden:',
       '',
       JSON.stringify(stripNulls(rest), null, 2),
+      testAgeWarning,
       requestSummary,
       'VERFÜGBARE ÜBUNGEN (id|name|gruppe|muskel|gelenk|pattern):',
       catalogLines,
