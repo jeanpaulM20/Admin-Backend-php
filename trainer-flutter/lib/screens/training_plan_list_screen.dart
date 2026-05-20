@@ -529,6 +529,25 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   header('SCHRITT 2 VON 3', 'Welche Intensität?', Icons.speed),
+                  // Recommendation hint
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: accent.withAlpha(15),
+                      borderRadius: BorderRadius.circular(10)),
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const Padding(
+                        padding: EdgeInsets.only(top: 2),
+                        child: Icon(Icons.lightbulb_outline, size: 16, color: accent),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(
+                          'Empfohlen: Zone 2 (GA1) für Grundlagentraining. '
+                          'Höhere Zonen für fortgeschrittene Kunden.',
+                          style: GoogleFonts.openSans(color: accent, fontSize: 12, fontWeight: FontWeight.w600))),
+                    ]),
+                  ),
                   ..._ausdauerZones.entries.map((e) {
                     final isSelected = selectedIntensity == e.key;
                     final zoneIntensity = (e.value['intensity'] as double?) ?? 0.5;
@@ -560,10 +579,10 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(children: [
-                                  Text(e.value['label'] as String,
+                                  Flexible(child: Text(e.value['label'] as String,
                                       style: GoogleFonts.openSans(
                                           color: isSelected ? zoneColor : AppColors.text,
-                                          fontSize: 15, fontWeight: FontWeight.w700)),
+                                          fontSize: 15, fontWeight: FontWeight.w700))),
                                   const SizedBox(width: 8),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -574,6 +593,21 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                                         style: GoogleFonts.montserrat(
                                             color: zoneColor, fontSize: 9, fontWeight: FontWeight.w800)),
                                   ),
+                                  if (e.key == 'allgemeine') ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: accent.withAlpha(25),
+                                        borderRadius: BorderRadius.circular(6)),
+                                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                        const Icon(Icons.star_rounded, size: 12, color: accent),
+                                        const SizedBox(width: 2),
+                                        Text('Empfohlen', style: GoogleFonts.openSans(
+                                            color: accent, fontSize: 9, fontWeight: FontWeight.w800)),
+                                      ]),
+                                    ),
+                                  ],
                                 ]),
                                 const SizedBox(height: 2),
                                 Text(e.value['desc'] as String,
