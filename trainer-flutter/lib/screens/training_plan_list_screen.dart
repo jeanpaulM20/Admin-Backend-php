@@ -127,12 +127,12 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
 
   // ── AI Config: Smart recommendations per type ──────────────────────────
   static const _typeRecommendations = <String, Map<String, dynamic>>{
-    'ausdauer':       {'durations': [30, 45], 'equipment': <String>[], 'durationHint': '30-45 min'},
-    'kraft':          {'durations': [45, 60], 'equipment': ['kettlebell', 'ringe'], 'durationHint': '45-60 min'},
-    'propriozeptiv':  {'durations': [30, 45], 'equipment': ['mft', 'slackline'], 'durationHint': '30-45 min'},
-    'mental_health':  {'durations': [45, 60], 'equipment': ['slackline'], 'durationHint': '45-60 min'},
-    'athletik':       {'durations': [45, 60], 'equipment': ['kettlebell', 'springseil', 'ringe'], 'durationHint': '45-60 min'},
-    'schnelligkeit':  {'durations': [30, 45], 'equipment': ['slackline', 'springseil', 'kettlebell'], 'durationHint': '30-45 min'},
+    'ausdauer':       {'recDuration': 45, 'equipment': ['springseil'], 'durationHint': '45 min'},
+    'kraft':          {'recDuration': 60, 'equipment': ['kettlebell', 'ringe'], 'durationHint': '60 min'},
+    'propriozeptiv':  {'recDuration': 45, 'equipment': ['mft', 'slackline'], 'durationHint': '45 min'},
+    'mental_health':  {'recDuration': 60, 'equipment': ['slackline'], 'durationHint': '60 min'},
+    'athletik':       {'recDuration': 60, 'equipment': ['kettlebell', 'springseil'], 'durationHint': '60 min'},
+    'schnelligkeit':  {'recDuration': 45, 'equipment': ['springseil'], 'durationHint': '45 min'},
   };
 
   // ── Ausdauer intensity zones ─────────────────────────────────────────
@@ -144,8 +144,8 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
       'icon': Icons.self_improvement,
       'intensity': 0.20,
       'color': 0xFF4CAF50, // green
-      'recDurations': [30, 45],
-      'durationHint': '30-45 min',
+      'recDuration': 45,
+      'durationHint': '45 min',
     },
     'allgemeine': {
       'label': 'Allgemeine Ausdauer',
@@ -154,8 +154,8 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
       'icon': Icons.directions_run,
       'intensity': 0.40,
       'color': 0xFF2196F3, // blue
-      'recDurations': [30, 45, 60],
-      'durationHint': '30-60 min',
+      'recDuration': 45,
+      'durationHint': '45 min',
     },
     'spezial': {
       'label': 'Speziale Ausdauer',
@@ -164,8 +164,8 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
       'icon': Icons.speed,
       'intensity': 0.65,
       'color': 0xFFFFC107, // amber
-      'recDurations': [30, 45],
-      'durationHint': '30-45 min',
+      'recDuration': 45,
+      'durationHint': '45 min',
     },
     'schwelle': {
       'label': 'Schwellentraining',
@@ -174,8 +174,8 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
       'icon': Icons.whatshot,
       'intensity': 0.82,
       'color': 0xFFFF9800, // orange
-      'recDurations': [30, 45],
-      'durationHint': '30-45 min',
+      'recDuration': 45,
+      'durationHint': '45 min',
     },
     'hiit': {
       'label': 'HIIT / VO2max',
@@ -184,8 +184,8 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
       'icon': Icons.local_fire_department,
       'intensity': 1.0,
       'color': 0xFFF44336, // red
-      'recDurations': [30],
-      'durationHint': '20-30 min',
+      'recDuration': 30,
+      'durationHint': '30 min',
     },
   };
 
@@ -234,8 +234,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
           final recs = isAusdauer && selectedIntensity != null
               ? _ausdauerZones[selectedIntensity] ?? {}
               : (selectedType != null ? _typeRecommendations[selectedType] ?? {} : <String, dynamic>{});
-          final recDurations = (recs['recDurations'] as List<dynamic>?)?.cast<int>()
-              ?? (recs['durations'] as List<dynamic>?)?.cast<int>() ?? [];
+          final recDuration = recs['recDuration'] as int?;
           final recEquipment = (recs['equipment'] as List<dynamic>?)?.cast<String>() ?? [];
           final typeLabel = selectedType != null
               ? (_trainingTypes[selectedType]?['label'] as String? ?? '')
@@ -432,7 +431,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
               children: [
                 ...[30, 45, 60].map((dur) {
                   final isSelected = !durationIsFrei && selectedDuration == dur;
-                  final isRec = recDurations.contains(dur);
+                  final isRec = recDuration == dur;
                   final labels = {30: 'Quick Shot', 45: 'Sweet Spot', 60: 'Full Power'};
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 8),
