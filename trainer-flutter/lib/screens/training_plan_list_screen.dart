@@ -101,8 +101,10 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
       setState(() {
         _aiStepIndex = i;
       });
-      // Stagger the steps: first ones quick, last one long (waiting for AI)
-      await Future.delayed(Duration(milliseconds: i < 4 ? 1200 : 2500));
+      // Last step stays active until API returns — no delay needed
+      if (i < _aiSteps.length - 1) {
+        await Future.delayed(Duration(milliseconds: i < 3 ? 1500 : 2500));
+      }
     }
   }
 
@@ -1345,7 +1347,8 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
   }
 
   Widget _buildAiOverlay() {
-    final progress = (_aiStepIndex + 1) / _aiSteps.length;
+    // Never reach 100% — last step stays active until API returns
+    final progress = (_aiStepIndex + 1) / (_aiSteps.length + 1);
     return AnimatedOpacity(
       opacity: _generatingAi ? 1.0 : 0.0,
       duration: const Duration(milliseconds: 300),
