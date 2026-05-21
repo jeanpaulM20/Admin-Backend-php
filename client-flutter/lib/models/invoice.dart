@@ -21,8 +21,7 @@ class Invoice {
     this.durationMonths,
   });
 
-  bool get isPaid =>
-      status.toLowerCase() == 'bezahlt' || status.toLowerCase() == 'paid';
+  bool get isPaid => status.toLowerCase() == 'paid';
 
   factory Invoice.fromJson(Map<String, dynamic> json) {
     DateTime? parseDate(dynamic val) {

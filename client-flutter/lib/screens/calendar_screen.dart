@@ -953,11 +953,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                       a.status.toLowerCase() == 'booked' || a.status.toLowerCase() == 'attended').length;
                                   final cancelled = appts.where((a) => a.status.toLowerCase() == 'cancelled').length;
                                   final missed = appts.where((a) => a.status.toLowerCase() == 'missed').length;
+                                  // Green dot only for today/future — past availability is not bookable
+                                  final today = DateTime.now();
+                                  final isFutureDay = day.isAfter(today.subtract(const Duration(days: 1)));
 
                                   return Positioned(
                                     bottom: 2,
                                     child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                      if (avails.isNotEmpty) _markerDot(AppColors.green),
+                                      if (avails.isNotEmpty && isFutureDay) _markerDot(AppColors.green),
                                       if (booked > 0) _markerCountDot(AppColors.primary, booked),
                                       if (missed > 0) _markerDot(AppColors.orange),
                                       if (cancelled > 0) _markerDot(AppColors.red),

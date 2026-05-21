@@ -219,13 +219,21 @@ class _InvoiceDetailSheetState extends State<InvoiceDetailSheet> {
                     ),
                   ),
                 ),
-              if (_qrError != null)
+              if (_qrError != null) ...[
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(_qrError!,
                       style: const TextStyle(
                           color: AppColors.muted, fontSize: 12)),
                 ),
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  onPressed: _loadQr,
+                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                  label: const Text('Erneut versuchen'),
+                  style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+                ),
+              ],
               if (_qrImage != null) ...[
                 const SizedBox(height: 12),
                 Container(
