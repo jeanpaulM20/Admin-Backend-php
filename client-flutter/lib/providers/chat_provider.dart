@@ -102,7 +102,10 @@ class ChatProvider extends ChangeNotifier {
         );
         notifyListeners();
       }
-    } catch (_) {}
+    } catch (e) {
+      // Non-critical: log but don't surface to user
+      debugPrint('[ChatProvider] markAsRead failed: $e');
+    }
   }
 
   void clearError() {

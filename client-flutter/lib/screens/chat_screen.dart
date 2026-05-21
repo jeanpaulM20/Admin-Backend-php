@@ -328,7 +328,18 @@ class _ChatThreadState extends State<_ChatThread> {
           _eventSource!.onMessage.cast<html.MessageEvent>().listen((_) {
         if (mounted) _refresh();
       });
-    } catch (_) {}
+      // Reconnect on error (SSE drops after ~60s idle on some networks)
+      _eventSource!.onError.listen((_) {
+        debugPrint('[Chat] SSE connection lost, reconnecting in 5s...');
+        _esSubscription?.cancel();
+        _eventSource?.close();
+        Future.delayed(const Duration(seconds: 5), () {
+          if (mounted) _subscribeFirebase();
+        });
+      });
+    } catch (e) {
+      debugPrint('[Chat] Firebase SSE init failed: $e');
+    }
   }
 
   @override
