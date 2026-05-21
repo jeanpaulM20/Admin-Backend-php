@@ -18,6 +18,7 @@ class _AnamneseScreenState extends State<AnamneseScreen> {
   final _apiService = ApiService();
   bool _loading = true;
   bool _saving = false;
+  bool _dirty = false;
   String? _error;
   Anamnese? _anamnese;
 
@@ -75,10 +76,21 @@ class _AnamneseScreenState extends State<AnamneseScreen> {
   bool _diseaseKidney = false;
   bool _diseaseHeartCirculatory = false;
 
+  void _markDirty() { if (!_dirty) setState(() => _dirty = true); }
+
   @override
   void initState() {
     super.initState();
     _loadAnamnese();
+    // Track text changes for unsaved-changes warning
+    for (final c in [
+      _professionCtrl, _sportartsCtrl,
+      _sleepWeekCtrl, _sleepWeekendCtrl,
+      _injuryTypeCtrl, _injuryBodypartCtrl,
+      _musculoDescCtrl, _commentsCtrl, _goalsCtrl,
+    ]) {
+      c.addListener(_markDirty);
+    }
   }
 
   Future<void> _loadAnamnese() async {
@@ -102,7 +114,7 @@ class _AnamneseScreenState extends State<AnamneseScreen> {
       debugPrint('Anamnese._load error: $e');
       // No anamnese yet — start fresh
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() { _loading = false; _dirty = false; });
     }
   }
 
@@ -195,6 +207,7 @@ class _AnamneseScreenState extends State<AnamneseScreen> {
           ),
         );
         _anamnese = data;
+        _dirty = false;
       }
     } on ApiException catch (e) {
       if (mounted) {
@@ -220,9 +233,44 @@ class _AnamneseScreenState extends State<AnamneseScreen> {
     super.dispose();
   }
 
+  Future<bool> _onWillPop() async {
+    if (!_dirty) return true;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Ungespeicherte Änderungen',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: const Text(
+          'Du hast ungespeicherte Änderungen. Wirklich verlassen?',
+          style: TextStyle(color: AppColors.text),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen', style: TextStyle(color: AppColors.muted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Verwerfen', style: TextStyle(color: AppColors.red)),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: !_dirty,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        if (await _onWillPop()) {
+          if (context.mounted) Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text('Anamnese – ${widget.client.name}'),
@@ -247,6 +295,7 @@ class _AnamneseScreenState extends State<AnamneseScreen> {
           : _error != null
               ? _buildError()
               : _buildForm(),
+    ),
     );
   }
 
@@ -274,50 +323,50 @@ class _AnamneseScreenState extends State<AnamneseScreen> {
           _section('Beruf & Alltag', [
             _field('Beruf', _professionCtrl),
             _enumSelector('Tätigkeiten', _activitiesOptions, _activities,
-                (v) => setState(() => _activities = v)),
+                (v) { setState(() => _activities = v); _markDirty(); }),
             _enumSelector('Körperliche Belastung', _physicalDemandsOptions,
-                _physicalDemands, (v) => setState(() => _physicalDemands = v)),
+                _physicalDemands, (v) { setState(() => _physicalDemands = v); _markDirty(); }),
           ]),
           _section('Sport & Training', [
             _field('Sportarten', _sportartsCtrl),
             _enumSelector('Intensität', _intensityOptions, _sportartsIntensity,
-                (v) => setState(() => _sportartsIntensity = v)),
+                (v) { setState(() => _sportartsIntensity = v); _markDirty(); }),
           ]),
           _section('Schlaf', [
             _field('Schlaf – Werktags (Std.)', _sleepWeekCtrl, keyboardType: TextInputType.number),
             _field('Schlaf – Wochenende (Std.)', _sleepWeekendCtrl, keyboardType: TextInputType.number),
           ]),
           _section('Verletzungen', [
-            _toggle('Verletzung vorhanden', _injury, (v) => setState(() => _injury = v)),
+            _toggle('Verletzung vorhanden', _injury, (v) { setState(() => _injury = v); _markDirty(); }),
             if (_injury) ...[
               _field('Verletzungsart', _injuryTypeCtrl),
               _field('Körperteil', _injuryBodypartCtrl),
-              _toggle('Chronisch', _injuryChronic, (v) => setState(() => _injuryChronic = v)),
+              _toggle('Chronisch', _injuryChronic, (v) { setState(() => _injuryChronic = v); _markDirty(); }),
             ],
           ]),
           _section('Krankheiten / Kontraindikationen', [
-            _toggle('Herzinfarkt', _diseaseHeartattack, (v) => setState(() => _diseaseHeartattack = v)),
-            _toggle('Arterielle Verschlusskrankheit', _diseaseArterialDisorder, (v) => setState(() => _diseaseArterialDisorder = v)),
-            _toggle('Raynaud-Syndrom', _diseaseRaynald, (v) => setState(() => _diseaseRaynald = v)),
-            _toggle('Vaskulitis', _diseaseVasculitis, (v) => setState(() => _diseaseVasculitis = v)),
-            _toggle('Kälteempfindlichkeit', _diseaseCold, (v) => setState(() => _diseaseCold = v)),
-            _toggle('Sensibilitätsstörungen', _diseaseSensory, (v) => setState(() => _diseaseSensory = v)),
-            _toggle('Durchblutungsstörung', _diseaseCirculatory, (v) => setState(() => _diseaseCirculatory = v)),
-            _toggle('Nervenschädigung', _diseaseNerve, (v) => setState(() => _diseaseNerve = v)),
-            _toggle('Replantation', _diseaseReplantation, (v) => setState(() => _diseaseReplantation = v)),
-            _toggle('Periphere Lymphgefässe', _diseaseLymphatics, (v) => setState(() => _diseaseLymphatics = v)),
-            _toggle('Hämoglobinämie', _diseaseHemoglobinemia, (v) => setState(() => _diseaseHemoglobinemia = v)),
-            _toggle('Niere / Blase', _diseaseKidney, (v) => setState(() => _diseaseKidney = v)),
-            _toggle('Herz / Kreislauf', _diseaseHeartCirculatory, (v) => setState(() => _diseaseHeartCirculatory = v)),
+            _toggle('Herzinfarkt', _diseaseHeartattack, (v) { setState(() => _diseaseHeartattack = v); _markDirty(); }),
+            _toggle('Arterielle Verschlusskrankheit', _diseaseArterialDisorder, (v) { setState(() => _diseaseArterialDisorder = v); _markDirty(); }),
+            _toggle('Raynaud-Syndrom', _diseaseRaynald, (v) { setState(() => _diseaseRaynald = v); _markDirty(); }),
+            _toggle('Vaskulitis', _diseaseVasculitis, (v) { setState(() => _diseaseVasculitis = v); _markDirty(); }),
+            _toggle('Kälteempfindlichkeit', _diseaseCold, (v) { setState(() => _diseaseCold = v); _markDirty(); }),
+            _toggle('Sensibilitätsstörungen', _diseaseSensory, (v) { setState(() => _diseaseSensory = v); _markDirty(); }),
+            _toggle('Durchblutungsstörung', _diseaseCirculatory, (v) { setState(() => _diseaseCirculatory = v); _markDirty(); }),
+            _toggle('Nervenschädigung', _diseaseNerve, (v) { setState(() => _diseaseNerve = v); _markDirty(); }),
+            _toggle('Replantation', _diseaseReplantation, (v) { setState(() => _diseaseReplantation = v); _markDirty(); }),
+            _toggle('Periphere Lymphgefässe', _diseaseLymphatics, (v) { setState(() => _diseaseLymphatics = v); _markDirty(); }),
+            _toggle('Hämoglobinämie', _diseaseHemoglobinemia, (v) { setState(() => _diseaseHemoglobinemia = v); _markDirty(); }),
+            _toggle('Niere / Blase', _diseaseKidney, (v) { setState(() => _diseaseKidney = v); _markDirty(); }),
+            _toggle('Herz / Kreislauf', _diseaseHeartCirculatory, (v) { setState(() => _diseaseHeartCirculatory = v); _markDirty(); }),
           ]),
           _section('Bewegungsapparat', [
-            _toggle('Beschwerden', _musculoskeletal, (v) => setState(() => _musculoskeletal = v)),
+            _toggle('Beschwerden', _musculoskeletal, (v) { setState(() => _musculoskeletal = v); _markDirty(); }),
             if (_musculoskeletal)
               _field('Beschreibung', _musculoDescCtrl, maxLines: 3),
           ]),
           _section('Allgemein', [
-            _toggle('In ärztlicher Behandlung', _medicalTreatment, (v) => setState(() => _medicalTreatment = v)),
-            _toggle('Medikamente', _takingDrugs, (v) => setState(() => _takingDrugs = v)),
+            _toggle('In ärztlicher Behandlung', _medicalTreatment, (v) { setState(() => _medicalTreatment = v); _markDirty(); }),
+            _toggle('Medikamente', _takingDrugs, (v) { setState(() => _takingDrugs = v); _markDirty(); }),
             _field('Ziele', _goalsCtrl, maxLines: 3),
             _field('Bemerkungen', _commentsCtrl, maxLines: 3),
           ]),
