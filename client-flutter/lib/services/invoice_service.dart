@@ -18,14 +18,14 @@ class InvoiceService {
   }
 
   /// Fetches the Swiss QR payment slip (base64 PNG) for a given invoice.
+  /// Amount is determined server-side from the invoice record (not client-supplied).
   /// Returns decoded image bytes or null if generation fails.
   Future<Uint8List?> fetchQrBill({
     required String invoiceNumber,
-    required double amount,
   }) async {
     try {
       final data = await apiClient.get(
-        'api/client/invoice-qr/$invoiceNumber?amount=${amount.toStringAsFixed(2)}',
+        'api/client/invoice-qr/$invoiceNumber',
       );
       if (data is Map && data['success'] == true && data['base64'] != null) {
         return base64Decode(data['base64']);

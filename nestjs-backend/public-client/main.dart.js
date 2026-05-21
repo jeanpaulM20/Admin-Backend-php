@@ -95427,13 +95427,13 @@ break
 case 1:return A.A(q,r)}})
 return A.B($async$Cu,r)}}
 A.P2.prototype={
-AZ(a,b){return this.aq2(a,b)},
-aq2(a,b){var s=0,r=A.C(t.nc),q,p=2,o,n,m,l,k,j
-var $async$AZ=A.D(function(c,d){if(c===1){o=d
+AZ(a){return this.aq2(a)},
+aq2(a){var s=0,r=A.C(t.nc),q,p=2,o,n,m,l,k,j
+var $async$AZ=A.D(function(b,c){if(b===1){o=c
 s=p}while(true)switch(s){case 0:p=4
 s=7
-return A.t($.ck().bX(0,"api/client/invoice-qr/"+b+"?amount="+B.c.ac(a,2)),$async$AZ)
-case 7:n=d
+return A.t($.ck().bX(0,"api/client/invoice-qr/"+a),$async$AZ)
+case 7:n=c
 if(t.f.b(n)&&J.d(J.az(n,"success"),!0)&&J.az(n,"base64")!=null){l=B.qk.dX(J.az(n,"base64"))
 q=l
 s=1
@@ -95763,15 +95763,14 @@ A.ac_.prototype={
 $1(a){return new A.rg(this.a,null)},
 $S:656}
 A.HR.prototype={
-yL(){var s=0,r=A.C(t.H),q,p=this,o,n
+yL(){var s=0,r=A.C(t.H),q,p=this,o
 var $async$yL=A.D(function(a,b){if(a===1)return A.z(b,r)
 while(true)switch(s){case 0:p.a7(new A.avn(p))
-o=p.a.c
 s=3
-return A.t(p.d.AZ(o.f,o.a),$async$yL)
-case 3:n=b
+return A.t(p.d.AZ(p.a.c.a),$async$yL)
+case 3:o=b
 if(p.c==null){s=1
-break}p.a7(new A.avo(p,n))
+break}p.a7(new A.avo(p,o))
 case 1:return A.A(q,r)}})
 return A.B($async$yL,r)},
 G(a){var s=this.a.c.gYn(),r=s?B.A:B.h

@@ -75,15 +75,21 @@ export class ClientAppController {
     return this.invoiceService.getInvoices(clientId);
   }
 
-  /** QR payment slip for a specific invoice (returns base64 PNG) */
+  /** QR payment slip for a specific invoice (returns base64 PNG).
+   *  Amount is looked up from the DB — client-supplied amount is ignored for security.
+   */
   @Get('invoice-qr/:invoiceNumber')
   async invoiceQr(
     @Param('invoiceNumber') invoiceNumber: string,
-    @Query('amount') amount: string,
   ) {
-    const numAmount = parseFloat(amount);
+    // Look up the authoritative amount from the invoice record
+    const invoice = await this.invoiceService.getInvoiceByNumber(invoiceNumber);
+    if (!invoice) {
+      return { success: false, error: 'Invoice not found' };
+    }
+    const numAmount = parseFloat(invoice.amount);
     if (!numAmount || numAmount <= 0) {
-      return { success: false, error: 'Invalid amount' };
+      return { success: false, error: 'Invalid invoice amount' };
     }
     const qrResult = await this.invoiceService.generateQrBill({
       amount: numAmount,

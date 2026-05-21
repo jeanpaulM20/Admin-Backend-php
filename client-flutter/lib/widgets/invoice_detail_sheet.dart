@@ -55,7 +55,6 @@ class _InvoiceDetailSheetState extends State<InvoiceDetailSheet> {
     setState(() { _qrLoading = true; _qrError = null; });
     final bytes = await _service.fetchQrBill(
       invoiceNumber: inv.invoiceNumber,
-      amount: inv.amount,
     );
     if (!mounted) return;
     setState(() {
