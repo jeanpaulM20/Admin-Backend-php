@@ -13,9 +13,9 @@ export class AnamneseController {
       const record = await this.service.findByClient(clientId);
       // Return empty object if none exists yet (Flutter treats null/empty as "start fresh")
       return record ?? {};
-    } catch (err) {
+    } catch (err: any) {
       throw new HttpException(
-        { message: err.message, detail: err.sqlMessage ?? null },
+        { message: err?.message ?? 'Unknown error', detail: err?.sqlMessage ?? null },
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -26,9 +26,9 @@ export class AnamneseController {
   async create(@Body() body: Partial<ClientAnamnese>) {
     try {
       return await this.service.create(body);
-    } catch (err) {
+    } catch (err: any) {
       throw new HttpException(
-        { message: err.message, detail: err.sqlMessage ?? null },
+        { message: err?.message ?? 'Unknown error', detail: err?.sqlMessage ?? null },
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -42,9 +42,9 @@ export class AnamneseController {
   ) {
     try {
       return await this.service.upsertByClient(clientId, body);
-    } catch (err) {
+    } catch (err: any) {
       throw new HttpException(
-        { message: err.message, detail: err.sqlMessage ?? null },
+        { message: err?.message ?? 'Unknown error', detail: err?.sqlMessage ?? null },
         HttpStatus.BAD_REQUEST,
       );
     }

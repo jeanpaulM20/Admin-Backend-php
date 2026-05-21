@@ -21,18 +21,13 @@ class _AnamneseScreenState extends State<AnamneseScreen> {
   String? _error;
   Anamnese? _anamnese;
 
-  final _addressCtrl = TextEditingController();
   final _professionCtrl = TextEditingController();
   final _activitiesCtrl = TextEditingController();
   final _physicalDemandsCtrl = TextEditingController();
   final _sportartsCtrl = TextEditingController();
-  final _sportartsScopeCtrl = TextEditingController();
   final _sportartsIntensityCtrl = TextEditingController();
   final _sleepWeekCtrl = TextEditingController();
   final _sleepWeekendCtrl = TextEditingController();
-  final _relaxWeekCtrl = TextEditingController();
-  final _relaxWeekendCtrl = TextEditingController();
-  final _trainingDayoffCtrl = TextEditingController();
   final _injuryTypeCtrl = TextEditingController();
   final _injuryBodypartCtrl = TextEditingController();
   final _musculoDescCtrl = TextEditingController();
@@ -81,7 +76,8 @@ class _AnamneseScreenState extends State<AnamneseScreen> {
       }
     } on ApiException catch (e) {
       _error = e.message;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Anamnese._load error: $e');
       // No anamnese yet — start fresh
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -89,18 +85,13 @@ class _AnamneseScreenState extends State<AnamneseScreen> {
   }
 
   void _applyToControllers(Anamnese a) {
-    _addressCtrl.text = a.address ?? '';
     _professionCtrl.text = a.profession ?? '';
     _activitiesCtrl.text = a.activities ?? '';
     _physicalDemandsCtrl.text = a.physicalDemands ?? '';
     _sportartsCtrl.text = a.sportarts ?? '';
-    _sportartsScopeCtrl.text = a.sportartsScope ?? '';
     _sportartsIntensityCtrl.text = a.sportartsIntensity ?? '';
     _sleepWeekCtrl.text = a.sleepWeek ?? '';
     _sleepWeekendCtrl.text = a.sleepWeekend ?? '';
-    _relaxWeekCtrl.text = a.relaxationWeek ?? '';
-    _relaxWeekendCtrl.text = a.relaxationWeekend ?? '';
-    _trainingDayoffCtrl.text = a.trainingDayoff ?? '';
     _injuryTypeCtrl.text = a.injuryType ?? '';
     _injuryBodypartCtrl.text = a.injuryBodypart ?? '';
     _musculoDescCtrl.text = a.musculoskeletalProblemsDescription ?? '';
@@ -129,18 +120,13 @@ class _AnamneseScreenState extends State<AnamneseScreen> {
   Anamnese _buildFromForm() {
     return Anamnese(
       clientId: widget.client.id,
-      address: _addressCtrl.text,
       profession: _professionCtrl.text,
       activities: _activitiesCtrl.text,
       physicalDemands: _physicalDemandsCtrl.text,
       sportarts: _sportartsCtrl.text,
-      sportartsScope: _sportartsScopeCtrl.text,
       sportartsIntensity: _sportartsIntensityCtrl.text,
       sleepWeek: _sleepWeekCtrl.text,
       sleepWeekend: _sleepWeekendCtrl.text,
-      relaxationWeek: _relaxWeekCtrl.text,
-      relaxationWeekend: _relaxWeekendCtrl.text,
-      trainingDayoff: _trainingDayoffCtrl.text,
       injury: _injury,
       injuryType: _injuryTypeCtrl.text,
       injuryBodypart: _injuryBodypartCtrl.text,
@@ -182,7 +168,7 @@ class _AnamneseScreenState extends State<AnamneseScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Anamnese saved successfully'),
+            content: Text('Anamnese gespeichert'),
             backgroundColor: Color(0xFF2E7D32),
           ),
         );
@@ -202,10 +188,10 @@ class _AnamneseScreenState extends State<AnamneseScreen> {
   @override
   void dispose() {
     for (final c in [
-      _addressCtrl, _professionCtrl, _activitiesCtrl, _physicalDemandsCtrl,
-      _sportartsCtrl, _sportartsScopeCtrl, _sportartsIntensityCtrl,
-      _sleepWeekCtrl, _sleepWeekendCtrl, _relaxWeekCtrl, _relaxWeekendCtrl,
-      _trainingDayoffCtrl, _injuryTypeCtrl, _injuryBodypartCtrl,
+      _professionCtrl, _activitiesCtrl, _physicalDemandsCtrl,
+      _sportartsCtrl, _sportartsIntensityCtrl,
+      _sleepWeekCtrl, _sleepWeekendCtrl,
+      _injuryTypeCtrl, _injuryBodypartCtrl,
       _musculoDescCtrl, _commentsCtrl, _goalsCtrl,
     ]) {
       c.dispose();
@@ -264,23 +250,18 @@ class _AnamneseScreenState extends State<AnamneseScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _section('Persönliche Daten', [
-            _field('Adresse', _addressCtrl),
+          _section('Beruf & Alltag', [
             _field('Beruf', _professionCtrl),
             _field('Aktivitäten', _activitiesCtrl),
             _field('Körperliche Belastung', _physicalDemandsCtrl),
           ]),
           _section('Sport & Training', [
             _field('Sportarten', _sportartsCtrl),
-            _field('Umfang / Std. pro Woche', _sportartsScopeCtrl),
             _field('Intensität', _sportartsIntensityCtrl),
-            _field('Trainingsfreie Tage', _trainingDayoffCtrl),
           ]),
-          _section('Schlaf & Erholung', [
+          _section('Schlaf', [
             _field('Schlaf – Werktags (Std.)', _sleepWeekCtrl, keyboardType: TextInputType.number),
             _field('Schlaf – Wochenende (Std.)', _sleepWeekendCtrl, keyboardType: TextInputType.number),
-            _field('Entspannung – Werktags (Std.)', _relaxWeekCtrl, keyboardType: TextInputType.number),
-            _field('Entspannung – Wochenende (Std.)', _relaxWeekendCtrl, keyboardType: TextInputType.number),
           ]),
           _section('Verletzungen', [
             _toggle('Verletzung vorhanden', _injury, (v) => setState(() => _injury = v)),
