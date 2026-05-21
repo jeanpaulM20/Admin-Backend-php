@@ -25,6 +25,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   bool _booking = false;
+  bool _cancelling = false;
 
   @override
   void initState() {
@@ -631,6 +632,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   // ── Cancel appointment ─────────────────────────────────────────────────────
 
   Future<void> _cancelAppointment(Appointment appt) async {
+    if (_cancelling) return;
     final hoursUntil = appt.startDate.difference(DateTime.now()).inMinutes / 60.0;
     final isLateCancellation = hoursUntil < 12;
 
@@ -699,43 +701,48 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     if (confirmed != true || !mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Row(children: [
-          SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
-          SizedBox(width: 12),
-          Text('Termin wird abgesagt...'),
-        ]),
-        backgroundColor: AppColors.orange,
-        duration: Duration(seconds: 10),
-      ),
-    );
+    _cancelling = true;
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(children: [
+            SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+            SizedBox(width: 12),
+            Text('Termin wird abgesagt...'),
+          ]),
+          backgroundColor: AppColors.orange,
+          duration: Duration(seconds: 10),
+        ),
+      );
 
-    final auth = context.read<AuthProvider>();
-    final provider = context.read<AppointmentProvider>();
-    final result = await provider.cancelAppointment(auth.clientId!, appt.id);
+      final auth = context.read<AuthProvider>();
+      final provider = context.read<AppointmentProvider>();
+      final result = await provider.cancelAppointment(auth.clientId!, appt.id);
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      if (result != null) {
-        // Use backend's authoritative decision (not local time calculation)
-        final creditRefunded = result['creditRefunded'] == true;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(creditRefunded
-                ? 'Termin abgesagt – Credit wurde zurückerstattet.'
-                : 'Termin abgesagt – Credit wurde nicht zurückerstattet.'),
-            backgroundColor: creditRefunded ? AppColors.green : AppColors.orange,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(provider.error ?? 'Absage fehlgeschlagen'),
-            backgroundColor: AppColors.red,
-          ),
-        );
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        if (result != null) {
+          // Use backend's authoritative decision (not local time calculation)
+          final creditRefunded = result['creditRefunded'] == true;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(creditRefunded
+                  ? 'Termin abgesagt – Credit wurde zurückerstattet.'
+                  : 'Termin abgesagt – Credit wurde nicht zurückerstattet.'),
+              backgroundColor: creditRefunded ? AppColors.green : AppColors.orange,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(provider.error ?? 'Absage fehlgeschlagen'),
+              backgroundColor: AppColors.red,
+            ),
+          );
+        }
       }
+    } finally {
+      _cancelling = false;
     }
   }
 
@@ -850,7 +857,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final url = Uri.parse('${ApiConfig.baseUrl}api/training/${appt.id}/ical');
     try {
       await launchUrl(url, mode: LaunchMode.externalApplication);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('iCal download error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Kalender-Download fehlgeschlagen.'), backgroundColor: AppColors.red),

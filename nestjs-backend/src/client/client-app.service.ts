@@ -745,41 +745,45 @@ export class ClientAppService {
       (appointmentDate.getTime() - now.getTime()) / (1000 * 60 * 60);
     const isLateCancellation = hoursUntilAppointment < MIN_CANCEL_HOURS;
 
-    // Refund credit only for timely cancellations (>= 12 hours before)
-    if (training.creditsCharged && training.creditsCharged > 0 && !isLateCancellation) {
-      // Try to refund to the exact pack that was charged
-      if (training.creditPackId) {
-        const originalPack = await this.creditsRepo.findOne({
-          where: { id: training.creditPackId },
-        });
-        if (originalPack && (originalPack.attended ?? 0) > 0) {
-          originalPack.attended = (originalPack.attended ?? 0) - 1;
-          await this.creditsRepo.save(originalPack);
-        }
-      } else {
-        // Fallback for older bookings without creditPackId
-        const creditPacks = await this.creditsRepo.find({
-          where: { clientId },
-          order: { expires: 'ASC' },
-        });
-        for (const pack of creditPacks) {
-          if ((pack.attended ?? 0) > 0) {
-            pack.attended = (pack.attended ?? 0) - 1;
-            await this.creditsRepo.save(pack);
-            break;
+    // Refund + status update in a single transaction to prevent partial state
+    await this.dataSource.transaction(async (manager) => {
+      // Refund credit only for timely cancellations (>= 12 hours before)
+      if (training.creditsCharged && training.creditsCharged > 0 && !isLateCancellation) {
+        // Try to refund to the exact pack that was charged
+        if (training.creditPackId) {
+          const originalPack = await manager.findOne(ClientCredits, {
+            where: { id: training.creditPackId },
+          });
+          if (originalPack && (originalPack.attended ?? 0) > 0) {
+            originalPack.attended = (originalPack.attended ?? 0) - 1;
+            await manager.save(originalPack);
+          }
+        } else {
+          // Fallback for older bookings without creditPackId
+          const creditPacks = await manager.find(ClientCredits, {
+            where: { clientId },
+            order: { expires: 'ASC' },
+          });
+          for (const pack of creditPacks) {
+            if ((pack.attended ?? 0) > 0) {
+              pack.attended = (pack.attended ?? 0) - 1;
+              await manager.save(pack);
+              break;
+            }
           }
         }
       }
-    }
 
-    training.status = TrainingStatus.CANCELLED;
-    training.cancelledAt = new Date().toISOString();
-    training.cancelledByClientId = clientId;
-    if (!isLateCancellation) {
-      training.creditsCharged = 0;
-    }
-    // Late cancellation: creditsCharged stays 1 (penalty)
-    await this.trainingRepo.save(training);
+      training.status = TrainingStatus.CANCELLED;
+      training.cancelledAt = new Date().toISOString();
+      training.cancelledByClientId = clientId;
+      if (!isLateCancellation) {
+        training.creditsCharged = 0;
+      }
+      // Late cancellation: creditsCharged stays 1 (penalty)
+      await manager.save(training);
+    });
+
     return {
       success: true,
       lateCancellation: isLateCancellation,
