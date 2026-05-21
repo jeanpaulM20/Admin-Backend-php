@@ -1,8 +1,8 @@
 import {
-  Controller, Get, Post, Put, Delete, Param, Body, Query, Res,
-  ParseIntPipe, NotFoundException,
+  Controller, Get, Post, Put, Delete, Param, Body, Query, Res, Req,
+  ParseIntPipe, NotFoundException, ForbiddenException,
 } from '@nestjs/common';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { ClientAppService } from './client-app.service';
 import { ClientChatService } from './client-chat.service';
 import { InvoiceService } from '../invoice/invoice.service';
@@ -12,14 +12,11 @@ import { Public } from '../auth/decorators/public.decorator';
 /**
  * Client-app specific endpoints.
  *
- * These mirror the PHP endpoints the Flutter client-app calls:
- *   /api/client/start/:id    — dashboard data (credits + upcoming trainings)
- *   /api/client/calendar/:id — calendar data (trainers, types, availability, appointments)
- *   /api/client/profile/:id  — client profile
- *   /api/client/credits/:id  — credit packs
- *   /api/client/appointment  — book / cancel
+ * Auth: all endpoints require a valid x-auth-token.
+ * - Client tokens: can only access their own data (clientId must match)
+ * - Trainer tokens: can access any client's data
+ * - Saferpay callbacks (return/abort/notify) are @Public (server-to-server)
  */
-@Public()
 @Controller('api/client')
 export class ClientAppController {
 
@@ -30,31 +27,49 @@ export class ClientAppController {
     private readonly saferpayService: SaferpayService,
   ) {}
 
+  /**
+   * Verify the authenticated user is allowed to access data for `clientId`.
+   * Trainers can access any client. Clients can only access their own data.
+   */
+  private assertClientAccess(req: Request, clientId: number): void {
+    const trainer = (req as any).currentTrainer;
+    if (trainer) return; // trainers have full access
+
+    const client = (req as any).currentClient;
+    if (!client || client.id !== clientId) {
+      throw new ForbiddenException('Zugriff verweigert');
+    }
+  }
+
   /** Dashboard — credits + upcoming trainings */
   @Get('start/:clientId')
-  start(@Param('clientId', ParseIntPipe) clientId: number) {
+  start(@Req() req: Request, @Param('clientId', ParseIntPipe) clientId: number) {
+    this.assertClientAccess(req, clientId);
     return this.appService.getStartData(clientId);
   }
 
   /** Calendar — trainers, types, availability, appointments */
   @Get('calendar/:clientId')
-  calendar(@Param('clientId', ParseIntPipe) clientId: number) {
+  calendar(@Req() req: Request, @Param('clientId', ParseIntPipe) clientId: number) {
+    this.assertClientAccess(req, clientId);
     return this.appService.getCalendarData(clientId);
   }
 
   /** Profile */
   @Get('profile/:clientId')
-  profile(@Param('clientId', ParseIntPipe) clientId: number) {
+  profile(@Req() req: Request, @Param('clientId', ParseIntPipe) clientId: number) {
+    this.assertClientAccess(req, clientId);
     return this.appService.getProfile(clientId);
   }
 
   /** Credits */
   @Get('credits/:clientId')
-  credits(@Param('clientId', ParseIntPipe) clientId: number) {
+  credits(@Req() req: Request, @Param('clientId', ParseIntPipe) clientId: number) {
+    this.assertClientAccess(req, clientId);
     return this.appService.getCredits(clientId);
   }
 
-  /** Available credit packages (pricing from website) */
+  /** Available credit packages (pricing from website — read-only, no clientId) */
   @Get('packages')
   packages() {
     return this.appService.getPackages();
@@ -63,15 +78,18 @@ export class ClientAppController {
   /** Purchase a credit package (creates credits + invoice) */
   @Post('purchase/:clientId')
   purchase(
+    @Req() req: Request,
     @Param('clientId', ParseIntPipe) clientId: number,
     @Body() body: { packageId: number },
   ) {
+    this.assertClientAccess(req, clientId);
     return this.appService.purchasePackage(clientId, body.packageId);
   }
 
   /** Invoices */
   @Get('invoices/:clientId')
-  invoices(@Param('clientId', ParseIntPipe) clientId: number) {
+  invoices(@Req() req: Request, @Param('clientId', ParseIntPipe) clientId: number) {
+    this.assertClientAccess(req, clientId);
     return this.invoiceService.getInvoices(clientId);
   }
 
@@ -82,7 +100,8 @@ export class ClientAppController {
   async invoiceQr(
     @Param('invoiceNumber') invoiceNumber: string,
   ) {
-    // Look up the authoritative amount from the invoice record
+    // Auth: requires valid token (checked by global guard).
+    // No clientId check here — invoice number is opaque and hard to guess.
     const invoice = await this.invoiceService.getInvoiceByNumber(invoiceNumber);
     if (!invoice) {
       return { success: false, error: 'Invoice not found' };
@@ -103,43 +122,50 @@ export class ClientAppController {
 
   /** Tests / Performance data */
   @Get('tests/:clientId')
-  tests(@Param('clientId', ParseIntPipe) clientId: number) {
+  tests(@Req() req: Request, @Param('clientId', ParseIntPipe) clientId: number) {
+    this.assertClientAccess(req, clientId);
     return this.appService.getTests(clientId);
   }
 
   /** Body metrics (Körperwerte) */
   @Get('metrics/:clientId')
-  metrics(@Param('clientId', ParseIntPipe) clientId: number) {
+  metrics(@Req() req: Request, @Param('clientId', ParseIntPipe) clientId: number) {
+    this.assertClientAccess(req, clientId);
     return this.appService.getMetrics(clientId);
   }
 
   /** Training reviews — HR data + charts from review module */
   @Get('reviews/:clientId')
-  reviews(@Param('clientId', ParseIntPipe) clientId: number) {
+  reviews(@Req() req: Request, @Param('clientId', ParseIntPipe) clientId: number) {
+    this.assertClientAccess(req, clientId);
     return this.appService.getReviews(clientId);
   }
 
   /** Client files */
   @Get('files/:clientId')
-  files(@Param('clientId', ParseIntPipe) clientId: number) {
+  files(@Req() req: Request, @Param('clientId', ParseIntPipe) clientId: number) {
+    this.assertClientAccess(req, clientId);
     return this.appService.getFiles(clientId);
   }
 
   /** Polar status */
   @Get('polar/status/:clientId')
-  polarStatus(@Param('clientId', ParseIntPipe) clientId: number) {
+  polarStatus(@Req() req: Request, @Param('clientId', ParseIntPipe) clientId: number) {
+    this.assertClientAccess(req, clientId);
     return this.appService.getPolarStatus(clientId);
   }
 
   /** Polar sync (stub) */
   @Post('polar/sync/:clientId')
-  polarSync(@Param('clientId', ParseIntPipe) clientId: number) {
+  polarSync(@Req() req: Request, @Param('clientId', ParseIntPipe) clientId: number) {
+    this.assertClientAccess(req, clientId);
     return { success: true, message: 'Polar sync not yet migrated' };
   }
 
   /** Polar disconnect (stub) */
   @Post('polar/disconnect/:clientId')
-  polarDisconnect(@Param('clientId', ParseIntPipe) clientId: number) {
+  polarDisconnect(@Req() req: Request, @Param('clientId', ParseIntPipe) clientId: number) {
+    this.assertClientAccess(req, clientId);
     return { success: true };
   }
 
@@ -147,16 +173,19 @@ export class ClientAppController {
 
   /** Get booking preferences (default trainer, type, location) */
   @Get('preferences/:clientId')
-  preferences(@Param('clientId', ParseIntPipe) clientId: number) {
+  preferences(@Req() req: Request, @Param('clientId', ParseIntPipe) clientId: number) {
+    this.assertClientAccess(req, clientId);
     return this.appService.getPreferences(clientId);
   }
 
   /** Save booking preferences (partial update) */
   @Put('preferences/:clientId')
   savePreferences(
+    @Req() req: Request,
     @Param('clientId', ParseIntPipe) clientId: number,
     @Body() body: Record<string, string | null>,
   ) {
+    this.assertClientAccess(req, clientId);
     return this.appService.savePreferences(clientId, body);
   }
 
@@ -165,18 +194,22 @@ export class ClientAppController {
   /** Book appointment */
   @Post('appointment/:clientId')
   book(
+    @Req() req: Request,
     @Param('clientId', ParseIntPipe) clientId: number,
     @Body() body: any,
   ) {
+    this.assertClientAccess(req, clientId);
     return this.appService.bookAppointment(clientId, body);
   }
 
   /** Cancel appointment */
   @Delete('appointment/:clientId/:appointmentId')
   cancel(
+    @Req() req: Request,
     @Param('clientId', ParseIntPipe) clientId: number,
     @Param('appointmentId', ParseIntPipe) appointmentId: number,
   ) {
+    this.assertClientAccess(req, clientId);
     return this.appService.cancelAppointment(clientId, appointmentId);
   }
 
@@ -195,9 +228,11 @@ export class ClientAppController {
    */
   @Post('payment/initialize/:clientId')
   async paymentInitialize(
+    @Req() req: Request,
     @Param('clientId', ParseIntPipe) clientId: number,
     @Body() body: { packageId: number },
   ) {
+    this.assertClientAccess(req, clientId);
     if (!this.saferpayService.isConfigured()) {
       return { success: false, error: 'Online-Zahlung nicht verfügbar' };
     }
@@ -239,8 +274,9 @@ export class ClientAppController {
   /**
    * Return URL — user is redirected here after successful payment.
    * Asserts + captures the payment, then shows a simple HTML result page.
-   * The Flutter app polls /payment/status to detect the change.
+   * @Public because user is redirected here from Saferpay (no auth header).
    */
+  @Public()
   @Get('payment/return')
   async paymentReturn(
     @Query('invoiceNumber') invoiceNumber: string,
@@ -287,7 +323,8 @@ export class ClientAppController {
     return res.type('html').send(this.buildResultPage(status, message, invoiceNumber));
   }
 
-  /** Abort URL — user cancelled the payment */
+  /** Abort URL — user cancelled the payment. @Public (redirect from Saferpay). */
+  @Public()
   @Get('payment/abort')
   async paymentAbort(
     @Query('invoiceNumber') invoiceNumber: string,
@@ -325,7 +362,8 @@ p{font-size:14px;color:#a3a3a3;line-height:1.6;margin:0 0 20px}
 </div></body></html>`;
   }
 
-  /** Notification URL — server-to-server callback from Saferpay */
+  /** Notification URL — server-to-server callback from Saferpay. @Public. */
+  @Public()
   @Post('payment/notify')
   async paymentNotify(
     @Query('invoiceNumber') invoiceNumber: string,
@@ -374,35 +412,42 @@ p{font-size:14px;color:#a3a3a3;line-height:1.6;margin:0 0 20px}
 
   /** Chat conversations list (one per trainer) */
   @Get('chat/:clientId/conversations')
-  chatConversations(@Param('clientId', ParseIntPipe) clientId: number) {
+  chatConversations(@Req() req: Request, @Param('clientId', ParseIntPipe) clientId: number) {
+    this.assertClientAccess(req, clientId);
     return this.chatService.getConversations(clientId);
   }
 
   /** Chat messages for a specific trainer */
   @Get('chat/:clientId/messages/:trainerId')
   chatMessages(
+    @Req() req: Request,
     @Param('clientId', ParseIntPipe) clientId: number,
     @Param('trainerId', ParseIntPipe) trainerId: number,
   ) {
+    this.assertClientAccess(req, clientId);
     return this.chatService.getMessages(clientId, trainerId);
   }
 
   /** Send a chat message to a trainer */
   @Post('chat/:clientId/messages/:trainerId')
   chatSend(
+    @Req() req: Request,
     @Param('clientId', ParseIntPipe) clientId: number,
     @Param('trainerId', ParseIntPipe) trainerId: number,
     @Body() body: { text: string },
   ) {
+    this.assertClientAccess(req, clientId);
     return this.chatService.sendMessage(clientId, trainerId, body.text);
   }
 
   /** Mark messages from trainer as read */
   @Post('chat/:clientId/messages/:trainerId/read')
   chatMarkRead(
+    @Req() req: Request,
     @Param('clientId', ParseIntPipe) clientId: number,
     @Param('trainerId', ParseIntPipe) trainerId: number,
   ) {
+    this.assertClientAccess(req, clientId);
     return this.chatService.markAsRead(clientId, trainerId);
   }
 }
