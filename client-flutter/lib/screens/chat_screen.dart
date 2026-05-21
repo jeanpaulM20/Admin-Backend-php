@@ -305,6 +305,7 @@ class _ChatThreadState extends State<_ChatThread> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   bool _sending = false;
+  int _lastMessageCount = 0;
   html.EventSource? _eventSource;
   StreamSubscription<html.MessageEvent>? _esSubscription;
 
@@ -356,14 +357,22 @@ class _ChatThreadState extends State<_ChatThread> {
     if (text.isEmpty || _sending) return;
 
     setState(() => _sending = true);
+    final savedText = _controller.text;
     _controller.clear();
 
     final auth = context.read<AuthProvider>();
+    bool success = false;
     if (auth.clientId != null) {
-      await context
+      success = await context
           .read<ChatProvider>()
           .sendMessage(auth.clientId!, widget.trainerId, text);
-      _scrollToBottom();
+      if (success) {
+        _scrollToBottom();
+      } else {
+        // Restore text so user can retry
+        _controller.text = savedText;
+        _showSnack('Nachricht konnte nicht gesendet werden');
+      }
     }
     setState(() => _sending = false);
   }
@@ -899,7 +908,11 @@ class _ChatThreadState extends State<_ChatThread> {
     final chat = context.watch<ChatProvider>();
     final messages = chat.messagesFor(widget.trainerId);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    // Only auto-scroll when new messages arrive, not on every rebuild
+    if (messages.length > _lastMessageCount) {
+      _lastMessageCount = messages.length;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -986,12 +999,15 @@ class _ChatThreadState extends State<_ChatThread> {
                       ],
                     ),
                   )
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                    itemCount: _buildGroupedWidgets(messages).length,
-                    itemBuilder: (_, i) => _buildGroupedWidgets(messages)[i],
-                  ),
+                : Builder(builder: (_) {
+                    final grouped = _buildGroupedWidgets(messages);
+                    return ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                      itemCount: grouped.length,
+                      itemBuilder: (_, i) => grouped[i],
+                    );
+                  }),
           ),
           _buildInput(),
         ],

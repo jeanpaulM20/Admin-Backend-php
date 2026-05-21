@@ -108,10 +108,16 @@ export class ClientChatService {
    * Client sends a message to a trainer.
    */
   async sendMessage(clientId: number, trainerId: number, text: string) {
+    // Sanitize: trim whitespace and enforce max length (5000 chars)
+    const sanitized = (text ?? '').trim().slice(0, 5000);
+    if (!sanitized) {
+      throw new Error('Nachricht darf nicht leer sein');
+    }
+
     const msg = this.feedbackRepo.create({
       client_id: clientId,
       trainer_id: trainerId,
-      text,
+      text: sanitized,
       sender_type: 'client',
       read_client: 1,   // Client has seen their own message
       read_trainer: 0,   // Trainer hasn't read it yet
@@ -130,15 +136,17 @@ export class ClientChatService {
 
   /**
    * Mark all unread messages from trainer as read by client.
+   * Handles both new rows (sender_type = 'trainer') and legacy rows (no sender_type, inferred from read flags).
    */
   async markAsRead(clientId: number, trainerId: number) {
     await this.feedbackRepo
       .createQueryBuilder()
       .update(Feedback)
       .set({ read_client: 1 })
-      .where('client_id = :clientId AND trainer_id = :trainerId AND read_client = 0 AND read_trainer = 1', {
+      .where('client_id = :clientId AND trainer_id = :trainerId AND read_client = 0 AND (sender_type = :st OR (sender_type IS NULL AND read_trainer = 1))', {
         clientId,
         trainerId,
+        st: 'trainer',
       })
       .execute();
     return { success: true };
