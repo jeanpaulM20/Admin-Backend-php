@@ -12,25 +12,41 @@ export class InvoiceService {
 
   /**
    * Creates an invoice record and returns the invoice number.
+   * Accepts an optional queryRunner to participate in an outer transaction.
+   *
+   * Uses INSERT + LAST_INSERT_ID() to avoid race conditions
+   * (previous MAX(id)+1 approach could produce duplicates under concurrency).
    */
-  async createInvoice(data: {
-    clientId: number;
-    packageName: string;
-    amount: number;
-    credits: number;
-    durationMonths: number;
-  }): Promise<string> {
-    // Get next invoice number (R + sequential)
-    const [maxRow]: any = await this.dataSource.query(
-      "SELECT MAX(id) as maxId FROM invoice",
-    );
-    const nextId = (maxRow?.maxId ?? 1500) + 1;
-    const invoiceNumber = `R${nextId}`;
+  async createInvoice(
+    data: {
+      clientId: number;
+      packageName: string;
+      amount: number;
+      credits: number;
+      durationMonths: number;
+    },
+    queryRunner?: import('typeorm').QueryRunner,
+  ): Promise<string> {
+    const run = (sql: string, params?: any[]) =>
+      queryRunner ? queryRunner.query(sql, params) : this.dataSource.query(sql, params);
 
-    await this.dataSource.query(
+    // INSERT with a placeholder invoice_number (will be updated right after)
+    const insertResult: any = await run(
       `INSERT INTO invoice (invoice_number, client_id, package_name, amount, credits, duration_months, status)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
-      [invoiceNumber, data.clientId, data.packageName, data.amount, data.credits, data.durationMonths],
+       VALUES ('_PENDING_', ?, ?, ?, ?, ?, 'pending')`,
+      [data.clientId, data.packageName, data.amount, data.credits, data.durationMonths],
+    );
+
+    // Get the auto-incremented ID (works for both MySQL and SQLite)
+    const insertedId = insertResult?.insertId
+      ?? insertResult?.[0]?.insertId
+      ?? (await run('SELECT LAST_INSERT_ID() as id'))?.[0]?.id;
+
+    const invoiceNumber = `R${insertedId}`;
+
+    await run(
+      `UPDATE invoice SET invoice_number = ? WHERE id = ?`,
+      [invoiceNumber, insertedId],
     );
 
     this.logger.log(`Invoice ${invoiceNumber} created for client ${data.clientId}`);

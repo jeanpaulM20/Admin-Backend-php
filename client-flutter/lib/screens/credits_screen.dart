@@ -19,6 +19,8 @@ class CreditsScreen extends StatefulWidget {
 }
 
 class _CreditsScreenState extends State<CreditsScreen> {
+  bool _purchasing = false; // double-purchase guard
+
   @override
   void initState() {
     super.initState();
@@ -37,6 +39,16 @@ class _CreditsScreenState extends State<CreditsScreen> {
   // ── Purchase flow ──────────────────────────────────────────────────────────
 
   Future<void> _startPurchase(CreditPackage pkg) async {
+    if (_purchasing) return; // prevent double-tap
+    setState(() => _purchasing = true);
+    try {
+      await _startPurchaseInner(pkg);
+    } finally {
+      if (mounted) setState(() => _purchasing = false);
+    }
+  }
+
+  Future<void> _startPurchaseInner(CreditPackage pkg) async {
     // Step 1: Show AGB
     final agbAccepted = await _showAgbSheet(pkg);
     if (agbAccepted != true || !mounted) return;
@@ -447,6 +459,7 @@ class _CreditsScreenState extends State<CreditsScreen> {
                       credits: credits.data,
                       packages: credits.packages,
                       onPurchase: _startPurchase,
+                      purchasing: _purchasing,
                     ),
         ),
       ),
@@ -504,11 +517,13 @@ class _CreditsContent extends StatelessWidget {
   final List<ClientCredit> credits;
   final List<CreditPackage> packages;
   final ValueChanged<CreditPackage> onPurchase;
+  final bool purchasing;
 
   const _CreditsContent({
     required this.credits,
     required this.packages,
     required this.onPurchase,
+    this.purchasing = false,
   });
 
   @override
@@ -538,7 +553,7 @@ class _CreditsContent extends StatelessWidget {
         ],
         if (packages.isNotEmpty) ...[
           const _SectionHeader(icon: Icons.local_offer_outlined, title: 'Unsere Pakete'),
-          ...packages.map((p) => _PackageCard(package: p, onPurchase: () => onPurchase(p))),
+          ...packages.map((p) => _PackageCard(package: p, onPurchase: () => onPurchase(p), purchasing: purchasing)),
         ],
       ],
     );
@@ -752,8 +767,9 @@ class _CreditPackCard extends StatelessWidget {
 class _PackageCard extends StatelessWidget {
   final CreditPackage package;
   final VoidCallback onPurchase;
+  final bool purchasing;
 
-  const _PackageCard({required this.package, required this.onPurchase});
+  const _PackageCard({required this.package, required this.onPurchase, this.purchasing = false});
 
   @override
   Widget build(BuildContext context) {
@@ -841,25 +857,35 @@ class _PackageCard extends StatelessWidget {
 
           const SizedBox(height: 14),
 
-          // Buy button
+          // Buy button (disabled while any purchase is in progress)
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: onPurchase,
+              onPressed: purchasing ? null : onPurchase,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.white,
+                disabledBackgroundColor: AppColors.muted.withAlpha(40),
                 padding: const EdgeInsets.symmetric(vertical: 13),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(Icons.shopping_cart, size: 20, color: Colors.white),
-                  SizedBox(width: 8),
-                  Text('Paket kaufen', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                ],
-              ),
+              child: purchasing
+                  ? const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                        SizedBox(width: 8),
+                        Text('Wird verarbeitet...', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                      ],
+                    )
+                  : const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.shopping_cart, size: 20, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text('Paket kaufen', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                      ],
+                    ),
             ),
           ),
         ],
@@ -967,18 +993,29 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
     _pollStatus();
   }
 
+  static const _maxPollAttempts = 120; // 120 × 3s = 6 minutes max
+
   Future<void> _pollStatus() async {
-    while (_polling && mounted) {
+    int attempts = 0;
+    while (_polling && mounted && attempts < _maxPollAttempts) {
       await Future.delayed(const Duration(seconds: 3));
       if (!_polling || !mounted) break;
+      attempts++;
 
-      final status = await widget.paymentService.checkStatus(widget.invoiceNumber);
-      if (status == 'paid') {
-        _polling = false;
-        if (mounted) widget.onPaid();
-        return;
+      try {
+        final status = await widget.paymentService.checkStatus(widget.invoiceNumber);
+        if (status == 'paid') {
+          _polling = false;
+          if (mounted) widget.onPaid();
+          return;
+        }
+      } catch (e) {
+        debugPrint('Payment poll error: $e');
+        // Continue polling — transient network errors shouldn't stop the poll
       }
     }
+    // Timeout reached — stop polling silently (user can still tap "Status prüfen")
+    _polling = false;
   }
 
   @override

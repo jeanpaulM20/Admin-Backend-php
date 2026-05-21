@@ -210,16 +210,20 @@ export class ClientAppService {
     }
   }
 
-  /** Purchase a credit package — creates credits + invoice + sends email */
+  /**
+   * Purchase a credit package — creates credits + invoice inside a
+   * single DB transaction (atomic: both succeed or both roll back).
+   * Email is sent AFTER commit so a mail failure can't undo the purchase.
+   */
   async purchasePackage(clientId: number, packageId: number) {
     const logger = new (require('@nestjs/common').Logger)('PurchasePackage');
     try {
-      // 1. Load client
+      // 1. Load client (read-only, outside transaction)
       logger.log(`Loading client ${clientId}`);
       const client = await this.clientRepo.findOne({ where: { id: clientId } });
       if (!client) throw new NotFoundException('Client not found');
 
-      // 2. Load package
+      // 2. Load package (read-only, outside transaction)
       logger.log(`Loading package ${packageId}`);
       const [pkg]: any = await this.dataSource.query(
         'SELECT * FROM credit_package WHERE id = ? AND active = 1',
@@ -239,25 +243,39 @@ export class ClientAppService {
       expiresDate.setMonth(expiresDate.getMonth() + (durationMonths ?? 1));
       const expiresStr = expiresDate.toISOString().split('T')[0];
 
-      // 4. Create client_credits entry
-      logger.log(`Creating credits: paid=${credits}, start=${startDate}, expires=${expiresStr}`);
-      await this.dataSource.query(
-        `INSERT INTO client_credits (client_id, training_type_id, paid, attended, abbonement_id, sold_by_id, startdate, expires, sell_date)
-         VALUES (?, NULL, ?, 0, NULL, NULL, ?, ?, ?)`,
-        [clientId, credits, startDate, expiresStr, startDate],
-      );
+      // 4. Transaction: create credits + invoice atomically
+      const queryRunner = this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
 
-      // 5. Create invoice
-      logger.log('Creating invoice');
-      const invoiceNumber = await this.invoiceService.createInvoice({
-        clientId,
-        packageName,
-        amount: price,
-        credits,
-        durationMonths: durationMonths ?? 1,
-      });
+      let invoiceNumber: string;
+      try {
+        // 4a. Create client_credits entry
+        logger.log(`Creating credits: paid=${credits}, start=${startDate}, expires=${expiresStr}`);
+        await queryRunner.query(
+          `INSERT INTO client_credits (client_id, training_type_id, paid, attended, abbonement_id, sold_by_id, startdate, expires, sell_date)
+           VALUES (?, NULL, ?, 0, NULL, NULL, ?, ?, ?)`,
+          [clientId, credits, startDate, expiresStr, startDate],
+        );
 
-      // 6. Send invoice email
+        // 4b. Create invoice (uses same queryRunner → same transaction)
+        logger.log('Creating invoice');
+        invoiceNumber = await this.invoiceService.createInvoice(
+          { clientId, packageName, amount: price, credits, durationMonths: durationMonths ?? 1 },
+          queryRunner,
+        );
+
+        await queryRunner.commitTransaction();
+        logger.log(`Transaction committed: credits + invoice ${invoiceNumber}`);
+      } catch (txErr) {
+        await queryRunner.rollbackTransaction();
+        logger.error(`Transaction rolled back: ${(txErr as any).message}`);
+        throw txErr;
+      } finally {
+        await queryRunner.release();
+      }
+
+      // 5. Send invoice email (AFTER commit — mail failure won't undo purchase)
       const clientName = `${client.firstname} ${client.lastname}`.trim();
       logger.log(`Sending email to ${client.email}`);
       const emailSent = await this.invoiceService.sendInvoiceEmail({
