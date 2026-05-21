@@ -2,13 +2,13 @@ class Anamnese {
   final int? clientId;
   String? address;
   String? profession;
-  String? activities;
-  String? physicalDemands;
+  int? activities;         // 0=Sitzend, 1=Mässig, 2=Intensiv
+  int? physicalDemands;    // 0-4 scale (PHP enum)
   String? sportarts;
   String? sportartsScope;
-  String? sportartsIntensity;
-  String? sleepWeek;
-  String? sleepWeekend;
+  int? sportartsIntensity; // 0=Leicht, 1=Moderat, 2=Anstrengend
+  int? sleepWeek;          // hours per night
+  int? sleepWeekend;       // hours per night
   String? relaxationWeek;
   String? relaxationWeekend;
   String? trainingDayoff;
@@ -75,6 +75,14 @@ class Anamnese {
     this.takingDrugs,
   });
 
+  static int? _parseInt(dynamic v) {
+    if (v == null) return null;
+    if (v is int) return v;
+    if (v is String) return int.tryParse(v);
+    if (v is double) return v.toInt();
+    return null;
+  }
+
   static bool? _parseBool(dynamic v) {
     if (v == null) return null;
     if (v is bool) return v;
@@ -90,13 +98,13 @@ class Anamnese {
           : int.tryParse(json['client_id']?.toString() ?? ''),
       address: json['address']?.toString(),
       profession: json['profession']?.toString(),
-      activities: json['activities']?.toString(),
-      physicalDemands: json['physical_demands']?.toString(),
+      activities: _parseInt(json['activities']),
+      physicalDemands: _parseInt(json['physical_demands']),
       sportarts: json['sportarts']?.toString(),
       sportartsScope: json['sportarts_scope']?.toString(),
-      sportartsIntensity: json['sportarts_intencity']?.toString(),
-      sleepWeek: json['sleep_week']?.toString(),
-      sleepWeekend: json['sleep_weekend']?.toString(),
+      sportartsIntensity: _parseInt(json['sportarts_intencity']),
+      sleepWeek: _parseInt(json['sleep_week']),
+      sleepWeekend: _parseInt(json['sleep_weekend']),
       relaxationWeek: json['relaxation_week']?.toString(),
       relaxationWeekend: json['relaxation_weekend']?.toString(),
       trainingDayoff: json['training_dayoff']?.toString(),
@@ -135,13 +143,13 @@ class Anamnese {
       if (clientId != null) 'client_id': clientId,
       if (address != null) 'address': address,
       if (profession != null) 'profession': profession,
-      if (activities != null) 'activities': activities,
-      if (physicalDemands != null) 'physical_demands': physicalDemands,
+      'activities': activities ?? 0,
+      'physical_demands': physicalDemands ?? 0,
       if (sportarts != null) 'sportarts': sportarts,
       if (sportartsScope != null) 'sportarts_scope': sportartsScope,
-      if (sportartsIntensity != null) 'sportarts_intencity': sportartsIntensity,
-      if (sleepWeek != null) 'sleep_week': sleepWeek,
-      if (sleepWeekend != null) 'sleep_weekend': sleepWeekend,
+      'sportarts_intencity': sportartsIntensity ?? 0,
+      'sleep_week': sleepWeek ?? 0,
+      'sleep_weekend': sleepWeekend ?? 0,
       if (relaxationWeek != null) 'relaxation_week': relaxationWeek,
       if (relaxationWeekend != null) 'relaxation_weekend': relaxationWeekend,
       if (trainingDayoff != null) 'training_dayoff': trainingDayoff,

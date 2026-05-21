@@ -22,12 +22,34 @@ class _AnamneseScreenState extends State<AnamneseScreen> {
   Anamnese? _anamnese;
 
   final _professionCtrl = TextEditingController();
-  final _activitiesCtrl = TextEditingController();
-  final _physicalDemandsCtrl = TextEditingController();
   final _sportartsCtrl = TextEditingController();
-  final _sportartsIntensityCtrl = TextEditingController();
   final _sleepWeekCtrl = TextEditingController();
   final _sleepWeekendCtrl = TextEditingController();
+
+  // Enum fields (INT in DB) — stored as state, not TextControllers
+  int? _activities;         // 0-2
+  int? _physicalDemands;    // 0-4
+  int? _sportartsIntensity; // 0-2
+
+  static const _activitiesOptions = <int, String>{
+    0: 'Sitzend (Büro, Studium)',
+    1: 'Mässige Bewegung (Handwerk)',
+    2: 'Intensive Bewegung (Bau, Wald)',
+  };
+
+  static const _physicalDemandsOptions = <int, String>{
+    0: '< 30 Min. / Woche',
+    1: '≥ 30 Min. / Tag leicht aktiv',
+    2: '< 2.5 Std. / Woche moderat',
+    3: '≥ 2.5 Std. / Woche aktiv',
+    4: '≥ 3× / Woche intensiv',
+  };
+
+  static const _intensityOptions = <int, String>{
+    0: 'Leicht',
+    1: 'Moderat',
+    2: 'Anstrengend',
+  };
   final _injuryTypeCtrl = TextEditingController();
   final _injuryBodypartCtrl = TextEditingController();
   final _musculoDescCtrl = TextEditingController();
@@ -86,12 +108,12 @@ class _AnamneseScreenState extends State<AnamneseScreen> {
 
   void _applyToControllers(Anamnese a) {
     _professionCtrl.text = a.profession ?? '';
-    _activitiesCtrl.text = a.activities ?? '';
-    _physicalDemandsCtrl.text = a.physicalDemands ?? '';
+    _activities = a.activities;
+    _physicalDemands = a.physicalDemands;
     _sportartsCtrl.text = a.sportarts ?? '';
-    _sportartsIntensityCtrl.text = a.sportartsIntensity ?? '';
-    _sleepWeekCtrl.text = a.sleepWeek ?? '';
-    _sleepWeekendCtrl.text = a.sleepWeekend ?? '';
+    _sportartsIntensity = a.sportartsIntensity;
+    _sleepWeekCtrl.text = a.sleepWeek?.toString() ?? '';
+    _sleepWeekendCtrl.text = a.sleepWeekend?.toString() ?? '';
     _injuryTypeCtrl.text = a.injuryType ?? '';
     _injuryBodypartCtrl.text = a.injuryBodypart ?? '';
     _musculoDescCtrl.text = a.musculoskeletalProblemsDescription ?? '';
@@ -121,12 +143,12 @@ class _AnamneseScreenState extends State<AnamneseScreen> {
     return Anamnese(
       clientId: widget.client.id,
       profession: _professionCtrl.text,
-      activities: _activitiesCtrl.text,
-      physicalDemands: _physicalDemandsCtrl.text,
+      activities: _activities,
+      physicalDemands: _physicalDemands,
       sportarts: _sportartsCtrl.text,
-      sportartsIntensity: _sportartsIntensityCtrl.text,
-      sleepWeek: _sleepWeekCtrl.text,
-      sleepWeekend: _sleepWeekendCtrl.text,
+      sportartsIntensity: _sportartsIntensity,
+      sleepWeek: int.tryParse(_sleepWeekCtrl.text),
+      sleepWeekend: int.tryParse(_sleepWeekendCtrl.text),
       injury: _injury,
       injuryType: _injuryTypeCtrl.text,
       injuryBodypart: _injuryBodypartCtrl.text,
@@ -188,8 +210,7 @@ class _AnamneseScreenState extends State<AnamneseScreen> {
   @override
   void dispose() {
     for (final c in [
-      _professionCtrl, _activitiesCtrl, _physicalDemandsCtrl,
-      _sportartsCtrl, _sportartsIntensityCtrl,
+      _professionCtrl, _sportartsCtrl,
       _sleepWeekCtrl, _sleepWeekendCtrl,
       _injuryTypeCtrl, _injuryBodypartCtrl,
       _musculoDescCtrl, _commentsCtrl, _goalsCtrl,
@@ -252,12 +273,15 @@ class _AnamneseScreenState extends State<AnamneseScreen> {
         children: [
           _section('Beruf & Alltag', [
             _field('Beruf', _professionCtrl),
-            _field('Aktivitäten', _activitiesCtrl),
-            _field('Körperliche Belastung', _physicalDemandsCtrl),
+            _enumSelector('Tätigkeiten', _activitiesOptions, _activities,
+                (v) => setState(() => _activities = v)),
+            _enumSelector('Körperliche Belastung', _physicalDemandsOptions,
+                _physicalDemands, (v) => setState(() => _physicalDemands = v)),
           ]),
           _section('Sport & Training', [
             _field('Sportarten', _sportartsCtrl),
-            _field('Intensität', _sportartsIntensityCtrl),
+            _enumSelector('Intensität', _intensityOptions, _sportartsIntensity,
+                (v) => setState(() => _sportartsIntensity = v)),
           ]),
           _section('Schlaf', [
             _field('Schlaf – Werktags (Std.)', _sleepWeekCtrl, keyboardType: TextInputType.number),
@@ -384,6 +408,53 @@ class _AnamneseScreenState extends State<AnamneseScreen> {
             borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _enumSelector(String label, Map<int, String> options, int? value,
+      ValueChanged<int?> onChanged) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: options.entries.map((e) {
+              final selected = value == e.key;
+              return GestureDetector(
+                onTap: () => onChanged(selected ? null : e.key),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? AppColors.primary.withValues(alpha: 0.15)
+                        : AppColors.surface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: selected ? AppColors.primary : AppColors.border,
+                      width: selected ? 1.5 : 0.5,
+                    ),
+                  ),
+                  child: Text(
+                    e.value,
+                    style: TextStyle(
+                      color: selected ? AppColors.primary : AppColors.text,
+                      fontSize: 13,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
       ),
     );
   }
