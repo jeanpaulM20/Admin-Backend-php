@@ -58,31 +58,41 @@ export class FeedbackService {
    * Used by the Nachrichten screen instead of loading ALL messages.
    */
   async getTrainerConversations(trainerId: number) {
-    const rows: any[] = await this.repo.query(`
-      SELECT
-        f.client_id,
-        MAX(c.firstname) AS client_firstname,
-        MAX(c.lastname) AS client_lastname,
-        MAX(f.id) AS last_id,
-        SUM(CASE
-          WHEN f.read_trainer = 0 AND (f.sender_type = 'client' OR (f.sender_type IS NULL AND f.read_client = 1))
-          THEN 1 ELSE 0
-        END) AS unread_count
-      FROM feedback f
-      LEFT JOIN client c ON c.id = f.client_id
-      WHERE f.trainer_id = ?
-      GROUP BY f.client_id
-      ORDER BY last_id DESC
-    `, [trainerId]);
+    let rows: any[];
+    try {
+      rows = await this.repo.query(
+        `SELECT client_id, MAX(id) AS last_id,
+         SUM(CASE WHEN read_trainer = 0 AND (sender_type = 'client' OR (sender_type IS NULL AND read_client = 1)) THEN 1 ELSE 0 END) AS unread_count
+         FROM feedback WHERE trainer_id = ? AND client_id IS NOT NULL GROUP BY client_id ORDER BY last_id DESC`,
+        [trainerId],
+      );
+    } catch (e) {
+      // Fallback: use existing findAll + group in JS
+      const all = await this.findAll();
+      const filtered = (all as any[]).filter(r => r.trainer_id === trainerId);
+      const byClient = new Map<number, any>();
+      for (const r of filtered) {
+        if (!r.client_id) continue;
+        if (!byClient.has(r.client_id)) {
+          byClient.set(r.client_id, { client_id: r.client_id, client_name: r.client_name || 'Unbekannt', last_message: r.text ?? '', last_id: r.id, unread_count: 0 });
+        }
+        if (!r.read_trainer && r.sender_type === 'client') byClient.get(r.client_id)!.unread_count++;
+      }
+      return Array.from(byClient.values());
+    }
 
-    // Fetch last message text for each conversation (avoids correlated subquery issues)
+    // Enrich with client name and last message text
     for (const row of rows) {
+      try {
+        const cRows = await this.repo.query(`SELECT firstname, lastname FROM client WHERE id = ? LIMIT 1`, [row.client_id]);
+        row.client_name = cRows?.[0] ? `${cRows[0].firstname ?? ''} ${cRows[0].lastname ?? ''}`.trim() || 'Unbekannt' : 'Unbekannt';
+      } catch (_) { row.client_name = 'Unbekannt'; }
+
       if (row.last_id) {
-        const msgRows = await this.repo.query(
-          `SELECT text FROM feedback WHERE id = ? LIMIT 1`,
-          [row.last_id],
-        );
-        row.last_message = msgRows?.[0]?.text ?? '';
+        try {
+          const mRows = await this.repo.query(`SELECT text FROM feedback WHERE id = ? LIMIT 1`, [row.last_id]);
+          row.last_message = mRows?.[0]?.text ?? '';
+        } catch (_) { row.last_message = ''; }
       } else {
         row.last_message = '';
       }
@@ -90,7 +100,7 @@ export class FeedbackService {
 
     return rows.map(r => ({
       client_id: r.client_id,
-      client_name: `${r.client_firstname ?? ''} ${r.client_lastname ?? ''}`.trim() || 'Unbekannt',
+      client_name: r.client_name ?? 'Unbekannt',
       last_message: r.last_message ?? '',
       last_id: Number(r.last_id) || 0,
       unread_count: Number(r.unread_count) || 0,

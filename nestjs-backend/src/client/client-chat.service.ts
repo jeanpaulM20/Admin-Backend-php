@@ -16,37 +16,56 @@ export class ClientChatService {
    * Uses SQL aggregation instead of loading all messages into memory.
    */
   async getConversations(clientId: number) {
-    // Efficient SQL: get last message + unread count per trainer in one query
-    const convRows: any[] = await this.feedbackRepo.query(`
-      SELECT
-        f.trainer_id,
-        MAX(t.firstname) AS trainer_firstname,
-        MAX(t.lastname) AS trainer_lastname,
-        MAX(t.picture) AS trainer_picture,
-        MAX(f.id) AS last_id,
-        MAX(f.created_at) AS last_message_at,
-        SUM(CASE
-          WHEN f.read_client = 0 AND (f.sender_type = 'trainer' OR (f.sender_type IS NULL AND f.read_trainer = 1))
-          THEN 1 ELSE 0
-        END) AS unread_count
-      FROM feedback f
-      LEFT JOIN trainer t ON t.id = f.trainer_id
-      WHERE f.client_id = ?
-      GROUP BY f.trainer_id
-      ORDER BY last_id DESC
-    `, [clientId]);
+    // Step 1: Get distinct trainer IDs + aggregates using raw SQL
+    let convRows: any[];
+    try {
+      convRows = await this.feedbackRepo.query(
+        `SELECT trainer_id, MAX(id) AS last_id, MAX(created_at) AS last_message_at,
+         SUM(CASE WHEN read_client = 0 AND (sender_type = 'trainer' OR (sender_type IS NULL AND read_trainer = 1)) THEN 1 ELSE 0 END) AS unread_count
+         FROM feedback WHERE client_id = ? AND trainer_id IS NOT NULL GROUP BY trainer_id ORDER BY last_id DESC`,
+        [clientId],
+      );
+    } catch (e) {
+      // Fallback: load all and group in JS (works on any DB)
+      return this._getConversationsFallback(clientId);
+    }
 
-    // Fetch last message text for each conversation
+    // Step 2: Enrich with trainer info and last message text
+    const result: any[] = [];
     for (const row of convRows) {
-      if (row.last_id) {
-        const msgRows = await this.feedbackRepo.query(
-          `SELECT text FROM feedback WHERE id = ? LIMIT 1`,
-          [row.last_id],
+      let trainerName = 'Trainer';
+      let trainerPicture: string | null = null;
+      let lastMessage = '';
+
+      try {
+        const tRows = await this.feedbackRepo.query(
+          `SELECT firstname, lastname, picture FROM trainer WHERE id = ? LIMIT 1`,
+          [row.trainer_id],
         );
-        row.last_message = msgRows?.[0]?.text ?? '';
-      } else {
-        row.last_message = '';
+        if (tRows?.[0]) {
+          trainerName = `${tRows[0].firstname ?? ''} ${tRows[0].lastname ?? ''}`.trim() || 'Trainer';
+          trainerPicture = tRows[0].picture ?? null;
+        }
+      } catch (_) {}
+
+      if (row.last_id) {
+        try {
+          const mRows = await this.feedbackRepo.query(
+            `SELECT text FROM feedback WHERE id = ? LIMIT 1`,
+            [row.last_id],
+          );
+          lastMessage = mRows?.[0]?.text ?? '';
+        } catch (_) {}
       }
+
+      result.push({
+        trainer_id: row.trainer_id,
+        trainer_name: trainerName,
+        trainer_picture: trainerPicture,
+        last_message: lastMessage,
+        last_message_at: row.last_message_at ?? null,
+        unread_count: Number(row.unread_count) || 0,
+      });
     }
 
     const trainerIds = new Set(convRows.map(r => r.trainer_id));
@@ -56,15 +75,6 @@ export class ClientChatService {
       where: { id: clientId },
       relations: ['trainers'],
     });
-
-    const result = convRows.map(row => ({
-      trainer_id: row.trainer_id,
-      trainer_name: `${row.trainer_firstname ?? ''} ${row.trainer_lastname ?? ''}`.trim() || 'Trainer',
-      trainer_picture: row.trainer_picture ?? null,
-      last_message: row.last_message ?? '',
-      last_message_at: row.last_message_at ?? null,
-      unread_count: Number(row.unread_count) || 0,
-    }));
 
     if (client?.trainers) {
       for (const trainer of client.trainers) {
@@ -82,6 +92,54 @@ export class ClientChatService {
     }
 
     return result;
+  }
+
+  /**
+   * JS-based fallback if raw SQL fails (e.g. SQLite dev environment).
+   */
+  private async _getConversationsFallback(clientId: number) {
+    const rows = await this.feedbackRepo.find({
+      where: { client_id: clientId },
+      relations: ['trainer'],
+      order: { id: 'DESC' },
+    });
+
+    const trainerMap = new Map<number, any>();
+    for (const row of rows) {
+      const tid = row.trainer_id;
+      if (!tid) continue;
+      if (!trainerMap.has(tid)) {
+        trainerMap.set(tid, {
+          trainer_id: tid,
+          trainer_name: row.trainer ? `${row.trainer.firstname ?? ''} ${row.trainer.lastname ?? ''}`.trim() : 'Trainer',
+          trainer_picture: row.trainer?.picture ?? null,
+          last_message: row.text ?? '',
+          last_message_at: row.created_at ?? null,
+          unread_count: 0,
+        });
+      }
+      const isTrainerMsg = row.sender_type === 'trainer' || (!row.sender_type && row.read_trainer === 1 && row.read_client === 0);
+      if (isTrainerMsg && row.read_client === 0) {
+        trainerMap.get(tid)!.unread_count++;
+      }
+    }
+
+    const client = await this.clientRepo.findOne({ where: { id: clientId }, relations: ['trainers'] });
+    if (client?.trainers) {
+      for (const trainer of client.trainers) {
+        if (!trainerMap.has(trainer.id)) {
+          trainerMap.set(trainer.id, {
+            trainer_id: trainer.id,
+            trainer_name: `${trainer.firstname ?? ''} ${trainer.lastname ?? ''}`.trim() || 'Trainer',
+            trainer_picture: trainer.picture ?? null,
+            last_message: '',
+            last_message_at: null,
+            unread_count: 0,
+          });
+        }
+      }
+    }
+    return Array.from(trainerMap.values());
   }
 
   /**
