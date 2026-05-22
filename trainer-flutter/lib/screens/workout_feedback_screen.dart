@@ -100,7 +100,18 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
           _eventSource!.onMessage.cast<html.MessageEvent>().listen((_) {
         if (mounted && !_loading) _loadMessages();
       });
-    } catch (_) {}
+      // Auto-reconnect on connection loss
+      _eventSource!.onError.listen((_) {
+        debugPrint('[TrainerChat] SSE lost, reconnecting in 5s...');
+        _esSubscription?.cancel();
+        _eventSource?.close();
+        Future.delayed(const Duration(seconds: 5), () {
+          if (mounted) _subscribeFirebase();
+        });
+      });
+    } catch (e) {
+      debugPrint('[TrainerChat] SSE init failed: $e');
+    }
   }
 
   Future<void> _loadMessages() async {
@@ -136,12 +147,15 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
   }
 
   Future<void> _markAllRead() async {
-    for (final msg in _messages) {
-      if (msg.id > 0 && !msg.readTrainer) {
-        try {
-          await _apiService.post('${ApiConfig.feedback}/${msg.id}/read');
-        } catch (_) {}
-      }
+    // Single batch request instead of N+1 individual calls
+    final hasUnread = _messages.any((m) => m.id > 0 && !m.readTrainer);
+    if (!hasUnread) return;
+    try {
+      await _apiService.post(
+        '${ApiConfig.feedback}/read-all?client_id=${widget.client.id}',
+      );
+    } catch (e) {
+      debugPrint('[TrainerChat] markAllRead failed: $e');
     }
   }
 

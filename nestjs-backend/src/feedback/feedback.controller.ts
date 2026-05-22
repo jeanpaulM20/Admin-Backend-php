@@ -11,6 +11,14 @@ export class FeedbackController {
   ) {}
 
   /**
+   * GET /api/feedback/conversations?trainer_id=2 — efficient conversation list
+   */
+  @Get('conversations')
+  getConversations(@Query('trainer_id', ParseIntPipe) trainerId: number) {
+    return this.service.getTrainerConversations(trainerId);
+  }
+
+  /**
    * GET /api/feedback?client_id=123  — messages for one client (chat view)
    * GET /api/feedback                — all messages (Nachrichten thread list)
    */
@@ -63,7 +71,13 @@ export class FeedbackController {
     }
   }
 
-  /** POST /api/feedback/:id/read — mark message as read by trainer */
+  /** POST /api/feedback/read-all?client_id=123 — batch mark all as read by trainer */
+  @Post('read-all')
+  markAllRead(@Query('client_id', ParseIntPipe) clientId: number) {
+    return this.service.markAllReadByTrainer(clientId);
+  }
+
+  /** POST /api/feedback/:id/read — mark single message as read by trainer */
   @Post(':id/read')
   markRead(@Param('id', ParseIntPipe) id: number) {
     // Always mark as read by trainer (trainer app context)

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 import '../providers/trainer_provider.dart';
 import '../services/api_service.dart';
 import '../config/api_config.dart';
@@ -88,63 +89,44 @@ class _NachrichtenScreenState extends State<NachrichtenScreen> {
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
-      // Ensure clients are loaded so we can resolve IDs from names
+      // Ensure clients are loaded so we can resolve IDs
       final provider = context.read<TrainerProvider>();
       if (provider.clients.isEmpty) {
         await provider.fetchClients();
       }
 
-      final resp = await _api.get(ApiConfig.feedback);
+      final auth = context.read<AuthProvider>();
+      final trainerId = auth.trainer?.id ?? 0;
+
+      // Use efficient conversations endpoint (SQL aggregation)
+      final resp = await _api.get(
+        '${ApiConfig.feedback}/conversations',
+        queryParams: {'trainer_id': trainerId.toString()},
+      );
       final List<dynamic> raw = resp is List
           ? resp
           : (resp is Map && resp['data'] is List ? resp['data'] as List : []);
 
-      final clientList = context.read<TrainerProvider>().clients;
-
-      final msgs = raw
-          .map((e) => _ChatMsg.fromJson(e as Map<String, dynamic>))
-          .map((m) {
-            // Old server doesn't return client_id — resolve by name
-            if (m.clientId != 0) return m;
-            try {
-              final c = clientList.firstWhere(
-                (c) => c.name.toLowerCase().trim() ==
-                    m.clientName.toLowerCase().trim(),
-              );
-              return _ChatMsg(
-                id: m.id,
-                clientId: c.id,
-                clientName: m.clientName,
-                text: m.text,
-                align: m.align,
-                readTrainer: m.readTrainer,
-                isCircle: m.isCircle,
-              );
-            } catch (_) {
-              return m; // keep as-is if name not matched
-            }
-          })
-          .toList();
-
-      // Group by client_id (or client_name as fallback when id still 0)
-      final Map<String, List<_ChatMsg>> byClient = {};
-      for (final m in msgs) {
-        final key = m.clientId != 0 ? m.clientId.toString() : m.clientName;
-        byClient.putIfAbsent(key, () => []).add(m);
-      }
-
-      final threads = byClient.entries.map((e) {
-        final list = e.value; // already newest-first from server
-        final last = list.first;
-        final unread = list.where((m) => !m.isTrainer && !m.readTrainer).length;
+      final threads = raw.map((e) {
+        final j = e as Map<String, dynamic>;
+        final clientId = j['client_id'] is int
+            ? j['client_id'] as int
+            : int.tryParse(j['client_id']?.toString() ?? '') ?? 0;
         return _ClientThread(
-          clientId: last.clientId,
-          clientName: last.clientName,
-          lastMsg: last,
-          unreadCount: unread,
+          clientId: clientId,
+          clientName: j['client_name']?.toString() ?? 'Unbekannt',
+          lastMsg: _ChatMsg(
+            id: j['last_id'] is int ? j['last_id'] : int.tryParse(j['last_id']?.toString() ?? '') ?? 0,
+            clientId: clientId,
+            clientName: j['client_name']?.toString() ?? 'Unbekannt',
+            text: j['last_message']?.toString() ?? '',
+            align: 'left',
+            readTrainer: true,
+            isCircle: false,
+          ),
+          unreadCount: j['unread_count'] is int ? j['unread_count'] : int.tryParse(j['unread_count']?.toString() ?? '') ?? 0,
         );
-      }).toList()
-        ..sort((a, b) => b.lastMsg.id.compareTo(a.lastMsg.id));
+      }).toList();
 
       setState(() => _threads = threads);
     } on ApiException catch (e) {

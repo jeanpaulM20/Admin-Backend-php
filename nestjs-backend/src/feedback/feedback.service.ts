@@ -53,6 +53,42 @@ export class FeedbackService {
     });
   }
 
+  /**
+   * Efficient conversation list for trainer: one row per client with last message + unread count.
+   * Used by the Nachrichten screen instead of loading ALL messages.
+   */
+  async getTrainerConversations(trainerId: number) {
+    const rows: any[] = await this.repo.query(`
+      SELECT
+        f.client_id,
+        c.firstname AS client_firstname,
+        c.lastname AS client_lastname,
+        (SELECT f2.text FROM feedback f2
+         WHERE f2.client_id = f.client_id AND f2.trainer_id = f.trainer_id
+         ORDER BY f2.id DESC LIMIT 1) AS last_message,
+        (SELECT f3.id FROM feedback f3
+         WHERE f3.client_id = f.client_id AND f3.trainer_id = f.trainer_id
+         ORDER BY f3.id DESC LIMIT 1) AS last_id,
+        SUM(CASE
+          WHEN f.read_trainer = 0 AND (f.sender_type = 'client' OR (f.sender_type IS NULL AND f.read_client = 1))
+          THEN 1 ELSE 0
+        END) AS unread_count
+      FROM feedback f
+      LEFT JOIN client c ON c.id = f.client_id
+      WHERE f.trainer_id = ?
+      GROUP BY f.client_id
+      ORDER BY last_id DESC
+    `, [trainerId]);
+
+    return rows.map(r => ({
+      client_id: r.client_id,
+      client_name: `${r.client_firstname ?? ''} ${r.client_lastname ?? ''}`.trim() || 'Unbekannt',
+      last_message: r.last_message ?? '',
+      last_id: Number(r.last_id) || 0,
+      unread_count: Number(r.unread_count) || 0,
+    }));
+  }
+
   create(data: Partial<Feedback>) {
     return this.repo.save(this.repo.create(data));
   }
@@ -60,6 +96,22 @@ export class FeedbackService {
   async markRead(id: number, byClient: boolean) {
     const update = byClient ? { read_client: 1 } : { read_trainer: 1 };
     await this.repo.update(id, update);
+    return { success: true };
+  }
+
+  /**
+   * Batch mark all unread messages for a client as read by trainer.
+   */
+  async markAllReadByTrainer(clientId: number) {
+    await this.repo
+      .createQueryBuilder()
+      .update(Feedback)
+      .set({ read_trainer: 1 })
+      .where('client_id = :clientId AND read_trainer = 0 AND (sender_type = :st OR (sender_type IS NULL AND read_client = 1))', {
+        clientId,
+        st: 'client',
+      })
+      .execute();
     return { success: true };
   }
 
