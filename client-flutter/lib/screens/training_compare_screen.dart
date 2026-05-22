@@ -268,7 +268,7 @@ class TrainingCompareScreen extends StatelessWidget {
         return LineChartBarData(
           // Normalize x to 0-100%
           spots: pts.asMap().entries.map((p) =>
-              FlSpot(p.key / (n - 1) * 100, p.value.value)).toList(),
+              FlSpot(n > 1 ? p.key / (n - 1) * 100 : 50.0, p.value.value)).toList(),
           isCurved: true, curveSmoothness: 0.2,
           color: color, barWidth: 2,
           isStrokeCapRound: true,

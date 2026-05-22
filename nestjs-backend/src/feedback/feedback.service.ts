@@ -15,6 +15,7 @@ export class FeedbackService {
     if (clientId) where.client_id = clientId;
     const rows = await this.repo.find({
       where,
+      relations: ['client'],
       order: { id: 'ASC' },
     });
 

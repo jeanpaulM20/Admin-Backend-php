@@ -80,7 +80,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
 
     // Filter trainings for this client
     final clientTrainings = trainerProvider.trainings
-        .where((t) => t.clientId == client.id || t.clientName == client.name)
+        .where((t) => t.clientId != null && t.clientId == client.id)
         .toList();
 
     final upcomingTrainings = clientTrainings
@@ -215,7 +215,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                   if (client.memberSince != null) ...[
                     const SizedBox(height: 6),
                     Text(
-                      'Member since ${client.memberSince}',
+                      'Mitglied seit ${client.memberSince}',
                       style: const TextStyle(
                           color: AppColors.muted, fontSize: 12),
                     ),
@@ -274,7 +274,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Contact Information',
+              'Kontaktdaten',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 14,
@@ -693,7 +693,7 @@ class _TrainingItemState extends State<_TrainingItem> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Training cancelled successfully.'),
+            content: Text('Training erfolgreich abgesagt.'),
             backgroundColor: Color(0xFF2E7D32),
           ),
         );
@@ -786,7 +786,7 @@ class _TrainingItemState extends State<_TrainingItem> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text(
-                      'Cancelled',
+                      'Abgesagt',
                       style: TextStyle(
                           color: AppColors.muted, fontSize: 11),
                     ),
@@ -815,7 +815,7 @@ class _TrainingItemState extends State<_TrainingItem> {
                         )
                       : const Icon(Icons.cancel_outlined, size: 15),
                   label: Text(
-                    _isCancelling ? 'Cancelling...' : 'Cancel Training',
+                    _isCancelling ? 'Wird abgesagt...' : 'Training absagen',
                     style: const TextStyle(fontSize: 13),
                   ),
                   style: OutlinedButton.styleFrom(

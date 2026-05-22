@@ -139,7 +139,7 @@ class _CreditsScreenState extends State<CreditsScreen> {
       final auth = context.read<AuthProvider>();
       final result = await _paymentService.initialize(
         clientId: auth.clientId!,
-        packageId: int.parse(pkg.id),
+        packageId: int.tryParse(pkg.id) ?? 0,
       );
 
       if (!mounted) return;

@@ -115,6 +115,26 @@ class _AvailabilitySerialScreenState extends State<AvailabilitySerialScreen> {
       );
       return;
     }
+    final fromMinutes = _fromTime.hour * 60 + _fromTime.minute;
+    final toMinutes = _toTime.hour * 60 + _toTime.minute;
+    if (toMinutes <= fromMinutes) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Endzeit muss nach der Startzeit liegen'),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+      return;
+    }
+    if (_selectedDays.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Bitte wähle mindestens einen Wochentag'),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+      return;
+    }
 
     setState(() => _saving = true);
     try {

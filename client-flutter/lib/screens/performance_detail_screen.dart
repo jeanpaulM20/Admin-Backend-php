@@ -273,7 +273,9 @@ class PerformanceDetailScreen extends StatelessWidget {
   double get _minY {
     if (history.isEmpty) return 0;
     final min = history.map((p) => p.value).reduce((a, b) => a < b ? a : b);
-    final range = _maxY - min;
+    final max = history.map((p) => p.value).reduce((a, b) => a > b ? a : b);
+    final range = max - min;
+    if (range == 0) return min - 5;
     return min - range * 0.1;
   }
 
@@ -282,6 +284,7 @@ class PerformanceDetailScreen extends StatelessWidget {
     final max = history.map((p) => p.value).reduce((a, b) => a > b ? a : b);
     final min = history.map((p) => p.value).reduce((a, b) => a < b ? a : b);
     final range = max - min;
+    if (range == 0) return max + 5;
     return max + range * 0.1;
   }
 

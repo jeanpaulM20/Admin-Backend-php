@@ -79,7 +79,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         await PushNotificationService.instance.unsubscribe(clientId);
         if (mounted) setState(() => _pushEnabled = false);
       }
-    } catch (_) {} finally {
+    } catch (e) {
+      debugPrint('[Profile] push toggle error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Push-Benachrichtigung fehlgeschlagen'), backgroundColor: AppColors.red),
+        );
+      }
+    } finally {
       if (mounted) setState(() => _pushLoading = false);
     }
   }
@@ -106,7 +113,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SnackBar(content: Text('Polar-Trainings synchronisiert!')),
         );
       }
-    } catch (_) {} finally {
+    } catch (e) {
+      debugPrint('[Profile] polar sync error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Polar-Sync fehlgeschlagen'), backgroundColor: AppColors.red),
+        );
+      }
+    } finally {
       if (mounted) setState(() => _polarLoading = false);
     }
   }
@@ -114,14 +128,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _disconnectPolar(String clientId) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         backgroundColor: AppColors.surface,
         title: const Text('Polar trennen', style: TextStyle(color: AppColors.text)),
         content: const Text('Polar-Verbindung wirklich trennen?', style: TextStyle(color: AppColors.muted)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Abbrechen')),
+          TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: const Text('Abbrechen')),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogCtx, true),
             child: const Text('Trennen', style: TextStyle(color: AppColors.red)),
           ),
         ],
@@ -132,7 +146,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       await apiClient.post('api/client/polar/disconnect/$clientId', body: {});
       setState(() => _polarConnected = false);
-    } catch (_) {} finally {
+    } catch (e) {
+      debugPrint('[Profile] polar disconnect error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Polar-Trennung fehlgeschlagen'), backgroundColor: AppColors.red),
+        );
+      }
+    } finally {
       if (mounted) setState(() => _polarLoading = false);
     }
   }
@@ -585,23 +606,27 @@ class _InAppFileViewer extends StatefulWidget {
 }
 
 class _InAppFileViewerState extends State<_InAppFileViewer> {
+  static final Set<String> _registeredIds = {};
   late final String _viewId;
 
   @override
   void initState() {
     super.initState();
-    _viewId = 'file-viewer-${widget.url.hashCode}';
-    // ignore: undefined_prefixed_name
-    ui.platformViewRegistry.registerViewFactory(_viewId, (int viewId) {
-      final iframe = html.IFrameElement()
-        ..src = widget.url
-        ..style.border = 'none'
-        ..style.width = '100%'
-        ..style.height = '100%'
-        ..allow = 'fullscreen'
-        ..setAttribute('sandbox', 'allow-same-origin allow-scripts allow-popups');
-      return iframe;
-    });
+    _viewId = 'file-viewer-${DateTime.now().microsecondsSinceEpoch}';
+    if (!_registeredIds.contains(_viewId)) {
+      _registeredIds.add(_viewId);
+      // ignore: undefined_prefixed_name
+      ui.platformViewRegistry.registerViewFactory(_viewId, (int viewId) {
+        final iframe = html.IFrameElement()
+          ..src = widget.url
+          ..style.border = 'none'
+          ..style.width = '100%'
+          ..style.height = '100%'
+          ..allow = 'fullscreen'
+          ..setAttribute('sandbox', 'allow-same-origin allow-scripts allow-popups');
+        return iframe;
+      });
+    }
   }
 
   @override

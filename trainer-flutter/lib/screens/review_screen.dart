@@ -187,11 +187,11 @@ class _ReviewScreenState extends State<ReviewScreen>
   String _getPeriodLabel() {
     switch (_selectedPeriod) {
       case 0:
-        return 'this week';
+        return 'diese Woche';
       case 1:
-        return 'this month';
+        return 'dieser Monat';
       case 2:
-        return 'this year';
+        return 'dieses Jahr';
       default:
         return '';
     }

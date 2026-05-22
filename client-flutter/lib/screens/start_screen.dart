@@ -32,7 +32,6 @@ class _StartScreenState extends State<StartScreen> {
   @override
   Widget build(BuildContext context) {
     final appt = context.watch<AppointmentProvider>();
-    final auth = context.watch<AuthProvider>();
     final firstName = appt.startData?.firstName ?? '';
 
     // Dynamic greeting based on time of day

@@ -42,12 +42,16 @@ class _MainScreenState extends State<MainScreen> {
     final trainerProvider = context.read<TrainerProvider>();
     final trainer = authProvider.trainer;
 
-    await Future.wait([
-      trainerProvider.fetchAboutUs(),
-      trainerProvider.fetchLocations(),
-      if (trainer != null) trainerProvider.fetchClients(),
-      if (trainer != null) trainerProvider.fetchTrainings(trainer.id),
-    ]);
+    try {
+      await Future.wait([
+        trainerProvider.fetchAboutUs(),
+        trainerProvider.fetchLocations(),
+        if (trainer != null) trainerProvider.fetchClients(),
+        if (trainer != null) trainerProvider.fetchTrainings(trainer.id),
+      ]);
+    } catch (e) {
+      debugPrint('[MainScreen] initialization error: $e');
+    }
   }
 
   @override

@@ -65,7 +65,7 @@ export class FeedbackController {
       return saved;
     } catch (err) {
       throw new HttpException(
-        { message: err.message, detail: err.sqlMessage ?? null },
+        { message: err.message ?? 'Nachricht konnte nicht gesendet werden' },
         HttpStatus.BAD_REQUEST,
       );
     }

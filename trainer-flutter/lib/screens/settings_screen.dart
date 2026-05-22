@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/trainer_provider.dart';
 import '../services/api_service.dart';
 import '../config/api_config.dart';
 import '../config/app_colors.dart';
@@ -188,6 +189,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               );
               if (confirmed == true && context.mounted) {
+                context.read<TrainerProvider>().clearAll();
                 await context.read<AuthProvider>().logout();
               }
             },

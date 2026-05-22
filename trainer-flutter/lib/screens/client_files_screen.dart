@@ -123,13 +123,17 @@ class _ClientFilesScreenState extends State<ClientFilesScreen> {
         ],
       ),
     );
+    if (confirmed != true) {
+      emailCtrl.dispose();
+      return;
+    }
+    final email = emailCtrl.text.trim();
     emailCtrl.dispose();
-
-    if (confirmed != true) return;
+    if (email.isEmpty) return;
     try {
       await _apiService.postForm(ApiConfig.sendFile, body: {
         'file_id': file.id.toString(),
-        'email': widget.client.email ?? '',
+        'email': email,
         'client_id': widget.client.id.toString(),
       });
       if (mounted) {
