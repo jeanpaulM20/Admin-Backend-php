@@ -1,11 +1,11 @@
 {
-    "name": "Sihl Training – Trainer",
-    "short_name": "ST Trainer",
+    "name": "Sihl Training",
+    "short_name": "Sihl Training",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#1a1a1a",
-    "theme_color": "#1a1a1a",
-    "description": "Sihl Training – Trainer App",
+    "background_color": "#0F1117",
+    "theme_color": "#0F1117",
+    "description": "Sihl Training – Outdoor Personal Training Zürich",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
