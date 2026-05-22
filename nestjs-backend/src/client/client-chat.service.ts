@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Feedback } from '../entities/feedback.entity';
@@ -170,7 +170,7 @@ export class ClientChatService {
     // Sanitize: trim whitespace and enforce max length (5000 chars)
     const sanitized = (text ?? '').trim().slice(0, 5000);
     if (!sanitized) {
-      throw new Error('Nachricht darf nicht leer sein');
+      throw new BadRequestException('Nachricht darf nicht leer sein');
     }
 
     const msg = this.feedbackRepo.create({
