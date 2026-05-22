@@ -1,8 +1,9 @@
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../config/app_colors.dart';
 import '../config/api_config.dart';
 import '../providers/auth_provider.dart';
@@ -854,9 +855,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Future<void> _addToCalendar(Appointment appt) async {
-    final url = Uri.parse('${ApiConfig.baseUrl}api/training/${appt.id}/ical');
+    final url = '${ApiConfig.baseUrl}api/training/${appt.id}/ical';
     try {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
+      // Use an anchor element to force .ics file download in web browsers
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute('download', 'training-${appt.id}.ics')
+        ..style.display = 'none';
+      html.document.body?.append(anchor);
+      anchor.click();
+      anchor.remove();
     } catch (e) {
       debugPrint('iCal download error: $e');
       if (mounted) {
