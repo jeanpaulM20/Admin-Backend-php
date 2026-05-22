@@ -98,13 +98,16 @@ export class ClientAppController {
    */
   @Get('invoice-qr/:invoiceNumber')
   async invoiceQr(
+    @Req() req: Request,
     @Param('invoiceNumber') invoiceNumber: string,
   ) {
-    // Auth: requires valid token (checked by global guard).
-    // No clientId check here — invoice number is opaque and hard to guess.
     const invoice = await this.invoiceService.getInvoiceByNumber(invoiceNumber);
     if (!invoice) {
       return { success: false, error: 'Invoice not found' };
+    }
+    // Verify ownership: client can only access their own invoices
+    if (invoice.client_id) {
+      this.assertClientAccess(req, invoice.client_id);
     }
     const numAmount = parseFloat(invoice.amount);
     if (!numAmount || numAmount <= 0) {
@@ -338,14 +341,22 @@ export class ClientAppController {
     ));
   }
 
+  /** HTML-escape to prevent XSS */
+  private esc(s: string): string {
+    return (s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
   /** Generates a simple branded HTML result page */
   private buildResultPage(status: string, message: string, invoiceNumber: string): string {
     const icon = status === 'success' ? '&#10004;' : status === 'cancelled' ? '&#10060;' : '&#9888;';
     const color = status === 'success' ? '#22c55e' : status === 'cancelled' ? '#f97316' : '#ef4444';
     const title = status === 'success' ? 'Zahlung erfolgreich' : status === 'cancelled' ? 'Zahlung abgebrochen' : 'Fehler';
+    const safeTitle = this.esc(title);
+    const safeMessage = this.esc(message);
+    const safeInvoice = this.esc(invoiceNumber);
     return `<!DOCTYPE html>
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${title} – SIHLHEALTH</title>
+<title>${safeTitle} – SIHLHEALTH</title>
 <style>
 body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0a0a0a;color:#e5e5e5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
 .card{text-align:center;padding:40px;max-width:420px;background:#171717;border-radius:16px;border:1px solid #262626}
@@ -356,9 +367,9 @@ p{font-size:14px;color:#a3a3a3;line-height:1.6;margin:0 0 20px}
 </style></head><body>
 <div class="card">
 <div class="icon">${icon}</div>
-<h1>${title}</h1>
-<p>${message}</p>
-<div class="inv">Rechnung: ${invoiceNumber}</div>
+<h1>${safeTitle}</h1>
+<p>${safeMessage}</p>
+<div class="inv">Rechnung: ${safeInvoice}</div>
 </div></body></html>`;
   }
 
@@ -396,10 +407,17 @@ p{font-size:14px;color:#a3a3a3;line-height:1.6;margin:0 0 20px}
    * Flutter polls this after WebView closes to check payment status.
    */
   @Get('payment/status/:invoiceNumber')
-  async paymentStatus(@Param('invoiceNumber') invoiceNumber: string) {
+  async paymentStatus(
+    @Req() req: Request,
+    @Param('invoiceNumber') invoiceNumber: string,
+  ) {
     const invoice = await this.invoiceService.getInvoiceByNumber(invoiceNumber);
     if (!invoice) {
       return { success: false, error: 'Rechnung nicht gefunden' };
+    }
+    // Verify ownership: client can only check their own invoices
+    if (invoice.client_id) {
+      this.assertClientAccess(req, invoice.client_id);
     }
     return {
       success: true,

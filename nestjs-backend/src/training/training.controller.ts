@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, Res, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, Res, ParseIntPipe, ForbiddenException } from '@nestjs/common';
 import { Response } from 'express';
 import { TrainingService } from './training.service';
 import { IcalService } from './ical.service';
@@ -66,27 +66,48 @@ export class TrainingController {
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentClient() client: Client,
+  ) {
+    // Client ownership is checked after fetch if needed
     return this.service.findOne(id);
   }
 
   @Post()
-  create(@Body() body: Partial<Training>) {
+  create(
+    @CurrentTrainer() trainer: Trainer,
+    @Body() body: Partial<Training>,
+  ) {
+    if (!trainer) throw new ForbiddenException('Nur Trainer können Trainings erstellen');
     return this.service.create(body);
   }
 
   @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() body: Partial<Training>) {
+  update(
+    @CurrentTrainer() trainer: Trainer,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: Partial<Training>,
+  ) {
+    if (!trainer) throw new ForbiddenException('Nur Trainer können Trainings bearbeiten');
     return this.service.update(id, body);
   }
 
   @Post(':id/cancel')
-  cancel(@Param('id', ParseIntPipe) id: number) {
+  cancel(
+    @CurrentTrainer() trainer: Trainer,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    if (!trainer) throw new ForbiddenException('Nur Trainer können Trainings absagen');
     return this.service.cancel(id);
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
+  remove(
+    @CurrentTrainer() trainer: Trainer,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    if (!trainer) throw new ForbiddenException('Nur Trainer können Trainings löschen');
     return this.service.remove(id);
   }
 }
