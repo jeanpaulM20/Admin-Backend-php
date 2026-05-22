@@ -61,14 +61,9 @@ export class FeedbackService {
     const rows: any[] = await this.repo.query(`
       SELECT
         f.client_id,
-        c.firstname AS client_firstname,
-        c.lastname AS client_lastname,
-        (SELECT f2.text FROM feedback f2
-         WHERE f2.client_id = f.client_id AND f2.trainer_id = f.trainer_id
-         ORDER BY f2.id DESC LIMIT 1) AS last_message,
-        (SELECT f3.id FROM feedback f3
-         WHERE f3.client_id = f.client_id AND f3.trainer_id = f.trainer_id
-         ORDER BY f3.id DESC LIMIT 1) AS last_id,
+        MAX(c.firstname) AS client_firstname,
+        MAX(c.lastname) AS client_lastname,
+        MAX(f.id) AS last_id,
         SUM(CASE
           WHEN f.read_trainer = 0 AND (f.sender_type = 'client' OR (f.sender_type IS NULL AND f.read_client = 1))
           THEN 1 ELSE 0
@@ -79,6 +74,19 @@ export class FeedbackService {
       GROUP BY f.client_id
       ORDER BY last_id DESC
     `, [trainerId]);
+
+    // Fetch last message text for each conversation (avoids correlated subquery issues)
+    for (const row of rows) {
+      if (row.last_id) {
+        const msgRows = await this.repo.query(
+          `SELECT text FROM feedback WHERE id = ? LIMIT 1`,
+          [row.last_id],
+        );
+        row.last_message = msgRows?.[0]?.text ?? '';
+      } else {
+        row.last_message = '';
+      }
+    }
 
     return rows.map(r => ({
       client_id: r.client_id,
