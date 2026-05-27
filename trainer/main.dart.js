@@ -105904,8 +105904,7 @@ l=A.F(t.N,t.z)
 J.df(l,"name",e)
 J.df(l,"archive",0)
 J.df(l,"published",0)
-h=m.ch
-if(h!=null)J.df(l,"groupId",h)
+J.df(l,"groupId",m.ch)
 h=m.ay
 if(h!=null)J.df(l,"bodyRegion",h)
 k=l
