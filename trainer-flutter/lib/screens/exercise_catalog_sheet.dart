@@ -192,6 +192,17 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
           'summary': 'Prüfung fehlgeschlagen: ${e.message}',
         });
       }
+    } catch (e) {
+      // Network timeout or unexpected error
+      if (mounted) {
+        setState(() => _verifyResult = {
+          'valid': true,
+          'correctedName': name,
+          'corrections': <dynamic>[],
+          'confidence': 0.5,
+          'summary': 'Verbindungsfehler – Name wird ungeprüft übernommen.',
+        });
+      }
     } finally {
       if (mounted) setState(() => _verifying = false);
     }
@@ -716,7 +727,9 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
                 const Icon(Icons.arrow_forward, color: AppColors.primary, size: 16),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: RichText(text: TextSpan(children: [
+                  child: RichText(text: TextSpan(
+                    style: GoogleFonts.openSans(color: AppColors.muted, fontSize: 13),
+                    children: [
                     TextSpan(
                       text: _newNameCtrl.text.trim(),
                       style: GoogleFonts.openSans(
@@ -848,6 +861,22 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColors.orange,
             side: const BorderSide(color: AppColors.orange),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+      );
+    } else if (!valid) {
+      // AI says invalid — still allow override (trainer may know better)
+      widgets.add(
+        OutlinedButton.icon(
+          onPressed: _creating ? null : () => _createExercise(),
+          icon: const Icon(Icons.warning_amber_rounded, size: 18),
+          label: Text('Trotzdem erstellen',
+              style: GoogleFonts.openSans(fontWeight: FontWeight.w600, fontSize: 13)),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.red,
+            side: const BorderSide(color: AppColors.red),
             padding: const EdgeInsets.symmetric(vertical: 12),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
