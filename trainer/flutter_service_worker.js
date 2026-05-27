@@ -30,9 +30,9 @@ const RESOURCES = {"assets/shaders/ink_sparkle.frag": "ecc85a2e95f5e9f53123dcaf8
 "canvaskit/canvaskit.js": "26eef3024dbc64886b7f48e1b6fb05cf",
 "canvaskit/skwasm.wasm": "828c26a0b1cc8eb1adacbdd0c5e8bcfa",
 "apple-touch-icon.png": "962354807350bed39a2cbebdc1951bca",
-"flutter_bootstrap.js": "62b823ebadb68a09989143e971da774e",
+"flutter_bootstrap.js": "6edffe0188e1e2d974b7f0ba3268abeb",
 "manifest.json": "e68ae8afcae584e181eea11ce5c4b9fe",
-"main.dart.js": "39b46ad7aec1a0185eabbedb3f729165"};
+"main.dart.js": "4edab11c7303c1879052f66817ef661b"};
 // The application shell files that are downloaded before a service worker can
 // start.
 const CORE = ["main.dart.js",
