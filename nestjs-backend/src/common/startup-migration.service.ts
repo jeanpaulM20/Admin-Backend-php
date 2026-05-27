@@ -618,7 +618,7 @@ export class StartupMigrationService implements OnApplicationBootstrap {
     const groupsToBodyRegion: [string, string][] = [
       ['Shoulder', 'Shoulder'],
       ['Spine', 'Spine'],
-      ['Legs', 'Legs'],
+      ['Legs', 'LowerBody'],
     ];
     for (const [groupName, bodyRegion] of groupsToBodyRegion) {
       try {

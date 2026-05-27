@@ -1029,7 +1029,7 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
       case 'Foot': return const Color(0xFFAB47BC);
       case 'Shoulder': return const Color(0xFF42A5F5);
       case 'Spine': return const Color(0xFFEF5350);
-      case 'Legs': return const Color(0xFFFF7043);
+      // Legs removed — mapped to LowerBody
       default: return AppColors.muted;
     }
   }
@@ -1043,7 +1043,7 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
       case 'Foot': return Icons.do_not_step;
       case 'Shoulder': return Icons.sports_martial_arts;
       case 'Spine': return Icons.straighten;
-      case 'Legs': return Icons.directions_walk;
+      // Legs removed — mapped to LowerBody
       default: return Icons.circle_outlined;
     }
   }

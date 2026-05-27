@@ -82,12 +82,11 @@ class Exercise {
     'Foot': 'Fuß',
     'Shoulder': 'Schulter',
     'Spine': 'Wirbelsäule',
-    'Legs': 'Beine',
   };
 
   static const bodyRegions = [
     'UpperBody', 'LowerBody', 'Core', 'FullBody', 'Foot',
-    'Shoulder', 'Spine', 'Legs',
+    'Shoulder', 'Spine',
   ];
 
   static const movementPatterns = [
