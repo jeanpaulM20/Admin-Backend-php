@@ -6,9 +6,21 @@ import { Exercisegroup } from '../entities/exercise-group.entity';
 import { Exercisesubgroup } from '../entities/exercise-subgroup.entity';
 import { EXERCISE_SEED_DATA } from './exercise-seed.data';
 
+/** Result returned by the AI exercise verification endpoint */
+export interface ExerciseVerifyResult {
+  valid: boolean;
+  correctedName: string;
+  corrections: { type: string; original: string; corrected: string; explanation: string }[];
+  bodyRegion: string | null;
+  movementPattern: string | null;
+  confidence: number;
+  summary: string;
+}
+
 @Injectable()
 export class ExerciseService {
   private readonly logger = new Logger(ExerciseService.name);
+  private anthropic: any = null;
 
   constructor(
     @InjectRepository(Exercise)
@@ -17,7 +29,19 @@ export class ExerciseService {
     private readonly groupRepo: Repository<Exercisegroup>,
     @InjectRepository(Exercisesubgroup)
     private readonly subgroupRepo: Repository<Exercisesubgroup>,
-  ) {}
+  ) {
+    const key = process.env.ANTHROPIC_API_KEY;
+    if (key) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const Anthropic = require('@anthropic-ai/sdk');
+        this.anthropic = new Anthropic({ apiKey: key });
+        this.logger.log('Anthropic client initialised for exercise verification');
+      } catch (e) {
+        this.logger.warn('Anthropic SDK not available for exercise verification');
+      }
+    }
+  }
 
   findAll() {
     return this.exerciseRepo.find({ relations: ['group', 'subgroup', 'exercisePictures'] });
@@ -107,6 +131,140 @@ export class ExerciseService {
   async remove(id: number) {
     const exercise = await this.findOne(id);
     return this.exerciseRepo.remove(exercise);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // AI VERIFY — spell-check and validate exercise names before creation
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  async verifyExercise(
+    name: string,
+    groupName?: string,
+    bodyRegion?: string,
+  ): Promise<ExerciseVerifyResult> {
+    if (!name || name.trim().length < 2) {
+      throw new BadRequestException('Name muss mindestens 2 Zeichen haben');
+    }
+
+    // Check for duplicate name in DB
+    const existing = await this.exerciseRepo.findOne({
+      where: { name: name.trim() },
+      relations: ['group'],
+    });
+
+    if (!this.anthropic) {
+      // Fallback: no AI available — accept as-is with duplicate check
+      return {
+        valid: !existing,
+        correctedName: name.trim(),
+        corrections: [],
+        bodyRegion: null,
+        movementPattern: null,
+        confidence: existing ? 0.5 : 0.7,
+        summary: existing
+          ? `"${name.trim()}" existiert bereits im Katalog (Gruppe: ${existing.group?.name ?? '–'}).`
+          : 'KI-Prüfung nicht verfügbar. Name wird ungeprüft übernommen.',
+      };
+    }
+
+    // Load existing exercise names for context
+    const allExercises = await this.exerciseRepo.find({
+      select: ['name', 'bodyRegion', 'movementPattern'],
+      relations: ['group'],
+    });
+    const catalogNames = allExercises
+      .filter((e) => e.name)
+      .map((e) => `${e.name} (${e.group?.name ?? '–'})`)
+      .slice(0, 200) // limit context size
+      .join('\n');
+
+    const systemPrompt = `Du bist ein Fitnessexperte und Sprachprüfer für einen Übungskatalog eines Personal-Training-Studios.
+
+Deine Aufgabe: Prüfe den eingegebenen Übungsnamen auf:
+1. **Rechtschreibung** — deutsche und englische Fitnessbegriffe (z.B. "Bankdrücken", "Deadlift", "Plank")
+2. **Korrektheit** — Ist es ein realer, bekannter Übungsname?
+3. **Formatierung** — Korrekte Groß-/Kleinschreibung, Bindestriche, Sonderzeichen
+4. **Duplikate** — Ähnliche Übung bereits im Katalog? (Warnung wenn ja)
+
+Bestehender Katalog (Auswahl):
+${catalogNames}
+
+Antworte NUR als valides JSON (kein Markdown):
+{
+  "valid": true/false,
+  "correctedName": "Korrigierter Name",
+  "corrections": [
+    {"type": "spelling|format|unknown", "original": "...", "corrected": "...", "explanation": "Kurze Erklärung auf Deutsch"}
+  ],
+  "bodyRegion": "UpperBody|LowerBody|Core|FullBody|Foot|null",
+  "movementPattern": "Push|Pull|Squat|Hinge|Carry|Rotation|Static|Plyo|Sprint|Agility|null",
+  "confidence": 0.0-1.0,
+  "summary": "Ein Satz auf Deutsch: Was wurde geprüft/korrigiert?"
+}
+
+Regeln:
+- "valid" = true wenn der Name (ggf. korrigiert) eine echte Übung ist
+- "valid" = false nur wenn der Name völlig unsinnig/keine Übung ist
+- corrections Array leer lassen wenn nichts zu korrigieren
+- summary immer auf Deutsch, kurz und freundlich
+- bodyRegion und movementPattern vorschlagen wenn erkennbar, sonst null`;
+
+    const userPrompt = `Prüfe diesen Übungsnamen:
+Name: "${name.trim()}"${groupName ? `\nGruppe: ${groupName}` : ''}${bodyRegion ? `\nKörperregion: ${bodyRegion}` : ''}`;
+
+    try {
+      const response = await Promise.race([
+        this.anthropic.messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 512,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }],
+        }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('AI timeout')), 15000),
+        ),
+      ]) as any;
+
+      const raw = response.content?.[0]?.text ?? '';
+      const json = raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(json);
+
+      // Add duplicate warning if name matches existing
+      if (existing && parsed.corrections) {
+        const hasDuplicateWarning = parsed.corrections.some(
+          (c: any) => c.type === 'duplicate',
+        );
+        if (!hasDuplicateWarning) {
+          parsed.corrections.push({
+            type: 'duplicate',
+            original: name.trim(),
+            corrected: existing.name,
+            explanation: `Übung "${existing.name}" existiert bereits im Katalog (${existing.group?.name ?? 'Keine Gruppe'}).`,
+          });
+        }
+      }
+
+      return {
+        valid: parsed.valid ?? true,
+        correctedName: parsed.correctedName ?? name.trim(),
+        corrections: parsed.corrections ?? [],
+        bodyRegion: parsed.bodyRegion ?? null,
+        movementPattern: parsed.movementPattern ?? null,
+        confidence: parsed.confidence ?? 0.8,
+        summary: parsed.summary ?? 'Prüfung abgeschlossen.',
+      };
+    } catch (err) {
+      this.logger.warn(`Exercise verify AI failed: ${err}`);
+      return {
+        valid: true,
+        correctedName: name.trim(),
+        corrections: [],
+        bodyRegion: null,
+        movementPattern: null,
+        confidence: 0.5,
+        summary: 'KI-Prüfung fehlgeschlagen. Name wird ungeprüft übernommen.',
+      };
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

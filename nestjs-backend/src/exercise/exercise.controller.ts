@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, ParseIntPipe, BadRequestException } from '@nestjs/common';
 import { ExerciseService } from './exercise.service';
 import { Exercise } from '../entities/exercise.entity';
 import { Public } from '../auth/decorators/public.decorator';
@@ -10,6 +10,19 @@ export class ExerciseController {
   @Get('groups')
   findGroups() {
     return this.service.findGroups();
+  }
+
+  /**
+   * POST /api/exercise/verify — AI spell-check & validation before creation.
+   * Body: { name: string, groupName?: string, bodyRegion?: string }
+   * Returns: ExerciseVerifyResult with correctedName, corrections[], summary
+   */
+  @Post('verify')
+  verify(@Body() body: { name: string; groupName?: string; bodyRegion?: string }) {
+    if (!body?.name || typeof body.name !== 'string') {
+      throw new BadRequestException('name ist erforderlich');
+    }
+    return this.service.verifyExercise(body.name, body.groupName, body.bodyRegion);
   }
 
   /**

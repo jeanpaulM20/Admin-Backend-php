@@ -65,11 +65,21 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
   int? _newGroupId;
   bool _creating = false;
 
+  // AI verify state
+  bool _verifying = false;
+  Map<String, dynamic>? _verifyResult;  // null = not verified yet
+
   @override
   void initState() {
     super.initState();
     _searchCtrl.addListener(() => setState(() { _query = _searchCtrl.text; _filteredCache = null; }));
-    _newNameCtrl.addListener(() => setState(() {}));
+    _newNameCtrl.addListener(() {
+      if (_verifyResult != null || _verifying) {
+        setState(() { _verifyResult = null; _verifying = false; });
+      } else {
+        setState(() {});
+      }
+    });
     _load();
   }
 
@@ -141,7 +151,7 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
     ));
   }
 
-  Future<void> _createExercise() async {
+  Future<void> _verifyExercise() async {
     final name = _newNameCtrl.text.trim();
     if (name.isEmpty || name.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -152,6 +162,44 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
       );
       return;
     }
+    setState(() { _verifying = true; _verifyResult = null; });
+    try {
+      final groupName = _newGroupId != null
+          ? _groups.where((g) => g.id == _newGroupId).firstOrNull?.name
+          : null;
+      final result = await _api.post('${ApiConfig.exercise}/verify', body: {
+        'name': name,
+        if (groupName != null) 'groupName': groupName,
+        if (_newBodyRegion != null) 'bodyRegion': _newBodyRegion,
+      });
+      if (mounted) {
+        setState(() {
+          _verifyResult = result is Map<String, dynamic> ? result : {};
+          // Auto-apply AI-suggested bodyRegion/movementPattern if user hasn't set one
+          final suggestedRegion = _verifyResult?['bodyRegion'];
+          if (_newBodyRegion == null && suggestedRegion is String && suggestedRegion.isNotEmpty) {
+            _newBodyRegion = suggestedRegion;
+          }
+        });
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() => _verifyResult = {
+          'valid': true,
+          'correctedName': name,
+          'corrections': <dynamic>[],
+          'confidence': 0.5,
+          'summary': 'Prüfung fehlgeschlagen: ${e.message}',
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _verifying = false);
+    }
+  }
+
+  Future<void> _createExercise({String? overrideName}) async {
+    final name = (overrideName ?? _newNameCtrl.text).trim();
+    if (name.isEmpty) return;
     setState(() => _creating = true);
     try {
       final body = <String, dynamic>{
@@ -223,7 +271,11 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
                 if (_showCreateForm)
                   IconButton(
                     icon: const Icon(Icons.arrow_back, color: AppColors.muted, size: 20),
-                    onPressed: () => setState(() => _showCreateForm = false),
+                    onPressed: () => setState(() {
+                      _showCreateForm = false;
+                      _verifyResult = null;
+                      _verifying = false;
+                    }),
                   ),
                 if (!_showCreateForm)
                   Text(
@@ -537,24 +589,285 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
         ),
         const SizedBox(height: 28),
 
-        // Submit
-        ElevatedButton.icon(
-          onPressed: _creating || _newNameCtrl.text.trim().isEmpty ? null : _createExercise,
-          icon: _creating
-              ? const SizedBox(width: 16, height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : const Icon(Icons.check_rounded, size: 18),
-          label: Text(_creating ? 'Erstellen…' : 'Erstellen & Übernehmen',
-              style: GoogleFonts.openSans(fontWeight: FontWeight.w700)),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 14),
+        // ── AI Verify → Create (2-step) ─────────────────────────
+        if (_verifyResult == null && !_verifying)
+          // Step 1: Show "KI Prüfung starten" button
+          ElevatedButton.icon(
+            onPressed: _newNameCtrl.text.trim().length < 2 ? null : _verifyExercise,
+            icon: const Icon(Icons.auto_awesome, size: 18),
+            label: Text('KI Prüfung starten',
+                style: GoogleFonts.openSans(fontWeight: FontWeight.w700)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.blue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+
+        if (_verifying)
+          // Step 1b: Loading state
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Column(children: [
+              const SizedBox(
+                width: 28, height: 28,
+                child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.blue),
+              ),
+              const SizedBox(height: 12),
+              Text('KI prüft Übung…',
+                  style: GoogleFonts.openSans(color: AppColors.muted, fontSize: 13)),
+            ]),
+          ),
+
+        if (_verifyResult != null) ...[
+          // Step 2: AI result card
+          _buildVerifyResultCard(),
+          const SizedBox(height: 16),
+          // Action buttons
+          ..._buildVerifyActions(),
+        ],
+      ],
+    );
+  }
+
+  // ─── AI Verify result UI ───────────────────────────────────────────────
+
+  Widget _buildVerifyResultCard() {
+    final result = _verifyResult!;
+    final corrections = (result['corrections'] as List<dynamic>?) ?? [];
+    final correctedName = result['correctedName'] as String? ?? _newNameCtrl.text.trim();
+    final summary = result['summary'] as String? ?? '';
+    final confidence = (result['confidence'] as num?)?.toDouble() ?? 0.0;
+    final valid = result['valid'] as bool? ?? true;
+    final nameChanged = correctedName != _newNameCtrl.text.trim();
+    final hasDuplicate = corrections.any((c) => c['type'] == 'duplicate');
+
+    final statusColor = !valid
+        ? AppColors.red
+        : hasDuplicate
+            ? AppColors.orange
+            : corrections.isNotEmpty
+                ? AppColors.orange
+                : AppColors.green;
+    final statusIcon = !valid
+        ? Icons.cancel_outlined
+        : hasDuplicate
+            ? Icons.warning_amber_rounded
+            : corrections.isNotEmpty
+                ? Icons.auto_fix_high
+                : Icons.check_circle_outline;
+    final statusLabel = !valid
+        ? 'Keine gültige Übung'
+        : hasDuplicate
+            ? 'Duplikat gefunden'
+            : corrections.isNotEmpty
+                ? 'Korrektur vorgeschlagen'
+                : 'Name korrekt';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: statusColor.withAlpha(15),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: statusColor.withAlpha(60), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row
+          Row(children: [
+            Icon(statusIcon, color: statusColor, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(statusLabel,
+                  style: GoogleFonts.montserrat(
+                      color: statusColor, fontSize: 14, fontWeight: FontWeight.w700)),
+            ),
+            // Confidence badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.surface2,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text('${(confidence * 100).round()}%',
+                  style: GoogleFonts.openSans(
+                      color: AppColors.muted, fontSize: 11, fontWeight: FontWeight.w700)),
+            ),
+          ]),
+          const SizedBox(height: 10),
+
+          // Summary
+          if (summary.isNotEmpty)
+            Text(summary,
+                style: GoogleFonts.openSans(color: AppColors.text, fontSize: 13, height: 1.4)),
+
+          // Corrected name highlight
+          if (nameChanged) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.surface2,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(children: [
+                const Icon(Icons.arrow_forward, color: AppColors.primary, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: RichText(text: TextSpan(children: [
+                    TextSpan(
+                      text: _newNameCtrl.text.trim(),
+                      style: GoogleFonts.openSans(
+                          color: AppColors.muted, fontSize: 13,
+                          decoration: TextDecoration.lineThrough),
+                    ),
+                    const TextSpan(text: '  →  '),
+                    TextSpan(
+                      text: correctedName,
+                      style: GoogleFonts.openSans(
+                          color: AppColors.green, fontSize: 13, fontWeight: FontWeight.w700),
+                    ),
+                  ])),
+                ),
+              ]),
+            ),
+          ],
+
+          // Corrections list
+          if (corrections.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            ...corrections.map<Widget>((c) {
+              final type = c['type'] as String? ?? '';
+              final explanation = c['explanation'] as String? ?? '';
+              final icon = type == 'duplicate'
+                  ? Icons.copy
+                  : type == 'spelling'
+                      ? Icons.spellcheck
+                      : type == 'format'
+                          ? Icons.text_format
+                          : Icons.info_outline;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(icon, size: 14, color: AppColors.muted),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(explanation,
+                          style: GoogleFonts.openSans(
+                              color: AppColors.muted, fontSize: 12, height: 1.3)),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildVerifyActions() {
+    final result = _verifyResult!;
+    final correctedName = result['correctedName'] as String? ?? _newNameCtrl.text.trim();
+    final valid = result['valid'] as bool? ?? true;
+    final nameChanged = correctedName != _newNameCtrl.text.trim();
+    final hasDuplicate = (result['corrections'] as List<dynamic>? ?? [])
+        .any((c) => c['type'] == 'duplicate');
+
+    final widgets = <Widget>[];
+
+    // Primary action: accept correction & create (or just create if name unchanged)
+    if (valid && !hasDuplicate) {
+      if (nameChanged) {
+        // "Accept corrected name & create"
+        widgets.add(
+          ElevatedButton.icon(
+            onPressed: _creating ? null : () => _createExercise(overrideName: correctedName),
+            icon: _creating
+                ? const SizedBox(width: 16, height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.check_rounded, size: 18),
+            label: Text(_creating ? 'Erstellen…' : 'Korrektur übernehmen & Erstellen',
+                style: GoogleFonts.openSans(fontWeight: FontWeight.w700)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.green,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        );
+        widgets.add(const SizedBox(height: 8));
+        // Secondary: "Create with original name anyway"
+        widgets.add(
+          OutlinedButton.icon(
+            onPressed: _creating ? null : () => _createExercise(),
+            icon: const Icon(Icons.edit_note, size: 18),
+            label: Text('Trotzdem mit Originalname erstellen',
+                style: GoogleFonts.openSans(fontWeight: FontWeight.w600, fontSize: 13)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.muted,
+              side: const BorderSide(color: AppColors.border),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        );
+      } else {
+        // Name is correct — just create
+        widgets.add(
+          ElevatedButton.icon(
+            onPressed: _creating ? null : () => _createExercise(),
+            icon: _creating
+                ? const SizedBox(width: 16, height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.check_rounded, size: 18),
+            label: Text(_creating ? 'Erstellen…' : 'Erstellen & Übernehmen',
+                style: GoogleFonts.openSans(fontWeight: FontWeight.w700)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        );
+      }
+    } else if (hasDuplicate) {
+      // Duplicate — warn but allow creation
+      widgets.add(
+        OutlinedButton.icon(
+          onPressed: _creating ? null : () => _createExercise(),
+          icon: const Icon(Icons.warning_amber_rounded, size: 18),
+          label: Text('Trotzdem erstellen (Duplikat)',
+              style: GoogleFonts.openSans(fontWeight: FontWeight.w600, fontSize: 13)),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.orange,
+            side: const BorderSide(color: AppColors.orange),
+            padding: const EdgeInsets.symmetric(vertical: 12),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
-      ],
+      );
+    }
+
+    // Always: "Re-check" / edit name button
+    widgets.add(const SizedBox(height: 8));
+    widgets.add(
+      TextButton.icon(
+        onPressed: () => setState(() => _verifyResult = null),
+        icon: const Icon(Icons.refresh, size: 16),
+        label: Text('Name ändern & erneut prüfen',
+            style: GoogleFonts.openSans(fontSize: 12)),
+        style: TextButton.styleFrom(foregroundColor: AppColors.muted),
+      ),
     );
+
+    return widgets;
   }
 
   // ─── Filter dialogs ───────────────────────────────────────────────────
