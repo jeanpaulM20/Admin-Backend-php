@@ -61,10 +61,10 @@ class TrainingPlanValues {
     List<TrainingPlanRow>? core,
     List<TrainingPlanRow>? mobility,
     List<String>? dates,
-  })  : sonsomo = sonsomo ?? List.generate(3, (_) => TrainingPlanRow()),
-        main = main ?? List.generate(6, (_) => TrainingPlanRow()),
-        core = core ?? List.generate(3, (_) => TrainingPlanRow()),
-        mobility = mobility ?? List.generate(2, (_) => TrainingPlanRow()),
+  })  : sonsomo = sonsomo ?? [],
+        main = main ?? [],
+        core = core ?? [],
+        mobility = mobility ?? [],
         dates = dates ?? List.filled(8, '');
 
   factory TrainingPlanValues.fromJson(Map<String, dynamic> json) {
