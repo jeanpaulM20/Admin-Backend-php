@@ -26,6 +26,8 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       `ALTER TABLE training ADD COLUMN cancelled_at DATETIME DEFAULT NULL`,
       `ALTER TABLE training ADD COLUMN cancelled_by_client_rel INT DEFAULT NULL`,
       `ALTER TABLE training ADD COLUMN cancelled_by_trainer_rel INT DEFAULT NULL`,
+      // Allow exercises without a group (nullable FK)
+      `ALTER TABLE exercise MODIFY COLUMN group_id INT DEFAULT NULL`,
       // Exercise anatomical metadata (for AI plan selection)
       `ALTER TABLE exercise ADD COLUMN body_region VARCHAR(20) DEFAULT NULL`,
       `ALTER TABLE exercise ADD COLUMN primary_muscle_group VARCHAR(50) DEFAULT NULL`,

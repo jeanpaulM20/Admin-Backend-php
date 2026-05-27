@@ -158,7 +158,7 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
         'name': name,
         'archive': 0,
         'published': 0,
-        if (_newGroupId != null) 'groupId': _newGroupId,
+        'groupId': _newGroupId,
         if (_newBodyRegion != null) 'bodyRegion': _newBodyRegion,
       };
       await _api.post(ApiConfig.exercise, body: body);
