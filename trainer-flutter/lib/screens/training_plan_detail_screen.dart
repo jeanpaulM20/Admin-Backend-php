@@ -251,6 +251,19 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
     });
   }
 
+  // ─── Comments bottom sheet ───────────────────────────────────────────────
+
+  void _showCommentsSheet() {
+    final planId = widget.plan?.id;
+    if (planId == null) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _CommentsSheet(planId: planId),
+    );
+  }
+
   // ─── Collect values for save ─────────────────────────────────────────────
 
   TrainingPlanValues _collectValues() {
@@ -347,6 +360,15 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
             ),
           ],
         ),
+        floatingActionButton: widget.plan?.id != null
+            ? FloatingActionButton(
+                mini: true,
+                backgroundColor: AppColors.surface,
+                shape: const CircleBorder(side: BorderSide(color: AppColors.border)),
+                onPressed: () => _showCommentsSheet(),
+                child: const Icon(Icons.chat_bubble_outline, size: 20, color: AppColors.muted),
+              )
+            : null,
       ),
     );
   }
@@ -1237,5 +1259,392 @@ class _TimerPresetChip extends StatelessWidget {
         ]),
       ),
     );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Comments Bottom Sheet — chat-style comment thread (Asana-like)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _CommentsSheet extends StatefulWidget {
+  final int planId;
+  const _CommentsSheet({required this.planId});
+
+  @override
+  State<_CommentsSheet> createState() => _CommentsSheetState();
+}
+
+class _CommentsSheetState extends State<_CommentsSheet> {
+  final _api = ApiService();
+  final _ctrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
+  List<dynamic>? _comments;
+  bool _sending = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    try {
+      final data = await _api.get('${ApiConfig.trainingPlan}/${widget.planId}/comments');
+      if (!mounted) return;
+      setState(() {
+        _comments = data is List ? data : [];
+        _error = null;
+      });
+      _scrollToEnd();
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    }
+  }
+
+  Future<void> _send() async {
+    final text = _ctrl.text.trim();
+    if (text.isEmpty || _sending) return;
+    setState(() => _sending = true);
+    try {
+      await _api.post(
+        '${ApiConfig.trainingPlan}/${widget.planId}/comments',
+        body: {'text': text},
+      );
+      _ctrl.clear();
+      await _load();
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: AppColors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  Future<void> _delete(int commentId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Kommentar löschen?',
+            style: GoogleFonts.montserrat(
+                color: AppColors.text, fontWeight: FontWeight.w700)),
+        content: Text('Dieser Kommentar wird unwiderruflich entfernt.',
+            style: GoogleFonts.openSans(color: AppColors.muted, fontSize: 13)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Abbrechen')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: TextButton.styleFrom(foregroundColor: AppColors.red),
+              child: const Text('Löschen')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await _api.delete('${ApiConfig.trainingPlan}/comments/$commentId');
+      _load();
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: AppColors.red),
+        );
+      }
+    }
+  }
+
+  void _scrollToEnd() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(
+          _scrollCtrl.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.75,
+      ),
+      margin: EdgeInsets.only(bottom: bottomInset),
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        border: Border(top: BorderSide(color: AppColors.border, width: 0.5)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // ─ Handle + Title ─
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 12, 0),
+            child: Row(
+              children: [
+                const Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Text('Kommentare',
+                    style: GoogleFonts.montserrat(
+                        color: AppColors.text, fontSize: 16, fontWeight: FontWeight.w700)),
+                if (_comments != null)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withAlpha(31),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text('${_comments!.length}',
+                          style: GoogleFonts.montserrat(
+                              color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 20, color: AppColors.muted),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+          ),
+          const Divider(color: AppColors.border, height: 1),
+
+          // ─ Comments list ─
+          Flexible(
+            child: _error != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.error_outline, size: 36, color: AppColors.red),
+                          const SizedBox(height: 8),
+                          Text(_error!, style: GoogleFonts.openSans(color: AppColors.muted, fontSize: 13)),
+                          const SizedBox(height: 12),
+                          TextButton(onPressed: _load, child: const Text('Erneut versuchen')),
+                        ],
+                      ),
+                    ),
+                  )
+                : _comments == null
+                    ? const Center(child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
+                      ))
+                    : _comments!.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(40),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.chat_bubble_outline,
+                                      size: 40, color: AppColors.muted.withAlpha(77)),
+                                  const SizedBox(height: 12),
+                                  Text('Noch keine Kommentare',
+                                      style: GoogleFonts.openSans(
+                                          color: AppColors.muted, fontSize: 13)),
+                                  const SizedBox(height: 4),
+                                  Text('Schreib den ersten Kommentar!',
+                                      style: GoogleFonts.openSans(
+                                          color: AppColors.muted.withAlpha(128), fontSize: 12)),
+                                ],
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            controller: _scrollCtrl,
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                            itemCount: _comments!.length,
+                            itemBuilder: (_, i) => _CommentBubble(
+                              comment: _comments![i],
+                              onDelete: () => _delete(_comments![i]['id']),
+                            ),
+                          ),
+          ),
+
+          // ─ Input bar ─
+          Container(
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              border: Border(top: BorderSide(color: AppColors.border, width: 0.5)),
+            ),
+            padding: EdgeInsets.fromLTRB(16, 8, 8, 8 + MediaQuery.of(context).padding.bottom),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _ctrl,
+                    style: GoogleFonts.openSans(color: AppColors.text, fontSize: 14),
+                    maxLines: 3,
+                    minLines: 1,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => _send(),
+                    decoration: InputDecoration(
+                      hintText: 'Kommentar schreiben…',
+                      hintStyle: GoogleFonts.openSans(
+                          color: AppColors.muted.withAlpha(128), fontSize: 13),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      filled: true,
+                      fillColor: AppColors.surface2,
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+                      focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: const BorderSide(color: AppColors.primary, width: 1)),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: _sending ? null : _send,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: const BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: _sending
+                        ? const Padding(
+                            padding: EdgeInsets.all(10),
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.send_rounded, size: 18, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Single comment bubble ──────────────────────────────────────────────────
+
+class _CommentBubble extends StatelessWidget {
+  final dynamic comment;
+  final VoidCallback onDelete;
+
+  const _CommentBubble({required this.comment, required this.onDelete});
+
+  @override
+  Widget build(BuildContext context) {
+    final author = (comment['authorName'] ?? comment['author_name'] ?? 'Unbekannt') as String;
+    final text = (comment['text'] ?? '') as String;
+    final createdAt = comment['createdAt'] ?? comment['created_at'] ?? '';
+    final timeStr = _formatTime(createdAt.toString());
+    final initials = author.trim().split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join().toUpperCase();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Avatar
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withAlpha(38),
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.primary.withAlpha(77), width: 0.5),
+            ),
+            child: Center(
+              child: Text(initials,
+                  style: GoogleFonts.montserrat(
+                      color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w700)),
+            ),
+          ),
+          const SizedBox(width: 10),
+          // Bubble
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(author,
+                        style: GoogleFonts.openSans(
+                            color: AppColors.text, fontSize: 12, fontWeight: FontWeight.w700)),
+                    const SizedBox(width: 8),
+                    Text(timeStr,
+                        style: GoogleFonts.openSans(
+                            color: AppColors.muted.withAlpha(153), fontSize: 10)),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: onDelete,
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(Icons.delete_outline,
+                            size: 14, color: AppColors.muted.withAlpha(102)),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: const BorderRadius.only(
+                      topRight: Radius.circular(14),
+                      bottomLeft: Radius.circular(14),
+                      bottomRight: Radius.circular(14),
+                    ),
+                    border: Border.all(color: AppColors.border.withAlpha(128), width: 0.5),
+                  ),
+                  child: Text(text,
+                      style: GoogleFonts.openSans(
+                          color: AppColors.text, fontSize: 13, height: 1.45)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTime(String raw) {
+    if (raw.isEmpty) return '';
+    try {
+      final dt = DateTime.parse(raw).toLocal();
+      final now = DateTime.now();
+      final diff = now.difference(dt);
+      if (diff.inMinutes < 1) return 'Gerade eben';
+      if (diff.inMinutes < 60) return 'vor ${diff.inMinutes} Min.';
+      if (diff.inHours < 24) return 'vor ${diff.inHours} Std.';
+      if (diff.inDays < 7) return 'vor ${diff.inDays} Tagen';
+      return '${dt.day}.${dt.month}.${dt.year}';
+    } catch (_) {
+      return '';
+    }
   }
 }

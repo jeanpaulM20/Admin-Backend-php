@@ -2,12 +2,15 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TrainingPlan } from '../entities/training-plan.entity';
+import { TrainingPlanComment } from '../entities/training-plan-comment.entity';
 
 @Injectable()
 export class TrainingPlanService {
   constructor(
     @InjectRepository(TrainingPlan)
     private readonly repo: Repository<TrainingPlan>,
+    @InjectRepository(TrainingPlanComment)
+    private readonly commentRepo: Repository<TrainingPlanComment>,
   ) {}
 
   findAll(clientId?: number) {
@@ -41,6 +44,33 @@ export class TrainingPlanService {
   async remove(id: number) {
     const plan = await this.findOne(id);
     return this.repo.remove(plan);
+  }
+
+  // ─── Comments ──────────────────────────────────────────────────────────
+
+  async getComments(planId: number): Promise<TrainingPlanComment[]> {
+    await this.findOne(planId); // ensure plan exists
+    return this.commentRepo.find({
+      where: { planId },
+      order: { createdAt: 'ASC' },
+    });
+  }
+
+  async addComment(
+    planId: number,
+    trainerId: number | undefined,
+    authorName: string,
+    text: string,
+  ): Promise<TrainingPlanComment> {
+    await this.findOne(planId); // ensure plan exists
+    const comment = this.commentRepo.create({ planId, trainerId, authorName, text });
+    return this.commentRepo.save(comment);
+  }
+
+  async removeComment(commentId: number): Promise<void> {
+    const comment = await this.commentRepo.findOne({ where: { id: commentId } });
+    if (!comment) throw new NotFoundException(`Comment ${commentId} not found`);
+    await this.commentRepo.remove(comment);
   }
 
   // ─── Values JSON validation ─────────────────────────────────────────────

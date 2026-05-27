@@ -43,6 +43,27 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       `ALTER TABLE invoice ADD COLUMN payment_method VARCHAR(50) DEFAULT NULL`,
     ];
 
+    // Create training_plan_comment table if not exists
+    try {
+      await this.dataSource.query(`
+        CREATE TABLE IF NOT EXISTS training_plan_comment (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          plan_id INT NOT NULL,
+          trainer_id INT DEFAULT NULL,
+          text TEXT NOT NULL,
+          author_name VARCHAR(100) DEFAULT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_tpc_plan (plan_id),
+          CONSTRAINT fk_tpc_plan FOREIGN KEY (plan_id) REFERENCES trainingplan(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+      this.logger.log('training_plan_comment table ready');
+    } catch (err: any) {
+      if (!err.message?.includes('already exists')) {
+        this.logger.warn(`training_plan_comment table: ${err.message}`);
+      }
+    }
+
     // Ensure preference table has correct schema (key/value columns)
     // Old PHP table may exist with different columns, so check and migrate
     try {

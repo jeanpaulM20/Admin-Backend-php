@@ -2,8 +2,11 @@ import { Controller, Get, Post, Put, Delete, Param, Body, Query, ParseIntPipe, B
 import { TrainingPlanService } from './training-plan.service';
 import { AiPlanService } from './ai-plan.service';
 import { TrainingPlan } from '../entities/training-plan.entity';
+import { TrainingPlanComment } from '../entities/training-plan-comment.entity';
 import { CurrentClient } from '../auth/decorators/current-user.decorator';
+import { CurrentTrainer } from '../auth/decorators/current-user.decorator';
 import { Client } from '../entities/client.entity';
+import { Trainer } from '../entities/trainer.entity';
 import { AiPlanRequest, AI_TRAINING_TYPES, AI_DURATIONS, AI_EQUIPMENT_OPTIONS, AI_AUSDAUER_INTENSITIES } from './ai-plan.interfaces';
 
 @Controller('api/training-plan')
@@ -156,5 +159,34 @@ export class TrainingPlanController {
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.service.remove(id);
+  }
+
+  // ── Comments ──────────────────────────────────────────────────────
+
+  /** GET /api/training-plan/:id/comments — list comments for a plan */
+  @Get(':id/comments')
+  getComments(@Param('id', ParseIntPipe) planId: number) {
+    return this.service.getComments(planId);
+  }
+
+  /** POST /api/training-plan/:id/comments — add a comment */
+  @Post(':id/comments')
+  addComment(
+    @Param('id', ParseIntPipe) planId: number,
+    @CurrentTrainer() trainer: Trainer,
+    @Body() body: { text: string },
+  ) {
+    const text = (body.text ?? '').trim();
+    if (!text) throw new BadRequestException('Kommentar darf nicht leer sein');
+    const authorName = trainer
+      ? `${trainer.firstname ?? ''} ${trainer.lastname ?? ''}`.trim() || 'Trainer'
+      : 'Unbekannt';
+    return this.service.addComment(planId, trainer?.id, authorName, text);
+  }
+
+  /** DELETE /api/training-plan/comments/:commentId — delete a comment */
+  @Delete('comments/:commentId')
+  removeComment(@Param('commentId', ParseIntPipe) commentId: number) {
+    return this.service.removeComment(commentId);
   }
 }

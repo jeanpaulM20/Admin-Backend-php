@@ -8,6 +8,7 @@ import { Client } from '../entities/client.entity';
 import { Metric } from '../entities/metric.entity';
 import { Review } from '../entities/review.entity';
 import { Goal } from '../entities/remaining.entities';
+import { TrainingPlanComment } from '../entities/training-plan-comment.entity';
 import { TrainingPlanService } from './training-plan.service';
 import { AiPlanService } from './ai-plan.service';
 import { TrainingPlanController } from './training-plan.controller';
@@ -16,6 +17,7 @@ import { TrainingPlanController } from './training-plan.controller';
   imports: [
     TypeOrmModule.forFeature([
       TrainingPlan,
+      TrainingPlanComment,
       PerformanceTest,
       ClientAnamnese,
       Exercise,
