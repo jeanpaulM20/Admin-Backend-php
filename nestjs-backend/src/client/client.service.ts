@@ -97,6 +97,29 @@ export class ClientService {
       if (existing) throw new BadRequestException('E-Mail-Adresse ist bereits vergeben');
     }
 
+    // Check name uniqueness (case-insensitive firstname + lastname)
+    const nameMatch = await this.clientRepo
+      .createQueryBuilder('c')
+      .where('LOWER(c.firstname) = LOWER(:fn) AND LOWER(c.lastname) = LOWER(:ln)', {
+        fn: safe.firstname, ln: safe.lastname,
+      })
+      .getOne();
+    if (nameMatch) {
+      throw new BadRequestException(
+        `Kunde "${safe.firstname} ${safe.lastname}" existiert bereits (ID: ${nameMatch.clientid ?? nameMatch.id})`,
+      );
+    }
+
+    // Check phone uniqueness if provided
+    if (safe.phone) {
+      const phoneMatch = await this.clientRepo.findOne({ where: { phone: safe.phone } });
+      if (phoneMatch) {
+        throw new BadRequestException(
+          `Telefonnummer ist bereits vergeben (${phoneMatch.firstname} ${phoneMatch.lastname})`,
+        );
+      }
+    }
+
     try {
       return await this.clientRepo.save(this.clientRepo.create(safe));
     } catch (err: any) {
@@ -119,6 +142,34 @@ export class ClientService {
       const existing = await this.clientRepo.findOne({ where: { email: safe.email } });
       if (existing && existing.id !== id) {
         throw new BadRequestException('E-Mail-Adresse ist bereits vergeben');
+      }
+    }
+
+    // Check name uniqueness on update (if name fields changed)
+    if (safe.firstname || safe.lastname) {
+      const current = await this.findOne(id);
+      const fn = safe.firstname ?? current.firstname;
+      const ln = safe.lastname ?? current.lastname;
+      const nameMatch = await this.clientRepo
+        .createQueryBuilder('c')
+        .where('LOWER(c.firstname) = LOWER(:fn) AND LOWER(c.lastname) = LOWER(:ln) AND c.id != :id', {
+          fn, ln, id,
+        })
+        .getOne();
+      if (nameMatch) {
+        throw new BadRequestException(
+          `Kunde "${fn} ${ln}" existiert bereits (ID: ${nameMatch.clientid ?? nameMatch.id})`,
+        );
+      }
+    }
+
+    // Check phone uniqueness on update
+    if (safe.phone) {
+      const phoneMatch = await this.clientRepo.findOne({ where: { phone: safe.phone } });
+      if (phoneMatch && phoneMatch.id !== id) {
+        throw new BadRequestException(
+          `Telefonnummer ist bereits vergeben (${phoneMatch.firstname} ${phoneMatch.lastname})`,
+        );
       }
     }
 
