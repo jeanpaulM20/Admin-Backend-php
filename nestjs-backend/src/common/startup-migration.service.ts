@@ -134,9 +134,6 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       this.logger.warn(`invoice table creation: ${err.message}`);
     }
 
-    // Rename exercise groups + migrate Shoulder/Spine/Legs from groups to body regions
-    await this.migrateExerciseGroups();
-
     for (const sql of migrations) {
       try {
         await this.dataSource.query(sql);
@@ -150,6 +147,10 @@ export class StartupMigrationService implements OnApplicationBootstrap {
         }
       }
     }
+
+    // Rename exercise groups + migrate Shoulder/Spine/Legs to body regions
+    // Must run AFTER column migrations (body_region column needs to exist)
+    await this.migrateExerciseGroups();
 
     // Ensure correct locations with buffer_minutes values
     await this.ensureLocations();
@@ -601,11 +602,11 @@ export class StartupMigrationService implements OnApplicationBootstrap {
     for (const [oldName, newName] of renames) {
       try {
         const [existing]: any = await this.dataSource.query(
-          'SELECT id FROM exercisegroup WHERE name = ?', [oldName],
+          'SELECT id FROM exercise_group WHERE name = ?', [oldName],
         );
         if (existing) {
           await this.dataSource.query(
-            'UPDATE exercisegroup SET name = ? WHERE id = ?', [newName, existing.id],
+            'UPDATE exercise_group SET name = ? WHERE id = ?', [newName, existing.id],
           );
           this.logger.log(`Renamed group "${oldName}" → "${newName}"`);
         }
@@ -623,7 +624,7 @@ export class StartupMigrationService implements OnApplicationBootstrap {
     for (const [groupName, bodyRegion] of groupsToBodyRegion) {
       try {
         const [group]: any = await this.dataSource.query(
-          'SELECT id FROM exercisegroup WHERE name = ?', [groupName],
+          'SELECT id FROM exercise_group WHERE name = ?', [groupName],
         );
         if (group) {
           // Set body_region on exercises that belong to this group (if not already set)
@@ -637,7 +638,7 @@ export class StartupMigrationService implements OnApplicationBootstrap {
           );
           // Delete the group
           await this.dataSource.query(
-            'DELETE FROM exercisegroup WHERE id = ?', [group.id],
+            'DELETE FROM exercise_group WHERE id = ?', [group.id],
           );
           this.logger.log(`Migrated group "${groupName}" → bodyRegion "${bodyRegion}", group deleted`);
         }

@@ -215,10 +215,10 @@ export const EXERCISE_SEED_DATA: SeedCategory[] = [
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // 7. Klettern & Slackline
+  // 7. Slackline (ehemals Klettern & Slackline)
   // ═══════════════════════════════════════════════════════════════════════════
   {
-    group: 'Klettern & Slackline',
+    group: 'Slackline',
     subgroups: ['Griffkraft', 'Scapula-Kontrolle', 'Körperspannung', 'Slackline'],
     exercises: [
       // Griffkraft
@@ -249,10 +249,10 @@ export const EXERCISE_SEED_DATA: SeedCategory[] = [
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // 8. Balance Board / MFT (Sensomotorik & Koordination)
+  // 8. Propriozeption (ehemals Balance Board & Sensomotorik)
   // ═══════════════════════════════════════════════════════════════════════════
   {
-    group: 'Balance Board & Sensomotorik',
+    group: 'Propriozeption',
     subgroups: ['Gleichgewicht Grundlagen', 'Reaktive Stabilität', 'Propriozeptives Training', 'Sport-spezifisch'],
     exercises: [
       // Gleichgewicht Grundlagen
