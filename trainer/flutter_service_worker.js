@@ -4,7 +4,7 @@ const TEMP = 'flutter-temp-cache';
 const CACHE_NAME = 'flutter-app-cache';
 
 const RESOURCES = {"assets/shaders/ink_sparkle.frag": "ecc85a2e95f5e9f53123dcaf8cb9b6ce",
-"assets/fonts/MaterialIcons-Regular.otf": "4828004740d690f8effa23e449286809",
+"assets/fonts/MaterialIcons-Regular.otf": "3c7fdb10b19e9fe8f7a61b17549074e9",
 "assets/AssetManifest.bin": "f300c3530514fb2ae777a511970215a6",
 "assets/FontManifest.json": "7b2a36307916a9721811788013e65289",
 "assets/AssetManifest.bin.json": "a9d7f1aae082b0360280a3ff6c4373e4",
@@ -30,9 +30,9 @@ const RESOURCES = {"assets/shaders/ink_sparkle.frag": "ecc85a2e95f5e9f53123dcaf8
 "canvaskit/canvaskit.js": "26eef3024dbc64886b7f48e1b6fb05cf",
 "canvaskit/skwasm.wasm": "828c26a0b1cc8eb1adacbdd0c5e8bcfa",
 "apple-touch-icon.png": "962354807350bed39a2cbebdc1951bca",
-"flutter_bootstrap.js": "f74e4f9c6bc1df21557d90221a703669",
+"flutter_bootstrap.js": "62b823ebadb68a09989143e971da774e",
 "manifest.json": "e68ae8afcae584e181eea11ce5c4b9fe",
-"main.dart.js": "db9cbfdcdeba3bb20d1a74d7fdc16a20"};
+"main.dart.js": "39b46ad7aec1a0185eabbedb3f729165"};
 // The application shell files that are downloaded before a service worker can
 // start.
 const CORE = ["main.dart.js",
