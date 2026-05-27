@@ -62,6 +62,7 @@ export class ExerciseService {
 
   private static readonly VALID_BODY_REGIONS = [
     'UpperBody', 'LowerBody', 'Core', 'FullBody', 'Foot',
+    'Shoulder', 'Spine', 'Legs',
   ];
 
   private static readonly VALID_MOVEMENT_PATTERNS = [
@@ -196,7 +197,7 @@ Antworte NUR als valides JSON (kein Markdown):
   "corrections": [
     {"type": "spelling|format|unknown", "original": "...", "corrected": "...", "explanation": "Kurze Erklärung auf Deutsch"}
   ],
-  "bodyRegion": "UpperBody|LowerBody|Core|FullBody|Foot|null",
+  "bodyRegion": "UpperBody|LowerBody|Core|FullBody|Foot|Shoulder|Spine|Legs|null",
   "movementPattern": "Push|Pull|Squat|Hinge|Carry|Rotation|Static|Plyo|Sprint|Agility|null",
   "confidence": 0.0-1.0,
   "summary": "Ein Satz auf Deutsch: Was wurde geprüft/korrigiert?"

@@ -134,6 +134,9 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       this.logger.warn(`invoice table creation: ${err.message}`);
     }
 
+    // Rename exercise groups + migrate Shoulder/Spine/Legs from groups to body regions
+    await this.migrateExerciseGroups();
+
     for (const sql of migrations) {
       try {
         await this.dataSource.query(sql);
@@ -581,6 +584,65 @@ export class StartupMigrationService implements OnApplicationBootstrap {
         try {
           await oldConn.end();
         } catch (_) {}
+      }
+    }
+  }
+
+  /**
+   * Rename exercise groups and migrate Shoulder/Spine/Legs from groups to body regions.
+   * Idempotent — safe to run multiple times.
+   */
+  private async migrateExerciseGroups() {
+    // 1. Rename groups
+    const renames: [string, string][] = [
+      ['Balance Board & Sensomotorik', 'Propriozeption'],
+      ['Klettern & Slackline', 'Slackline'],
+    ];
+    for (const [oldName, newName] of renames) {
+      try {
+        const [existing]: any = await this.dataSource.query(
+          'SELECT id FROM exercisegroup WHERE name = ?', [oldName],
+        );
+        if (existing) {
+          await this.dataSource.query(
+            'UPDATE exercisegroup SET name = ? WHERE id = ?', [newName, existing.id],
+          );
+          this.logger.log(`Renamed group "${oldName}" → "${newName}"`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`Group rename "${oldName}": ${err.message}`);
+      }
+    }
+
+    // 2. Migrate Shoulder, Spine, Legs from groups → body_region
+    const groupsToBodyRegion: [string, string][] = [
+      ['Shoulder', 'Shoulder'],
+      ['Spine', 'Spine'],
+      ['Legs', 'Legs'],
+    ];
+    for (const [groupName, bodyRegion] of groupsToBodyRegion) {
+      try {
+        const [group]: any = await this.dataSource.query(
+          'SELECT id FROM exercisegroup WHERE name = ?', [groupName],
+        );
+        if (group) {
+          // Set body_region on exercises that belong to this group (if not already set)
+          await this.dataSource.query(
+            `UPDATE exercise SET body_region = ? WHERE group_id = ? AND (body_region IS NULL OR body_region = '')`,
+            [bodyRegion, group.id],
+          );
+          // Clear group_id so exercises are no longer tied to the old group
+          await this.dataSource.query(
+            'UPDATE exercise SET group_id = NULL WHERE group_id = ?', [group.id],
+          );
+          // Delete the group
+          await this.dataSource.query(
+            'DELETE FROM exercisegroup WHERE id = ?', [group.id],
+          );
+          this.logger.log(`Migrated group "${groupName}" → bodyRegion "${bodyRegion}", group deleted`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`Group→bodyRegion migration "${groupName}": ${err.message}`);
       }
     }
   }

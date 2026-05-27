@@ -80,9 +80,15 @@ class Exercise {
     'Core': 'Core',
     'FullBody': 'Ganzkörper',
     'Foot': 'Fuß',
+    'Shoulder': 'Schulter',
+    'Spine': 'Wirbelsäule',
+    'Legs': 'Beine',
   };
 
-  static const bodyRegions = ['UpperBody', 'LowerBody', 'Core', 'FullBody', 'Foot'];
+  static const bodyRegions = [
+    'UpperBody', 'LowerBody', 'Core', 'FullBody', 'Foot',
+    'Shoulder', 'Spine', 'Legs',
+  ];
 
   static const movementPatterns = [
     'Push', 'Pull', 'Squat', 'Hinge', 'Carry',
