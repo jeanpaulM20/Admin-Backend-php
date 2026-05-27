@@ -109307,19 +109307,19 @@ case 7:case 1:return A.I(q,r)
 case 2:return A.H(o,r)}})
 return A.J($async$vr,r)},
 arp(){$.aw.k3$.push(new A.aB_(this))},
-C(a){var s,r,q,p,o=this,n=null,m=t.l,l=A.as(a,n,m).w,k=A.as(a,n,m).w,j=t.p,i=A.a([B.ZH,B.aX,A.n("Kommentare",n,n,n,n,A.d9().$3$color$fontSize$fontWeight(B.M,16,B.F),n,n,n)],j)
+C(a){var s,r,q,p,o=this,n=null,m=t.l,l=A.as(a,n,m).w,k=t.p,j=A.a([B.ZH,B.aX,A.n("Kommentare",n,n,n,n,A.d9().$3$color$fontSize$fontWeight(B.M,16,B.F),n,n,n)],k)
 if(o.r!=null){s=A.t(31,B.f.gi(0)>>>16&255,B.f.gi(0)>>>8&255,B.f.gi(0)&255)
 r=A.Q(12)
 q=o.r
 q.toString
-i.push(new A.a3(B.vP,A.a2(n,A.n(""+J.bT(q),n,n,n,n,A.d9().$3$color$fontSize$fontWeight(B.f,11,B.F),n,n,n),B.l,n,n,new A.a1(s,n,n,r,n,n,B.q),n,n,n,n,B.vQ,n,n,n),n))}i.push(B.dm)
-i.push(A.cZ(n,n,B.a_d,n,n,new A.aB3(a),n,n,n))
-i=A.ae(i,B.k,B.e,B.i,n)
+j.push(new A.a3(B.vP,A.a2(n,A.n(""+J.bT(q),n,n,n,n,A.d9().$3$color$fontSize$fontWeight(B.f,11,B.F),n,n,n),B.l,n,n,new A.a1(s,n,n,r,n,n,B.q),n,n,n,n,B.vQ,n,n,n),n))}j.push(B.dm)
+j.push(A.cZ(n,n,B.a_d,n,n,new A.aB3(a),n,n,n))
+j=A.ae(j,B.k,B.e,B.i,n)
 s=o.x
-if(s!=null)s=A.bx(new A.a3(B.jb,A.a8(A.a([B.a_U,B.am,A.n(s,n,n,n,n,A.aA().$2$color$fontSize(B.j,13),n,n,n),B.aF,A.cm(!1,B.em,n,n,B.Z,n,n,n,n,o.gatG(),n,n)],j),B.k,B.e,B.X),n),n,n)
+if(s!=null)s=A.bx(new A.a3(B.jb,A.a8(A.a([B.a_U,B.am,A.n(s,n,n,n,n,A.aA().$2$color$fontSize(B.j,13),n,n,n),B.aF,A.cm(!1,B.em,n,n,B.Z,n,n,n,n,o.gatG(),n,n)],k),B.k,B.e,B.X),n),n,n)
 else{s=o.r
 if(s==null)s=B.Tp
-else if(J.ey(s))s=A.bx(new A.a3(B.Xq,A.a8(A.a([A.bO(B.fs,A.t(77,B.j.gi(0)>>>16&255,B.j.gi(0)>>>8&255,B.j.gi(0)&255),n,40),B.aF,A.n("Noch keine Kommentare",n,n,n,n,A.aA().$2$color$fontSize(B.j,13),n,n,n),B.dl,A.n("Schreib den ersten Kommentar!",n,n,n,n,A.aA().$2$color$fontSize(A.t(128,B.j.gi(0)>>>16&255,B.j.gi(0)>>>8&255,B.j.gi(0)&255),12),n,n,n)],j),B.k,B.e,B.X),n),n,n)
+else if(J.ey(s))s=A.bx(new A.a3(B.Xq,A.a8(A.a([A.bO(B.fs,A.t(77,B.j.gi(0)>>>16&255,B.j.gi(0)>>>8&255,B.j.gi(0)&255),n,40),B.aF,A.n("Noch keine Kommentare",n,n,n,n,A.aA().$2$color$fontSize(B.j,13),n,n,n),B.dl,A.n("Schreib den ersten Kommentar!",n,n,n,n,A.aA().$2$color$fontSize(A.t(128,B.j.gi(0)>>>16&255,B.j.gi(0)>>>8&255,B.j.gi(0)&255),12),n,n,n)],k),B.k,B.e,B.X),n),n,n)
 else{s=o.r
 s.toString
 s=A.mm(o.f,new A.aB4(o),J.bT(s),B.vH,n,B.R)}}m=A.as(a,n,m).w
@@ -109328,7 +109328,7 @@ q=A.aA().$2$color$fontSize(A.t(128,B.j.gi(0)>>>16&255,B.j.gi(0)>>>8&255,B.j.gi(0
 r=A.aI(A.fr(!0,B.bc,!1,n,!0,B.w,n,A.fM(),o.e,n,n,n,n,n,2,A.ea(n,new A.bu(4,A.Q(24),B.p),n,B.fo,n,n,n,n,!0,new A.bu(4,A.Q(24),B.p),n,n,n,n,n,B.W,!0,n,n,n,n,new A.bu(4,A.Q(24),B.ob),n,n,n,n,n,n,n,q,"Kommentar schreiben\u2026",n,n,n,n,n,!0,n,n,n,!0,n,n,n,n,n,n,n,n,n,n,n,n,n),B.A,!0,n,!0,n,!1,n,B.be,n,n,n,n,n,n,n,3,1,n,!1,"\u2022",n,n,n,new A.aB5(o),n,!1,n,!1,n,!0,n,B.aM,n,n,B.ba,B.b7,n,n,n,n,n,n,r,B.af,n,B.bD,n,B.OV,n,n),1)
 q=o.w
 p=q?n:o.gatI()
-return A.a2(n,A.a8(A.a([new A.a3(B.Xg,i,n),B.bG,new A.ep(1,B.bH,s,n),A.a2(n,A.ae(A.a([r,B.aX,A.ch(n,A.a2(n,q?B.Jn:B.wX,B.l,n,n,B.u_,n,40,n,n,n,n,n,40),B.A,!1,n,n,n,n,n,n,n,n,n,n,n,n,n,n,n,p,n,n,n,n,n,n)],j),B.k,B.e,B.i,n),B.l,n,n,B.tY,n,n,n,n,new A.V(16,8,8,8+m.r.d),n,n,n)],j),B.k,B.e,B.X),B.l,n,new A.ai(0,1/0,0,k.a.b*0.75),B.Rq,n,n,n,new A.V(0,0,0,l.f.d),n,n,n,n)}}
+return new A.a3(new A.V(0,l.a.b*0.15,0,0),A.a2(n,A.a8(A.a([new A.a3(B.Xg,j,n),B.bG,new A.ep(1,B.bH,s,n),A.a2(n,A.ae(A.a([r,B.aX,A.ch(n,A.a2(n,q?B.Jn:B.wX,B.l,n,n,B.u_,n,40,n,n,n,n,n,40),B.A,!1,n,n,n,n,n,n,n,n,n,n,n,n,n,n,n,p,n,n,n,n,n,n)],k),B.k,B.e,B.i,n),B.l,n,n,B.tY,n,n,n,n,new A.V(16,8,8,8+m.r.d),n,n,n)],k),B.k,B.e,B.X),B.l,n,n,B.Rq,n,n,n,n,n,n,n,n),n)}}
 A.aAY.prototype={
 $0(){var s=this.a,r=this.b
 s.r=t.j.b(r)?r:[]
