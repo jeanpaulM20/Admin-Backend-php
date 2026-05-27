@@ -1380,12 +1380,9 @@ class _CommentsSheetState extends State<_CommentsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.75,
-      ),
-      margin: EdgeInsets.only(bottom: bottomInset),
+    return Padding(
+      padding: EdgeInsets.only(top: MediaQuery.of(context).size.height * 0.15),
+      child: Container(
       decoration: const BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -1541,6 +1538,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
