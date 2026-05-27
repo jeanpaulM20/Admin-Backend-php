@@ -87,6 +87,7 @@ export class ClientService {
     safe.firstname = safe.firstname!.trim();
     safe.lastname = safe.lastname!.trim();
     if (safe.email) safe.email = safe.email.trim().toLowerCase();
+    if (safe.phone) safe.phone = safe.phone.trim();
 
     // Always auto-generate clientid (stripped by sanitize, never user-settable)
     (safe as any).clientid = await this.generateClientId();
@@ -136,6 +137,7 @@ export class ClientService {
     if (safe.firstname) safe.firstname = safe.firstname.trim();
     if (safe.lastname) safe.lastname = safe.lastname.trim();
     if (safe.email) safe.email = safe.email.trim().toLowerCase();
+    if (safe.phone) safe.phone = safe.phone.trim();
 
     // Check email uniqueness on update
     if (safe.email) {
