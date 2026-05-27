@@ -89,6 +89,10 @@ export class ClientService {
     if (safe.email) safe.email = safe.email.trim().toLowerCase();
     if (safe.phone) safe.phone = safe.phone.trim();
 
+    // Normalize empty strings to null (avoids unique-constraint conflicts on e_mail)
+    if (!safe.email) safe.email = null as any;
+    if (!safe.phone) safe.phone = null as any;
+
     // Always auto-generate clientid (stripped by sanitize, never user-settable)
     (safe as any).clientid = await this.generateClientId();
 
@@ -98,10 +102,10 @@ export class ClientService {
       if (existing) throw new BadRequestException('E-Mail-Adresse ist bereits vergeben');
     }
 
-    // Check name uniqueness (case-insensitive firstname + lastname)
+    // Check name uniqueness (case-insensitive, trim-safe for legacy data with trailing spaces)
     const nameMatch = await this.clientRepo
       .createQueryBuilder('c')
-      .where('LOWER(c.firstname) = LOWER(:fn) AND LOWER(c.lastname) = LOWER(:ln)', {
+      .where('LOWER(TRIM(c.firstname)) = LOWER(:fn) AND LOWER(TRIM(c.lastname)) = LOWER(:ln)', {
         fn: safe.firstname, ln: safe.lastname,
       })
       .getOne();
@@ -139,6 +143,10 @@ export class ClientService {
     if (safe.email) safe.email = safe.email.trim().toLowerCase();
     if (safe.phone) safe.phone = safe.phone.trim();
 
+    // Normalize empty strings to null (avoids unique-constraint conflicts on e_mail)
+    if (safe.email !== undefined && !safe.email) safe.email = null as any;
+    if (safe.phone !== undefined && !safe.phone) safe.phone = null as any;
+
     // Check email uniqueness on update
     if (safe.email) {
       const existing = await this.clientRepo.findOne({ where: { email: safe.email } });
@@ -154,7 +162,7 @@ export class ClientService {
       const ln = safe.lastname ?? current.lastname;
       const nameMatch = await this.clientRepo
         .createQueryBuilder('c')
-        .where('LOWER(c.firstname) = LOWER(:fn) AND LOWER(c.lastname) = LOWER(:ln) AND c.id != :id', {
+        .where('LOWER(TRIM(c.firstname)) = LOWER(:fn) AND LOWER(TRIM(c.lastname)) = LOWER(:ln) AND c.id != :id', {
           fn, ln, id,
         })
         .getOne();
