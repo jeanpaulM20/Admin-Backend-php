@@ -32,7 +32,7 @@ const RESOURCES = {"push-notifications.js": "ec697b55a53574ab73beffd5e3f492d9",
 "canvaskit/canvaskit.js": "26eef3024dbc64886b7f48e1b6fb05cf",
 "canvaskit/skwasm.wasm": "828c26a0b1cc8eb1adacbdd0c5e8bcfa",
 "apple-touch-icon.png": "962354807350bed39a2cbebdc1951bca",
-"flutter_bootstrap.js": "6ed734acb66d5e0faea17a08886b6d40",
+"flutter_bootstrap.js": "cfebc61b7504fcc0a116f11b4e667f2c",
 "manifest.json": "ddaf03c153bcc1c1340ecd23d5c0f585",
 "main.dart.js": "14740fdc02e3ffaaa46d48cd170e5943"};
 // The application shell files that are downloaded before a service worker can
