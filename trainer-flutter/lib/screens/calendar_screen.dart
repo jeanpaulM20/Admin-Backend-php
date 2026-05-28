@@ -69,29 +69,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
     await _initialLoad();
   }
 
-  /// Availability slots for a given day, filtered by selected location.
+  /// Availability slots for a given day (shown for ALL locations — trainer
+  /// availability is global, not location-specific).
   List<AvailabilitySlot> _getSlotsForDay(
       DateTime day, Map<DateTime, List<AvailabilitySlot>> map) {
     final key = DateTime(day.year, day.month, day.day);
-    final slots = map[key] ?? [];
-    if (_selectedLocationId != null) {
-      return slots
-          .where((s) =>
-              s.locationId == null ||
-              s.locationId == 0 ||
-              s.locationId == _selectedLocationId)
-          .toList();
-    }
-    return slots;
+    return map[key] ?? [];
   }
 
-  /// Trainings for a specific calendar day.
+  /// Trainings for a specific calendar day, filtered by selected location.
   /// Cancelled trainings are hidden unless they are late cancellations
   /// (cancelled < 12h before start) — those are still billed.
   List<Training> _getTrainingsForDay(
       DateTime day, List<Training> trainings) {
     return trainings.where((t) {
       if (t.isCancelled && !t.isLateCancellation) return false;
+      // Filter by selected location (trainings are location-specific)
+      if (_selectedLocationId != null &&
+          t.locationId != null &&
+          t.locationId != 0 &&
+          t.locationId != _selectedLocationId) return false;
       if (t.startTime != null) {
         return t.startTime!.year == day.year &&
             t.startTime!.month == day.month &&
