@@ -931,6 +931,7 @@ export class ClientAppService {
       location_id: t.locationId,
       location_name: t.location?.name ?? '',
       duration: t.duration,
+      credits_charged: t.creditsCharged ?? 0,
       notes: t.text,
       trainer: t.trainer
         ? {
