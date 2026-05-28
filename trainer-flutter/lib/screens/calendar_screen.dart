@@ -85,10 +85,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return slots;
   }
 
-  /// Trainings for a specific calendar day.
+  /// Trainings for a specific calendar day (excludes cancelled).
   List<Training> _getTrainingsForDay(
       DateTime day, List<Training> trainings) {
     return trainings.where((t) {
+      if (t.isCancelled) return false;
       if (t.startTime != null) {
         return t.startTime!.year == day.year &&
             t.startTime!.month == day.month &&
@@ -355,10 +356,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
           final freeCount = slots.where((e) => !e.isBooked).length;
           final bookedCount = slots.where((e) => e.isBooked).length;
-          final activeTrainings =
-              trainings.where((t) => !t.isCancelled).length;
-          final cancelledTrainings =
-              trainings.where((t) => t.isCancelled).length;
+          final activeTrainings = trainings.length;
 
           return Positioned(
             bottom: 2,
@@ -371,8 +369,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   _calDot(AppColors.primary),
                 if (activeTrainings > 0)
                   _calCountDot(AppColors.orange, activeTrainings),
-                if (cancelledTrainings > 0)
-                  _calDot(AppColors.red),
               ],
             ),
           );
