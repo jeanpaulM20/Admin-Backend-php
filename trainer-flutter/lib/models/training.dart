@@ -16,6 +16,7 @@ class Training {
   final String? status;
   final String? notes;
   final bool isCancelled;
+  final DateTime? cancelledAt;
 
   const Training({
     required this.id,
@@ -35,7 +36,20 @@ class Training {
     this.status,
     this.notes,
     this.isCancelled = false,
+    this.cancelledAt,
   });
+
+  /// Late cancellation: cancelled less than 12 hours before training start.
+  /// These are still billed and should remain visible in the calendar.
+  bool get isLateCancellation {
+    if (!isCancelled || startTime == null) return false;
+    if (cancelledAt != null) {
+      return startTime!.difference(cancelledAt!).inHours < 12;
+    }
+    // Fallback for legacy data (cancelledAt is date-only or missing):
+    // treat same-day cancellation as late
+    return false;
+  }
 
   factory Training.fromJson(Map<String, dynamic> json) {
     DateTime? startTime;
@@ -112,6 +126,9 @@ class Training {
           (json['is_cancelled'] == true) ||
           (json['cancelled'] == 1) ||
           (json['cancelled'] == true),
+      cancelledAt: DateTime.tryParse(
+          json['cancelledAt']?.toString() ??
+          json['cancelled_at']?.toString() ?? ''),
     );
   }
 
