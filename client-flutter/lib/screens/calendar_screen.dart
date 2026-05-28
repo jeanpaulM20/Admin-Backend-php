@@ -960,14 +960,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                       a.status.toLowerCase() == 'booked' || a.status.toLowerCase() == 'attended').length;
                                   final cancelled = appts.where((a) => a.status.toLowerCase() == 'cancelled').length;
                                   final missed = appts.where((a) => a.status.toLowerCase() == 'missed').length;
-                                  // Green dot only for today/future — past availability is not bookable
-                                  final today = DateTime.now();
-                                  final isFutureDay = day.isAfter(today.subtract(const Duration(days: 1)));
+                                  // Green dot only if at least one slot is actually bookable
+                                  // (must be ≥12h from now, matching _generateSlots logic)
+                                  final now = DateTime.now();
+                                  final minBookable = now.add(const Duration(hours: 12));
+                                  bool hasBookableSlot = false;
+                                  for (final a in avails) {
+                                    final toMin = _parseTimeToMinutes(a.to);
+                                    if (toMin == null) continue;
+                                    // Latest possible 60-min slot starts at (to - 60min)
+                                    final latestStart = DateTime(day.year, day.month, day.day, (toMin - 60) ~/ 60, (toMin - 60) % 60);
+                                    if (!latestStart.isBefore(minBookable)) {
+                                      hasBookableSlot = true;
+                                      break;
+                                    }
+                                  }
 
                                   return Positioned(
                                     bottom: 2,
                                     child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                      if (avails.isNotEmpty && isFutureDay) _markerDot(AppColors.green),
+                                      if (hasBookableSlot) _markerDot(AppColors.green),
                                       if (booked > 0) _markerCountDot(AppColors.primary, booked),
                                       if (missed > 0) _markerDot(AppColors.orange),
                                       if (cancelled > 0) _markerDot(AppColors.red),
