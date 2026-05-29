@@ -52,7 +52,22 @@ export class TrainingPlanController {
     return this.aiService.generateAiPlan(clientId);
   }
 
-  // NB: :id route MUST come after /ai/* routes to avoid "ai" matching as :id
+  /** GET /api/training-plan/:id/comments — list comments for a plan or exercise */
+  @Get(':id/comments')
+  getComments(
+    @Param('id', ParseIntPipe) planId: number,
+    @Query('exerciseKey') exerciseKey?: string,
+  ) {
+    return this.service.getComments(planId, exerciseKey);
+  }
+
+  /** GET /api/training-plan/:id/comment-counts — comment counts per exercise */
+  @Get(':id/comment-counts')
+  getCommentCounts(@Param('id', ParseIntPipe) planId: number) {
+    return this.service.getCommentCounts(planId);
+  }
+
+  // NB: :id route MUST come after /ai/* and multi-segment routes to avoid "ai" matching as :id
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.service.findOne(id);
@@ -161,22 +176,7 @@ export class TrainingPlanController {
     return this.service.remove(id);
   }
 
-  // ── Comments ──────────────────────────────────────────────────────
-
-  /** GET /api/training-plan/:id/comments — list comments for a plan or exercise */
-  @Get(':id/comments')
-  getComments(
-    @Param('id', ParseIntPipe) planId: number,
-    @Query('exerciseKey') exerciseKey?: string,
-  ) {
-    return this.service.getComments(planId, exerciseKey);
-  }
-
-  /** GET /api/training-plan/:id/comment-counts — comment counts per exercise */
-  @Get(':id/comment-counts')
-  getCommentCounts(@Param('id', ParseIntPipe) planId: number) {
-    return this.service.getCommentCounts(planId);
-  }
+  // ── Comments (POST / DELETE) ────────────────────────────────────────
 
   /** POST /api/training-plan/:id/comments — add a comment */
   @Post(':id/comments')
