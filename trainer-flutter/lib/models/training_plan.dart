@@ -9,8 +9,8 @@ class TrainingPlanRow {
   List<String> dates;
   bool liked;
   bool disliked;
-  int timer;          // saved timer preset in seconds (0 = none)
-  String comment;     // per-exercise comment / note
+  List<int> timers;   // saved timer presets in seconds (e.g. [30, 60, 120])
+  String comment;     // per-exercise comment / note (legacy, now server-side)
 
   TrainingPlanRow({
     this.exercise = '',
@@ -21,9 +21,10 @@ class TrainingPlanRow {
     List<String>? dates,
     this.liked = false,
     this.disliked = false,
-    this.timer = 0,
+    List<int>? timers,
     this.comment = '',
-  }) : dates = dates ?? List.filled(8, '');
+  }) : dates = dates ?? List.filled(8, ''),
+       timers = timers ?? [];
 
   factory TrainingPlanRow.fromJson(Map<String, dynamic> json) {
     return TrainingPlanRow(
@@ -37,7 +38,7 @@ class TrainingPlanRow {
           : List.filled(8, ''),
       liked: json['liked'] == true || json['liked'] == 1 || json['liked'] == '1',
       disliked: json['disliked'] == true || json['disliked'] == 1 || json['disliked'] == '1',
-      timer: _parseInt(json['timer']),
+      timers: _parseTimers(json),
       comment: json['comment']?.toString() ?? '',
     );
   }
@@ -49,6 +50,19 @@ class TrainingPlanRow {
     return 0;
   }
 
+  /// Parse timers from JSON — backwards-compatible with old `timer` (int) field
+  static List<int> _parseTimers(Map<String, dynamic> json) {
+    // New format: timers as list
+    if (json['timers'] is List) {
+      return List<int>.from(
+        (json['timers'] as List).map((e) => _parseInt(e)).where((v) => v > 0),
+      );
+    }
+    // Legacy format: single timer int
+    final single = _parseInt(json['timer']);
+    return single > 0 ? [single] : [];
+  }
+
   Map<String, dynamic> toJson() => {
         'exercise': exercise,
         'device': device,
@@ -58,7 +72,7 @@ class TrainingPlanRow {
         'dates': dates,
         if (liked) 'liked': true,
         if (disliked) 'disliked': true,
-        if (timer > 0) 'timer': timer,
+        if (timers.isNotEmpty) 'timers': timers,
         if (comment.isNotEmpty) 'comment': comment,
       };
 }

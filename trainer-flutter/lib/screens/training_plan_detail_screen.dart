@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/client.dart';
@@ -150,7 +151,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
       s.dateCtrls.add(List.generate(8, (_) => TextEditingController()));
       s.liked.add(false);
       s.disliked.add(false);
-      s.timeSettings.add(0);
+      s.timerLists.add([]);
     });
     } finally {
       _catalogOpen = false;
@@ -188,7 +189,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
         s.dateCtrls.removeAt(index);
         s.liked.removeAt(index);
         s.disliked.removeAt(index);
-        s.timeSettings.removeAt(index);
+        s.timerLists.removeAt(index);
 
         // Reset timer if the deleted exercise was the active timer target
         _timer.onExerciseRemoved(prefix, index);
@@ -212,19 +213,21 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
 
   _SectionData _s(String p) => _sec[p]!;
 
-  // ─── Timer controls (delegated to ExerciseTimer) ────────────────────────
+  // ─── Timer controls (multi-timer per exercise) ──────────────────────────
 
-  void _selectExerciseTime(String prefix, int index, int seconds) {
+  /// Add a timer to an exercise's timer list and auto-save
+  void _addTimer(String prefix, int index, int seconds) {
+    if (seconds <= 0 || seconds > 3600) return;
     final s = _s(prefix);
-    // If tapping the same already-saved preset → clear it (delete saved timer)
-    if (s.timeSettings[index] == seconds) {
-      s.timeSettings[index] = 0;
-      _timer.switchToStopwatch();
-      _markDirty();
-      return;
-    }
-    s.timeSettings[index] = seconds;
-    _markDirty();
+    // Don't add duplicates
+    if (s.timerLists[index].contains(seconds)) return;
+    setState(() {
+      s.timerLists[index].add(seconds);
+      s.timerLists[index].sort();
+    });
+    _autoSave();
+
+    // Start countdown on the newly added timer
     final name = s.rowCtrls[index][0].text.isNotEmpty
         ? s.rowCtrls[index][0].text
         : 'Übung ${index + 1}';
@@ -233,33 +236,78 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
     );
   }
 
-  void _showManualTimeDialog(String prefix, int index) {
+  /// Remove a timer from an exercise's timer list and auto-save
+  void _removeTimer(String prefix, int index, int seconds) {
+    final s = _s(prefix);
+    setState(() {
+      s.timerLists[index].remove(seconds);
+    });
+    // If this was the active countdown, switch to stopwatch
+    if (_timer.activePrefix == prefix &&
+        _timer.activeIndex == index &&
+        _timer.countdownFrom == seconds) {
+      _timer.switchToStopwatch();
+    }
+    _autoSave();
+  }
+
+  /// Tap a timer chip → start countdown for that timer
+  void _selectTimer(String prefix, int index, int seconds) {
+    final s = _s(prefix);
+    final name = s.rowCtrls[index][0].text.isNotEmpty
+        ? s.rowCtrls[index][0].text
+        : 'Übung ${index + 1}';
+    _timer.selectCountdown(
+      prefix: prefix, index: index, name: name, seconds: seconds,
+    );
+  }
+
+  /// Show dialog to add a custom timer (like Apple Timer "+" button)
+  void _showAddTimerDialog(String prefix, int index) {
     final ctrl = TextEditingController();
     showDialog<int>(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Zeit eingeben',
+        title: Text('Timer hinzufügen',
             style: GoogleFonts.montserrat(
                 color: AppColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          style: GoogleFonts.montserrat(
-              color: AppColors.text, fontSize: 28, fontWeight: FontWeight.w700),
-          textAlign: TextAlign.center,
-          decoration: InputDecoration(
-            hintText: '90',
-            suffixText: 'Sek.',
-            suffixStyle: GoogleFonts.openSans(color: AppColors.muted, fontSize: 14),
-            hintStyle: GoogleFonts.montserrat(color: AppColors.muted.withAlpha(77), fontSize: 28),
-            filled: true,
-            fillColor: AppColors.surface2,
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: ctrl,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              style: GoogleFonts.montserrat(
+                  color: AppColors.text, fontSize: 28, fontWeight: FontWeight.w700),
+              textAlign: TextAlign.center,
+              decoration: InputDecoration(
+                hintText: '90',
+                suffixText: 'Sek.',
+                suffixStyle: GoogleFonts.openSans(color: AppColors.muted, fontSize: 14),
+                hintStyle: GoogleFonts.montserrat(color: AppColors.muted.withAlpha(77), fontSize: 28),
+                filled: true,
+                fillColor: AppColors.surface2,
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Quick-add presets
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [30, 45, 60, 90, 120].map((s) =>
+                ActionChip(
+                  label: Text('${s}s', style: GoogleFonts.openSans(fontSize: 12, color: AppColors.text)),
+                  backgroundColor: AppColors.surface2,
+                  side: BorderSide(color: AppColors.border),
+                  onPressed: () => Navigator.pop(context, s),
+                ),
+              ).toList(),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -271,15 +319,42 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
                 Navigator.pop(context, val);
               },
               style: TextButton.styleFrom(foregroundColor: AppColors.primary),
-              child: const Text('Übernehmen')),
+              child: const Text('Hinzufügen')),
         ],
       ),
     ).then((seconds) {
       ctrl.dispose();
       if (seconds != null && seconds > 0 && mounted) {
-        _selectExerciseTime(prefix, index, seconds);
+        _addTimer(prefix, index, seconds);
       }
     });
+  }
+
+  // ─── Auto-save (debounced) ──────────────────────────────────────────────
+
+  Timer? _autoSaveTimer;
+
+  void _autoSave() {
+    _markDirty();
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = Timer(const Duration(milliseconds: 800), () {
+      if (!mounted || widget.plan?.id == null) return;
+      _saveInBackground();
+    });
+  }
+
+  Future<void> _saveInBackground() async {
+    try {
+      final plan = TrainingPlan(
+        id:       widget.plan?.id,
+        clientId: widget.client.id,
+        name:     _nameCtrl.text.isEmpty ? null : _nameCtrl.text,
+        values:   _collectValues(),
+      );
+      await _api.put('${ApiConfig.trainingPlan}/${plan.id}', body: plan.toJson());
+    } catch (_) {
+      // Silent fail for auto-save — user can still manual save
+    }
   }
 
   // ─── Comments bottom sheet ───────────────────────────────────────────────
@@ -336,7 +411,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
             dates:    List.generate(8, (j) => s.dateCtrls[i][j].text),
             liked:    s.liked[i],
             disliked: s.disliked[i],
-            timer:    s.timeSettings[i],
+            timers:   List<int>.from(s.timerLists[i]),
           ));
     }
 
@@ -381,6 +456,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
 
   @override
   void dispose() {
+    _autoSaveTimer?.cancel();
     _timer.removeListener(_onTimerChanged);
     _timer.dispose();
     _tabCtrl.dispose();
@@ -720,10 +796,12 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
             }); },
             onDelete: () => _removeExercise(prefix, i),
             onFieldChanged: _markDirty,
-            timeSetting: s.timeSettings[i],
-            isTimerTarget: _timer.activePrefix == prefix && _timer.activeIndex == i,
-            onTimeSelect: (seconds) => _selectExerciseTime(prefix, i, seconds),
-            onManualTime: () => _showManualTimeDialog(prefix, i),
+            timers: s.timerLists[i],
+            activeTimerSeconds: (_timer.activePrefix == prefix && _timer.activeIndex == i)
+                ? _timer.countdownFrom : null,
+            onTimerTap: (seconds) => _selectTimer(prefix, i, seconds),
+            onTimerAdd: () => _showAddTimerDialog(prefix, i),
+            onTimerRemove: (seconds) => _removeTimer(prefix, i, seconds),
             onComment: () => _showExerciseCommentsSheet(prefix, i),
           );
         }),
@@ -776,14 +854,14 @@ class _SectionData {
   final List<List<TextEditingController>> dateCtrls;
   final List<bool> liked;
   final List<bool> disliked;
-  final List<int> timeSettings;
+  final List<List<int>> timerLists; // multiple timers per exercise
 
   _SectionData({
     required this.rowCtrls,
     required this.dateCtrls,
     required this.liked,
     required this.disliked,
-    required this.timeSettings,
+    required this.timerLists,
   });
 
   factory _SectionData.fromRows(List<TrainingPlanRow> rows) {
@@ -800,7 +878,7 @@ class _SectionData {
       ).toList(),
       liked: rows.map((r) => r.liked).toList(),
       disliked: rows.map((r) => r.disliked).toList(),
-      timeSettings: rows.map((r) => r.timer).toList(),
+      timerLists: rows.map((r) => List<int>.from(r.timers)).toList(),
     );
   }
 
@@ -842,10 +920,11 @@ class _ExerciseTile extends StatelessWidget {
   final VoidCallback onDislike;
   final VoidCallback onDelete;
   final VoidCallback onFieldChanged;
-  final int timeSetting;
-  final bool isTimerTarget;
-  final ValueChanged<int> onTimeSelect;
-  final VoidCallback onManualTime;
+  final List<int> timers;           // multiple timers per exercise
+  final int? activeTimerSeconds;    // which timer is currently counting down (null = none)
+  final ValueChanged<int> onTimerTap;
+  final VoidCallback onTimerAdd;
+  final ValueChanged<int> onTimerRemove;
   final int commentCount;
   final VoidCallback onComment;
 
@@ -864,10 +943,11 @@ class _ExerciseTile extends StatelessWidget {
     required this.onDislike,
     required this.onDelete,
     required this.onFieldChanged,
-    required this.timeSetting,
-    required this.isTimerTarget,
-    required this.onTimeSelect,
-    required this.onManualTime,
+    required this.timers,
+    this.activeTimerSeconds,
+    required this.onTimerTap,
+    required this.onTimerAdd,
+    required this.onTimerRemove,
     this.commentCount = 0,
     required this.onComment,
   });
@@ -877,6 +957,7 @@ class _ExerciseTile extends StatelessWidget {
     final hasContent = ctrls[0].text.isNotEmpty;
 
     // Determine tile accent: liked=green, disliked=red, else normal
+    final isTimerTarget = activeTimerSeconds != null;
     final borderColor = isTimerTarget
         ? AppColors.primary.withAlpha(128)
         : isLiked
@@ -965,13 +1046,13 @@ class _ExerciseTile extends StatelessWidget {
                           ),
                         ),
                         if (!isExpanded &&
-                            (ctrls[1].text.isNotEmpty || ctrls[2].text.isNotEmpty || ctrls[4].text.isNotEmpty || timeSetting > 0 || commentCount > 0)) ...[
+                            (ctrls[1].text.isNotEmpty || ctrls[2].text.isNotEmpty || ctrls[4].text.isNotEmpty || timers.isNotEmpty || commentCount > 0)) ...[
                           const SizedBox(height: 2),
                           Row(
                             children: [
-                              if (timeSetting > 0) ...[
+                              if (timers.isNotEmpty) ...[
                                 Icon(Icons.timer_outlined, size: 10, color: AppColors.primary.withAlpha(153)),
-                                Text(' ${timeSetting}s',
+                                Text(' ${timers.map((t) => '${t}s').join(', ')}',
                                     style: GoogleFonts.openSans(
                                         color: AppColors.primary.withAlpha(153), fontSize: 10, fontWeight: FontWeight.w600)),
                                 if (ctrls[1].text.isNotEmpty || ctrls[2].text.isNotEmpty || commentCount > 0)
@@ -1110,7 +1191,7 @@ class _ExerciseTile extends StatelessWidget {
 
                   const SizedBox(height: 14),
 
-                  // Timer presets
+                  // Timer list (Apple-style multi-timer)
                   Row(
                     children: [
                       Text('TIMER',
@@ -1119,7 +1200,7 @@ class _ExerciseTile extends StatelessWidget {
                               fontSize: 9,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 1.5)),
-                      if (timeSetting > 0) ...[
+                      if (timers.isNotEmpty) ...[
                         const SizedBox(width: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
@@ -1127,7 +1208,7 @@ class _ExerciseTile extends StatelessWidget {
                             color: AppColors.primary.withAlpha(31),
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: Text('${timeSetting}s gespeichert',
+                          child: Text('${timers.length} gespeichert',
                               style: GoogleFonts.openSans(
                                   color: AppColors.primary, fontSize: 8, fontWeight: FontWeight.w700)),
                         ),
@@ -1135,41 +1216,39 @@ class _ExerciseTile extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Row(
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
                     children: [
-                      _TimerPresetChip(
-                        label: '30s',
-                        isActive: timeSetting == 30,
-                        isSaved: timeSetting == 30,
-                        accentColor: accentColor,
-                        onTap: () => onTimeSelect(30),
-                      ),
-                      const SizedBox(width: 6),
-                      _TimerPresetChip(
-                        label: '45s',
-                        isActive: timeSetting == 45,
-                        isSaved: timeSetting == 45,
-                        accentColor: accentColor,
-                        onTap: () => onTimeSelect(45),
-                      ),
-                      const SizedBox(width: 6),
-                      _TimerPresetChip(
-                        label: '60s',
-                        isActive: timeSetting == 60,
-                        isSaved: timeSetting == 60,
-                        accentColor: accentColor,
-                        onTap: () => onTimeSelect(60),
-                      ),
-                      const SizedBox(width: 6),
-                      _TimerPresetChip(
-                        label: timeSetting > 0 && timeSetting != 30 && timeSetting != 45 && timeSetting != 60
-                            ? '${timeSetting}s'
-                            : 'Eigene',
-                        isActive: timeSetting > 0 && timeSetting != 30 && timeSetting != 45 && timeSetting != 60,
-                        isSaved: timeSetting > 0 && timeSetting != 30 && timeSetting != 45 && timeSetting != 60,
-                        accentColor: accentColor,
-                        onTap: onManualTime,
-                        icon: Icons.edit_outlined,
+                      // Saved timer chips
+                      ...timers.map((seconds) {
+                        final isActive = activeTimerSeconds == seconds;
+                        return _TimerChip(
+                          seconds: seconds,
+                          isActive: isActive,
+                          accentColor: accentColor,
+                          onTap: () => onTimerTap(seconds),
+                          onDelete: () => onTimerRemove(seconds),
+                        );
+                      }),
+                      // Add button
+                      GestureDetector(
+                        onTap: onTimerAdd,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface2,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: AppColors.border, width: 0.8),
+                          ),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(Icons.add, size: 14, color: accentColor),
+                            const SizedBox(width: 3),
+                            Text('Timer',
+                                style: GoogleFonts.openSans(
+                                    color: accentColor, fontSize: 11, fontWeight: FontWeight.w600)),
+                          ]),
+                        ),
                       ),
                     ],
                   ),
@@ -1333,27 +1412,34 @@ class _ActionChip extends StatelessWidget {
 
 // ─── Timer preset chip ──────────────────────────────────────────────────────
 
-class _TimerPresetChip extends StatelessWidget {
-  final String label;
+/// A single timer chip — tap to start countdown, long-press or × to delete
+class _TimerChip extends StatelessWidget {
+  final int seconds;
   final bool isActive;
-  final bool isSaved;
   final Color accentColor;
   final VoidCallback onTap;
-  final IconData? icon;
+  final VoidCallback onDelete;
 
-  const _TimerPresetChip({
-    required this.label,
+  const _TimerChip({
+    required this.seconds,
     required this.isActive,
     required this.accentColor,
     required this.onTap,
-    this.isSaved = false,
-    this.icon,
+    required this.onDelete,
   });
+
+  String get _label {
+    if (seconds >= 60 && seconds % 60 == 0) {
+      return '${seconds ~/ 60}min';
+    }
+    return '${seconds}s';
+  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      onLongPress: onDelete,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -1366,23 +1452,21 @@ class _TimerPresetChip extends StatelessWidget {
           ),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          if (isSaved && !isActive) ...[
-            Icon(Icons.check_circle, size: 11, color: AppColors.primary.withAlpha(153)),
-            const SizedBox(width: 4),
+          if (isActive) ...[
+            Icon(Icons.play_arrow_rounded, size: 12, color: accentColor),
+            const SizedBox(width: 3),
           ],
-          if (icon != null && !isSaved) ...[
-            Icon(icon, size: 12, color: isActive ? accentColor : AppColors.muted),
-            const SizedBox(width: 4),
-          ],
-          Text(label,
+          Text(_label,
               style: GoogleFonts.openSans(
-                  color: isActive ? accentColor : AppColors.muted,
+                  color: isActive ? accentColor : AppColors.text,
                   fontSize: 11,
                   fontWeight: FontWeight.w600)),
-          if (isActive) ...[
-            const SizedBox(width: 4),
-            Icon(Icons.close, size: 10, color: accentColor.withAlpha(153)),
-          ],
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: onDelete,
+            child: Icon(Icons.close, size: 11,
+                color: isActive ? accentColor.withAlpha(153) : AppColors.muted.withAlpha(128)),
+          ),
         ]),
       ),
     );
