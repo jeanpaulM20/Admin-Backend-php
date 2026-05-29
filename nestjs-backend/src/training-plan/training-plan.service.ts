@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import { TrainingPlan } from '../entities/training-plan.entity';
 import { TrainingPlanComment } from '../entities/training-plan-comment.entity';
 
@@ -55,7 +55,7 @@ export class TrainingPlanService {
       where.exerciseKey = exerciseKey;
     } else {
       // Plan-level comments only (exerciseKey IS NULL)
-      where.exerciseKey = null as any;
+      where.exerciseKey = IsNull();
     }
     return this.commentRepo.find({
       where,
