@@ -17,6 +17,7 @@ import { AnamneseModule } from './anamnese/anamnese.module';
 import { ReviewModule } from './review/review.module';
 import { FileModule } from './file/file.module';
 import { PushModule } from './push/push.module';
+import { GarminModule } from './garmin/garmin.module';
 import { PreferenceController } from './file/preference.controller';
 import { StartupMigrationService } from './common/startup-migration.service';
 
@@ -77,6 +78,7 @@ const dbConfig: any = isSqlite
     ReviewModule,
     FileModule,
     PushModule,
+    GarminModule,
   ],
   controllers: [PreferenceController],
   providers: [StartupMigrationService],
