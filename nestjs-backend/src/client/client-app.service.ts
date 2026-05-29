@@ -29,9 +29,34 @@ export class ClientAppService {
     private readonly invoiceService: InvoiceService,
   ) {}
 
+  private static readonly TZ = 'Europe/Zurich';
+
+  /** Today's date (YYYY-MM-DD) in Swiss timezone */
+  private swissToday(): string {
+    return new Date().toLocaleDateString('en-CA', { timeZone: ClientAppService.TZ });
+  }
+
+  /** Parse a date + time that is stored in Swiss local time into a UTC Date */
+  private swissDateTime(dateStr: string, timeStr: string): Date {
+    const [y, mo, d] = dateStr.split('-').map(Number);
+    const [h, mi] = timeStr.split(':').map(Number);
+    const asUtcMs = Date.UTC(y, mo - 1, d, h, mi, 0);
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: ClientAppService.TZ,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour12: false,
+    }).formatToParts(new Date(asUtcMs));
+    const p = (type: string) =>
+      parseInt(parts.find((pt) => pt.type === type)!.value, 10);
+    const offsetMs =
+      Date.UTC(p('year'), p('month') - 1, p('day'), p('hour'), p('minute'), p('second')) - asUtcMs;
+    return new Date(asUtcMs - offsetMs);
+  }
+
   /** Dashboard: credits + upcoming appointments */
   async getStartData(clientId: number) {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = this.swissToday();
 
     const [client, credits, trainings] = await Promise.all([
       this.clientRepo.findOne({ where: { id: clientId } }),
@@ -58,7 +83,7 @@ export class ClientAppService {
 
   /** Calendar: trainers, types, availability, appointments */
   async getCalendarData(clientId: number) {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = this.swissToday();
 
     // Get client's assigned trainers
     const client = await this.clientRepo.findOne({
@@ -553,7 +578,7 @@ export class ClientAppService {
 
     // ── 2. Date must not be in the past ───────────────────────────
     const now = new Date();
-    const today = now.toISOString().slice(0, 10);
+    const today = this.swissToday();
     if (date < today) {
       throw new BadRequestException(
         'Buchungen in der Vergangenheit sind nicht möglich.',
@@ -561,7 +586,7 @@ export class ClientAppService {
     }
 
     // ── 2b. Must book at least 12 hours in advance ──────────────
-    const appointmentDate = new Date(`${date}T${starttime}`);
+    const appointmentDate = this.swissDateTime(date, starttime);
     const hoursUntilAppointment =
       (appointmentDate.getTime() - now.getTime()) / (1000 * 60 * 60);
     if (hoursUntilAppointment < MIN_ADVANCE_HOURS) {
@@ -758,7 +783,7 @@ export class ClientAppService {
     // Check if this is a late cancellation (less than 12 hours before appointment)
     const MIN_CANCEL_HOURS = 12;
     const now = new Date();
-    const appointmentDate = new Date(`${training.date}T${training.starttime}`);
+    const appointmentDate = this.swissDateTime(training.date, training.starttime);
     const hoursUntilAppointment =
       (appointmentDate.getTime() - now.getTime()) / (1000 * 60 * 60);
     const isLateCancellation = hoursUntilAppointment < MIN_CANCEL_HOURS;

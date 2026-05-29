@@ -43,6 +43,8 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       `ALTER TABLE invoice ADD COLUMN saferpay_token VARCHAR(100) DEFAULT NULL`,
       `ALTER TABLE invoice ADD COLUMN paid_at DATETIME DEFAULT NULL`,
       `ALTER TABLE invoice ADD COLUMN payment_method VARCHAR(50) DEFAULT NULL`,
+      // Per-exercise comment key on training_plan_comment
+      `ALTER TABLE training_plan_comment ADD COLUMN exercise_key VARCHAR(10) DEFAULT NULL`,
     ];
 
     // Create training_plan_comment table if not exists
