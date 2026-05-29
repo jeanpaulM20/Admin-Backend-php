@@ -13,6 +13,10 @@ export class TrainingPlanComment {
   @Column({ name: 'trainer_id', nullable: true })
   trainerId: number;
 
+  /** Optional exercise key like "s-0", "m-2", "c-1" — null = plan-level comment */
+  @Column({ name: 'exercise_key', nullable: true, default: null })
+  exerciseKey: string | null;
+
   @Column({ type: 'text' })
   text: string;
 

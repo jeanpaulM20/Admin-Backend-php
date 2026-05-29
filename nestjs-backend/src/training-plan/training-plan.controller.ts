@@ -163,10 +163,19 @@ export class TrainingPlanController {
 
   // ── Comments ──────────────────────────────────────────────────────
 
-  /** GET /api/training-plan/:id/comments — list comments for a plan */
+  /** GET /api/training-plan/:id/comments — list comments for a plan or exercise */
   @Get(':id/comments')
-  getComments(@Param('id', ParseIntPipe) planId: number) {
-    return this.service.getComments(planId);
+  getComments(
+    @Param('id', ParseIntPipe) planId: number,
+    @Query('exerciseKey') exerciseKey?: string,
+  ) {
+    return this.service.getComments(planId, exerciseKey);
+  }
+
+  /** GET /api/training-plan/:id/comment-counts — comment counts per exercise */
+  @Get(':id/comment-counts')
+  getCommentCounts(@Param('id', ParseIntPipe) planId: number) {
+    return this.service.getCommentCounts(planId);
   }
 
   /** POST /api/training-plan/:id/comments — add a comment */
@@ -174,14 +183,14 @@ export class TrainingPlanController {
   addComment(
     @Param('id', ParseIntPipe) planId: number,
     @CurrentTrainer() trainer: Trainer,
-    @Body() body: { text: string },
+    @Body() body: { text: string; exerciseKey?: string },
   ) {
     const text = (body.text ?? '').trim();
     if (!text) throw new BadRequestException('Kommentar darf nicht leer sein');
     const authorName = trainer
       ? `${trainer.firstname ?? ''} ${trainer.lastname ?? ''}`.trim() || 'Trainer'
       : 'Unbekannt';
-    return this.service.addComment(planId, trainer?.id, authorName, text);
+    return this.service.addComment(planId, trainer?.id, authorName, text, body.exerciseKey);
   }
 
   /** DELETE /api/training-plan/comments/:commentId — delete a comment */

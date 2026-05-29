@@ -38,6 +38,9 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
   bool _hasUnsavedChanges = false;
   bool _catalogOpen = false;
 
+  // Exercise-level comment counts (loaded from API)
+  Map<String, int> _commentCounts = {};
+
   // ─── Timer (separate ChangeNotifier) ──────────────────────────────────
   late final ExerciseTimer _timer;
 
@@ -70,6 +73,26 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
 
     // Track unsaved changes via name controller
     _nameCtrl.addListener(_markDirty);
+
+    // Load comment counts if plan already exists
+    _loadCommentCounts();
+  }
+
+  Future<void> _loadCommentCounts() async {
+    final planId = widget.plan?.id;
+    if (planId == null) return;
+    try {
+      final data = await _api.get('${ApiConfig.trainingPlan}/$planId/comment-counts');
+      if (data is Map && mounted) {
+        setState(() {
+          _commentCounts = Map<String, int>.from(
+            data.map((k, v) => MapEntry(k.toString(), v is int ? v : int.tryParse(v.toString()) ?? 0)),
+          );
+        });
+      }
+    } catch (_) {
+      // Non-critical — counts will just show 0
+    }
   }
 
   void _onTimerChanged() {
@@ -125,7 +148,6 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
         TextEditingController(),  // sets
       ]);
       s.dateCtrls.add(List.generate(8, (_) => TextEditingController()));
-      s.commentCtrls.add(TextEditingController());
       s.liked.add(false);
       s.disliked.add(false);
       s.timeSettings.add(0);
@@ -164,8 +186,6 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
         s.rowCtrls.removeAt(index);
         for (final c in s.dateCtrls[index]) c.dispose();
         s.dateCtrls.removeAt(index);
-        s.commentCtrls[index].dispose();
-        s.commentCtrls.removeAt(index);
         s.liked.removeAt(index);
         s.disliked.removeAt(index);
         s.timeSettings.removeAt(index);
@@ -275,6 +295,31 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
     );
   }
 
+  void _showExerciseCommentsSheet(String prefix, int index) {
+    final planId = widget.plan?.id;
+    if (planId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bitte zuerst den Plan speichern'), backgroundColor: AppColors.red),
+      );
+      return;
+    }
+    final exerciseKey = '$prefix-$index';
+    final s = _s(prefix);
+    final exerciseName = s.rowCtrls[index][0].text.isNotEmpty
+        ? s.rowCtrls[index][0].text
+        : 'Übung ${index + 1}';
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _CommentsSheet(
+        planId: planId,
+        exerciseKey: exerciseKey,
+        exerciseName: exerciseName,
+      ),
+    ).then((_) => _loadCommentCounts()); // refresh counts after closing
+  }
+
   // ─── Collect values for save ─────────────────────────────────────────────
 
   TrainingPlanValues _collectValues() {
@@ -292,7 +337,6 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
             liked:    s.liked[i],
             disliked: s.disliked[i],
             timer:    s.timeSettings[i],
-            comment:  s.commentCtrls[i].text,
           ));
     }
 
@@ -649,14 +693,15 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
         // Exercise tiles
         ...List.generate(s.rowCtrls.length, (i) {
           final key = '$prefix-$i';
+          final exerciseKey = '$prefix-$i';
           return _ExerciseTile(
             key: ValueKey('$prefix-$i-${s.rowCtrls.length}'),
             number:      i + 1,
             ctrls:       s.rowCtrls[i],
             dateCtrls:   s.dateCtrls[i],
             dateLabels:  _dateCtrls.map((c) => c.text).toList(),
-            commentCtrl: s.commentCtrls[i],
             accentColor: section.color,
+            commentCount: _commentCounts[exerciseKey] ?? 0,
             isLiked:     s.liked[i],
             isDisliked:  s.disliked[i],
             isExpanded:  _expanded.contains(key),
@@ -679,6 +724,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
             isTimerTarget: _timer.activePrefix == prefix && _timer.activeIndex == i,
             onTimeSelect: (seconds) => _selectExerciseTime(prefix, i, seconds),
             onManualTime: () => _showManualTimeDialog(prefix, i),
+            onComment: () => _showExerciseCommentsSheet(prefix, i),
           );
         }),
 
@@ -728,7 +774,6 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
 class _SectionData {
   final List<List<TextEditingController>> rowCtrls;
   final List<List<TextEditingController>> dateCtrls;
-  final List<TextEditingController> commentCtrls;
   final List<bool> liked;
   final List<bool> disliked;
   final List<int> timeSettings;
@@ -736,7 +781,6 @@ class _SectionData {
   _SectionData({
     required this.rowCtrls,
     required this.dateCtrls,
-    required this.commentCtrls,
     required this.liked,
     required this.disliked,
     required this.timeSettings,
@@ -754,7 +798,6 @@ class _SectionData {
       dateCtrls: rows.map((r) =>
         List.generate(8, (i) => TextEditingController(text: r.dates[i])),
       ).toList(),
-      commentCtrls: rows.map((r) => TextEditingController(text: r.comment)).toList(),
       liked: rows.map((r) => r.liked).toList(),
       disliked: rows.map((r) => r.disliked).toList(),
       timeSettings: rows.map((r) => r.timer).toList(),
@@ -768,7 +811,6 @@ class _SectionData {
     for (final row in dateCtrls) {
       for (final c in row) c.dispose();
     }
-    for (final c in commentCtrls) c.dispose();
   }
 }
 
@@ -791,7 +833,6 @@ class _ExerciseTile extends StatelessWidget {
   final List<TextEditingController> ctrls;
   final List<TextEditingController> dateCtrls;
   final List<String> dateLabels;
-  final TextEditingController commentCtrl;
   final Color accentColor;
   final bool isLiked;
   final bool isDisliked;
@@ -805,6 +846,8 @@ class _ExerciseTile extends StatelessWidget {
   final bool isTimerTarget;
   final ValueChanged<int> onTimeSelect;
   final VoidCallback onManualTime;
+  final int commentCount;
+  final VoidCallback onComment;
 
   const _ExerciseTile({
     super.key,
@@ -812,7 +855,6 @@ class _ExerciseTile extends StatelessWidget {
     required this.ctrls,
     required this.dateCtrls,
     required this.dateLabels,
-    required this.commentCtrl,
     required this.accentColor,
     required this.isLiked,
     required this.isDisliked,
@@ -826,6 +868,8 @@ class _ExerciseTile extends StatelessWidget {
     required this.isTimerTarget,
     required this.onTimeSelect,
     required this.onManualTime,
+    this.commentCount = 0,
+    required this.onComment,
   });
 
   @override
@@ -921,7 +965,7 @@ class _ExerciseTile extends StatelessWidget {
                           ),
                         ),
                         if (!isExpanded &&
-                            (ctrls[1].text.isNotEmpty || ctrls[2].text.isNotEmpty || ctrls[4].text.isNotEmpty || commentCtrl.text.isNotEmpty)) ...[
+                            (ctrls[1].text.isNotEmpty || ctrls[2].text.isNotEmpty || ctrls[4].text.isNotEmpty || timeSetting > 0 || commentCount > 0)) ...[
                           const SizedBox(height: 2),
                           Row(
                             children: [
@@ -930,12 +974,16 @@ class _ExerciseTile extends StatelessWidget {
                                 Text(' ${timeSetting}s',
                                     style: GoogleFonts.openSans(
                                         color: AppColors.primary.withAlpha(153), fontSize: 10, fontWeight: FontWeight.w600)),
-                                if (ctrls[1].text.isNotEmpty || ctrls[2].text.isNotEmpty || commentCtrl.text.isNotEmpty)
+                                if (ctrls[1].text.isNotEmpty || ctrls[2].text.isNotEmpty || commentCount > 0)
                                   Text('  ·  ', style: GoogleFonts.openSans(color: AppColors.muted, fontSize: 11)),
                               ],
-                              if (commentCtrl.text.isNotEmpty) ...[
-                                Icon(Icons.notes_rounded, size: 10, color: accentColor.withAlpha(153)),
-                                const SizedBox(width: 2),
+                              if (commentCount > 0) ...[
+                                Icon(Icons.chat_bubble_outline, size: 10, color: accentColor.withAlpha(153)),
+                                Text(' $commentCount',
+                                    style: GoogleFonts.openSans(
+                                        color: accentColor.withAlpha(153), fontSize: 10, fontWeight: FontWeight.w600)),
+                                if (ctrls[1].text.isNotEmpty || ctrls[2].text.isNotEmpty)
+                                  Text('  ·  ', style: GoogleFonts.openSans(color: AppColors.muted, fontSize: 11)),
                               ],
                               Expanded(
                                 child: Text(
@@ -1127,53 +1175,10 @@ class _ExerciseTile extends StatelessWidget {
                   ),
 
                   const SizedBox(height: 14),
-
-                  // Per-exercise comment
-                  Text('KOMMENTAR',
-                      style: GoogleFonts.openSans(
-                          color: AppColors.muted.withAlpha(153),
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.5)),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: commentCtrl,
-                    onChanged: (_) => onFieldChanged(),
-                    maxLines: 3,
-                    minLines: 1,
-                    style: GoogleFonts.openSans(color: AppColors.text, fontSize: 12, height: 1.4),
-                    decoration: InputDecoration(
-                      hintText: 'Notiz zur Übung...',
-                      hintStyle: GoogleFonts.openSans(
-                          color: AppColors.muted.withAlpha(77), fontSize: 12),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      filled: true,
-                      fillColor: AppColors.surface2,
-                      prefixIcon: Padding(
-                        padding: const EdgeInsets.only(left: 10, right: 6),
-                        child: Icon(Icons.notes_rounded, size: 16,
-                            color: commentCtrl.text.isNotEmpty ? accentColor : AppColors.muted.withAlpha(102)),
-                      ),
-                      prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                      enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: commentCtrl.text.isNotEmpty
-                              ? BorderSide(color: accentColor.withAlpha(51), width: 0.5)
-                              : BorderSide.none),
-                      focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(color: accentColor, width: 1)),
-                      isDense: true,
-                    ),
-                  ),
-
-                  const SizedBox(height: 14),
                   const Divider(color: AppColors.border, height: 1),
                   const SizedBox(height: 10),
 
-                  // Like / Dislike / Delete action row
+                  // Like / Dislike / Comment / Delete action row
                   Row(
                     children: [
                       // Like
@@ -1194,6 +1199,16 @@ class _ExerciseTile extends StatelessWidget {
                         filled: isDisliked,
                         fillColor: AppColors.red.withAlpha(26),
                         onTap: onDislike,
+                      ),
+                      const SizedBox(width: 8),
+                      // Comment
+                      _ActionChip(
+                        icon: Icons.chat_bubble_outline,
+                        label: commentCount > 0 ? '$commentCount' : 'Kommentar',
+                        color: commentCount > 0 ? accentColor : AppColors.muted,
+                        filled: commentCount > 0,
+                        fillColor: accentColor.withAlpha(26),
+                        onTap: onComment,
                       ),
                       const Spacer(),
                       // Delete
@@ -1380,7 +1395,9 @@ class _TimerPresetChip extends StatelessWidget {
 
 class _CommentsSheet extends StatefulWidget {
   final int planId;
-  const _CommentsSheet({required this.planId});
+  final String? exerciseKey;
+  final String? exerciseName;
+  const _CommentsSheet({required this.planId, this.exerciseKey, this.exerciseName});
 
   @override
   State<_CommentsSheet> createState() => _CommentsSheetState();
@@ -1409,7 +1426,11 @@ class _CommentsSheetState extends State<_CommentsSheet> {
 
   Future<void> _load() async {
     try {
-      final data = await _api.get('${ApiConfig.trainingPlan}/${widget.planId}/comments');
+      final ek = widget.exerciseKey;
+      final url = ek != null
+          ? '${ApiConfig.trainingPlan}/${widget.planId}/comments?exerciseKey=$ek'
+          : '${ApiConfig.trainingPlan}/${widget.planId}/comments';
+      final data = await _api.get(url);
       if (!mounted) return;
       setState(() {
         _comments = data is List ? data : [];
@@ -1428,7 +1449,10 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     try {
       await _api.post(
         '${ApiConfig.trainingPlan}/${widget.planId}/comments',
-        body: {'text': text},
+        body: {
+          'text': text,
+          if (widget.exerciseKey != null) 'exerciseKey': widget.exerciseKey,
+        },
       );
       _ctrl.clear();
       await _load();
@@ -1510,9 +1534,17 @@ class _CommentsSheetState extends State<_CommentsSheet> {
               children: [
                 const Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.primary),
                 const SizedBox(width: 8),
-                Text('Kommentare',
+                Flexible(
+                  child: Text(
+                    widget.exerciseName != null
+                        ? widget.exerciseName!
+                        : 'Kommentare',
                     style: GoogleFonts.montserrat(
-                        color: AppColors.text, fontSize: 16, fontWeight: FontWeight.w700)),
+                        color: AppColors.text, fontSize: 16, fontWeight: FontWeight.w700),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
                 if (_comments != null)
                   Padding(
                     padding: const EdgeInsets.only(left: 8),

@@ -48,12 +48,36 @@ export class TrainingPlanService {
 
   // ─── Comments ──────────────────────────────────────────────────────────
 
-  async getComments(planId: number): Promise<TrainingPlanComment[]> {
+  async getComments(planId: number, exerciseKey?: string): Promise<TrainingPlanComment[]> {
     await this.findOne(planId); // ensure plan exists
+    const where: any = { planId };
+    if (exerciseKey) {
+      where.exerciseKey = exerciseKey;
+    } else {
+      // Plan-level comments only (exerciseKey IS NULL)
+      where.exerciseKey = null as any;
+    }
     return this.commentRepo.find({
-      where: { planId },
+      where,
       order: { createdAt: 'ASC' },
     });
+  }
+
+  /** Count comments per exercise key for a plan (for badge display) */
+  async getCommentCounts(planId: number): Promise<Record<string, number>> {
+    const rows = await this.commentRepo
+      .createQueryBuilder('c')
+      .select('c.exercise_key', 'exerciseKey')
+      .addSelect('COUNT(*)', 'count')
+      .where('c.plan_id = :planId', { planId })
+      .andWhere('c.exercise_key IS NOT NULL')
+      .groupBy('c.exercise_key')
+      .getRawMany();
+    const result: Record<string, number> = {};
+    for (const r of rows) {
+      result[r.exerciseKey] = parseInt(r.count, 10);
+    }
+    return result;
   }
 
   async addComment(
@@ -61,10 +85,14 @@ export class TrainingPlanService {
     trainerId: number | undefined,
     authorName: string,
     text: string,
+    exerciseKey?: string,
   ): Promise<TrainingPlanComment> {
     await this.findOne(planId); // ensure plan exists
-    const comment = this.commentRepo.create({ planId, trainerId, authorName, text });
-    return this.commentRepo.save(comment);
+    const comment = this.commentRepo.create({
+      planId, trainerId, authorName, text,
+      ...(exerciseKey ? { exerciseKey } : {}),
+    } as any);
+    return this.commentRepo.save(comment as any);
   }
 
   async removeComment(commentId: number): Promise<void> {
