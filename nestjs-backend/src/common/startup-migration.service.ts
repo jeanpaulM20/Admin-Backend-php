@@ -136,6 +136,71 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       this.logger.warn(`invoice table creation: ${err.message}`);
     }
 
+    // ── Garmin integration tables ─────────────────────────────────────
+    const garminTables = [
+      `CREATE TABLE IF NOT EXISTS garmin_connection (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        client_id INT NOT NULL,
+        access_token TEXT NOT NULL,
+        access_token_secret TEXT NOT NULL,
+        garmin_user_id VARCHAR(255) DEFAULT NULL,
+        garmin_display_name VARCHAR(255) DEFAULT NULL,
+        connected_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        last_sync_at DATETIME DEFAULT NULL,
+        UNIQUE KEY idx_garmin_conn_client (client_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+      `CREATE TABLE IF NOT EXISTS garmin_activity (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        client_id INT NOT NULL,
+        garmin_activity_id BIGINT NOT NULL,
+        garmin_user_token VARCHAR(255) DEFAULT NULL,
+        activity_type VARCHAR(100) DEFAULT NULL,
+        activity_name VARCHAR(255) DEFAULT NULL,
+        start_time VARCHAR(50) DEFAULT NULL,
+        duration_seconds FLOAT DEFAULT NULL,
+        distance_meters FLOAT DEFAULT NULL,
+        active_kcal FLOAT DEFAULT NULL,
+        avg_heart_rate FLOAT DEFAULT NULL,
+        max_heart_rate FLOAT DEFAULT NULL,
+        avg_speed FLOAT DEFAULT NULL,
+        steps INT DEFAULT NULL,
+        raw_json LONGTEXT,
+        received_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY idx_garmin_act_id (garmin_activity_id),
+        INDEX idx_garmin_act_client (client_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+      `CREATE TABLE IF NOT EXISTS garmin_daily_summary (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        client_id INT NOT NULL,
+        calendar_date VARCHAR(10) NOT NULL,
+        steps INT DEFAULT NULL,
+        active_kcal FLOAT DEFAULT NULL,
+        resting_heart_rate FLOAT DEFAULT NULL,
+        max_heart_rate FLOAT DEFAULT NULL,
+        avg_stress FLOAT DEFAULT NULL,
+        body_battery_max INT DEFAULT NULL,
+        body_battery_min INT DEFAULT NULL,
+        sleep_duration_seconds INT DEFAULT NULL,
+        sleep_score INT DEFAULT NULL,
+        spo2_avg FLOAT DEFAULT NULL,
+        respiration_avg FLOAT DEFAULT NULL,
+        floors_climbed INT DEFAULT NULL,
+        intensity_minutes INT DEFAULT NULL,
+        raw_json LONGTEXT,
+        received_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY idx_garmin_daily_client_date (client_id, calendar_date),
+        INDEX idx_garmin_daily_client (client_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    ];
+    for (const sql of garminTables) {
+      try {
+        await this.dataSource.query(sql);
+        this.logger.log(`Garmin table ready: ${sql.substring(30, 70)}...`);
+      } catch (err: any) {
+        this.logger.warn(`Garmin table: ${err.message}`);
+      }
+    }
+
     for (const sql of migrations) {
       try {
         await this.dataSource.query(sql);
