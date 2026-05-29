@@ -9,6 +9,8 @@ class TrainingPlanRow {
   List<String> dates;
   bool liked;
   bool disliked;
+  int timer;          // saved timer preset in seconds (0 = none)
+  String comment;     // per-exercise comment / note
 
   TrainingPlanRow({
     this.exercise = '',
@@ -19,6 +21,8 @@ class TrainingPlanRow {
     List<String>? dates,
     this.liked = false,
     this.disliked = false,
+    this.timer = 0,
+    this.comment = '',
   }) : dates = dates ?? List.filled(8, '');
 
   factory TrainingPlanRow.fromJson(Map<String, dynamic> json) {
@@ -33,7 +37,16 @@ class TrainingPlanRow {
           : List.filled(8, ''),
       liked: json['liked'] == true || json['liked'] == 1 || json['liked'] == '1',
       disliked: json['disliked'] == true || json['disliked'] == 1 || json['disliked'] == '1',
+      timer: _parseInt(json['timer']),
+      comment: json['comment']?.toString() ?? '',
     );
+  }
+
+  static int _parseInt(dynamic v) {
+    if (v == null) return 0;
+    if (v is int) return v;
+    if (v is String) return int.tryParse(v) ?? 0;
+    return 0;
   }
 
   Map<String, dynamic> toJson() => {
@@ -45,6 +58,8 @@ class TrainingPlanRow {
         'dates': dates,
         if (liked) 'liked': true,
         if (disliked) 'disliked': true,
+        if (timer > 0) 'timer': timer,
+        if (comment.isNotEmpty) 'comment': comment,
       };
 }
 

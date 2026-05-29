@@ -125,6 +125,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
         TextEditingController(),  // sets
       ]);
       s.dateCtrls.add(List.generate(8, (_) => TextEditingController()));
+      s.commentCtrls.add(TextEditingController());
       s.liked.add(false);
       s.disliked.add(false);
       s.timeSettings.add(0);
@@ -163,6 +164,8 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
         s.rowCtrls.removeAt(index);
         for (final c in s.dateCtrls[index]) c.dispose();
         s.dateCtrls.removeAt(index);
+        s.commentCtrls[index].dispose();
+        s.commentCtrls.removeAt(index);
         s.liked.removeAt(index);
         s.disliked.removeAt(index);
         s.timeSettings.removeAt(index);
@@ -193,7 +196,15 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
 
   void _selectExerciseTime(String prefix, int index, int seconds) {
     final s = _s(prefix);
+    // If tapping the same already-saved preset → clear it (delete saved timer)
+    if (s.timeSettings[index] == seconds) {
+      s.timeSettings[index] = 0;
+      _timer.switchToStopwatch();
+      _markDirty();
+      return;
+    }
     s.timeSettings[index] = seconds;
+    _markDirty();
     final name = s.rowCtrls[index][0].text.isNotEmpty
         ? s.rowCtrls[index][0].text
         : 'Übung ${index + 1}';
@@ -280,6 +291,8 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
             dates:    List.generate(8, (j) => s.dateCtrls[i][j].text),
             liked:    s.liked[i],
             disliked: s.disliked[i],
+            timer:    s.timeSettings[i],
+            comment:  s.commentCtrls[i].text,
           ));
     }
 
@@ -642,6 +655,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
             ctrls:       s.rowCtrls[i],
             dateCtrls:   s.dateCtrls[i],
             dateLabels:  _dateCtrls.map((c) => c.text).toList(),
+            commentCtrl: s.commentCtrls[i],
             accentColor: section.color,
             isLiked:     s.liked[i],
             isDisliked:  s.disliked[i],
@@ -714,6 +728,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
 class _SectionData {
   final List<List<TextEditingController>> rowCtrls;
   final List<List<TextEditingController>> dateCtrls;
+  final List<TextEditingController> commentCtrls;
   final List<bool> liked;
   final List<bool> disliked;
   final List<int> timeSettings;
@@ -721,6 +736,7 @@ class _SectionData {
   _SectionData({
     required this.rowCtrls,
     required this.dateCtrls,
+    required this.commentCtrls,
     required this.liked,
     required this.disliked,
     required this.timeSettings,
@@ -738,9 +754,10 @@ class _SectionData {
       dateCtrls: rows.map((r) =>
         List.generate(8, (i) => TextEditingController(text: r.dates[i])),
       ).toList(),
+      commentCtrls: rows.map((r) => TextEditingController(text: r.comment)).toList(),
       liked: rows.map((r) => r.liked).toList(),
       disliked: rows.map((r) => r.disliked).toList(),
-      timeSettings: List.filled(rows.length, 0),
+      timeSettings: rows.map((r) => r.timer).toList(),
     );
   }
 
@@ -751,6 +768,7 @@ class _SectionData {
     for (final row in dateCtrls) {
       for (final c in row) c.dispose();
     }
+    for (final c in commentCtrls) c.dispose();
   }
 }
 
@@ -773,6 +791,7 @@ class _ExerciseTile extends StatelessWidget {
   final List<TextEditingController> ctrls;
   final List<TextEditingController> dateCtrls;
   final List<String> dateLabels;
+  final TextEditingController commentCtrl;
   final Color accentColor;
   final bool isLiked;
   final bool isDisliked;
@@ -793,6 +812,7 @@ class _ExerciseTile extends StatelessWidget {
     required this.ctrls,
     required this.dateCtrls,
     required this.dateLabels,
+    required this.commentCtrl,
     required this.accentColor,
     required this.isLiked,
     required this.isDisliked,
@@ -901,16 +921,34 @@ class _ExerciseTile extends StatelessWidget {
                           ),
                         ),
                         if (!isExpanded &&
-                            (ctrls[1].text.isNotEmpty || ctrls[2].text.isNotEmpty || ctrls[4].text.isNotEmpty)) ...[
+                            (ctrls[1].text.isNotEmpty || ctrls[2].text.isNotEmpty || ctrls[4].text.isNotEmpty || commentCtrl.text.isNotEmpty)) ...[
                           const SizedBox(height: 2),
-                          Text(
-                            [ctrls[1].text, ctrls[2].text, if (ctrls[4].text.isNotEmpty) ctrls[4].text]
-                                .where((s) => s.isNotEmpty)
-                                .join('  ·  '),
-                            style: GoogleFonts.openSans(
-                                color: AppColors.muted, fontSize: 11),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          Row(
+                            children: [
+                              if (timeSetting > 0) ...[
+                                Icon(Icons.timer_outlined, size: 10, color: AppColors.primary.withAlpha(153)),
+                                Text(' ${timeSetting}s',
+                                    style: GoogleFonts.openSans(
+                                        color: AppColors.primary.withAlpha(153), fontSize: 10, fontWeight: FontWeight.w600)),
+                                if (ctrls[1].text.isNotEmpty || ctrls[2].text.isNotEmpty || commentCtrl.text.isNotEmpty)
+                                  Text('  ·  ', style: GoogleFonts.openSans(color: AppColors.muted, fontSize: 11)),
+                              ],
+                              if (commentCtrl.text.isNotEmpty) ...[
+                                Icon(Icons.notes_rounded, size: 10, color: accentColor.withAlpha(153)),
+                                const SizedBox(width: 2),
+                              ],
+                              Expanded(
+                                child: Text(
+                                  [ctrls[1].text, ctrls[2].text, if (ctrls[4].text.isNotEmpty) ctrls[4].text]
+                                      .where((s) => s.isNotEmpty)
+                                      .join('  ·  '),
+                                  style: GoogleFonts.openSans(
+                                      color: AppColors.muted, fontSize: 11),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ],
@@ -1025,32 +1063,52 @@ class _ExerciseTile extends StatelessWidget {
                   const SizedBox(height: 14),
 
                   // Timer presets
-                  Text('TIMER',
-                      style: GoogleFonts.openSans(
-                          color: AppColors.muted.withAlpha(153),
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.5)),
+                  Row(
+                    children: [
+                      Text('TIMER',
+                          style: GoogleFonts.openSans(
+                              color: AppColors.muted.withAlpha(153),
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.5)),
+                      if (timeSetting > 0) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withAlpha(31),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text('${timeSetting}s gespeichert',
+                              style: GoogleFonts.openSans(
+                                  color: AppColors.primary, fontSize: 8, fontWeight: FontWeight.w700)),
+                        ),
+                      ],
+                    ],
+                  ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
                       _TimerPresetChip(
                         label: '30s',
-                        isActive: timeSetting == 30 && isTimerTarget,
+                        isActive: timeSetting == 30,
+                        isSaved: timeSetting == 30,
                         accentColor: accentColor,
                         onTap: () => onTimeSelect(30),
                       ),
                       const SizedBox(width: 6),
                       _TimerPresetChip(
                         label: '45s',
-                        isActive: timeSetting == 45 && isTimerTarget,
+                        isActive: timeSetting == 45,
+                        isSaved: timeSetting == 45,
                         accentColor: accentColor,
                         onTap: () => onTimeSelect(45),
                       ),
                       const SizedBox(width: 6),
                       _TimerPresetChip(
                         label: '60s',
-                        isActive: timeSetting == 60 && isTimerTarget,
+                        isActive: timeSetting == 60,
+                        isSaved: timeSetting == 60,
                         accentColor: accentColor,
                         onTap: () => onTimeSelect(60),
                       ),
@@ -1059,12 +1117,56 @@ class _ExerciseTile extends StatelessWidget {
                         label: timeSetting > 0 && timeSetting != 30 && timeSetting != 45 && timeSetting != 60
                             ? '${timeSetting}s'
                             : 'Eigene',
-                        isActive: timeSetting > 0 && timeSetting != 30 && timeSetting != 45 && timeSetting != 60 && isTimerTarget,
+                        isActive: timeSetting > 0 && timeSetting != 30 && timeSetting != 45 && timeSetting != 60,
+                        isSaved: timeSetting > 0 && timeSetting != 30 && timeSetting != 45 && timeSetting != 60,
                         accentColor: accentColor,
                         onTap: onManualTime,
                         icon: Icons.edit_outlined,
                       ),
                     ],
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  // Per-exercise comment
+                  Text('KOMMENTAR',
+                      style: GoogleFonts.openSans(
+                          color: AppColors.muted.withAlpha(153),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.5)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: commentCtrl,
+                    onChanged: (_) => onFieldChanged(),
+                    maxLines: 3,
+                    minLines: 1,
+                    style: GoogleFonts.openSans(color: AppColors.text, fontSize: 12, height: 1.4),
+                    decoration: InputDecoration(
+                      hintText: 'Notiz zur Übung...',
+                      hintStyle: GoogleFonts.openSans(
+                          color: AppColors.muted.withAlpha(77), fontSize: 12),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      filled: true,
+                      fillColor: AppColors.surface2,
+                      prefixIcon: Padding(
+                        padding: const EdgeInsets.only(left: 10, right: 6),
+                        child: Icon(Icons.notes_rounded, size: 16,
+                            color: commentCtrl.text.isNotEmpty ? accentColor : AppColors.muted.withAlpha(102)),
+                      ),
+                      prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: commentCtrl.text.isNotEmpty
+                              ? BorderSide(color: accentColor.withAlpha(51), width: 0.5)
+                              : BorderSide.none),
+                      focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: accentColor, width: 1)),
+                      isDense: true,
+                    ),
                   ),
 
                   const SizedBox(height: 14),
@@ -1219,6 +1321,7 @@ class _ActionChip extends StatelessWidget {
 class _TimerPresetChip extends StatelessWidget {
   final String label;
   final bool isActive;
+  final bool isSaved;
   final Color accentColor;
   final VoidCallback onTap;
   final IconData? icon;
@@ -1228,6 +1331,7 @@ class _TimerPresetChip extends StatelessWidget {
     required this.isActive,
     required this.accentColor,
     required this.onTap,
+    this.isSaved = false,
     this.icon,
   });
 
@@ -1247,7 +1351,11 @@ class _TimerPresetChip extends StatelessWidget {
           ),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          if (icon != null) ...[
+          if (isSaved && !isActive) ...[
+            Icon(Icons.check_circle, size: 11, color: AppColors.primary.withAlpha(153)),
+            const SizedBox(width: 4),
+          ],
+          if (icon != null && !isSaved) ...[
             Icon(icon, size: 12, color: isActive ? accentColor : AppColors.muted),
             const SizedBox(width: 4),
           ],
@@ -1256,6 +1364,10 @@ class _TimerPresetChip extends StatelessWidget {
                   color: isActive ? accentColor : AppColors.muted,
                   fontSize: 11,
                   fontWeight: FontWeight.w600)),
+          if (isActive) ...[
+            const SizedBox(width: 4),
+            Icon(Icons.close, size: 10, color: accentColor.withAlpha(153)),
+          ],
         ]),
       ),
     );
