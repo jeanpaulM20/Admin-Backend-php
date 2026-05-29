@@ -5,9 +5,9 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as crypto from 'crypto';
-import { GarminConnection } from '../entities/garmin-connection.entity';
-import { GarminActivity } from '../entities/garmin-activity.entity';
-import { GarminDailySummary } from '../entities/garmin-daily-summary.entity';
+import { GarminConnection } from './entities/garmin-connection.entity';
+import { GarminActivity } from './entities/garmin-activity.entity';
+import { GarminDailySummary } from './entities/garmin-daily-summary.entity';
 
 // ── OAuth 1.0a helpers ─────────────────────────────────────────────
 // Garmin uses OAuth 1.0a with HMAC-SHA1 signed requests.
