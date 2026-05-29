@@ -131,15 +131,18 @@ export class ExerciseIconService {
         n: 1,
         size: '1024x1024',
         quality: 'standard',
-        response_format: 'b64_json',
       });
 
-      const b64 = response.data?.[0]?.b64_json;
-      if (!b64) {
-        this.logger.warn(`No image data returned for exercise ${exerciseId}`);
+      const imageUrl = response.data?.[0]?.url;
+      if (!imageUrl) {
+        this.logger.warn(`No image URL returned for exercise ${exerciseId}`);
         return null;
       }
 
+      // Download the image from OpenAI's temporary URL
+      const imageResponse = await fetch(imageUrl);
+      const arrayBuffer = await imageResponse.arrayBuffer();
+      const b64 = Buffer.from(arrayBuffer).toString('base64');
       // Save as PNG
       const filePath = path.join(this.iconsDir, `${exerciseId}.png`);
       fs.writeFileSync(filePath, Buffer.from(b64, 'base64'));
