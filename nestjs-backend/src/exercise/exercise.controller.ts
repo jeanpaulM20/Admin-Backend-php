@@ -1,11 +1,15 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, ParseIntPipe, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, ParseIntPipe, BadRequestException } from '@nestjs/common';
 import { ExerciseService } from './exercise.service';
+import { ExerciseIconService } from './exercise-icon.service';
 import { Exercise } from '../entities/exercise.entity';
 import { Public } from '../auth/decorators/public.decorator';
 
 @Controller('api/exercise')
 export class ExerciseController {
-  constructor(private readonly service: ExerciseService) {}
+  constructor(
+    private readonly service: ExerciseService,
+    private readonly iconService: ExerciseIconService,
+  ) {}
 
   @Get('groups')
   findGroups() {
@@ -35,6 +39,45 @@ export class ExerciseController {
     return this.service.seed();
   }
 
+  // ── Icon generation endpoints ─────────────────────────────────────────
+
+  /** GET /api/exercise/icons/status — how many exercises have icons */
+  @Get('icons/status')
+  iconStatus() {
+    return this.iconService.getStatus();
+  }
+
+  /** POST /api/exercise/icons/batch — generate missing icons (limit=50, delayMs=2000) */
+  @Post('icons/batch')
+  generateBatch(
+    @Query('limit') limit?: string,
+    @Query('delay') delay?: string,
+  ) {
+    return this.iconService.generateMissing({
+      limit: limit ? parseInt(limit, 10) : 50,
+      delayMs: delay ? parseInt(delay, 10) : 2000,
+    });
+  }
+
+  /** POST /api/exercise/:id/icon — generate or regenerate icon for one exercise */
+  @Post(':id/icon')
+  async generateIcon(@Param('id', ParseIntPipe) id: number) {
+    // Delete existing icon first (for regeneration)
+    this.iconService.deleteIcon(id);
+    const url = await this.iconService.generateIcon(id);
+    if (!url) throw new BadRequestException('Icon-Generierung fehlgeschlagen');
+    return { url, exerciseId: id };
+  }
+
+  /** DELETE /api/exercise/:id/icon — delete an icon */
+  @Delete(':id/icon')
+  deleteIcon(@Param('id', ParseIntPipe) id: number) {
+    const deleted = this.iconService.deleteIcon(id);
+    return { deleted, exerciseId: id };
+  }
+
+  // ── CRUD endpoints ──────────────────────────────────────────────────────
+
   @Get()
   findAll() {
     return this.service.findAll();
@@ -46,8 +89,13 @@ export class ExerciseController {
   }
 
   @Post()
-  create(@Body() body: Partial<Exercise>) {
-    return this.service.create(body);
+  async create(@Body() body: Partial<Exercise>) {
+    const exercise = await this.service.create(body);
+    // Auto-generate icon in background (don't block the response)
+    if (exercise?.id) {
+      this.iconService.generateIcon(exercise.id).catch(() => {});
+    }
+    return exercise;
   }
 
   @Put(':id')
