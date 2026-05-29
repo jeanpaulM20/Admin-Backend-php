@@ -16,6 +16,17 @@ export class StartupMigrationService implements OnApplicationBootstrap {
     // Skip for SQLite (synchronize handles it)
     if (this.dataSource.options.type === 'better-sqlite3') return;
 
+    // Run all migrations in background so the app can start serving
+    // immediately — Railway healthcheck needs /api/health to respond
+    // before the 5-minute timeout. Heavy operations (old DB sync, dedup)
+    // must NOT block app.listen().
+    this.runMigrations().catch((err) =>
+      this.logger.error(`Background migration failed: ${err.message}`, err.stack),
+    );
+  }
+
+  private async runMigrations() {
+
     const migrations: string[] = [
       `ALTER TABLE client ADD COLUMN auto_training_notify TINYINT(1) NOT NULL DEFAULT 0`,
       `ALTER TABLE feedback ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP`,
