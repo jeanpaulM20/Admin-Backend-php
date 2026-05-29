@@ -58,6 +58,8 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       `ALTER TABLE training_plan_comment ADD COLUMN exercise_key VARCHAR(10) DEFAULT NULL`,
       // Composite index for comment-counts GROUP BY query
       `ALTER TABLE training_plan_comment ADD INDEX idx_tpc_plan_exercise (plan_id, exercise_key)`,
+      // AI-generated exercise icon (PNG stored as BLOB)
+      `ALTER TABLE exercise ADD COLUMN icon LONGBLOB DEFAULT NULL`,
     ];
 
     // Create training_plan_comment table if not exists

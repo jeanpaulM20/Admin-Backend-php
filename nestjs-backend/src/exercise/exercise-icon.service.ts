@@ -1,10 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull, Not } from 'typeorm';
 import { Exercise } from '../entities/exercise.entity';
 import OpenAI from 'openai';
-import * as fs from 'fs';
-import * as path from 'path';
 
 // ── Prompt building ──────────────────────────────────────────────────────────
 
@@ -29,7 +27,6 @@ function buildPrompt(exercise: Exercise): string {
   const groupName = (exercise as any).group?.name || '';
   const groupHint = GROUP_HINTS[groupName] || '';
 
-  // Extract the German description in parentheses if present
   const parenMatch = name.match(/\(([^)]+)\)/);
   const description = parenMatch ? parenMatch[1] : '';
 
@@ -50,7 +47,6 @@ function buildPrompt(exercise: Exercise): string {
 export class ExerciseIconService {
   private readonly logger = new Logger(ExerciseIconService.name);
   private readonly openai: OpenAI | null;
-  private readonly iconsDir: string;
 
   constructor(
     @InjectRepository(Exercise)
@@ -59,12 +55,6 @@ export class ExerciseIconService {
     const apiKey = process.env.OPENAI_API_KEY;
     this.openai = apiKey ? new OpenAI({ apiKey }) : null;
 
-    // Icons stored in public/exercise-icons/ → served at /exercise-icons/
-    this.iconsDir = path.join(__dirname, '..', 'public', 'exercise-icons');
-    if (!fs.existsSync(this.iconsDir)) {
-      fs.mkdirSync(this.iconsDir, { recursive: true });
-    }
-
     if (!this.openai) {
       this.logger.warn('OPENAI_API_KEY not set — icon generation disabled');
     }
@@ -72,12 +62,28 @@ export class ExerciseIconService {
 
   /** Get the public URL path for an exercise icon */
   iconUrl(exerciseId: number): string {
-    return `/exercise-icons/${exerciseId}.png`;
+    return `/api/exercise/${exerciseId}/icon.png`;
   }
 
-  /** Check if an icon already exists on disk */
-  iconExists(exerciseId: number): boolean {
-    return fs.existsSync(path.join(this.iconsDir, `${exerciseId}.png`));
+  /** Check if an exercise has an icon in the DB */
+  async iconExists(exerciseId: number): Promise<boolean> {
+    const row = await this.exerciseRepo
+      .createQueryBuilder('e')
+      .select('1')
+      .where('e.id = :id', { id: exerciseId })
+      .andWhere('e.icon IS NOT NULL')
+      .getRawOne();
+    return !!row;
+  }
+
+  /** Get the icon binary from DB (for serving) */
+  async getIconBuffer(exerciseId: number): Promise<Buffer | null> {
+    const row = await this.exerciseRepo
+      .createQueryBuilder('e')
+      .select('e.icon', 'icon')
+      .where('e.id = :id', { id: exerciseId })
+      .getRawOne();
+    return row?.icon ?? null;
   }
 
   /** Get status: which exercises have icons, which don't */
@@ -88,22 +94,29 @@ export class ExerciseIconService {
     configured: boolean;
     missing: { id: number; name: string }[];
   }> {
-    const exercises = await this.exerciseRepo.find({ select: ['id', 'name'] });
-    const withIcon = exercises.filter((e) => this.iconExists(e.id));
-    const withoutIcon = exercises.filter((e) => !this.iconExists(e.id));
+    const total = await this.exerciseRepo.count();
+    const withIcon = await this.exerciseRepo
+      .createQueryBuilder('e')
+      .where('e.icon IS NOT NULL')
+      .getCount();
+    const missing = await this.exerciseRepo
+      .createQueryBuilder('e')
+      .select(['e.id', 'e.name'])
+      .where('e.icon IS NULL')
+      .orderBy('e.id', 'ASC')
+      .getMany();
 
     return {
-      total: exercises.length,
-      withIcon: withIcon.length,
-      withoutIcon: withoutIcon.length,
+      total,
+      withIcon,
+      withoutIcon: total - withIcon,
       configured: !!this.openai,
-      missing: withoutIcon.map((e) => ({ id: e.id, name: e.name })),
+      missing: missing.map((e) => ({ id: e.id, name: e.name })),
     };
   }
 
   /**
-   * Generate an icon for a single exercise via DALL-E 3.
-   * Returns the public URL path on success, null on failure.
+   * Generate an icon for a single exercise via OpenAI and save to DB.
    */
   async generateIcon(exerciseId: number): Promise<string | null> {
     if (!this.openai) {
@@ -122,7 +135,6 @@ export class ExerciseIconService {
 
     const prompt = buildPrompt(exercise);
     this.logger.log(`Generating icon for "${exercise.name}" (id=${exerciseId})`);
-    this.logger.debug(`Prompt: ${prompt.substring(0, 120)}...`);
 
     try {
       const response = await this.openai.images.generate({
@@ -137,10 +149,8 @@ export class ExerciseIconService {
       let imageBuffer: Buffer;
 
       if (item?.b64_json) {
-        // gpt-image-1 returns base64 directly
         imageBuffer = Buffer.from(item.b64_json, 'base64');
       } else if (item?.url) {
-        // DALL-E models return a temporary URL
         const dl = await fetch(item.url);
         imageBuffer = Buffer.from(await dl.arrayBuffer());
       } else {
@@ -148,26 +158,25 @@ export class ExerciseIconService {
         return null;
       }
 
-      // Save as PNG
-      const filePath = path.join(this.iconsDir, `${exerciseId}.png`);
-      fs.writeFileSync(filePath, imageBuffer);
+      // Save to DB
+      await this.exerciseRepo
+        .createQueryBuilder()
+        .update(Exercise)
+        .set({ icon: imageBuffer } as any)
+        .where('id = :id', { id: exerciseId })
+        .execute();
 
-      this.logger.log(`Icon saved: ${filePath}`);
+      this.logger.log(`Icon saved to DB for "${exercise.name}" (${imageBuffer.length} bytes)`);
       return this.iconUrl(exerciseId);
     } catch (err: any) {
       const detail = err?.error?.message || err?.message || String(err);
-      this.logger.error(
-        `Failed to generate icon for "${exercise.name}": ${detail}`,
-      );
-      // Throw so controller can return the actual error
+      this.logger.error(`Failed to generate icon for "${exercise.name}": ${detail}`);
       throw new Error(detail);
     }
   }
 
   /**
    * Batch generate icons for all exercises that don't have one yet.
-   * Runs with a delay between requests to avoid rate limiting.
-   * Returns progress info.
    */
   async generateMissing(options?: {
     limit?: number;
@@ -179,25 +188,24 @@ export class ExerciseIconService {
     results: { id: number; name: string; status: string; url?: string }[];
   }> {
     const limit = options?.limit ?? 50;
-    const delayMs = options?.delayMs ?? 2000;
+    const delayMs = options?.delayMs ?? 15000; // 15s default (safe for 5 req/min rate limit)
 
-    const exercises = await this.exerciseRepo.find({
-      relations: ['group'],
-      order: { id: 'ASC' },
-    });
+    const missing = await this.exerciseRepo
+      .createQueryBuilder('e')
+      .select(['e.id', 'e.name'])
+      .where('e.icon IS NULL')
+      .orderBy('e.id', 'ASC')
+      .take(limit)
+      .getMany();
 
-    const missing = exercises.filter((e) => !this.iconExists(e.id));
-    const batch = missing.slice(0, limit);
-
-    this.logger.log(
-      `Batch generating: ${batch.length} of ${missing.length} missing icons (limit=${limit})`,
-    );
+    this.logger.log(`Batch generating: ${missing.length} icons (limit=${limit}, delay=${delayMs}ms)`);
 
     const results: { id: number; name: string; status: string; url?: string }[] = [];
     let generated = 0;
     let failed = 0;
 
-    for (const exercise of batch) {
+    for (let i = 0; i < missing.length; i++) {
+      const exercise = missing[i];
       try {
         const url = await this.generateIcon(exercise.id);
         if (url) {
@@ -208,31 +216,27 @@ export class ExerciseIconService {
           failed++;
         }
       } catch (err: any) {
-        results.push({ id: exercise.id, name: exercise.name, status: 'error' });
+        results.push({ id: exercise.id, name: exercise.name, status: `error: ${err.message?.substring(0, 100)}` });
         failed++;
       }
 
-      // Rate limit delay (DALL-E 3: 5 req/min on free tier)
-      if (batch.indexOf(exercise) < batch.length - 1) {
+      // Rate limit delay between requests
+      if (i < missing.length - 1) {
         await new Promise((r) => setTimeout(r, delayMs));
       }
     }
 
-    return {
-      generated,
-      failed,
-      skipped: missing.length - batch.length,
-      results,
-    };
+    return { generated, failed, skipped: 0, results };
   }
 
-  /** Delete an icon (for regeneration) */
-  deleteIcon(exerciseId: number): boolean {
-    const filePath = path.join(this.iconsDir, `${exerciseId}.png`);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      return true;
-    }
-    return false;
+  /** Delete an icon from DB (for regeneration) */
+  async deleteIcon(exerciseId: number): Promise<boolean> {
+    const result = await this.exerciseRepo
+      .createQueryBuilder()
+      .update(Exercise)
+      .set({ icon: null } as any)
+      .where('id = :id', { id: exerciseId })
+      .execute();
+    return (result.affected ?? 0) > 0;
   }
 }

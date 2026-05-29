@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, ParseIntPipe, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, Res, ParseIntPipe, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Response } from 'express';
 import { ExerciseService } from './exercise.service';
 import { ExerciseIconService } from './exercise-icon.service';
 import { Exercise } from '../entities/exercise.entity';
@@ -59,10 +60,26 @@ export class ExerciseController {
     });
   }
 
-  /** POST /api/exercise/:id/icon — generate or regenerate icon for one exercise */
+  /** GET /api/exercise/:id/icon.png — serve the icon as PNG image */
+  @Public()
+  @Get(':id/icon.png')
+  async serveIcon(
+    @Param('id', ParseIntPipe) id: number,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.iconService.getIconBuffer(id);
+    if (!buffer) throw new NotFoundException('Icon nicht vorhanden');
+    res.set({
+      'Content-Type': 'image/png',
+      'Cache-Control': 'public, max-age=86400',
+    });
+    res.send(buffer);
+  }
+
+  /** POST /api/exercise/:id/icon — generate or regenerate icon */
   @Post(':id/icon')
   async generateIcon(@Param('id', ParseIntPipe) id: number) {
-    this.iconService.deleteIcon(id);
+    await this.iconService.deleteIcon(id);
     try {
       const url = await this.iconService.generateIcon(id);
       if (!url) throw new BadRequestException('Icon-Generierung fehlgeschlagen');
@@ -74,8 +91,8 @@ export class ExerciseController {
 
   /** DELETE /api/exercise/:id/icon — delete an icon */
   @Delete(':id/icon')
-  deleteIcon(@Param('id', ParseIntPipe) id: number) {
-    const deleted = this.iconService.deleteIcon(id);
+  async deleteIcon(@Param('id', ParseIntPipe) id: number) {
+    const deleted = await this.iconService.deleteIcon(id);
     return { deleted, exerciseId: id };
   }
 

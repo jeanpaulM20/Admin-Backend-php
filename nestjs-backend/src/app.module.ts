@@ -63,11 +63,6 @@ const dbConfig: any = isSqlite
         serveRoot: '/st',
         serveStaticOptions: { index: ['index.html'] },
       },
-      {
-        rootPath: join(__dirname, 'public', 'exercise-icons'),
-        serveRoot: '/exercise-icons',
-        serveStaticOptions: { index: false },
-      },
     ),
     AuthModule,
     TrainerModule,

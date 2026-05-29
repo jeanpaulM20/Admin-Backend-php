@@ -41,6 +41,10 @@ export class Exercise {
   @Column({ name: 'movement_pattern', nullable: true })
   movementPattern: string;
 
+  /** AI-generated line-art icon (PNG binary, stored as LONGBLOB) */
+  @Column({ type: 'longblob', nullable: true, select: false })
+  icon: Buffer | null;
+
   @ManyToOne(() => Exercisegroup, (g) => g.exercises)
   @JoinColumn({ name: 'group_id' })
   group: Exercisegroup;
