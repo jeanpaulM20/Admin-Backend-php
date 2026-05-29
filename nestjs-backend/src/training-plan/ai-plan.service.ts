@@ -154,8 +154,8 @@ export class AiPlanService {
       anthropicConfigured: !!this.anthropic,
       env: {
         AI_PROVIDER: process.env.AI_PROVIDER ?? '(not set)',
-        GROQ_API_KEY: process.env.GROQ_API_KEY ? `set (${process.env.GROQ_API_KEY.substring(0, 10)}...)` : '(not set)',
-        ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ? `set (${process.env.ANTHROPIC_API_KEY.substring(0, 15)}...)` : '(not set)',
+        GROQ_API_KEY: process.env.GROQ_API_KEY ? 'configured' : '(not set)',
+        ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ? 'configured' : '(not set)',
       },
     };
 

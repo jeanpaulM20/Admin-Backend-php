@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { TrainingPlan } from '../entities/training-plan.entity';
@@ -95,9 +95,12 @@ export class TrainingPlanService {
     return this.commentRepo.save(comment as any);
   }
 
-  async removeComment(commentId: number): Promise<void> {
+  async removeComment(commentId: number, requestingTrainerId?: number): Promise<void> {
     const comment = await this.commentRepo.findOne({ where: { id: commentId } });
     if (!comment) throw new NotFoundException(`Comment ${commentId} not found`);
+    if (comment.trainerId && requestingTrainerId && comment.trainerId !== requestingTrainerId) {
+      throw new ForbiddenException('Nur eigene Kommentare können gelöscht werden');
+    }
     await this.commentRepo.remove(comment);
   }
 

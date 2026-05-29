@@ -195,7 +195,10 @@ export class TrainingPlanController {
 
   /** DELETE /api/training-plan/comments/:commentId — delete a comment */
   @Delete('comments/:commentId')
-  removeComment(@Param('commentId', ParseIntPipe) commentId: number) {
-    return this.service.removeComment(commentId);
+  removeComment(
+    @Param('commentId', ParseIntPipe) commentId: number,
+    @CurrentTrainer() trainer: Trainer,
+  ) {
+    return this.service.removeComment(commentId, trainer?.id);
   }
 }

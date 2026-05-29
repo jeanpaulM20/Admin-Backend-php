@@ -56,6 +56,8 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       `ALTER TABLE invoice ADD COLUMN payment_method VARCHAR(50) DEFAULT NULL`,
       // Per-exercise comment key on training_plan_comment
       `ALTER TABLE training_plan_comment ADD COLUMN exercise_key VARCHAR(10) DEFAULT NULL`,
+      // Composite index for comment-counts GROUP BY query
+      `ALTER TABLE training_plan_comment ADD INDEX idx_tpc_plan_exercise (plan_id, exercise_key)`,
     ];
 
     // Create training_plan_comment table if not exists
@@ -65,10 +67,12 @@ export class StartupMigrationService implements OnApplicationBootstrap {
           id INT AUTO_INCREMENT PRIMARY KEY,
           plan_id INT NOT NULL,
           trainer_id INT DEFAULT NULL,
+          exercise_key VARCHAR(10) DEFAULT NULL,
           text TEXT NOT NULL,
           author_name VARCHAR(100) DEFAULT NULL,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           INDEX idx_tpc_plan (plan_id),
+          INDEX idx_tpc_plan_exercise (plan_id, exercise_key),
           CONSTRAINT fk_tpc_plan FOREIGN KEY (plan_id) REFERENCES trainingplan(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);
