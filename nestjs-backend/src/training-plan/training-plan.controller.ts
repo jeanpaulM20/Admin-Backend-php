@@ -22,6 +22,12 @@ export class TrainingPlanController {
     return this.aiService.getProviderStatus(test === 'true');
   }
 
+  /** Temporary deploy check — remove after verifying */
+  @Get('version')
+  getVersion() {
+    return { version: 'd6f2fa4-v2', routes: ['comment-counts', 'comments'], ts: new Date().toISOString() };
+  }
+
   @Get()
   findAll(@CurrentClient() client: Client, @Query('client_id') clientId?: number) {
     return this.service.findAll(client?.id ?? clientId);
