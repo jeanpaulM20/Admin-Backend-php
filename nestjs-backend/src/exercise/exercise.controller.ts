@@ -62,11 +62,14 @@ export class ExerciseController {
   /** POST /api/exercise/:id/icon — generate or regenerate icon for one exercise */
   @Post(':id/icon')
   async generateIcon(@Param('id', ParseIntPipe) id: number) {
-    // Delete existing icon first (for regeneration)
     this.iconService.deleteIcon(id);
-    const url = await this.iconService.generateIcon(id);
-    if (!url) throw new BadRequestException('Icon-Generierung fehlgeschlagen');
-    return { url, exerciseId: id };
+    try {
+      const url = await this.iconService.generateIcon(id);
+      if (!url) throw new BadRequestException('Icon-Generierung fehlgeschlagen');
+      return { url, exerciseId: id };
+    } catch (err: any) {
+      throw new BadRequestException(`Icon-Generierung fehlgeschlagen: ${err.message}`);
+    }
   }
 
   /** DELETE /api/exercise/:id/icon — delete an icon */

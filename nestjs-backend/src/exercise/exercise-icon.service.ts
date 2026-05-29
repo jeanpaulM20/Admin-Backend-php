@@ -147,10 +147,12 @@ export class ExerciseIconService {
       this.logger.log(`Icon saved: ${filePath}`);
       return this.iconUrl(exerciseId);
     } catch (err: any) {
+      const detail = err?.error?.message || err?.message || String(err);
       this.logger.error(
-        `Failed to generate icon for "${exercise.name}": ${err.message}`,
+        `Failed to generate icon for "${exercise.name}": ${detail}`,
       );
-      return null;
+      // Throw so controller can return the actual error
+      throw new Error(detail);
     }
   }
 
