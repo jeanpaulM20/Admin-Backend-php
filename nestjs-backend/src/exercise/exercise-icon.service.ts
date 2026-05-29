@@ -133,19 +133,24 @@ export class ExerciseIconService {
         quality: 'low',
       } as any);
 
-      const imageUrl = response.data?.[0]?.url;
-      if (!imageUrl) {
-        this.logger.warn(`No image URL returned for exercise ${exerciseId}`);
+      const item = response.data?.[0] as any;
+      let imageBuffer: Buffer;
+
+      if (item?.b64_json) {
+        // gpt-image-1 returns base64 directly
+        imageBuffer = Buffer.from(item.b64_json, 'base64');
+      } else if (item?.url) {
+        // DALL-E models return a temporary URL
+        const dl = await fetch(item.url);
+        imageBuffer = Buffer.from(await dl.arrayBuffer());
+      } else {
+        this.logger.warn(`No image data returned for exercise ${exerciseId}`);
         return null;
       }
 
-      // Download the image from OpenAI's temporary URL
-      const imageResponse = await fetch(imageUrl);
-      const arrayBuffer = await imageResponse.arrayBuffer();
-      const b64 = Buffer.from(arrayBuffer).toString('base64');
       // Save as PNG
       const filePath = path.join(this.iconsDir, `${exerciseId}.png`);
-      fs.writeFileSync(filePath, Buffer.from(b64, 'base64'));
+      fs.writeFileSync(filePath, imageBuffer);
 
       this.logger.log(`Icon saved: ${filePath}`);
       return this.iconUrl(exerciseId);
