@@ -106230,8 +106230,8 @@ if(s===0){s=A.bC(B.wR,A.t(100,B.j.gi(0)>>>16&255,B.j.gi(0)>>>8&255,B.j.gi(0)&255
 q=A.m("Keine \xdcbungen gefunden",n,n,n,n,A.d9().$3$color$fontSize$fontWeight(B.j,15,B.Z),n,n,n)
 p=o.y.length!==0?"Versuch einen anderen Suchbegriff":"\xc4ndere die Filtereinstellungen"
 return A.a7(A.a([B.OB,s,B.ax,q,B.bL,A.m(p,n,n,n,n,A.al().$2$color$fontSize(A.t(153,B.j.gi(0)>>>16&255,B.j.gi(0)>>>8&255,B.j.gi(0)&255),12),n,n,n),B.bk,o.RM()],t.p),B.k,B.e,B.i)}return A.mp(a,new A.aDm(o,r),s+1,B.WX,n,B.S)},
-ada(a){var s,r,q,p,o=null,n=A.P(10)
-n=A.Dn(n,A.b0Q(A.jO(u.z,"/api/","")+"/api/exercise/"+a.a+"/icon.png",new A.aDj(this,a),B.ua,40,40),B.bH)
+ada(a){var s,r,q,p,o=null,n=A.P(12)
+n=A.Dn(n,A.b0Q(A.jO(u.z,"/api/","")+"/api/exercise/"+a.a+"/icon.png",new A.aDj(this,a),B.ua,52,52),B.bH)
 s=A.m(a.b,1,B.ak,o,o,A.al().$3$color$fontSize$fontWeight(B.I,14,B.Z),o,o,o)
 r=a.x
 r=r==null?o:r.b
@@ -106550,8 +106550,8 @@ $S:0}
 A.aDj.prototype={
 $3(a,b,c){var s,r=null,q=this.a,p=this.b.e,o=q.JW(p)
 o=A.t(30,o.gi(0)>>>16&255,o.gi(0)>>>8&255,o.gi(0)&255)
-s=A.P(10)
-return A.a2(r,A.bC(q.WG(p),q.JW(p),r,20),B.l,r,r,new A.a1(o,r,r,s,r,r,B.q),r,40,r,r,r,r,r,40)},
+s=A.P(12)
+return A.a2(r,A.bC(q.WG(p),q.JW(p),r,24),B.l,r,r,new A.a1(o,r,r,s,r,r,B.q),r,52,r,r,r,r,r,52)},
 $S:681}
 A.aDk.prototype={
 $1(a){return a!=null&&a.length!==0},
