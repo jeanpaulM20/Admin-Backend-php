@@ -699,6 +699,27 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       }
     }
 
+    // 1b. Delete empty/invalid groups
+    for (const deadGroup of ['Arms', 'Misc']) {
+      try {
+        const [group]: any = await this.dataSource.query(
+          'SELECT id FROM exercise_group WHERE name = ?', [deadGroup],
+        );
+        if (group) {
+          // Move any remaining exercises to null group before deleting
+          await this.dataSource.query(
+            'UPDATE exercise SET group_id = NULL WHERE group_id = ?', [group.id],
+          );
+          await this.dataSource.query(
+            'DELETE FROM exercise_group WHERE id = ?', [group.id],
+          );
+          this.logger.log(`Deleted empty group "${deadGroup}"`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`Delete group "${deadGroup}": ${err.message}`);
+      }
+    }
+
     // 2. Migrate Shoulder, Spine, Legs from groups → body_region
     const groupsToBodyRegion: [string, string][] = [
       ['Shoulder', 'Shoulder'],
