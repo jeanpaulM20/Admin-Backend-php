@@ -462,10 +462,10 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
               borderRadius: BorderRadius.circular(14),
               child: Image.network(
                 '${ApiConfig.baseUrl.replaceAll('/api/', '')}/api/exercise/${ex.id}/icon.png',
-                width: 80, height: 80,
+                width: 100, height: 100,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => Container(
-                  width: 80, height: 80,
+                  width: 100, height: 100,
                   decoration: BoxDecoration(
                     color: _regionColor(ex.bodyRegion).withAlpha(30),
                     borderRadius: BorderRadius.circular(14),

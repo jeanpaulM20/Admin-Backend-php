@@ -106232,7 +106232,7 @@ q=A.m("Keine \xdcbungen gefunden",n,n,n,n,A.d9().$3$color$fontSize$fontWeight(B.
 p=o.y.length!==0?"Versuch einen anderen Suchbegriff":"\xc4ndere die Filtereinstellungen"
 return A.a7(A.a([B.OA,s,B.ax,q,B.bL,A.m(p,n,n,n,n,A.al().$2$color$fontSize(A.t(153,B.j.gi(0)>>>16&255,B.j.gi(0)>>>8&255,B.j.gi(0)&255),12),n,n,n),B.bk,o.RK()],t.p),B.k,B.e,B.i)}return A.mp(a,new A.aDj(o,r),s+1,B.WW,n,B.S)},
 ad8(a){var s,r,q,p,o=null,n=A.P(14)
-n=A.Dm(n,A.b0L(A.jO(u.z,"/api/","")+"/api/exercise/"+a.a+"/icon.png",new A.aDg(this,a),B.u9,80,80),B.bH)
+n=A.Dm(n,A.b0L(A.jO(u.z,"/api/","")+"/api/exercise/"+a.a+"/icon.png",new A.aDg(this,a),B.u9,100,100),B.bH)
 s=A.m(a.b,1,B.ak,o,o,A.al().$3$color$fontSize$fontWeight(B.I,14,B.Z),o,o,o)
 r=a.x
 r=r==null?o:r.b
@@ -106552,7 +106552,7 @@ A.aDg.prototype={
 $3(a,b,c){var s,r=null,q=this.a,p=this.b.e,o=q.JT(p)
 o=A.t(30,o.gi(0)>>>16&255,o.gi(0)>>>8&255,o.gi(0)&255)
 s=A.P(14)
-return A.a2(r,A.bC(q.WE(p),q.JT(p),r,32),B.l,r,r,new A.a1(o,r,r,s,r,r,B.q),r,80,r,r,r,r,r,80)},
+return A.a2(r,A.bC(q.WE(p),q.JT(p),r,32),B.l,r,r,new A.a1(o,r,r,s,r,r,B.q),r,100,r,r,r,r,r,100)},
 $S:681}
 A.aDh.prototype={
 $1(a){return a!=null&&a.length!==0},
