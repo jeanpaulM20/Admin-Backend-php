@@ -457,17 +457,27 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         child: Row(
           children: [
-            // Body region icon
+            // Exercise line-art icon (AI-generated) with fallback
             Container(
               width: 40, height: 40,
               decoration: BoxDecoration(
                 color: _regionColor(ex.bodyRegion).withAlpha(30),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(
-                _regionIcon(ex.bodyRegion),
-                color: _regionColor(ex.bodyRegion),
-                size: 20,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.network(
+                  '${ApiConfig.baseUrl.replaceAll('/api/', '')}/api/exercise/${ex.id}/icon.png',
+                  width: 40, height: 40,
+                  fit: BoxFit.cover,
+                  color: AppColors.text.withAlpha(200),
+                  colorBlendMode: BlendMode.srcIn,
+                  errorBuilder: (_, __, ___) => Icon(
+                    _regionIcon(ex.bodyRegion),
+                    color: _regionColor(ex.bodyRegion),
+                    size: 20,
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 12),
