@@ -458,21 +458,19 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
         child: Row(
           children: [
             // Exercise line-art icon (AI-generated) with fallback
-            Container(
-              width: 40, height: 40,
-              decoration: BoxDecoration(
-                color: _regionColor(ex.bodyRegion).withAlpha(30),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.network(
-                  '${ApiConfig.baseUrl.replaceAll('/api/', '')}/api/exercise/${ex.id}/icon.png',
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.network(
+                '${ApiConfig.baseUrl.replaceAll('/api/', '')}/api/exercise/${ex.id}/icon.png',
+                width: 40, height: 40,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
                   width: 40, height: 40,
-                  fit: BoxFit.cover,
-                  color: AppColors.text.withAlpha(200),
-                  colorBlendMode: BlendMode.srcIn,
-                  errorBuilder: (_, __, ___) => Icon(
+                  decoration: BoxDecoration(
+                    color: _regionColor(ex.bodyRegion).withAlpha(30),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
                     _regionIcon(ex.bodyRegion),
                     color: _regionColor(ex.bodyRegion),
                     size: 20,
