@@ -459,21 +459,21 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
           children: [
             // Exercise line-art icon (AI-generated) with fallback
             ClipRRect(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
               child: Image.network(
                 '${ApiConfig.baseUrl.replaceAll('/api/', '')}/api/exercise/${ex.id}/icon.png',
-                width: 40, height: 40,
+                width: 52, height: 52,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => Container(
-                  width: 40, height: 40,
+                  width: 52, height: 52,
                   decoration: BoxDecoration(
                     color: _regionColor(ex.bodyRegion).withAlpha(30),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     _regionIcon(ex.bodyRegion),
                     color: _regionColor(ex.bodyRegion),
-                    size: 20,
+                    size: 24,
                   ),
                 ),
               ),
