@@ -48,6 +48,12 @@ export class ExerciseController {
     return this.iconService.getStatus();
   }
 
+  /** DELETE /api/exercise/icons/all — delete all icons (for regeneration with new style) */
+  @Delete('icons/all')
+  async deleteAllIcons() {
+    return this.iconService.deleteAllIcons();
+  }
+
   /** POST /api/exercise/icons/batch — generate missing icons (limit=50, delayMs=2000) */
   @Post('icons/batch')
   generateBatch(

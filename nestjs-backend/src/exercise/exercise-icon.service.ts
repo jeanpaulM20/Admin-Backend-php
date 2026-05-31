@@ -4,22 +4,50 @@ import { Repository, IsNull, Not } from 'typeorm';
 import { Exercise } from '../entities/exercise.entity';
 import OpenAI from 'openai';
 
-// ── Prompt building ──────────────────────────────────────────────────────────
+// ── Prompt building (Photorealistic Nike/HYROX performance style) ─────────────
 
-const STYLE_SUFFIX = `drawn with one single unbroken continuous black line on a pure white background, minimalist single line art style, one continuous flowing line varying in thickness, no shading, no fill, no color, no facial features, anatomically proportionate simplified human figure, clean modern illustration, white background`;
+const ATHLETES = [
+  'A highly athletic Black woman',
+  'A highly athletic Caucasian man',
+  'A highly athletic Mediterranean man',
+  'A highly athletic Black man',
+  'A highly athletic Caucasian woman',
+  'A highly athletic East Asian woman',
+];
 
-/** Map exercise group/category to a visual pose hint */
+const GROUNDS: Record<string, string> = {
+  grass: 'on a perfectly manicured, vibrant green natural grass sports field; the vivid green blades of grass are crystal-sharp beneath the bare feet.',
+  rubber: 'on heavy-duty black speckled rubber fitness flooring tiles, exactly like in a premium outdoor gym; the matte, textured impact-protection surface is crystal-sharp beneath the bare feet.',
+  sawdust: 'on an outdoor Finnenbahn running path made from natural wood chips and coarse sawdust; the rich, realistic texture of the wood-chip surface is crystal-sharp beneath the bare feet.',
+  tartan: 'on a professional terracotta-red polyurethane running track (Tartanbahn); the textured, high-grip athletic surface is crystal-sharp beneath the bare feet.',
+};
+
+/** Map exercise group to the best-fitting ground surface */
+const GROUP_GROUND: Record<string, string> = {
+  'Plyometrie & Reaktivkraft': 'tartan',
+  'Ausdauer & Intervalltraining': 'tartan',
+  'Kettlebell-Training': 'rubber',
+  'Eigenkörpergewicht / Calisthenics': 'rubber',
+  'Ring- & Suspension-Training': 'rubber',
+  'Exzentrisches Training': 'rubber',
+  'Mobilität & Aktive Beweglichkeit': 'grass',
+  'Propriozeption': 'sawdust',
+  'Fußmuskulatur & Barfuß-Training': 'grass',
+  'Slackline': 'grass',
+};
+
+/** Map exercise group to a movement description hint */
 const GROUP_HINTS: Record<string, string> = {
-  'Kettlebell-Training': 'holding a kettlebell (teardrop-shaped weight with handle)',
-  'Eigenkörpergewicht / Calisthenics': 'bodyweight exercise, no equipment',
-  'Ring- & Suspension-Training': 'using gymnastic rings or suspension straps',
-  'Plyometrie & Reaktivkraft': 'explosive jumping or landing movement',
-  'Mobilität & Aktive Beweglichkeit': 'flowing stretching or mobility pose',
-  'Propriozeption': 'balancing on one leg or unstable surface',
-  'Fußmuskulatur & Barfuß-Training': 'close-up of bare foot, detailed toe and arch',
-  'Slackline': 'grip strength or hanging movement',
-  'Exzentrisches Training': 'slow controlled lowering phase of an exercise',
-  'Ausdauer & Intervalltraining': 'running or cardio movement',
+  'Kettlebell-Training': 'with a kettlebell',
+  'Ring- & Suspension-Training': 'on gymnastic rings or suspension straps',
+  'Plyometrie & Reaktivkraft': 'in an explosive, powerful athletic movement',
+  'Mobilität & Aktive Beweglichkeit': 'in a controlled mobility and flexibility pose',
+  'Propriozeption': 'focusing on balance and proprioceptive control',
+  'Fußmuskulatur & Barfuß-Training': 'with emphasis on barefoot foot mechanics',
+  'Slackline': 'on a slackline',
+  'Exzentrisches Training': 'in a slow, controlled eccentric lowering phase',
+  'Ausdauer & Intervalltraining': 'in a high-intensity cardio movement',
+  'Eigenkörpergewicht / Calisthenics': 'using only bodyweight',
 };
 
 function buildPrompt(exercise: Exercise): string {
@@ -27,18 +55,19 @@ function buildPrompt(exercise: Exercise): string {
   const groupName = (exercise as any).group?.name || '';
   const groupHint = GROUP_HINTS[groupName] || '';
 
+  // Rotate athlete based on exercise ID
+  const athlete = ATHLETES[(exercise.id ?? 0) % ATHLETES.length];
+
+  // Select ground surface based on group
+  const groundKey = GROUP_GROUND[groupName] || 'rubber';
+  const ground = GROUNDS[groundKey];
+
+  // Build exercise description in English
   const parenMatch = name.match(/\(([^)]+)\)/);
-  const description = parenMatch ? parenMatch[1] : '';
+  const subTitle = parenMatch ? ` (${parenMatch[1]})` : '';
+  const exerciseDesc = `executing "${name}"${subTitle} ${groupHint}`.trim();
 
-  const parts = [
-    `A single continuous line art drawing of a person performing "${name}"`,
-    description ? `(${description})` : '',
-    groupHint ? `— ${groupHint}` : '',
-    `. The figure should clearly show the key body position and movement of this exercise.`,
-    STYLE_SUFFIX,
-  ];
-
-  return parts.filter(Boolean).join(' ');
+  return `Cinematic, high-end commercial performance sports photography in an editorial fitness magazine aesthetic, heavily inspired by elite HYROX competition visuals and premium Nike athlete campaigns. ${athlete} with a powerful, functional physique is ${exerciseDesc}. The athlete is completely barefoot, with absolutely NO shoes and NO socks. His or her bare feet are anatomically flawless and highly detailed, showcasing visible toe splay, an active foot tripod, natural arch engagement, and strong ankle stabilization, with the grounding foot clearly compressing into the surface. The scene is shot outdoors ${ground} The background features a soft-focus, moody outdoor athletic environment with an elegant, professional shallow depth of field (bokeh). The athlete is wearing a premium matte black sleeveless performance shirt and matching matte black athletic training shorts. The lighting is dramatic, directional natural daylight casting authentic, sharp micro-shadows that define sweat-glistening skin texture and lean muscle definition. Shot on an 85mm prime lens, high-contrast performance color grading, frozen split-second motion, absolute raw focus, 8k resolution, flawless professional brand campaign quality.`;
 }
 
 // ── Service ──────────────────────────────────────────────────────────────────
@@ -142,7 +171,8 @@ export class ExerciseIconService {
         prompt,
         n: 1,
         size: '1024x1024',
-        quality: 'low',
+        quality: 'medium',
+        output_format: 'png',
       } as any);
 
       const item = response.data?.[0] as any;
@@ -227,6 +257,19 @@ export class ExerciseIconService {
     }
 
     return { generated, failed, skipped: 0, results };
+  }
+
+  /** Delete ALL icons from DB (for style change regeneration) */
+  async deleteAllIcons(): Promise<{ deleted: number }> {
+    const result = await this.exerciseRepo
+      .createQueryBuilder()
+      .update(Exercise)
+      .set({ icon: null } as any)
+      .where('icon IS NOT NULL')
+      .execute();
+    const count = result.affected ?? 0;
+    this.logger.log(`Deleted all icons: ${count} exercises cleared`);
+    return { deleted: count };
   }
 
   /** Delete an icon from DB (for regeneration) */
