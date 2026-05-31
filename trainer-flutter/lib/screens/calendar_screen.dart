@@ -9,6 +9,7 @@ import '../models/training.dart';
 import '../config/app_colors.dart';
 import 'training_detail_screen.dart';
 import 'availability_serial_screen.dart';
+import 'book_training_dialog.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -69,6 +70,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
     await _initialLoad();
   }
 
+  Future<void> _openBookingDialog(TrainerProvider trainerProvider) async {
+    final trainer = context.read<AuthProvider>().trainer;
+    if (trainer == null) return;
+
+    // Ensure clients are loaded
+    if (trainerProvider.clients.isEmpty) {
+      await trainerProvider.fetchClients();
+    }
+
+    if (!mounted) return;
+
+    final booked = await BookTrainingDialog.show(
+      context,
+      trainerId: trainer.id,
+      clients: trainerProvider.clients,
+      locations: trainerProvider.locations,
+      initialDate: _selectedDay,
+      initialLocationId: _selectedLocationId,
+    );
+
+    if (booked == true) {
+      _refresh();
+    }
+  }
+
   /// Availability slots for a given day (shown for ALL locations — trainer
   /// availability is global, not location-specific).
   List<AvailabilitySlot> _getSlotsForDay(
@@ -123,6 +149,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.primary,
+        onPressed: () => _openBookingDialog(trainerProvider),
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
       appBar: AppBar(
         title: const Text('Kalender'),
         actions: [
