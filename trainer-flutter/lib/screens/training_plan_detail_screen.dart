@@ -42,6 +42,9 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
   // Exercise-level comment counts (loaded from API)
   Map<String, int> _commentCounts = {};
 
+  // Exercise name → ID lookup for icon URLs
+  Map<String, int> _exerciseIdMap = {};
+
   // ─── Timer (separate ChangeNotifier) ──────────────────────────────────
   late final ExerciseTimer _timer;
 
@@ -77,6 +80,22 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
 
     // Load comment counts if plan already exists
     _loadCommentCounts();
+    // Load exercise name→ID map for icon display
+    _loadExerciseIds();
+  }
+
+  Future<void> _loadExerciseIds() async {
+    try {
+      final data = await _api.get(ApiConfig.exercise);
+      if (data is List && mounted) {
+        setState(() {
+          _exerciseIdMap = {
+            for (final ex in data)
+              if (ex['name'] != null) ex['name'].toString(): ex['id'] as int,
+          };
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadCommentCounts() async {
@@ -773,6 +792,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
           return _ExerciseTile(
             key: ValueKey('$prefix-$i-${s.rowCtrls.length}'),
             number:      i + 1,
+            exerciseId:  _exerciseIdMap[s.rowCtrls[i][0].text],
             ctrls:       s.rowCtrls[i],
             dateCtrls:   s.dateCtrls[i],
             dateLabels:  _dateCtrls.map((c) => c.text).toList(),
@@ -908,6 +928,7 @@ class _SectionMeta {
 
 class _ExerciseTile extends StatelessWidget {
   final int number;
+  final int? exerciseId; // for icon URL lookup
   final List<TextEditingController> ctrls;
   final List<TextEditingController> dateCtrls;
   final List<String> dateLabels;
@@ -931,6 +952,7 @@ class _ExerciseTile extends StatelessWidget {
   const _ExerciseTile({
     super.key,
     required this.number,
+    this.exerciseId,
     required this.ctrls,
     required this.dateCtrls,
     required this.dateLabels,
@@ -987,37 +1009,19 @@ class _ExerciseTile extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               child: Row(
                 children: [
-                  // Number badge
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: isLiked
-                          ? AppColors.green.withAlpha(38)
-                          : isDisliked
-                              ? AppColors.red.withAlpha(31)
-                              : hasContent
-                                  ? accentColor.withAlpha(38)
-                                  : AppColors.surface2,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        '$number',
-                        style: GoogleFonts.montserrat(
-                          color: isLiked
-                              ? AppColors.green
-                              : isDisliked
-                                  ? AppColors.red
-                                  : hasContent
-                                      ? accentColor
-                                      : AppColors.muted,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
+                  // Exercise icon or number badge
+                  if (exerciseId != null)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: Image.network(
+                        '${ApiConfig.baseUrl.replaceAll('/api/', '')}/api/exercise/$exerciseId/icon.png',
+                        width: 32, height: 32,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _numberBadge(number, accentColor, isLiked, isDisliked, hasContent),
                       ),
-                    ),
-                  ),
+                    )
+                  else
+                    _numberBadge(number, accentColor, isLiked, isDisliked, hasContent),
                   const SizedBox(width: 10),
 
                   // Exercise name field
@@ -1408,6 +1412,34 @@ class _ActionChip extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─── Number badge (fallback when no icon) ──────────────────────────────────
+
+Widget _numberBadge(int number, Color accentColor, bool isLiked, bool isDisliked, bool hasContent) {
+  return Container(
+    width: 28, height: 28,
+    decoration: BoxDecoration(
+      color: isLiked ? AppColors.green.withAlpha(38)
+           : isDisliked ? AppColors.red.withAlpha(31)
+           : hasContent ? accentColor.withAlpha(38)
+           : AppColors.surface2,
+      shape: BoxShape.circle,
+    ),
+    child: Center(
+      child: Text(
+        '$number',
+        style: GoogleFonts.montserrat(
+          color: isLiked ? AppColors.green
+               : isDisliked ? AppColors.red
+               : hasContent ? accentColor
+               : AppColors.muted,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    ),
+  );
 }
 
 // ─── Timer preset chip ──────────────────────────────────────────────────────
