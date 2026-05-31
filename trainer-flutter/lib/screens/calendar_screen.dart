@@ -102,11 +102,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       DateTime day, List<Training> trainings) {
     return trainings.where((t) {
       if (t.isCancelled && !t.isLateCancellation) return false;
-      // Filter by selected location (trainings are location-specific)
-      if (_selectedLocationId != null &&
-          t.locationId != null &&
-          t.locationId != 0 &&
-          t.locationId != _selectedLocationId) return false;
+      // Trainings werden standortübergreifend angezeigt (kein Location-Filter)
       if (t.startTime != null) {
         return t.startTime!.year == day.year &&
             t.startTime!.month == day.month &&
