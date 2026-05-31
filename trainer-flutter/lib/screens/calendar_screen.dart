@@ -168,8 +168,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ),
       body: Column(
         children: [
-          if (trainerProvider.locations.isNotEmpty)
-            _buildLocationSelector(trainerProvider),
           if (_error != null) _buildErrorBanner(),
           _buildCalendar(trainerProvider),
           const Divider(height: 1, color: AppColors.border),
