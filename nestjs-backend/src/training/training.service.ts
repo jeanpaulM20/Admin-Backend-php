@@ -1,13 +1,20 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
+import { Repository, Between, MoreThanOrEqual, LessThanOrEqual, In } from 'typeorm';
 import { Training, TrainingStatus } from '../entities/training.entity';
+import { Location } from '../entities/location.entity';
+import { PushService } from '../push/push.service';
 
 @Injectable()
 export class TrainingService {
+  private readonly logger = new Logger(TrainingService.name);
+
   constructor(
     @InjectRepository(Training)
     private readonly repo: Repository<Training>,
+    @InjectRepository(Location)
+    private readonly locationRepo: Repository<Location>,
+    private readonly pushService: PushService,
   ) {}
 
   private formatTraining(t: Training) {
@@ -26,7 +33,6 @@ export class TrainingService {
     if (clientId) where.clientId = clientId;
     if (trainerId) where.trainerId = trainerId;
 
-    // Optional date range filtering
     if (dateFrom && dateTo) {
       where.date = Between(dateFrom, dateTo);
     } else if (dateFrom) {
@@ -57,6 +63,123 @@ export class TrainingService {
   create(data: Partial<Training>) {
     return this.repo.save(this.repo.create(data));
   }
+
+  // ── Validated booking by trainer ────────────────────────────────────────
+
+  async createByTrainer(trainerId: number, body: any): Promise<any> {
+    const DURATION = 60;
+
+    // ── 1. Validate input ────────────────────────────────────────
+    const clientId = Number(body.client_id ?? body.clientId);
+    const trainingTypeId = Number(body.training_type_id ?? body.trainingTypeId) || null;
+    const locationId = body.location_id ?? body.locationId
+      ? Number(body.location_id ?? body.locationId)
+      : null;
+    const date: string = body.date;
+    const starttime: string = body.starttime ?? body.time_from ?? body.from;
+    const duration = Number(body.duration) || DURATION;
+    const text: string = body.text || null;
+
+    if (!clientId || !date || !starttime) {
+      throw new BadRequestException('Client, Datum und Startzeit sind erforderlich.');
+    }
+
+    // ── 2. Parse time ────────────────────────────────────────────
+    const [reqH, reqM] = starttime.split(':').map(Number);
+    if (isNaN(reqH) || isNaN(reqM)) {
+      throw new BadRequestException('Ungültiges Zeitformat.');
+    }
+    const reqStart = reqH * 60 + reqM;
+    const reqEnd = reqStart + duration;
+
+    // ── 3. No double booking for client ──────────────────────────
+    const clientTrainings = await this.repo.find({
+      where: {
+        clientId,
+        date,
+        status: In([TrainingStatus.BOOKED, TrainingStatus.ATTENDED]),
+      },
+    });
+
+    for (const t of clientTrainings) {
+      const [eH, eM] = (t.starttime || '00:00').split(':').map(Number);
+      const existStart = eH * 60 + eM;
+      const existEnd = existStart + (t.duration || DURATION);
+      if (reqStart < existEnd && existStart < reqEnd) {
+        throw new BadRequestException('Kunde hat bereits einen Termin zu dieser Zeit.');
+      }
+    }
+
+    // ── 4. No trainer conflict (with location buffer) ────────────
+    const trainerTrainings = await this.repo.find({
+      where: {
+        trainerId,
+        date,
+        status: In([TrainingStatus.BOOKED, TrainingStatus.ATTENDED]),
+      },
+    });
+
+    const allLocations = await this.locationRepo.find();
+    const locationMap = new Map(allLocations.map((l) => [l.id, l]));
+    const reqLocation = locationId ? locationMap.get(locationId) : null;
+    const reqBuffer = reqLocation?.bufferMinutes ?? 30;
+
+    for (const t of trainerTrainings) {
+      const [eH, eM] = (t.starttime || '00:00').split(':').map(Number);
+      const existStart = eH * 60 + eM;
+      const existEnd = existStart + (t.duration || DURATION);
+
+      const sameLocation =
+        locationId != null && t.locationId != null && Number(t.locationId) === locationId;
+      let buffer = 0;
+      if (!sameLocation) {
+        const existLocation = t.locationId ? locationMap.get(Number(t.locationId)) : null;
+        const existBuffer = existLocation?.bufferMinutes ?? 30;
+        buffer = Math.max(reqBuffer, existBuffer);
+      }
+
+      if (reqStart < existEnd + buffer && existStart < reqEnd + buffer) {
+        if (buffer > 0) {
+          throw new BadRequestException(
+            `Trainer hat einen Termin an einem anderen Standort. ${buffer} Min. Pufferzeit erforderlich.`,
+          );
+        }
+        throw new BadRequestException('Trainer ist zu dieser Zeit bereits gebucht.');
+      }
+    }
+
+    // ── 5. Save training ──────────────────────────────────────────
+    const training = this.repo.create({
+      trainerId,
+      clientId,
+      trainingTypeId,
+      locationId,
+      date,
+      starttime,
+      duration,
+      text,
+      status: TrainingStatus.BOOKED,
+    } as Partial<Training>);
+    const saved = await this.repo.save(training as Training);
+
+    // ── 6. Push notification to client ────────────────────────────
+    const formatted = await this.findOne(saved.id);
+    const locationName = formatted.location_name || '';
+    const typeName = formatted.type_name || 'Training';
+
+    this.pushService.sendToClient(clientId, {
+      title: 'Neuer Termin',
+      body: `${typeName} am ${date} um ${starttime} Uhr${locationName ? ' — ' + locationName : ''}`,
+      url: `/api/training/${saved.id}/ical`,
+    }).catch((err) => {
+      this.logger.warn(`Push notification failed for client ${clientId}: ${err.message}`);
+    });
+
+    this.logger.log(`Training created by trainer ${trainerId} for client ${clientId}: ${date} ${starttime}`);
+    return formatted;
+  }
+
+  // ── CRUD ────────────────────────────────────────────────────────────────
 
   async update(id: number, data: Partial<Training>) {
     await this.findOne(id);

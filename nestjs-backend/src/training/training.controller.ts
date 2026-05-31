@@ -77,10 +77,10 @@ export class TrainingController {
   @Post()
   create(
     @CurrentTrainer() trainer: Trainer,
-    @Body() body: Partial<Training>,
+    @Body() body: any,
   ) {
     if (!trainer) throw new ForbiddenException('Nur Trainer können Trainings erstellen');
-    return this.service.create(body);
+    return this.service.createByTrainer(trainer.id, body);
   }
 
   @Put(':id')
