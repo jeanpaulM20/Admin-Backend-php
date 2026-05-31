@@ -75,21 +75,31 @@ class _BookTrainingDialogState extends State<BookTrainingDialog> {
     try {
       final response = await _api.get(ApiConfig.client);
       if (response is List && mounted) {
+        final parsed = <Client>[];
+        for (final e in response) {
+          try {
+            if (e is Map<String, dynamic>) {
+              parsed.add(Client.fromJson(e));
+            }
+          } catch (_) {
+            // Skip clients that fail to parse
+          }
+        }
+        parsed.sort((a, b) => a.name.compareTo(b.name));
         setState(() {
-          _clients = response
-              .map((e) => Client.fromJson(e as Map<String, dynamic>))
-              .toList()
-            ..sort((a, b) => a.name.compareTo(b.name));
+          _clients = parsed;
           _clientsLoading = false;
         });
+      } else if (mounted) {
+        setState(() {
+          _clientsLoading = false;
+          _error = 'Unerwartetes API-Format';
+        });
       }
+    } on ApiException catch (e) {
+      if (mounted) setState(() { _clientsLoading = false; _error = e.message; });
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _clientsLoading = false;
-          _error = 'Kunden konnten nicht geladen werden';
-        });
-      }
+      if (mounted) setState(() { _clientsLoading = false; _error = 'Fehler: $e'; });
     }
   }
 
