@@ -1015,7 +1015,7 @@ class _ExerciseTile extends StatelessWidget {
                       borderRadius: BorderRadius.circular(6),
                       child: Image.network(
                         '${ApiConfig.baseUrl.replaceAll('/api/', '')}/api/exercise/$exerciseId/icon.png',
-                        width: 32, height: 32,
+                        width: 100, height: 100,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => _numberBadge(number, accentColor, isLiked, isDisliked, hasContent),
                       ),

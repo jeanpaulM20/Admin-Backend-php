@@ -109689,7 +109689,7 @@ n=t.p
 m=A.a([],n)
 l=a2.d
 if(l!=null){k=A.P(6)
-m.push(A.xg(k,A.aWE(A.ja(u.z,"/api/","")+"/api/exercise/"+A.n(l)+"/icon.png",new A.aE8(a2,a7),B.ok,32,32),B.bB))}else m.push(A.b5a(a2.c,a2.w,a2.x,a2.y,a7))
+m.push(A.xg(k,A.aWE(A.ja(u.z,"/api/","")+"/api/exercise/"+A.n(l)+"/icon.png",new A.aE8(a2,a7),B.ok,100,100),B.bB))}else m.push(A.b5a(a2.c,a2.w,a2.x,a2.y,a7))
 m.push(B.aO)
 l=a6.h(a5,0)
 k=A.al().$3$color$fontSize$fontWeight(a7?B.I:A.t(128,B.j.gi(0)>>>16&255,B.j.gi(0)>>>8&255,B.j.gi(0)&255),14,B.Z)
