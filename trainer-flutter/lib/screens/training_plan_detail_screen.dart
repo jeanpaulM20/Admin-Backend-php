@@ -1089,63 +1089,6 @@ class _ExerciseTile extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
 
-                  // Sets pill
-                  SizedBox(
-                    width: 52,
-                    child: TextField(
-                      controller: ctrls[4],
-                      onChanged: (_) => onFieldChanged(),
-                      style: GoogleFonts.openSans(
-                          color: AppColors.muted, fontSize: 11, fontWeight: FontWeight.w600),
-                      textAlign: TextAlign.center,
-                      decoration: InputDecoration(
-                        hintText: 'Sätze',
-                        hintStyle: GoogleFonts.openSans(
-                            color: AppColors.muted.withAlpha(77), fontSize: 10),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                        filled: true,
-                        fillColor: AppColors.surface2,
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
-                        enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
-                        focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            borderSide: BorderSide(color: accentColor, width: 1)),
-                        isDense: true,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  // Weight pill
-                  SizedBox(
-                    width: 54,
-                    child: TextField(
-                      controller: ctrls[3],
-                      onChanged: (_) => onFieldChanged(),
-                      style: GoogleFonts.openSans(
-                          color: accentColor, fontSize: 12, fontWeight: FontWeight.w700),
-                      textAlign: TextAlign.center,
-                      decoration: InputDecoration(
-                        hintText: 'kg',
-                        hintStyle: GoogleFonts.openSans(
-                            color: AppColors.muted.withAlpha(77), fontSize: 11),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                        filled: true,
-                        fillColor: accentColor.withAlpha(26),
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
-                        enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
-                        focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            borderSide: BorderSide(color: accentColor, width: 1)),
-                        isDense: true,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-
                   // Chevron
                   AnimatedRotation(
                     turns: isExpanded ? 0.5 : 0,
