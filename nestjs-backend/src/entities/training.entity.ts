@@ -50,7 +50,7 @@ export class Training {
   @Column({ type: 'varchar', default: TrainingStatus.BOOKED })
   status: TrainingStatus;
 
-  @Column({ name: 'cancelled_at', nullable: true })
+  @Column({ name: 'cancelled_at', type: 'datetime', nullable: true })
   cancelledAt: string;
 
   @Column({ name: 'cancelled_by_client_rel', nullable: true })

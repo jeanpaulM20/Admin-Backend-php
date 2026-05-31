@@ -190,12 +190,25 @@ export class TrainingService {
   async cancel(id: number) {
     const training = await this.findOne(id);
     if (training.status === TrainingStatus.ATTENDED) {
-      throw new BadRequestException('Cannot cancel an attended training');
+      throw new BadRequestException('Abgeschlossene Trainings können nicht abgesagt werden');
     }
-    await this.repo.update(id, {
-      status: TrainingStatus.CANCELLED,
-      cancelledAt: new Date().toISOString(),
-    });
+    if (training.status === TrainingStatus.CANCELLED) {
+      throw new BadRequestException('Training ist bereits abgesagt');
+    }
+    try {
+      await this.repo
+        .createQueryBuilder()
+        .update(Training)
+        .set({
+          status: TrainingStatus.CANCELLED,
+          cancelledAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
+        } as any)
+        .where('id = :id', { id })
+        .execute();
+    } catch (err: any) {
+      this.logger.error(`Cancel failed for training ${id}: ${err.message}`);
+      throw new BadRequestException(`Training konnte nicht abgesagt werden: ${err.message}`);
+    }
     return this.findOne(id);
   }
 
