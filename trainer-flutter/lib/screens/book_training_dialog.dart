@@ -71,12 +71,13 @@ class _BookTrainingDialogState extends State<BookTrainingDialog> {
   }
 
   List<Client> get _filteredClients {
-    if (_searchQuery.isEmpty) return widget.clients;
-    final q = _searchQuery.toLowerCase();
-    return widget.clients.where((c) {
-      final name = c.name.toLowerCase();
-      return name.contains(q);
-    }).toList();
+    var list = List<Client>.from(widget.clients)
+      ..sort((a, b) => a.name.compareTo(b.name));
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      list = list.where((c) => c.name.toLowerCase().contains(q)).toList();
+    }
+    return list;
   }
 
   Future<void> _pickDate() async {

@@ -154,7 +154,12 @@ class ApiService {
       throw ApiException('Unauthorized. Please log in again.',
           statusCode: statusCode);
     } else if (statusCode == 403) {
-      throw ApiException('Access denied.', statusCode: statusCode);
+      String msg = 'Zugriff verweigert.';
+      try {
+        final body = jsonDecode(response.body);
+        if (body is Map && body.containsKey('message')) msg = body['message'].toString();
+      } catch (_) {}
+      throw ApiException(msg, statusCode: statusCode);
     } else if (statusCode == 404) {
       throw ApiException('Resource not found.', statusCode: statusCode);
     } else if (statusCode >= 500) {
