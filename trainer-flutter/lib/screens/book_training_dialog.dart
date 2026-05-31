@@ -10,7 +10,6 @@ import '../config/app_colors.dart';
 /// Bottom sheet dialog for trainers to book a training for a client.
 class BookTrainingDialog extends StatefulWidget {
   final int trainerId;
-  final List<Client> clients;
   final List<Location> locations;
   final DateTime? initialDate;
   final int? initialLocationId;
@@ -18,7 +17,6 @@ class BookTrainingDialog extends StatefulWidget {
   const BookTrainingDialog({
     super.key,
     required this.trainerId,
-    required this.clients,
     required this.locations,
     this.initialDate,
     this.initialLocationId,
@@ -28,7 +26,6 @@ class BookTrainingDialog extends StatefulWidget {
   static Future<bool?> show(
     BuildContext context, {
     required int trainerId,
-    required List<Client> clients,
     required List<Location> locations,
     DateTime? initialDate,
     int? initialLocationId,
@@ -39,7 +36,6 @@ class BookTrainingDialog extends StatefulWidget {
       backgroundColor: Colors.transparent,
       builder: (_) => BookTrainingDialog(
         trainerId: trainerId,
-        clients: clients,
         locations: locations,
         initialDate: initialDate,
         initialLocationId: initialLocationId,
@@ -56,6 +52,10 @@ class _BookTrainingDialogState extends State<BookTrainingDialog> {
   bool _saving = false;
   String? _error;
 
+  // Clients — loaded by the dialog itself
+  List<Client> _clients = [];
+  bool _clientsLoading = true;
+
   // Form state
   Client? _selectedClient;
   late DateTime _selectedDate;
@@ -68,16 +68,35 @@ class _BookTrainingDialogState extends State<BookTrainingDialog> {
     super.initState();
     _selectedDate = widget.initialDate ?? DateTime.now();
     _selectedLocationId = widget.initialLocationId;
+    _loadClients();
+  }
+
+  Future<void> _loadClients() async {
+    try {
+      final response = await _api.get(ApiConfig.client);
+      if (response is List && mounted) {
+        setState(() {
+          _clients = response
+              .map((e) => Client.fromJson(e as Map<String, dynamic>))
+              .toList()
+            ..sort((a, b) => a.name.compareTo(b.name));
+          _clientsLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _clientsLoading = false;
+          _error = 'Kunden konnten nicht geladen werden';
+        });
+      }
+    }
   }
 
   List<Client> get _filteredClients {
-    var list = List<Client>.from(widget.clients)
-      ..sort((a, b) => a.name.compareTo(b.name));
-    if (_searchQuery.isNotEmpty) {
-      final q = _searchQuery.toLowerCase();
-      list = list.where((c) => c.name.toLowerCase().contains(q)).toList();
-    }
-    return list;
+    if (_searchQuery.isEmpty) return _clients;
+    final q = _searchQuery.toLowerCase();
+    return _clients.where((c) => c.name.toLowerCase().contains(q)).toList();
   }
 
   Future<void> _pickDate() async {
@@ -133,7 +152,7 @@ class _BookTrainingDialogState extends State<BookTrainingDialog> {
         'date': dateStr,
         'starttime': timeStr,
         'location_id': _selectedLocationId,
-        'training_type_id': 1, // Default: Persönliches Training
+        'training_type_id': 1,
       });
 
       if (mounted) {
@@ -281,39 +300,56 @@ class _BookTrainingDialogState extends State<BookTrainingDialog> {
                 ),
                 const SizedBox(height: 8),
 
+                // Loading indicator
+                if (_clientsLoading)
+                  const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                  ),
+
                 // Client list
-                ..._filteredClients.take(8).map((client) {
-                  final selected = _selectedClient?.id == client.id;
-                  return ListTile(
-                    dense: true,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                    leading: CircleAvatar(
-                      radius: 16,
-                      backgroundColor: selected ? AppColors.primary : AppColors.surface2,
-                      child: Text(
-                        client.name.isNotEmpty ? client.name.split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join() : '?',
-                        style: GoogleFonts.montserrat(
-                          color: selected ? AppColors.background : AppColors.muted,
-                          fontSize: 11, fontWeight: FontWeight.w700,
+                if (!_clientsLoading)
+                  ..._filteredClients.take(10).map((client) {
+                    final selected = _selectedClient?.id == client.id;
+                    return ListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                      leading: CircleAvatar(
+                        radius: 16,
+                        backgroundColor: selected ? AppColors.primary : AppColors.surface2,
+                        child: Text(
+                          client.name.isNotEmpty
+                              ? client.name.split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join()
+                              : '?',
+                          style: GoogleFonts.montserrat(
+                            color: selected ? AppColors.background : AppColors.muted,
+                            fontSize: 11, fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
-                    ),
-                    title: Text('${client.name}',
-                        style: GoogleFonts.openSans(
-                          color: selected ? AppColors.primary : AppColors.text,
-                          fontSize: 14, fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                        )),
-                    trailing: selected
-                        ? const Icon(Icons.check_circle, color: AppColors.primary, size: 20)
-                        : null,
-                    onTap: () => setState(() => _selectedClient = client),
-                  );
-                }),
-                if (_filteredClients.length > 8)
+                      title: Text(client.name,
+                          style: GoogleFonts.openSans(
+                            color: selected ? AppColors.primary : AppColors.text,
+                            fontSize: 14, fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                          )),
+                      trailing: selected
+                          ? const Icon(Icons.check_circle, color: AppColors.primary, size: 20)
+                          : null,
+                      onTap: () => setState(() => _selectedClient = client),
+                    );
+                  }),
+                if (!_clientsLoading && _filteredClients.length > 10)
                   Padding(
                     padding: const EdgeInsets.only(left: 8, top: 4),
-                    child: Text('+ ${_filteredClients.length - 8} weitere...',
+                    child: Text('+ ${_filteredClients.length - 10} weitere — bitte Suchfeld nutzen',
                         style: GoogleFonts.openSans(color: AppColors.muted, fontSize: 12)),
+                  ),
+                if (!_clientsLoading && _filteredClients.isEmpty && _searchQuery.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text('Kein Kunde mit "$_searchQuery" gefunden',
+                        style: GoogleFonts.openSans(color: AppColors.muted, fontSize: 13),
+                        textAlign: TextAlign.center),
                   ),
 
                 const SizedBox(height: 20),

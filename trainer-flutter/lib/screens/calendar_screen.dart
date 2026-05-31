@@ -74,17 +74,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final trainer = context.read<AuthProvider>().trainer;
     if (trainer == null) return;
 
-    // Ensure clients are loaded
-    if (trainerProvider.clients.isEmpty) {
-      await trainerProvider.fetchClients();
-    }
-
-    if (!mounted) return;
-
     final booked = await BookTrainingDialog.show(
       context,
       trainerId: trainer.id,
-      clients: trainerProvider.clients,
       locations: trainerProvider.locations,
       initialDate: _selectedDay,
       initialLocationId: _selectedLocationId,
