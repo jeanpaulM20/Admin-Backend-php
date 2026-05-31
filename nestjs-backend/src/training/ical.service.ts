@@ -98,6 +98,8 @@ export class IcalService {
     const event: ics.EventAttributes = {
       uid: `training-${training.id}@sihltraining`,
       start: [year, month, day, hour, minute],
+      startInputType: 'local',
+      startOutputType: 'local',
       duration: { minutes: durationMin },
       title: summary,
       description: training.text || undefined,

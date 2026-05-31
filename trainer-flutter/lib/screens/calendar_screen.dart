@@ -22,7 +22,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   CalendarFormat _calendarFormat = CalendarFormat.month;
-  int? _selectedLocationId;
   String? _error;
 
   @override
@@ -46,15 +45,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
         await trainerProvider.fetchLocations();
       }
 
-      // Default to first location if none selected
-      if (_selectedLocationId == null && trainerProvider.locations.isNotEmpty) {
-        _selectedLocationId = trainerProvider.locations.first.id;
-      }
-
-      await trainerProvider.fetchAvailability(
-        trainer.id,
-        _selectedLocationId ?? 0,
-      );
+      // Load availability for all locations
+      await trainerProvider.fetchAvailability(trainer.id, 0);
 
       if (mounted) setState(() {});
     } catch (e) {
@@ -79,7 +71,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       trainerId: trainer.id,
       locations: trainerProvider.locations,
       initialDate: _selectedDay,
-      initialLocationId: _selectedLocationId,
     );
 
     if (booked == true) {
@@ -206,57 +197,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
             child: const Text('Erneut', style: TextStyle(fontSize: 12)),
           ),
         ],
-      ),
-    );
-  }
-
-  // ── Location selector ───────────────────────────────────────────────────────
-
-  Widget _buildLocationSelector(TrainerProvider provider) {
-    return Container(
-      height: 44,
-      color: AppColors.surface,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        itemCount: provider.locations.length,
-        itemBuilder: (context, index) {
-          final loc = provider.locations[index];
-          final isSelected = _selectedLocationId == loc.id ||
-              (_selectedLocationId == null && index == 0);
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () {
-                setState(() => _selectedLocationId = loc.id);
-                // Data is already loaded — filtering happens client-side
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                decoration: BoxDecoration(
-                  color:
-                      isSelected ? AppColors.primary : AppColors.surface,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color:
-                        isSelected ? AppColors.primary : AppColors.border,
-                  ),
-                ),
-                child: Text(
-                  loc.name,
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : AppColors.muted,
-                    fontSize: 13,
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.normal,
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
       ),
     );
   }
