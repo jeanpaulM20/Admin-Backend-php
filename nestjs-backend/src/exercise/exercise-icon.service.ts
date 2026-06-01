@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, Not } from 'typeorm';
 import { Exercise } from '../entities/exercise.entity';
 import OpenAI from 'openai';
+import { EXERCISE_POSES } from './exercise-poses';
 
 // ── Prompt building (Photorealistic Nike/HYROX performance style) ─────────────
 
@@ -62,10 +63,11 @@ function buildPrompt(exercise: Exercise): string {
   const groundKey = GROUP_GROUND[groupName] || 'rubber';
   const ground = GROUNDS[groundKey];
 
-  // Build exercise description in English
-  const parenMatch = name.match(/\(([^)]+)\)/);
-  const subTitle = parenMatch ? ` (${parenMatch[1]})` : '';
-  const exerciseDesc = `executing "${name}"${subTitle} ${groupHint}`.trim();
+  // Use biomechanically precise pose description if available
+  const poseDesc = EXERCISE_POSES[exercise.id ?? 0];
+  const exerciseDesc = poseDesc
+    ? poseDesc
+    : `executing "${name}" ${groupHint}`.trim();
 
   return `Dynamic outdoor fitness photography shot from a low angle looking up. ${athlete} with a fit, athletic physique is ${exerciseDesc}. The body posture must be anatomically correct and biomechanically accurate for this specific exercise — correct joint angles, proper spine alignment, and realistic weight distribution. The athlete is completely barefoot, NO shoes, NO socks. STRICT ANATOMY RULES: exactly 5 fingers on each hand, exactly 5 toes on each foot, no extra or missing digits. Hands and feet must be anatomically perfect and photorealistic. The bare feet show natural toe splay with all five toes clearly separated and individually visible, active foot arch engagement. The scene is shot outdoors ${ground} The background features lush green trees, foliage and bright sky with beautiful natural bokeh. The athlete is wearing a fitted matte black athletic t-shirt and matching matte black training shorts — fully clothed, professional sportswear look. The lighting is bright natural daylight filtering through trees, with subtle rim light and backlight on the athlete's body. The overall mood is energetic, free and dynamic — a frozen split-second of powerful athletic movement in nature. Shot from a dramatic low angle perspective, sharp focus on the athlete with strong depth of field separation, natural warm color tones, 8k resolution, authentic outdoor sports photography.`;
 }
