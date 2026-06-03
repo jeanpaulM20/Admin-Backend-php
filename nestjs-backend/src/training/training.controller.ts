@@ -94,7 +94,7 @@ export class TrainingController {
   ) {
     if (!trainer) throw new ForbiddenException('Nur Trainer können Trainings planen');
     if (!body?.training_plan_id && !body?.trainingPlanId) {
-      throw new ForbiddenException('training_plan_id ist erforderlich');
+      throw new BadRequestException('training_plan_id ist erforderlich');
     }
     return this.service.createByTrainerSafe(trainer.id, body);
   }
