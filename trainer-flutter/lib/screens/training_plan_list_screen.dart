@@ -813,6 +813,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
       final result = await _api.post(
         '${ApiConfig.trainingPlan}/ai/recommend/${widget.client.id}',
         body: config,
+        timeout: const Duration(seconds: 90), // Sonnet 4.6 plan generation can take 30-60s
       );
       if (!mounted) return;
       if (result is Map<String, dynamic>) {

@@ -53,12 +53,12 @@ class ApiService {
   }
 
   Future<dynamic> get(String endpoint,
-      {Map<String, String>? queryParams}) async {
+      {Map<String, String>? queryParams, Duration? timeout}) async {
     try {
       final uri = _buildUri(endpoint, queryParams);
       final response = await http
           .get(uri, headers: _headers)
-          .timeout(const Duration(seconds: 30));
+          .timeout(timeout ?? const Duration(seconds: 30));
       return _handleResponse(response);
     } on ApiException {
       rethrow;
@@ -67,7 +67,8 @@ class ApiService {
     }
   }
 
-  Future<dynamic> put(String endpoint, {Map<String, dynamic>? body}) async {
+  Future<dynamic> put(String endpoint,
+      {Map<String, dynamic>? body, Duration? timeout}) async {
     try {
       final uri = _buildUri(endpoint);
       final response = await http
@@ -76,7 +77,7 @@ class ApiService {
             headers: _headers,
             body: body != null ? jsonEncode(body) : null,
           )
-          .timeout(const Duration(seconds: 30));
+          .timeout(timeout ?? const Duration(seconds: 30));
       return _handleResponse(response);
     } on ApiException {
       rethrow;
@@ -86,12 +87,12 @@ class ApiService {
   }
 
   Future<dynamic> delete(String endpoint,
-      {Map<String, String>? queryParams}) async {
+      {Map<String, String>? queryParams, Duration? timeout}) async {
     try {
       final uri = _buildUri(endpoint, queryParams);
       final response = await http
           .delete(uri, headers: _headers)
-          .timeout(const Duration(seconds: 30));
+          .timeout(timeout ?? const Duration(seconds: 30));
       return _handleResponse(response);
     } on ApiException {
       rethrow;
@@ -100,7 +101,8 @@ class ApiService {
     }
   }
 
-  Future<dynamic> post(String endpoint, {Map<String, dynamic>? body}) async {
+  Future<dynamic> post(String endpoint,
+      {Map<String, dynamic>? body, Duration? timeout}) async {
     try {
       final uri = _buildUri(endpoint);
       final response = await http
@@ -109,7 +111,7 @@ class ApiService {
             headers: _headers,
             body: body != null ? jsonEncode(body) : null,
           )
-          .timeout(const Duration(seconds: 30));
+          .timeout(timeout ?? const Duration(seconds: 30));
       return _handleResponse(response);
     } on ApiException {
       rethrow;
