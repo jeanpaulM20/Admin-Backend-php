@@ -13,7 +13,7 @@ export const EXERCISE_POSES: Record<number, string> = {
   19: 'standing on one leg with eyes gently closed, arms relaxed at sides, standing leg with slight knee bend, serene concentrated expression',
   20: 'standing in tandem stance (heel of front foot touching toes of back foot) on a visible soft mat, arms out for balance',
   21: 'walking on heels with toes lifted completely off the ground, arms at sides, deliberate upright gait, bare feet clearly showing lifted forefoot',
-  22: 'standing on one foot on the edge of a visible raised step/platform, heel dropping below step level in controlled eccentric descent, upright torso, knee nearly straight with only 5 degrees of bend',
+  22: 'STRICT SIDE-PROFILE VIEW of person standing barefoot on the edge of a clearly visible black aerobic step/platform (the step must be the obvious focal point). Only the ball of one foot is on the step, the heel hangs off the back edge and is dropped DOWN below the step level (eccentric calf stretch position). The other foot is lifted off the ground beside the standing leg. Body upright, knee nearly straight, looking forward. The lowered heel and the step edge must both be clearly visible — show the height difference between foot and platform.',
   23: 'walking sideways with weight on the outer edges of bare feet, body in slight lateral lean, deliberate controlled steps',
   24: 'descending visible stairs barefoot with slow controlled steps, one foot carefully lowering to next step, upright posture',
   25: 'running barefoot on green grass, captured at forefoot landing phase, light springy stride, body upright',
