@@ -786,6 +786,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
             _detailRow(Icons.person_outline, 'Trainer', appt.trainerName),
             if (appt.locationName.isNotEmpty)
               _detailRow(Icons.location_on_outlined, 'Ort', appt.locationName),
+            if (appt.trainingPlanName != null && appt.trainingPlanName!.isNotEmpty)
+              _detailRow(Icons.fitness_center, 'Trainingsplan',
+                  appt.trainingPlanName!),
             const SizedBox(height: 20),
             Row(children: [
               Expanded(child: OutlinedButton.icon(
@@ -1334,6 +1337,16 @@ class _CalendarEventCard extends StatelessWidget {
                 Expanded(child: Text(appointment.trainerName,
                     style: const TextStyle(color: AppColors.muted, fontSize: 12), overflow: TextOverflow.ellipsis)),
               ]),
+              if (appointment.trainingPlanName != null && appointment.trainingPlanName!.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Row(children: [
+                  Icon(Icons.fitness_center, size: 12, color: accentColor),
+                  const SizedBox(width: 3),
+                  Expanded(child: Text(appointment.trainingPlanName!,
+                      style: TextStyle(color: accentColor, fontSize: 12, fontWeight: FontWeight.w600),
+                      overflow: TextOverflow.ellipsis)),
+                ]),
+              ],
               if (appointment.locationName.isNotEmpty) ...[
                 const SizedBox(height: 2),
                 Row(children: [

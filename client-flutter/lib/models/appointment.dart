@@ -11,6 +11,8 @@ class Appointment {
   final String trainerName;
   final int creditsCharged;
   final String status;
+  final int? trainingPlanId;
+  final String? trainingPlanName;
 
   Appointment({
     required this.id,
@@ -25,6 +27,8 @@ class Appointment {
     required this.trainerName,
     required this.creditsCharged,
     required this.status,
+    this.trainingPlanId,
+    this.trainingPlanName,
   });
 
   factory Appointment.fromJson(Map<String, dynamic> json) {
@@ -61,6 +65,12 @@ class Appointment {
       creditsCharged:
           int.tryParse(json['credits_charged']?.toString() ?? '0') ?? 0,
       status: json['status']?.toString() ?? '',
+      trainingPlanId: int.tryParse(json['training_plan_id']?.toString() ?? '') ??
+          int.tryParse(json['trainingPlanId']?.toString() ?? ''),
+      trainingPlanName: json['training_plan_name']?.toString() ??
+          (json['trainingPlan'] is Map
+              ? (json['trainingPlan'] as Map)['name']?.toString()
+              : null),
     );
   }
 }
