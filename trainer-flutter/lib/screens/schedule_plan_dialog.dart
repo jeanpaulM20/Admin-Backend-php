@@ -110,18 +110,18 @@ class _SchedulePlanDialogState extends State<SchedulePlanDialog> {
       final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
       final timeStr = '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}';
 
+      // Online coaching workout — no location, no in-person training type
       await _api.post('${ApiConfig.training}/schedule-plan', body: {
         'client_id': widget.clientId,
         'training_plan_id': widget.plan.id,
         'date': dateStr,
         'starttime': timeStr,
-        'location_id': _selectedLocationId,
         'training_type_id': 1,
       });
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Plan "${widget.plan.name ?? 'Trainingsplan'}" für ${widget.clientName} geplant'),
+        content: Text('Workout "${widget.plan.name ?? 'Trainingsplan'}" für ${widget.clientName} geplant'),
         backgroundColor: AppColors.green,
       ));
       Navigator.pop(context, true);
@@ -167,12 +167,17 @@ class _SchedulePlanDialogState extends State<SchedulePlanDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Plan im Kalender planen',
+                      Text('Workout planen',
                           style: GoogleFonts.montserrat(
                               color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w700)),
                       Text(planName + '  →  ' + widget.clientName,
                           style: GoogleFonts.openSans(
                               color: AppColors.muted, fontSize: 12)),
+                      const SizedBox(height: 2),
+                      Text('Online Coaching — kein Standort nötig',
+                          style: GoogleFonts.openSans(
+                              color: AppColors.primary.withAlpha(178),
+                              fontSize: 10, fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ),
@@ -216,38 +221,6 @@ class _SchedulePlanDialogState extends State<SchedulePlanDialog> {
               ],
             ),
           ),
-          const SizedBox(height: 14),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text('STANDORT', style: GoogleFonts.openSans(
-                  color: AppColors.muted.withAlpha(153), fontSize: 9,
-                  fontWeight: FontWeight.w800, letterSpacing: 1.5)),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Wrap(
-              spacing: 8, runSpacing: 6,
-              children: widget.locations.map((loc) {
-                final selected = _selectedLocationId == loc.id;
-                return ChoiceChip(
-                  label: Text(loc.name, style: GoogleFonts.openSans(
-                      color: selected ? AppColors.text : AppColors.muted,
-                      fontSize: 12, fontWeight: FontWeight.w600)),
-                  selected: selected,
-                  selectedColor: AppColors.primary.withAlpha(51),
-                  backgroundColor: AppColors.surface2,
-                  side: BorderSide(
-                    color: selected ? AppColors.primary : AppColors.border,
-                  ),
-                  onSelected: (_) => setState(() => _selectedLocationId = loc.id),
-                );
-              }).toList(),
-            ),
-          ),
           const SizedBox(height: 24),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -264,7 +237,7 @@ class _SchedulePlanDialogState extends State<SchedulePlanDialog> {
                 child: _saving
                     ? const SizedBox(width: 22, height: 22,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : Text('Im Kalender planen',
+                    : Text('Workout planen',
                         style: GoogleFonts.montserrat(fontSize: 15, fontWeight: FontWeight.w700)),
               ),
             ),

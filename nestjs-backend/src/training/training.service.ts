@@ -114,41 +114,51 @@ export class TrainingService {
       }
     }
 
-    // ── 4. No trainer conflict (with location buffer) ────────────
-    const trainerTrainings = await this.repo.find({
-      where: {
-        trainerId,
-        date,
-        status: In([TrainingStatus.BOOKED, TrainingStatus.ATTENDED]),
-      },
-    });
+    // ── 4. Trainer conflict check ────────────────────────────────
+    // Online coaching workouts (plan assignments without location) don't
+    // block the trainer's calendar — the client trains independently.
+    // Only in-person sessions trigger the trainer-conflict check.
+    const isOnlineCoaching = !!trainingPlanId && !locationId;
 
-    const allLocations = await this.locationRepo.find();
-    const locationMap = new Map(allLocations.map((l) => [l.id, l]));
-    const reqLocation = locationId ? locationMap.get(locationId) : null;
-    const reqBuffer = reqLocation?.bufferMinutes ?? 30;
+    if (!isOnlineCoaching) {
+      const trainerTrainings = await this.repo.find({
+        where: {
+          trainerId,
+          date,
+          status: In([TrainingStatus.BOOKED, TrainingStatus.ATTENDED]),
+        },
+      });
 
-    for (const t of trainerTrainings) {
-      const [eH, eM] = (t.starttime || '00:00').split(':').map(Number);
-      const existStart = eH * 60 + eM;
-      const existEnd = existStart + (t.duration || DURATION);
+      const allLocations = await this.locationRepo.find();
+      const locationMap = new Map(allLocations.map((l) => [l.id, l]));
+      const reqLocation = locationId ? locationMap.get(locationId) : null;
+      const reqBuffer = reqLocation?.bufferMinutes ?? 30;
 
-      const sameLocation =
-        locationId != null && t.locationId != null && Number(t.locationId) === locationId;
-      let buffer = 0;
-      if (!sameLocation) {
-        const existLocation = t.locationId ? locationMap.get(Number(t.locationId)) : null;
-        const existBuffer = existLocation?.bufferMinutes ?? 30;
-        buffer = Math.max(reqBuffer, existBuffer);
-      }
+      for (const t of trainerTrainings) {
+        // Skip online coaching sessions when checking conflicts
+        if (t.trainingPlanId && !t.locationId) continue;
 
-      if (reqStart < existEnd + buffer && existStart < reqEnd + buffer) {
-        if (buffer > 0) {
-          throw new BadRequestException(
-            `Trainer hat einen Termin an einem anderen Standort. ${buffer} Min. Pufferzeit erforderlich.`,
-          );
+        const [eH, eM] = (t.starttime || '00:00').split(':').map(Number);
+        const existStart = eH * 60 + eM;
+        const existEnd = existStart + (t.duration || DURATION);
+
+        const sameLocation =
+          locationId != null && t.locationId != null && Number(t.locationId) === locationId;
+        let buffer = 0;
+        if (!sameLocation) {
+          const existLocation = t.locationId ? locationMap.get(Number(t.locationId)) : null;
+          const existBuffer = existLocation?.bufferMinutes ?? 30;
+          buffer = Math.max(reqBuffer, existBuffer);
         }
-        throw new BadRequestException('Trainer ist zu dieser Zeit bereits gebucht.');
+
+        if (reqStart < existEnd + buffer && existStart < reqEnd + buffer) {
+          if (buffer > 0) {
+            throw new BadRequestException(
+              `Trainer hat einen Termin an einem anderen Standort. ${buffer} Min. Pufferzeit erforderlich.`,
+            );
+          }
+          throw new BadRequestException('Trainer ist zu dieser Zeit bereits gebucht.');
+        }
       }
     }
 
@@ -173,12 +183,14 @@ export class TrainingService {
     const typeName = formatted.type_name || 'Training';
     const planName = formatted.training_plan_name || null;
 
+    // Plan assignment = online coaching workout (no location)
+    // In-person training = with location
     const notifBody = planName
-      ? `${planName} am ${date} um ${starttime} Uhr${locationName ? ' — ' + locationName : ''}`
+      ? `${planName} am ${date} um ${starttime} Uhr`
       : `${typeName} am ${date} um ${starttime} Uhr${locationName ? ' — ' + locationName : ''}`;
 
     this.pushService.sendToClient(clientId, {
-      title: planName ? 'Neuer Trainingsplan zugewiesen' : 'Neuer Termin',
+      title: planName ? 'Neues Workout geplant' : 'Neuer Termin',
       body: notifBody,
       url: `/api/training/${saved.id}/ical`,
     }).catch((err) => {
