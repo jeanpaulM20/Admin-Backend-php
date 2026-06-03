@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, Res, ParseIntPipe, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, Res, ParseIntPipe, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { Response } from 'express';
 import { TrainingService } from './training.service';
 import { IcalService } from './ical.service';
