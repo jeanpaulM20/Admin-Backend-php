@@ -162,11 +162,11 @@ export class AiPlanService {
     if (test && this.anthropic) {
       try {
         const resp = await this.anthropic.messages.create({
-          model: 'claude-haiku-4-5-20251001',
+          model: 'claude-sonnet-4-6-20251001',
           max_tokens: 10,
           messages: [{ role: 'user', content: 'Say OK' }],
         });
-        status.anthropicTest = { ok: true, model: 'claude-haiku-4-5-20251001', response: resp.content?.[0] };
+        status.anthropicTest = { ok: true, model: 'claude-sonnet-4-6-20251001', response: resp.content?.[0] };
       } catch (err: any) {
         status.anthropicTest = { ok: false, error: err.message?.substring(0, 300) };
       }
@@ -1130,7 +1130,7 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
 
     const response = await Promise.race([
       this.anthropic.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: 'claude-sonnet-4-6-20251001',
         max_tokens: 4096,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
