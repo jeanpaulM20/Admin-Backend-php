@@ -23,7 +23,7 @@ export class IcalService {
   async generateIcal(trainingId: number): Promise<string> {
     const training = await this.trainingRepo.findOne({
       where: { id: trainingId },
-      relations: ['trainer', 'client', 'trainingType', 'location'],
+      relations: ['trainer', 'client', 'trainingType', 'location', 'trainingPlan'],
     });
 
     if (!training) {
@@ -95,14 +95,19 @@ export class IcalService {
       cancelled: 'CANCELLED',
     };
 
+    const planName = training.trainingPlan?.name;
+    const descriptionParts: string[] = [];
+    if (planName) descriptionParts.push(`Trainingsplan: ${planName}`);
+    if (training.text) descriptionParts.push(training.text);
+
     const event: ics.EventAttributes = {
       uid: `training-${training.id}@sihltraining`,
       start: [year, month, day, hour, minute],
       startInputType: 'local',
       startOutputType: 'local',
       duration: { minutes: durationMin },
-      title: summary,
-      description: training.text || undefined,
+      title: planName ? `${summary} — ${planName}` : summary,
+      description: descriptionParts.length > 0 ? descriptionParts.join('\n\n') : undefined,
       status: statusMap[training.status] ?? 'CONFIRMED',
       busyStatus: 'BUSY',
       categories: ['HEALTH', 'FITNESS'],

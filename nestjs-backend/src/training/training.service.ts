@@ -25,6 +25,7 @@ export class TrainingService {
       type_name: typeName,
       type_abbr: t.trainingType?.abbr ?? null,
       location_name: t.location?.name ?? null,
+      training_plan_name: t.trainingPlan?.name ?? null,
     };
   }
 
@@ -43,14 +44,14 @@ export class TrainingService {
 
     const rows = await this.repo.find({
       where,
-      relations: ['trainer', 'client', 'trainingType', 'location'],
+      relations: ['trainer', 'client', 'trainingType', 'location', 'trainingPlan'],
       order: { date: 'ASC', starttime: 'ASC' },
     });
     return rows.map((t) => this.formatTraining(t));
   }
 
   async findOne(id: number, includeExercises = false) {
-    const relations = ['trainer', 'client', 'trainingType', 'location'];
+    const relations = ['trainer', 'client', 'trainingType', 'location', 'trainingPlan'];
     if (includeExercises) relations.push('exercisesets');
     const training = await this.repo.findOne({
       where: { id },
@@ -79,6 +80,9 @@ export class TrainingService {
     const starttime: string = body.starttime ?? body.time_from ?? body.from;
     const duration = Number(body.duration) || DURATION;
     const text: string = body.text || null;
+    const trainingPlanId = body.training_plan_id ?? body.trainingPlanId
+      ? Number(body.training_plan_id ?? body.trainingPlanId)
+      : null;
 
     if (!clientId || !date || !starttime) {
       throw new BadRequestException('Client, Datum und Startzeit sind erforderlich.');
@@ -154,6 +158,7 @@ export class TrainingService {
       clientId,
       trainingTypeId,
       locationId,
+      trainingPlanId,
       date,
       starttime,
       duration,
@@ -166,10 +171,15 @@ export class TrainingService {
     const formatted = await this.findOne(saved.id);
     const locationName = formatted.location_name || '';
     const typeName = formatted.type_name || 'Training';
+    const planName = formatted.training_plan_name || null;
+
+    const notifBody = planName
+      ? `${planName} am ${date} um ${starttime} Uhr${locationName ? ' — ' + locationName : ''}`
+      : `${typeName} am ${date} um ${starttime} Uhr${locationName ? ' — ' + locationName : ''}`;
 
     this.pushService.sendToClient(clientId, {
-      title: 'Neuer Termin',
-      body: `${typeName} am ${date} um ${starttime} Uhr${locationName ? ' — ' + locationName : ''}`,
+      title: planName ? 'Neuer Trainingsplan zugewiesen' : 'Neuer Termin',
+      body: notifBody,
       url: `/api/training/${saved.id}/ical`,
     }).catch((err) => {
       this.logger.warn(`Push notification failed for client ${clientId}: ${err.message}`);

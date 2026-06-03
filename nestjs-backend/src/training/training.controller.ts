@@ -83,6 +83,22 @@ export class TrainingController {
     return this.service.createByTrainer(trainer.id, body);
   }
 
+  /**
+   * Convenience endpoint: schedule a training plan for a client at a specific date/time.
+   * Same validation as POST / but explicitly requires training_plan_id.
+   */
+  @Post('schedule-plan')
+  schedulePlan(
+    @CurrentTrainer() trainer: Trainer,
+    @Body() body: any,
+  ) {
+    if (!trainer) throw new ForbiddenException('Nur Trainer können Trainings planen');
+    if (!body?.training_plan_id && !body?.trainingPlanId) {
+      throw new ForbiddenException('training_plan_id ist erforderlich');
+    }
+    return this.service.createByTrainer(trainer.id, body);
+  }
+
   @Put(':id')
   update(
     @CurrentTrainer() trainer: Trainer,

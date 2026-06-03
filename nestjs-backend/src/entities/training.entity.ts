@@ -6,6 +6,7 @@ import { Client } from './client.entity';
 import { Exerciseset } from './exercise-set.entity';
 import { TrainingType } from './training-type.entity';
 import { Location } from './location.entity';
+import { TrainingPlan } from './training-plan.entity';
 
 export enum TrainingStatus {
   BOOKED = 'booked',
@@ -64,6 +65,14 @@ export class Training {
 
   @Column({ name: 'credit_pack_id', nullable: true })
   creditPackId: number;
+
+  /** Optional link to a training plan that should be performed at this session */
+  @Column({ name: 'training_plan_id', nullable: true })
+  trainingPlanId: number;
+
+  @ManyToOne(() => TrainingPlan, { nullable: true })
+  @JoinColumn({ name: 'training_plan_id' })
+  trainingPlan: TrainingPlan;
 
   @ManyToOne(() => TrainingType)
   @JoinColumn({ name: 'type_id' })

@@ -63,6 +63,9 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       // Training plan timestamps for sorting (newest/recently edited first)
       `ALTER TABLE trainingplan ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP`,
       `ALTER TABLE trainingplan ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`,
+      // Optional plan link on a training (calendar event with assigned workout)
+      `ALTER TABLE training ADD COLUMN training_plan_id INT DEFAULT NULL`,
+      `ALTER TABLE training ADD INDEX idx_training_plan_id (training_plan_id)`,
     ];
 
     // Create training_plan_comment table if not exists
