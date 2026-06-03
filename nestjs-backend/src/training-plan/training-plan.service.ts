@@ -17,6 +17,9 @@ export class TrainingPlanService {
     return this.repo.find({
       where: clientId ? { clientId } : {},
       relations: ['client'],
+      // Newest / most recently edited first.
+      // Fallback to id for legacy rows without timestamps.
+      order: { updatedAt: 'DESC', id: 'DESC' },
     });
   }
 

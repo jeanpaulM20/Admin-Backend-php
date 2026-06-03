@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { Client } from './client.entity';
 
 @Entity({ name: 'trainingplan' })
@@ -42,6 +42,14 @@ export class TrainingPlan {
 
   @Column({ nullable: true })
   type: string;
+
+  /** Auto-set on first save */
+  @CreateDateColumn({ name: 'created_at', type: 'datetime', nullable: true })
+  createdAt: Date;
+
+  /** Auto-updated on every save — used for sorting newest first */
+  @UpdateDateColumn({ name: 'updated_at', type: 'datetime', nullable: true })
+  updatedAt: Date;
 
   @ManyToOne(() => Client)
   @JoinColumn({ name: 'client_id' })

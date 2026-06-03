@@ -60,6 +60,9 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       `ALTER TABLE training_plan_comment ADD INDEX idx_tpc_plan_exercise (plan_id, exercise_key)`,
       // AI-generated exercise icon (PNG stored as BLOB)
       `ALTER TABLE exercise ADD COLUMN icon LONGBLOB DEFAULT NULL`,
+      // Training plan timestamps for sorting (newest/recently edited first)
+      `ALTER TABLE trainingplan ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP`,
+      `ALTER TABLE trainingplan ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`,
     ];
 
     // Create training_plan_comment table if not exists
