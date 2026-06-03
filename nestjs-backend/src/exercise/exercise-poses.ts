@@ -1,17 +1,14 @@
-/**
+﻿/**
  * Biomechanically precise pose descriptions for AI image generation.
  * Each description defines the KEY MOMENT of the exercise with specific
  * joint angles, body positions, and required equipment.
  */
 export const EXERCISE_POSES: Record<number, string> = {
-  // ── Fußmuskulatur & Barfuß-Training ──────────────────────────────────
+  // â”€â”€ FuÃŸmuskulatur & BarfuÃŸ-Training â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   4: 'performing a push-up at the bottom position, chest 2 inches from the ground, body in a perfectly straight plank line from head to heels, arms bent at 90 degrees, core braced',
   7: 'performing a sit-up at the top position, torso fully upright at 90 degrees to the ground, knees bent at 45 degrees, feet flat on the ground, hands behind the head',
   8: 'performing a sumo squat at the bottom position, feet wider than shoulder-width with toes pointed out at 45 degrees, thighs parallel to the ground, torso upright, hands clasped at chest',
-  9: 'seated on a bench performing the short foot exercise, one bare foot flat on the ground with the arch actively doming upward while toes stay flat, close-up showing foot arch engagement',
   10: 'seated with bare feet visible in close-up, toes lifting one at a time sequentially like playing piano keys, demonstrating isolated individual toe control',
-  12: 'seated with one bare foot gripping a small round marble between the toes, toes curled to pick up the object, close-up view of foot',
-  16: 'seated with bare feet in close-up view, all five toes spread maximally wide apart showing active toe splay and separation',
   17: 'standing balanced on one leg on a visible wobble cushion/unstable pad, arms out to sides for balance, standing leg slightly bent at 15 degrees',
   19: 'standing on one leg with eyes gently closed, arms relaxed at sides, standing leg with slight knee bend, serene concentrated expression',
   20: 'standing in tandem stance (heel of front foot touching toes of back foot) on a visible soft mat, arms out for balance',
@@ -25,7 +22,7 @@ export const EXERCISE_POSES: Record<number, string> = {
   28: 'walking barefoot on natural uneven terrain with visible stones and textured ground, careful deliberate steps',
   29: 'running backward barefoot, looking over one shoulder, careful controlled foot placement, arms for balance',
 
-  // ── Ausdauer & Intervalltraining ─────────────────────────────────────
+  // â”€â”€ Ausdauer & Intervalltraining â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   30: 'in full upright sprint with high knees, thigh of lead leg parallel to ground, 90-degree elbow bend, slight forward lean from ankles only, powerful arm drive',
   31: 'sprinting uphill on visible incline, body leaned forward matching hill angle, aggressive arm drive, powerful leg push-off',
   32: 'running at steady controlled pace, efficient upright form, relaxed shoulders, arms at 90 degrees, mid-stride',
@@ -33,13 +30,9 @@ export const EXERCISE_POSES: Record<number, string> = {
   34: 'aggressive track sprint on visible running surface, maximum arm drive, body leaned forward, explosive leg extension',
   35: 'at peak of burpee jump, body fully extended vertically, arms reaching straight overhead, feet just leaving the ground',
   36: 'jumping rope at peak height, visible jump rope arcing overhead, elbows pinned tight to ribs at 90 degrees, body fully extended vertically, toes pointed down',
-  37: 'seated on visible rowing machine at full drive position, legs fully extended, handle pulled to lower chest, torso leaned back slightly at 105 degrees',
-  38: 'seated on visible stationary fan bike, legs and arms pumping aggressively, upright torso',
-  39: 'in bear crawl position, hands and feet flat on ground, knees hovering 2 inches off the ground, back flat, looking forward',
   40: 'standing tall at top of kettlebell swing, hips fully extended, arms straight forward at chest height holding visible kettlebell, minimal knee bend under 15 degrees',
-  41: 'walking with heavy visible dumbbells held at sides (farmer walk), upright posture, shoulders back, strong grip visible',
 
-  // ── Ring- & Suspension-Training ──────────────────────────────────────
+  // â”€â”€ Ring- & Suspension-Training â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   42: 'suspended on visible gymnastic rings in support hold, arms FULLY locked straight at sides, body perfectly vertical and rigid, legs together with toes pointed down, rings at hip level',
   43: 'body angled back at 45 degrees with heels on ground, pulling visible gymnastic rings to chest, arms bent, shoulder blades squeezed, straight body line',
   44: 'in push-up position with hands gripping visible hanging gymnastic rings, body in straight plank, lowering chest between the rings',
@@ -47,16 +40,13 @@ export const EXERCISE_POSES: Record<number, string> = {
   46: 'fully suspended on visible gymnastic rings performing a dip, arms bent at 90 degrees with elbows behind body, torso near-vertical, legs together hanging below',
   47: 'transitioning above visible gymnastic rings in muscle-up, body rising above ring height, arms pressing down on rings',
   48: 'standing, pulling visible gymnastic rings toward face, elbows high and wide at shoulder height, shoulder blades squeezed',
-  49: 'hanging from visible gymnastic rings, body rotating backward through an inverted position, arms extended',
   50: 'suspended on visible gymnastic rings performing L-sit, arms locked straight, legs extended horizontal forming an L-shape with torso',
-  51: 'performing dip on visible gymnastic rings with one foot elevated on visible bench behind, deep descent with elbows at 90 degrees',
   52: 'in forearm plank position with feet in visible TRX/suspension straps, body straight, core braced, sliding body forward',
   53: 'performing single-leg squat while holding visible TRX straps for balance, one leg extended forward, standing leg bent at 90 degrees',
   54: 'leaning back at 45 degrees holding visible TRX straps, arms raised in Y-shape overhead, body in straight diagonal line',
-  55: 'lying on back with one foot in visible TRX strap, hips lifted to form straight line from shoulders to foot, pulling heel toward glutes',
 
-  // ── Kettlebell-Training ──────────────────────────────────────────────
-  56: 'standing tall at the TOP of a kettlebell swing, hips fully extended and thrust forward, arms straight forward at chest height holding visible kettlebell floating at peak, knees nearly straight with under 15 degrees bend — this is a HIP HINGE not a squat',
+  // â”€â”€ Kettlebell-Training â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  56: 'standing tall at the TOP of a kettlebell swing, hips fully extended and thrust forward, arms straight forward at chest height holding visible kettlebell floating at peak, knees nearly straight with under 15 degrees bend â€” this is a HIP HINGE not a squat',
   57: 'standing tall at lockout of kettlebell snatch, one arm FULLY extended straight overhead holding visible kettlebell, bicep next to ear, hips and knees fully extended, body in one vertical stacked line',
   58: 'standing with visible kettlebell in rack position at shoulder height, elbow tucked tight against ribs, wrist straight, kettlebell resting on forearm and shoulder',
   59: 'standing tall with one arm fully extended overhead holding visible kettlebell in lockout position, other arm relaxed at side',
@@ -72,12 +62,10 @@ export const EXERCISE_POSES: Record<number, string> = {
   69: 'mid-swing with visible kettlebell between legs, hips hinged back deeply, arms extended down, explosive hip drive about to propel kettlebell forward',
   70: 'pressing two visible kettlebells overhead simultaneously with both arms fully extended, standing tall',
 
-  // ── Exzentrisches Training ───────────────────────────────────────────
+  // â”€â”€ Exzentrisches Training â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   71: 'standing on one foot at the edge of a visible raised STEP or PLATFORM, heel dropping well BELOW the step level in slow eccentric descent, torso upright, knee nearly straight with only 5 degrees bend',
   72: 'visible resistance band behind both knees, body leaning back at 30 degrees, slowly lowering into squat position, arms forward for balance',
-  73: 'forearm resting on edge of visible table/bench, hand holding small visible dumbbell with wrist extending slowly downward past the edge',
   74: 'back pressed flat against a visible WALL, thighs parallel to ground, knees bent at exactly 90 degrees, holding isometric wall sit position',
-  76: 'KNEELING upright on both knees with ankles anchored under a visible pad or bar, body forming perfectly straight line from knees through hips to shoulders at 180 degrees, beginning slow controlled forward lean pivoting ONLY at the knees — NOT a sprinter start',
   77: 'slowly lowering on one leg in single-leg squat, other leg slightly extended forward, arms reaching ahead for balance, controlled eccentric descent',
   78: 'mid-squat in slow controlled descent, arms forward for balance, upright torso, demonstrating slow tempo lowering',
   79: 'standing on a visible step/platform, one leg slowly lowering off the edge toward the ground below, controlled eccentric step-down',
@@ -87,24 +75,23 @@ export const EXERCISE_POSES: Record<number, string> = {
   83: 'body angled back hanging from visible gymnastic rings, slowly extending arms in controlled eccentric lowering, body straight',
   84: 'on visible parallel bars, arms bent at 90 degrees, slowly lowering body in controlled eccentric dip descent',
 
-  // ── Eigenkörpergewicht / Calisthenics ────────────────────────────────
+  // â”€â”€ EigenkÃ¶rpergewicht / Calisthenics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   85: 'in handstand position against a clearly visible WALL, hands on ground shoulder-width apart, arms straight, body in hollow position with posterior pelvic tilt, BACK facing the wall, feet touching wall, full body visible including feet',
   86: 'in push-up position with hands rotated backward (fingers pointing toward feet), body leaned extremely far forward past the hands, shoulders well ahead of wrists',
   87: 'in inverted V pike position, hands and feet on ground, hips pointed high toward sky, head lowering between straight arms toward the ground',
   88: 'in plank/push-up position leaned extremely far forward, shoulders well ahead of wrists, body in straight line, intense forward lean',
   89: 'in push-up position with hands close together forming a diamond shape with thumbs and index fingers, lowering chest toward hands',
   90: 'at the top of a pull-up on visible bar, one arm fully extended sideways gripping the bar, other arm bent pulling chin above bar level',
-  91: 'hanging from visible bar facing downward with body horizontal/parallel to ground, knees tucked tightly to chest, arms straight — front lever tuck position',
-  92: 'hanging from visible bar in inverted position with body horizontal, knees tucked to chest, facing upward — back lever tuck position',
+  91: 'hanging from visible bar facing downward with body horizontal/parallel to ground, knees tucked tightly to chest, arms straight â€” front lever tuck position',
+  92: 'hanging from visible bar in inverted position with body horizontal, knees tucked to chest, facing upward â€” back lever tuck position',
   93: 'at top of pull-up on visible bar, moving body horizontally along the bar from one side to other, one arm straight one arm bent',
   94: 'in deep single-leg squat (pistol squat), one leg extended perfectly straight forward parallel to ground, standing leg bent deeply, arms reaching forward for counterbalance',
   95: 'in single-leg squat with the free leg held behind the body gripped by one hand (heel to glute), torso upright, balancing on standing leg',
   96: 'kneeling with body leaning far backward, thighs at steep angle, arms extended forward for balance, quadriceps under extreme stretch',
   97: 'LYING FACE UP (supine) on the ground, arms extended straight overhead beside ears, legs straight together hovering 6 inches off the floor, lower back pressed firmly into the ground, body forming a continuous concave banana-shaped arc',
   99: 'sitting on visible parallettes/blocks with arms locked straight supporting body weight, legs extended straight forward horizontally forming an L-shape with the upright torso',
-  100: 'holding body horizontally from a visible vertical pole, body extended completely sideways like a flag, both hands gripping the pole one above the other',
 
-  // ── Slackline ────────────────────────────────────────────────────────
+  // â”€â”€ Slackline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   114: 'standing balanced on ONE leg on a clearly visible thin SLACKLINE stretched between trees, other foot lifted and extended to the side, arms raised overhead in U-shape, nearly upright stance with only 15-25 degrees of knee bend on standing leg',
   115: 'walking carefully along a clearly visible SLACKLINE, one foot in front of the other in heel-to-toe steps, arms spread wide for balance',
   116: 'in yoga tree pose on a clearly visible SLACKLINE, one foot pressed against inner thigh of standing leg, arms reaching upward, balanced',
@@ -118,13 +105,13 @@ export const EXERCISE_POSES: Record<number, string> = {
   206: 'standing on one leg on a clearly visible SLACKLINE, throwing a visible ball with both hands, body balanced',
   207: 'standing on one leg on a clearly visible SLACKLINE, catching a visible ball with both hands extended, body maintaining balance',
 
-  // ── Propriozeption ───────────────────────────────────────────────────
+  // â”€â”€ Propriozeption â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   118: 'standing with both feet on a visible round wobble disc/balance board, body making small adjustments to maintain balance, arms slightly out',
   119: 'balancing on one foot on a visible round wobble disc, other leg lifted, arms out for balance',
   120: 'performing squat on a visible rocker balance board, knees bent at 90 degrees, arms forward, maintaining equilibrium on tilting surface',
   121: 'standing with both feet on a visible dome-shaped BOSU ball, arms out to sides for balance, body stabilizing',
   122: 'standing on one foot on a visible dome-shaped BOSU ball with eyes indicated as gently closed, arms at sides, focused concentration',
-  123: 'two people visible — one standing on one leg maintaining balance while the other person gently pushes their shoulder, reactive balance training',
+  123: 'two people visible â€” one standing on one leg maintaining balance while the other person gently pushes their shoulder, reactive balance training',
   124: 'standing balanced on one leg while catching a visible ball with both hands, body stable and reactive',
   125: 'standing on one leg with the other foot reaching forward along the ground in a star pattern, arms out for balance, deep single-leg stability',
   126: 'standing on one foot on a visible small wobble board/therapy disc, arms at sides, maintaining balance',
@@ -135,29 +122,24 @@ export const EXERCISE_POSES: Record<number, string> = {
   131: 'performing squat on a visible wobble board while rotating torso to one side, arms extended in direction of rotation',
   132: 'standing on a visible board balanced on a cylindrical roller (Indo Board), surf-like wide stance, arms out, body dynamic',
 
-  // ── Mobilität & Aktive Beweglichkeit ─────────────────────────────────
+  // â”€â”€ MobilitÃ¤t & Aktive Beweglichkeit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   133: 'standing on one leg, the other leg lifted and moving in a large controlled circular motion at the hip joint, tracing the biggest possible circle',
-  134: 'standing with one arm tracing a large slow controlled circle through the full range of shoulder motion, other arm at side',
-  135: 'standing upright, slowly rolling the spine in a wave-like segmental motion from head through each vertebra to tailbone',
   136: 'standing on one leg, the other foot performing a slow controlled circle at the ankle joint, drawing a circular path in the air',
-  138: 'forearm extended forward, hand performing slow controlled circles at the wrist joint, close-up of hand and forearm',
   139: 'in half-kneeling deep lunge with back knee on ground, hips actively pressing forward, feeling stretch in the hip flexor of the back leg',
   140: 'seated on ground in 90/90 position with both legs bent at 90 degrees (front shin pointing forward, rear shin pointing sideways), rotating torso toward the front leg',
   141: 'seated in forward fold position, legs extended, hands reaching past feet, actively contracting into the hamstring stretch',
   142: 'seated in 90/90 hip position on the ground, actively lifting the back knee off the ground through internal rotation of the hip',
-  143: 'standing on a visible raised platform/step, slowly rolling the spine forward vertebra by vertebra in a Jefferson curl, hands holding a visible light weight hanging down toward the ground',
   144: 'in standing forward fold with slightly bent knees, hands holding a visible light weight, stretching hamstrings progressively with load',
   145: 'in deep lunge with back knee on the ground, hips pushed forward, arms reaching straight overhead, torso upright, feeling deep hip flexor stretch',
-  146: 'lying back over a visible cylindrical FOAM ROLLER placed at mid-back level, arms reaching overhead behind, back arching over the roller for thoracic extension',
   147: 'sitting deep in a full squat with feet flat, elbows pressing inside of knees outward, hands clasped at chest, torso as upright as possible',
-  148: 'in deep forward lunge, one hand on the ground beside the front foot, other arm reaching straight up to the sky, torso rotating open to the side — the Worlds Greatest Stretch position',
+  148: 'in deep forward lunge, one hand on the ground beside the front foot, other arm reaching straight up to the sky, torso rotating open to the side â€” the Worlds Greatest Stretch position',
   149: 'lying on one side with legs stacked, top arm opening like a book page rotating the thoracic spine, bottom arm extended forward, creating spinal rotation',
   195: 'in deep lunge position, one hand planted on ground inside front foot, other arm reaching to the sky, torso rotating open, deep hip flexor stretch',
 
-  // ── Plyometrie & Reaktivkraft ────────────────────────────────────────
-  151: 'athlete landing on top of a clearly visible PLYOMETRIC BOX, both feet on the box, knees bent absorbing the landing, arms forward for balance — the box must be clearly visible',
+  // â”€â”€ Plyometrie & Reaktivkraft â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  151: 'athlete landing on top of a clearly visible PLYOMETRIC BOX, both feet on the box, knees bent absorbing the landing, arms forward for balance â€” the box must be clearly visible',
   152: 'jumping up onto a clearly visible PLYOMETRIC BOX from one leg, other knee driving up, arms swinging for momentum',
-  153: 'at the absolute PEAK of a vertical countermovement jump, body FULLY EXTENDED, arms driving straight overhead, toes pointed down, maximum height — not tucked, fully stretched out',
+  153: 'at the absolute PEAK of a vertical countermovement jump, body FULLY EXTENDED, arms driving straight overhead, toes pointed down, maximum height â€” not tucked, fully stretched out',
   154: 'at peak of vertical jump from squat position, body fully extended, arms reaching overhead',
   155: 'at peak of tuck jump, both knees pulled tightly to chest, arms wrapped around knees, body airborne',
   156: 'jumping vertically while holding visible small dumbbells at sides, body extended, feet leaving the ground',
@@ -169,10 +151,10 @@ export const EXERCISE_POSES: Record<number, string> = {
   162: 'jumping over a clearly visible small HURDLE with both feet together, knees tucked upward, body airborne above the hurdle',
   163: 'dropping from a visible raised platform, body in the air, about to land on both feet, body loaded and ready for impact absorption',
   164: 'landing from a height with knees bent in quarter-squat position, arms out to sides for balance, absorbing impact, stable landing position',
-  165: 'bouncing on stiff ankles with straight legs, body perfectly vertical, minimal knee bend, slightly airborne — rapid ankle-only pogo hops',
+  165: 'bouncing on stiff ankles with straight legs, body perfectly vertical, minimal knee bend, slightly airborne â€” rapid ankle-only pogo hops',
   166: 'rebounding explosively from the ground, jumping upward toward a visible PLYOMETRIC BOX, body in powerful upward flight',
   167: 'jumping over a clearly visible HURDLE with both feet, knees tucked, a second visible hurdle ahead showing continuous pattern',
-  168: 'bouncing rapidly on toes with completely straight legs, minimal knee bend, body vertical, slightly airborne — quick ankle bounces',
+  168: 'bouncing rapidly on toes with completely straight legs, minimal knee bend, body vertical, slightly airborne â€” quick ankle bounces',
   169: 'leaping sideways through the air with both legs together, arms extended to the side of movement, powerful lateral bound',
   170: 'mid-leap to the side like a speed skater, one leg extended back and across behind the body, opposite arm reaching forward, dynamic lateral movement',
   171: 'jumping sideways over a clearly visible small HURDLE, legs together, body airborne and tilting in direction of movement',
@@ -180,11 +162,8 @@ export const EXERCISE_POSES: Record<number, string> = {
   173: 'in lateral shuffle position, low athletic stance with knees bent, arms ready at sides, moving sideways rapidly',
   174: 'jumping with both feet together over a visible hexagonal pattern on the ground, body upright, controlled rapid jumps',
   175: 'planting one foot hard on the ground and cutting explosively to the opposite direction, body low, arms driving into the turn',
-  176: 'pushing forward against a clearly visible SLED/PROWLER frame, arms fully extended against the sled handles, body at 45-degree forward lean, legs driving powerfully',
-  177: 'pulling a clearly visible SLED backward using a rope/strap extending behind, body leaned back, arms pulling hand over hand',
   178: 'sprinting forward with a clearly visible resistance BAND attached behind the hips, exaggerated forward lean against the resistance',
   179: 'exploding from a three-point sprint start position, one hand on the ground, body coiled low, ready to burst forward',
-  180: 'at maximum speed full sprint, body near-vertical, extreme arm drive, legs in full extension, fastest moment of the sprint',
   181: 'performing A-skip drill with one knee driven up to hip height, standing on the ball of the opposite foot, arms pumping in opposition, high-knee skipping motion',
   182: 'leaning at 45 degrees against a clearly visible WALL with straight arms pressed against it, one knee driven up in high sprint position, body in straight line from hands to grounded foot',
   186: 'stepping up onto a clearly visible raised PLATFORM/BENCH with one leg, body upright, opposite knee driving up at the top',
@@ -194,7 +173,7 @@ export const EXERCISE_POSES: Record<number, string> = {
   194: 'balancing on one leg with torso hinged forward to horizontal position, back leg extending straight behind forming a T-shape with the torso, arms hanging or extended',
   197: 'skipping a clearly visible JUMP ROPE on one leg, rope arcing overhead, standing leg slightly bent, other knee lifted, elbows close to ribs',
 
-  // ── Propriozeption (MFT Board) ───────────────────────────────────────
+  // â”€â”€ Propriozeption (MFT Board) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   198: 'stepping back into a reverse lunge from a visible round balance DISC, front foot on the disc, back leg extending behind, arms for balance',
   199: 'performing a squat standing on a visible round balance DISC/wobble board, knees bent at 90 degrees, arms forward, maintaining balance',
 };

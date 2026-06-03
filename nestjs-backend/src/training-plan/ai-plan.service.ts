@@ -162,11 +162,11 @@ export class AiPlanService {
     if (test && this.anthropic) {
       try {
         const resp = await this.anthropic.messages.create({
-          model: 'claude-sonnet-4-6-20251001',
+          model: 'claude-sonnet-4-6',
           max_tokens: 10,
           messages: [{ role: 'user', content: 'Say OK' }],
         });
-        status.anthropicTest = { ok: true, model: 'claude-sonnet-4-6-20251001', response: resp.content?.[0] };
+        status.anthropicTest = { ok: true, model: 'claude-sonnet-4-6', response: resp.content?.[0] };
       } catch (err: any) {
         status.anthropicTest = { ok: false, error: err.message?.substring(0, 300) };
       }
@@ -1077,7 +1077,9 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
       if (!fallbackAvailable) throw primaryErr;
 
       const fallbackName = this.provider === 'anthropic' ? 'Groq' : 'Anthropic';
-      this.logger.warn(`${this.provider} failed (${primaryErr.message}), trying ${fallbackName}...`);
+      const errStatus = primaryErr?.status ?? '';
+      const errType = primaryErr?.error?.error?.type ?? primaryErr?.error?.type ?? '';
+      this.logger.warn(`${this.provider} failed (status=${errStatus} type=${errType}, msg="${primaryErr.message}"), trying ${fallbackName}...`);
 
       // Try fallback provider
       try {
@@ -1130,7 +1132,7 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
 
     const response = await Promise.race([
       this.anthropic.messages.create({
-        model: 'claude-sonnet-4-6-20251001',
+        model: 'claude-sonnet-4-6',
         max_tokens: 4096,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
