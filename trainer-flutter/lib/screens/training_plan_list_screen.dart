@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../models/client.dart';
 import '../models/training_plan.dart';
+import '../models/availability.dart';
+import '../providers/auth_provider.dart';
+import '../providers/trainer_provider.dart';
 import '../services/api_service.dart';
 import '../config/api_config.dart';
 import '../config/app_colors.dart';
 import 'training_plan_detail_screen.dart';
+import 'schedule_plan_dialog.dart';
 
 class TrainingPlanListScreen extends StatefulWidget {
   final Client client;
@@ -1727,12 +1732,40 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                 ],
               ),
             ),
+            // Schedule button — assign plan to calendar
+            IconButton(
+              icon: const Icon(Icons.event_available,
+                  color: AppColors.primary, size: 22),
+              tooltip: 'Im Kalender planen',
+              onPressed: () => _openSchedulePlanDialog(plan),
+            ),
             const Icon(Icons.chevron_right,
                 color: AppColors.muted, size: 18),
           ],
         ),
       ),
     ),
+    );
+  }
+
+  Future<void> _openSchedulePlanDialog(TrainingPlan plan) async {
+    final trainer = context.read<AuthProvider>().trainer;
+    if (trainer == null) return;
+
+    // Ensure locations are loaded
+    final trainerProvider = context.read<TrainerProvider>();
+    if (trainerProvider.locations.isEmpty) {
+      await trainerProvider.fetchLocations();
+    }
+    if (!mounted) return;
+
+    await SchedulePlanDialog.show(
+      context,
+      trainerId: trainer.id,
+      clientId: widget.client.id,
+      clientName: widget.client.name,
+      plan: plan,
+      locations: trainerProvider.locations,
     );
   }
 }

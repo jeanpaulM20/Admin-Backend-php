@@ -17,6 +17,8 @@ class Training {
   final String? notes;
   final bool isCancelled;
   final DateTime? cancelledAt;
+  final int? trainingPlanId;
+  final String? trainingPlanName;
 
   const Training({
     required this.id,
@@ -37,6 +39,8 @@ class Training {
     this.notes,
     this.isCancelled = false,
     this.cancelledAt,
+    this.trainingPlanId,
+    this.trainingPlanName,
   });
 
   /// Late cancellation: cancelled less than 12 hours before training start.
@@ -129,6 +133,11 @@ class Training {
       cancelledAt: DateTime.tryParse(
           json['cancelledAt']?.toString() ??
           json['cancelled_at']?.toString() ?? ''),
+      trainingPlanId: _parseInt(json['training_plan_id'] ?? json['trainingPlanId']) > 0
+          ? _parseInt(json['training_plan_id'] ?? json['trainingPlanId'])
+          : null,
+      trainingPlanName: json['training_plan_name']?.toString() ??
+          (json['trainingPlan'] is Map ? json['trainingPlan']['name']?.toString() : null),
     );
   }
 
