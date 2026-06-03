@@ -1130,17 +1130,39 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
     const userPrompt = this.buildUserPrompt(context);
     const systemPrompt = this.buildSystemPrompt(context.planRequest, context);
 
+    // Prompt caching: mark large static system prompt as cacheable.
+    // First call writes cache (~$3.75/MTok), subsequent reads cost ~$0.30/MTok
+    // (90% savings). Cache TTL is 5 min — repeated plan generations within
+    // that window pay the cheap rate.
     const response = await Promise.race([
       this.anthropic.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 4096,
-        system: systemPrompt,
+        system: [
+          {
+            type: 'text',
+            text: systemPrompt,
+            cache_control: { type: 'ephemeral' },
+          },
+        ] as any,
         messages: [{ role: 'user', content: userPrompt }],
       }),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Anthropic timeout after 45s')), 45_000),
+        setTimeout(() => reject(new Error('Anthropic timeout after 60s')), 60_000),
       ),
     ]);
+
+    // Log cache usage for observability
+    const usage: any = (response as any).usage ?? {};
+    if (usage.cache_read_input_tokens > 0) {
+      this.logger.log(
+        `Anthropic cache hit: ${usage.cache_read_input_tokens} cached, ${usage.input_tokens ?? 0} fresh`,
+      );
+    } else if (usage.cache_creation_input_tokens > 0) {
+      this.logger.log(
+        `Anthropic cache miss (writing): ${usage.cache_creation_input_tokens} tokens cached for next 5 min`,
+      );
+    }
 
     const textBlock = response.content.find((b) => b.type === 'text');
     if (!textBlock || textBlock.type !== 'text') {
