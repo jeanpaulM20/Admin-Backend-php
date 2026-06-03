@@ -201,6 +201,18 @@ export class TrainingService {
     return formatted;
   }
 
+  // Wrap createByTrainer with error logging to surface real errors
+  async createByTrainerSafe(trainerId: number, body: any): Promise<any> {
+    try {
+      return await this.createByTrainer(trainerId, body);
+    } catch (err: any) {
+      this.logger.error(
+        `createByTrainer FAILED — trainerId=${trainerId} body=${JSON.stringify(body)} err=${err.message} stack=${err.stack?.substring(0, 500)}`,
+      );
+      throw err;
+    }
+  }
+
   // ── CRUD ────────────────────────────────────────────────────────────────
 
   async update(id: number, data: Partial<Training>) {

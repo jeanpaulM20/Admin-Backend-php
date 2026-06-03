@@ -80,7 +80,7 @@ export class TrainingController {
     @Body() body: any,
   ) {
     if (!trainer) throw new ForbiddenException('Nur Trainer können Trainings erstellen');
-    return this.service.createByTrainer(trainer.id, body);
+    return this.service.createByTrainerSafe(trainer.id, body);
   }
 
   /**
@@ -96,7 +96,7 @@ export class TrainingController {
     if (!body?.training_plan_id && !body?.trainingPlanId) {
       throw new ForbiddenException('training_plan_id ist erforderlich');
     }
-    return this.service.createByTrainer(trainer.id, body);
+    return this.service.createByTrainerSafe(trainer.id, body);
   }
 
   @Put(':id')

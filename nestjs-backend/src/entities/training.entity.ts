@@ -67,8 +67,8 @@ export class Training {
   creditPackId: number;
 
   /** Optional link to a training plan that should be performed at this session */
-  @Column({ name: 'training_plan_id', nullable: true })
-  trainingPlanId: number;
+  @Column({ name: 'training_plan_id', type: 'int', nullable: true })
+  trainingPlanId: number | null;
 
   @ManyToOne(() => TrainingPlan, { nullable: true })
   @JoinColumn({ name: 'training_plan_id' })
