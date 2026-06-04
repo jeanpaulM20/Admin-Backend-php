@@ -92,7 +92,7 @@ export class ExerciseController {
   @UseInterceptors(FileInterceptor('icon', { limits: { fileSize: 5 * 1024 * 1024 } }))
   async uploadIcon(
     @Param('id', ParseIntPipe) id: number,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: { buffer: Buffer; mimetype: string; originalname: string },
   ) {
     if (!file) throw new BadRequestException('Kein Bild hochgeladen (field: icon)');
     const allowed = ['image/png', 'image/jpeg', 'image/webp'];
