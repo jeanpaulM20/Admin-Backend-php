@@ -8,6 +8,7 @@ import '../providers/profile_provider.dart';
 import '../providers/credits_provider.dart';
 import '../providers/performance_provider.dart';
 import '../providers/chat_provider.dart';
+import '../providers/training_plan_provider.dart';
 import '../services/push_notification_service.dart';
 import 'start_screen.dart';
 import 'calendar_screen.dart';
@@ -15,6 +16,7 @@ import 'chat_screen.dart';
 import 'profile_screen.dart';
 import 'credits_screen.dart';
 import 'performance_screen.dart';
+import 'training_plan_list_screen.dart';
 import 'login_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -30,6 +32,7 @@ class _MainScreenState extends State<MainScreen> {
 
   final List<_NavItem> _navItems = const [
     _NavItem(icon: Icons.home_rounded, label: 'Start'),
+    _NavItem(icon: Icons.fitness_center_rounded, label: 'Training'),
     _NavItem(icon: Icons.calendar_month_rounded, label: 'Kalender'),
     _NavItem(icon: Icons.chat_bubble_outline_rounded, label: 'Chat'),
     _NavItem(icon: Icons.credit_card_rounded, label: 'Credits'),
@@ -39,6 +42,7 @@ class _MainScreenState extends State<MainScreen> {
 
   final List<Widget> _screens = const [
     StartScreen(),
+    TrainingPlanListScreen(),
     CalendarScreen(),
     ChatScreen(),
     CreditsScreen(),
@@ -51,14 +55,16 @@ class _MainScreenState extends State<MainScreen> {
       case 0:
         return 'Start';
       case 1:
-        return 'Kalender';
+        return 'Training';
       case 2:
-        return 'Chat';
+        return 'Kalender';
       case 3:
-        return 'Credits';
+        return 'Chat';
       case 4:
-        return 'Analytics';
+        return 'Credits';
       case 5:
+        return 'Analytics';
+      case 6:
         return 'Profil';
       default:
         return 'Sihl Training';
@@ -96,6 +102,7 @@ class _MainScreenState extends State<MainScreen> {
     context.read<CreditsProvider>().loadMockData();
     context.read<PerformanceProvider>().loadMockData();
     context.read<ChatProvider>().loadMockData();
+    context.read<TrainingPlanProvider>().loadMockData();
   }
 
   Future<void> _logout() async {
@@ -140,8 +147,8 @@ class _MainScreenState extends State<MainScreen> {
   Widget _buildNavIcon(BuildContext context, IconData icon, int index, bool isSelected) {
     final widget = Icon(icon, size: 22,
         color: isSelected ? AppColors.primary : AppColors.muted);
-    // Chat tab (index 2) — show unread badge
-    if (index == 2) {
+    // Chat tab (index 3) — show unread badge
+    if (index == 3) {
       final unread = context.watch<ChatProvider>().totalUnreadCount;
       if (unread > 0) {
         return Stack(
