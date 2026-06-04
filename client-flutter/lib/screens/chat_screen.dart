@@ -1,7 +1,5 @@
 import 'dart:async';
 import 'dart:math' as math;
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html show EventSource, MessageEvent;
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
@@ -12,6 +10,7 @@ import '../providers/chat_provider.dart';
 import '../models/chat_message.dart';
 import '../models/training_review.dart';
 import '../services/api_client.dart';
+import '../services/realtime_service.dart';
 import '../widgets/loading_indicator.dart';
 import '../widgets/error_view.dart';
 import '../widgets/empty_view.dart';
@@ -306,46 +305,31 @@ class _ChatThreadState extends State<_ChatThread> {
   final _scrollController = ScrollController();
   bool _sending = false;
   int _lastMessageCount = 0;
-  html.EventSource? _eventSource;
-  StreamSubscription<html.MessageEvent>? _esSubscription;
+  RealtimeService? _realtime;
 
   @override
   void initState() {
     super.initState();
-    _subscribeFirebase();
+    _subscribeRealtime();
   }
 
-  void _subscribeFirebase() {
-    try {
-      final auth = context.read<AuthProvider>();
-      final clientId = auth.clientId;
-      if (clientId == null) return;
-      const dbUrl =
-          'https://sihltraining-3ce40-default-rtdb.europe-west1.firebasedatabase.app';
-      final url = '$dbUrl/chat_pings/client_$clientId.json';
-      _eventSource = html.EventSource(url);
-      _esSubscription =
-          _eventSource!.onMessage.cast<html.MessageEvent>().listen((_) {
-        if (mounted) _refresh();
-      });
-      // Reconnect on error (SSE drops after ~60s idle on some networks)
-      _eventSource!.onError.listen((_) {
-        debugPrint('[Chat] SSE connection lost, reconnecting in 5s...');
-        _esSubscription?.cancel();
-        _eventSource?.close();
-        Future.delayed(const Duration(seconds: 5), () {
-          if (mounted) _subscribeFirebase();
-        });
-      });
-    } catch (e) {
-      debugPrint('[Chat] Firebase SSE init failed: $e');
-    }
+  void _subscribeRealtime() {
+    final auth = context.read<AuthProvider>();
+    final clientId = auth.clientId;
+    final token = apiClient.token;
+    if (clientId == null || token == null || token.isEmpty) return;
+    _realtime = RealtimeService(
+      channel: 'client_$clientId',
+      token: token,
+      onEvent: (type) {
+        if (mounted && type == 'chat') _refresh();
+      },
+    )..connect();
   }
 
   @override
   void dispose() {
-    _esSubscription?.cancel();
-    _eventSource?.close();
+    _realtime?.dispose();
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();

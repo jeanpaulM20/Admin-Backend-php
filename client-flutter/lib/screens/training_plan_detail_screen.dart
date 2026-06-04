@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../config/app_colors.dart';
 import '../models/training_plan.dart';
+import '../providers/auth_provider.dart';
 import '../services/training_plan_service.dart';
 import '../services/api_client.dart';
+import '../services/realtime_service.dart';
 import 'coaching_paywall_screen.dart';
 
 class _Section {
@@ -29,11 +32,36 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen> {
   bool _loading = true;
   String? _error;
   ClientTrainingPlan? _plan;
+  RealtimeService? _realtime;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _subscribeRealtime();
+  }
+
+  void _subscribeRealtime() {
+    final auth = context.read<AuthProvider>();
+    final clientId = auth.clientId;
+    final token = apiClient.token;
+    if (clientId == null || token == null || token.isEmpty) return;
+    _realtime = RealtimeService(
+      channel: 'client_$clientId',
+      token: token,
+      onEvent: (type) {
+        // Trainer edited the plan or added a comment → refresh live.
+        if (mounted && (type == 'plan_updated' || type == 'plan_comment')) {
+          _load();
+        }
+      },
+    )..connect();
+  }
+
+  @override
+  void dispose() {
+    _realtime?.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {

@@ -1,12 +1,11 @@
 import 'dart:async';
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html show EventSource, MessageEvent;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../models/client.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
+import '../services/realtime_service.dart';
 import '../config/api_config.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../config/app_colors.dart';
@@ -80,38 +79,25 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
   bool _sending = false;
   String? _error;
   List<_FeedbackMessage> _messages = [];
-  html.EventSource? _eventSource;
-  StreamSubscription<html.MessageEvent>? _esSubscription;
+  RealtimeService? _realtime;
 
   @override
   void initState() {
     super.initState();
     _loadMessages();
-    _subscribeFirebase();
+    _subscribeRealtime();
   }
 
-  void _subscribeFirebase() {
-    try {
-      const dbUrl =
-          'https://sihltraining-3ce40-default-rtdb.europe-west1.firebasedatabase.app';
-      final url = '$dbUrl/chat_pings/client_${widget.client.id}.json';
-      _eventSource = html.EventSource(url);
-      _esSubscription =
-          _eventSource!.onMessage.cast<html.MessageEvent>().listen((_) {
-        if (mounted && !_loading) _loadMessages();
-      });
-      // Auto-reconnect on connection loss
-      _eventSource!.onError.listen((_) {
-        debugPrint('[TrainerChat] SSE lost, reconnecting in 5s...');
-        _esSubscription?.cancel();
-        _eventSource?.close();
-        Future.delayed(const Duration(seconds: 5), () {
-          if (mounted) _subscribeFirebase();
-        });
-      });
-    } catch (e) {
-      debugPrint('[TrainerChat] SSE init failed: $e');
-    }
+  void _subscribeRealtime() {
+    final token = _apiService.authToken;
+    if (token == null || token.isEmpty) return;
+    _realtime = RealtimeService(
+      channel: 'client_${widget.client.id}',
+      token: token,
+      onEvent: (type) {
+        if (mounted && !_loading && type == 'chat') _loadMessages();
+      },
+    )..connect();
   }
 
   Future<void> _loadMessages() async {
@@ -607,8 +593,7 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
 
   @override
   void dispose() {
-    _esSubscription?.cancel();
-    _eventSource?.close();
+    _realtime?.dispose();
     _textCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
