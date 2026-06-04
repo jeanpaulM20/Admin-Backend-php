@@ -1,18 +1,22 @@
 // Read-only smoke test for Phase 1 (online-coaching subscription packages).
-// Run AFTER deploy: node test-subscription.js
+// Endpoints require auth — pass a valid client/trainer token:
+//   node test-subscription.js <TOKEN>      (or set TOKEN env var)
 //
 // NOTE: deliberately does NOT execute a purchase — that would create a real
 // invoice, send an email, and insert a coaching_subscription row. Verify the
 // purchase flow manually in staging or via an authenticated client token.
 
 const BASE = 'https://admin-backend-php-production.up.railway.app';
+const TOKEN = process.argv[2] || process.env.TOKEN || '';
 let passed = 0, failed = 0;
 
 function ok(name) { console.log(`✅ ${name}`); passed++; }
 function fail(name, reason) { console.log(`❌ ${name}: ${reason}`); failed++; }
 
 async function get(path) {
-  const r = await fetch(`${BASE}/${path}`);
+  const r = await fetch(`${BASE}/${path}`, {
+    headers: TOKEN ? { 'x-auth-token': TOKEN } : {},
+  });
   return { status: r.status, data: await r.json().catch(() => null) };
 }
 

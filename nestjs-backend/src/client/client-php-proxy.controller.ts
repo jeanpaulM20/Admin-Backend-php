@@ -69,7 +69,9 @@ export class ClientAppController {
     return this.appService.getCredits(clientId);
   }
 
-  /** Available packages (read-only). ?kind=coaching for subscription tiers. */
+  /** Available packages (read-only, public pricing). ?kind=coaching for tiers.
+   *  Public so the client-app paywall can show prices before login. */
+  @Public()
   @Get('packages')
   packages(@Query('kind') kind?: string) {
     return this.appService.getPackages(kind);
