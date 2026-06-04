@@ -43,6 +43,14 @@ export class TrainingPlan {
   @Column({ nullable: true })
   type: string;
 
+  /** 'draft' = trainer still editing; 'published' = released to the client */
+  @Column({ default: 'draft' })
+  status: string;
+
+  /** Set on first publish — anchors the client's free-access window */
+  @Column({ name: 'published_at', type: 'datetime', nullable: true })
+  publishedAt: Date;
+
   /** Auto-set on first save */
   @CreateDateColumn({ name: 'created_at', type: 'datetime', nullable: true })
   createdAt: Date;

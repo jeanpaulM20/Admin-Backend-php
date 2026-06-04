@@ -12,6 +12,7 @@ import { TrainingPlanComment } from '../entities/training-plan-comment.entity';
 import { TrainingPlanService } from './training-plan.service';
 import { AiPlanService } from './ai-plan.service';
 import { TrainingPlanController } from './training-plan.controller';
+import { EntitlementModule } from '../entitlement/entitlement.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { TrainingPlanController } from './training-plan.controller';
       Review,
       Goal,
     ]),
+    EntitlementModule,
   ],
   providers: [TrainingPlanService, AiPlanService],
   controllers: [TrainingPlanController],

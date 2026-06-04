@@ -70,6 +70,9 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       `ALTER TABLE training MODIFY COLUMN type_id INT DEFAULT NULL`,
       // Distinguish credit packs from coaching-subscription packages
       `ALTER TABLE credit_package ADD COLUMN kind VARCHAR(20) DEFAULT 'credits'`,
+      // Plan publication workflow: draft until the trainer releases it to the client
+      `ALTER TABLE trainingplan ADD COLUMN status VARCHAR(20) DEFAULT 'draft'`,
+      `ALTER TABLE trainingplan ADD COLUMN published_at DATETIME DEFAULT NULL`,
     ];
 
     // Create training_plan_comment table if not exists

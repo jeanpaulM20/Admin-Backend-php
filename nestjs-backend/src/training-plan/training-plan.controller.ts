@@ -8,12 +8,14 @@ import { CurrentTrainer } from '../auth/decorators/current-user.decorator';
 import { Client } from '../entities/client.entity';
 import { Trainer } from '../entities/trainer.entity';
 import { AiPlanRequest, AI_TRAINING_TYPES, AI_DURATIONS, AI_EQUIPMENT_OPTIONS, AI_AUSDAUER_INTENSITIES } from './ai-plan.interfaces';
+import { EntitlementService } from '../entitlement/entitlement.service';
 
 @Controller('api/training-plan')
 export class TrainingPlanController {
   constructor(
     private readonly service: TrainingPlanService,
     private readonly aiService: AiPlanService,
+    private readonly entitlement: EntitlementService,
   ) {}
 
   // ── Authorization helpers ──────────────────────────────────────────────
@@ -30,6 +32,33 @@ export class TrainingPlanController {
     }
   }
 
+  /**
+   * Locked preview for a client without full entitlement: metadata + per-section
+   * exercise counts, but no exercise prescriptions. Drives the paywall.
+   */
+  private toTeaser(plan: TrainingPlan) {
+    const sections: Record<string, number> = {};
+    try {
+      const v = typeof plan.values === 'string' ? JSON.parse(plan.values) : (plan.values ?? {});
+      for (const key of ['sonsomo', 'main', 'core', 'mobility']) {
+        if (Array.isArray(v?.[key])) sections[key] = v[key].length;
+      }
+    } catch {
+      /* malformed values → empty section map */
+    }
+    return {
+      id: plan.id,
+      clientId: plan.clientId,
+      name: plan.name,
+      type: plan.type,
+      status: plan.status,
+      publishedAt: plan.publishedAt,
+      locked: true,
+      requiresSubscription: true,
+      sections,
+    };
+  }
+
   /** Debug endpoint — shows AI provider status (auth required) */
   @Get('ai/status')
   aiStatus(@Query('test') test?: string) {
@@ -37,8 +66,22 @@ export class TrainingPlanController {
   }
 
   @Get()
-  findAll(@CurrentClient() client: Client, @Query('client_id') clientId?: number) {
-    return this.service.findAll(client?.id ?? clientId);
+  async findAll(
+    @CurrentClient() client: Client,
+    @CurrentTrainer() trainer: Trainer,
+    @Query('client_id') clientId?: number,
+  ) {
+    // Trainer (or internal): full list, all statuses.
+    if (!client) return this.service.findAll(clientId);
+
+    // Client: only own + published plans, as teasers with per-plan lock state.
+    // One subscription lookup; the free-window check per plan is pure date math.
+    const plans = await this.service.findAll(client.id, true);
+    const hasSub = await this.entitlement.hasActiveSubscription(client.id);
+    return plans.map((p) => {
+      const unlocked = hasSub || this.entitlement.isWithinFreeWindow(p.publishedAt);
+      return { ...this.toTeaser(p), locked: !unlocked, requiresSubscription: !unlocked };
+    });
   }
 
   /**
@@ -106,7 +149,14 @@ export class TrainingPlanController {
   ) {
     const plan = await this.service.findOne(id);
     this.assertPlanAccess(plan, client, trainer);
-    return plan;
+    if (trainer) return plan; // trainer: always full
+
+    // Client: drafts are invisible; full content only when entitled, else teaser.
+    if (plan.status !== 'published') {
+      throw new ForbiddenException('Dieser Plan ist noch nicht freigegeben');
+    }
+    const full = await this.entitlement.canAccessPlanFully(client.id, plan.publishedAt);
+    return full ? plan : this.toTeaser(plan);
   }
 
   @Post()
@@ -215,6 +265,20 @@ export class TrainingPlanController {
   remove(@Param('id', ParseIntPipe) id: number, @CurrentTrainer() trainer: Trainer) {
     this.assertTrainer(trainer);
     return this.service.remove(id);
+  }
+
+  /** POST /api/training-plan/:id/publish — release plan to the client (trainer only) */
+  @Post(':id/publish')
+  publish(@Param('id', ParseIntPipe) id: number, @CurrentTrainer() trainer: Trainer) {
+    this.assertTrainer(trainer);
+    return this.service.publish(id);
+  }
+
+  /** POST /api/training-plan/:id/unpublish — revert plan to draft (trainer only) */
+  @Post(':id/unpublish')
+  unpublish(@Param('id', ParseIntPipe) id: number, @CurrentTrainer() trainer: Trainer) {
+    this.assertTrainer(trainer);
+    return this.service.unpublish(id);
   }
 
   // ── Comments (POST / DELETE) ────────────────────────────────────────

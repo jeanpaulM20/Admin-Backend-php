@@ -13,9 +13,11 @@ export class TrainingPlanService {
     private readonly commentRepo: Repository<TrainingPlanComment>,
   ) {}
 
-  findAll(clientId?: number) {
+  findAll(clientId?: number, publishedOnly = false) {
+    const where: any = clientId ? { clientId } : {};
+    if (publishedOnly) where.status = 'published';
     return this.repo.find({
-      where: clientId ? { clientId } : {},
+      where,
       relations: ['client'],
       // Newest / most recently edited first.
       // Fallback to id for legacy rows without timestamps.
@@ -47,6 +49,25 @@ export class TrainingPlanService {
   async remove(id: number) {
     const plan = await this.findOne(id);
     return this.repo.remove(plan);
+  }
+
+  // ─── Publication ───────────────────────────────────────────────────────
+
+  /** Release a plan to the client. publishedAt is set once (not reset on
+   *  re-publish) so the free-access window can't be gamed by toggling. */
+  async publish(id: number) {
+    const plan = await this.findOne(id);
+    const updates: Partial<TrainingPlan> = { status: 'published' };
+    if (!plan.publishedAt) updates.publishedAt = new Date();
+    await this.repo.update(id, updates);
+    return this.findOne(id);
+  }
+
+  /** Revert to draft (hides it from the client again). publishedAt is kept. */
+  async unpublish(id: number) {
+    await this.findOne(id);
+    await this.repo.update(id, { status: 'draft' });
+    return this.findOne(id);
   }
 
   // ─── Comments ──────────────────────────────────────────────────────────

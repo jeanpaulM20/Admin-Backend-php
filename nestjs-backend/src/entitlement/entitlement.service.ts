@@ -45,18 +45,26 @@ export class EntitlementService {
   }
 
   /**
-   * Whether a client may see the FULL plan content.
-   * Phase 2 supplies plan.publishedAt. Until a subscription exists, access
-   * is granted only inside the free window: now < publishedAt + FREE_PLAN_ACCESS_DAYS.
+   * Pure date check — is now inside the free window for a plan?
+   * now < publishedAt + FREE_PLAN_ACCESS_DAYS. No DB access, so it can be
+   * mapped over a whole plan list cheaply (pair with one hasActiveSubscription).
+   */
+  isWithinFreeWindow(publishedAt?: Date | string | null): boolean {
+    if (!publishedAt) return false;
+    const freeUntil = new Date(publishedAt);
+    freeUntil.setDate(freeUntil.getDate() + EntitlementService.FREE_PLAN_ACCESS_DAYS);
+    return new Date() < freeUntil;
+  }
+
+  /**
+   * Whether a client may see the FULL plan content: inside the free window
+   * (cheap, no query) OR holding an active subscription.
    */
   async canAccessPlanFully(
     clientId: number,
     publishedAt?: Date | string | null,
   ): Promise<boolean> {
-    if (await this.hasActiveSubscription(clientId)) return true;
-    if (!publishedAt) return false;
-    const freeUntil = new Date(publishedAt);
-    freeUntil.setDate(freeUntil.getDate() + EntitlementService.FREE_PLAN_ACCESS_DAYS);
-    return new Date() < freeUntil;
+    if (this.isWithinFreeWindow(publishedAt)) return true;
+    return this.hasActiveSubscription(clientId);
   }
 }
