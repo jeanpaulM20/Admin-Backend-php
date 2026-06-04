@@ -116,7 +116,6 @@ class _SchedulePlanDialogState extends State<SchedulePlanDialog> {
         'training_plan_id': widget.plan.id,
         'date': dateStr,
         'starttime': timeStr,
-        'training_type_id': 1,
       });
 
       if (!mounted) return;

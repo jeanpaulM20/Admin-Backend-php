@@ -175,7 +175,12 @@ export class TrainingService {
       text,
       status: TrainingStatus.BOOKED,
     } as Partial<Training>);
-    const saved = await this.repo.save(training as Training);
+    let saved: Training;
+    try {
+      saved = await this.repo.save(training as Training);
+    } catch (err: any) {
+      throw new BadRequestException(`Training konnte nicht gespeichert werden: ${err.message}`);
+    }
 
     // ── 6. Push notification to client ────────────────────────────
     const formatted = await this.findOne(saved.id);
