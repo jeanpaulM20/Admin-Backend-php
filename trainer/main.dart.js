@@ -112416,8 +112416,11 @@ break}A.fO(B.C,new A.aTj(p,a),o,!0,B.f8,t.z)
 case 1:return A.B(q,r)}})
 return A.C($async$Kw,r)}}
 A.aTq.prototype={
-$1(a){var s=this.a
-if(s.c!=null&&!s.r&&a==="chat")s.oQ()},
+$1(a){var s,r=this.a
+if(r.c==null)return
+if(!r.r)s=a==="chat"||a==="client_trained"
+else s=!1
+if(s)r.oQ()},
 $S:20}
 A.aSO.prototype={
 $0(){var s=this.a
