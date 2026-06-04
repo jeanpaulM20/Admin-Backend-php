@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { TrainingPlan } from '../entities/training-plan.entity';
 import { TrainingPlanComment } from '../entities/training-plan-comment.entity';
+import { RealtimeService } from '../realtime/realtime.service';
 
 @Injectable()
 export class TrainingPlanService {
@@ -11,7 +12,13 @@ export class TrainingPlanService {
     private readonly repo: Repository<TrainingPlan>,
     @InjectRepository(TrainingPlanComment)
     private readonly commentRepo: Repository<TrainingPlanComment>,
+    private readonly realtime: RealtimeService,
   ) {}
+
+  /** Notify the client (and any trainer watching) that a plan changed. */
+  private notifyPlanChanged(plan: { id: number; clientId: number }): void {
+    this.realtime.emitToClient(plan.clientId, 'plan_updated', { planId: plan.id });
+  }
 
   findAll(clientId?: number, publishedOnly = false) {
     const where: any = clientId ? { clientId } : {};
@@ -43,7 +50,9 @@ export class TrainingPlanService {
     await this.findOne(id);
     if (data.values) this.validateValues(data.values);
     await this.repo.update(id, data);
-    return this.findOne(id);
+    const updated = await this.findOne(id);
+    this.notifyPlanChanged(updated);
+    return updated;
   }
 
   async remove(id: number) {
@@ -60,14 +69,18 @@ export class TrainingPlanService {
     const updates: Partial<TrainingPlan> = { status: 'published' };
     if (!plan.publishedAt) updates.publishedAt = new Date();
     await this.repo.update(id, updates);
-    return this.findOne(id);
+    const updated = await this.findOne(id);
+    this.notifyPlanChanged(updated);
+    return updated;
   }
 
   /** Revert to draft (hides it from the client again). publishedAt is kept. */
   async unpublish(id: number) {
     await this.findOne(id);
     await this.repo.update(id, { status: 'draft' });
-    return this.findOne(id);
+    const updated = await this.findOne(id);
+    this.notifyPlanChanged(updated);
+    return updated;
   }
 
   // ─── Comments ──────────────────────────────────────────────────────────
@@ -111,12 +124,14 @@ export class TrainingPlanService {
     text: string,
     exerciseKey?: string,
   ): Promise<TrainingPlanComment> {
-    await this.findOne(planId); // ensure plan exists
+    const plan = await this.findOne(planId); // ensure plan exists
     const comment = this.commentRepo.create({
       planId, trainerId, authorName, text,
       ...(exerciseKey ? { exerciseKey } : {}),
     } as any);
-    return this.commentRepo.save(comment as any);
+    const saved = await this.commentRepo.save(comment as any);
+    this.realtime.emitToClient(plan.clientId, 'plan_comment', { planId, exerciseKey: exerciseKey ?? null });
+    return saved;
   }
 
   async removeComment(commentId: number, requestingTrainerId?: number): Promise<void> {

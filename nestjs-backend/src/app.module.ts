@@ -17,6 +17,7 @@ import { AnamneseModule } from './anamnese/anamnese.module';
 import { ReviewModule } from './review/review.module';
 import { FileModule } from './file/file.module';
 import { PushModule } from './push/push.module';
+import { RealtimeModule } from './realtime/realtime.module';
 // Garmin module kept for later — not imported until Consumer Key is configured
 // import { GarminModule } from './garmin/garmin.module';
 import { PreferenceController } from './file/preference.controller';
@@ -79,6 +80,7 @@ const dbConfig: any = isSqlite
     ReviewModule,
     FileModule,
     PushModule,
+    RealtimeModule,
     // GarminModule, // re-enable when GARMIN_CONSUMER_KEY is set
   ],
   controllers: [PreferenceController],

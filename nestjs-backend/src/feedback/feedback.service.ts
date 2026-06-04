@@ -2,12 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Feedback } from '../entities/feedback.entity';
+import { RealtimeService } from '../realtime/realtime.service';
 
 @Injectable()
 export class FeedbackService {
   constructor(
     @InjectRepository(Feedback)
     private readonly repo: Repository<Feedback>,
+    private readonly realtime: RealtimeService,
   ) {}
 
   async findByClient(clientId?: number) {
@@ -108,8 +110,10 @@ export class FeedbackService {
     }));
   }
 
-  create(data: Partial<Feedback>) {
-    return this.repo.save(this.repo.create(data));
+  async create(data: Partial<Feedback>) {
+    const saved = await this.repo.save(this.repo.create(data));
+    if (saved.client_id) this.realtime.emitToClient(saved.client_id, 'chat');
+    return saved;
   }
 
   async markRead(id: number, byClient: boolean) {

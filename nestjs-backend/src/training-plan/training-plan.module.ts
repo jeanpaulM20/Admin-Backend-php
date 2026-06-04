@@ -13,6 +13,7 @@ import { TrainingPlanService } from './training-plan.service';
 import { AiPlanService } from './ai-plan.service';
 import { TrainingPlanController } from './training-plan.controller';
 import { EntitlementModule } from '../entitlement/entitlement.module';
+import { RealtimeModule } from '../realtime/realtime.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { EntitlementModule } from '../entitlement/entitlement.module';
       Goal,
     ]),
     EntitlementModule,
+    RealtimeModule,
   ],
   providers: [TrainingPlanService, AiPlanService],
   controllers: [TrainingPlanController],
