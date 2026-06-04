@@ -10,6 +10,7 @@ import { Metric } from '../entities/metric.entity';
 import { Location } from '../entities/location.entity';
 import { ReviewService } from '../review/review.service';
 import { InvoiceService } from '../invoice/invoice.service';
+import { EntitlementService } from '../entitlement/entitlement.service';
 
 @Injectable()
 export class ClientAppService {
@@ -27,6 +28,7 @@ export class ClientAppService {
     private readonly dataSource: DataSource,
     private readonly reviewService: ReviewService,
     private readonly invoiceService: InvoiceService,
+    private readonly entitlementService: EntitlementService,
   ) {}
 
   private static readonly TZ = 'Europe/Zurich';
@@ -214,11 +216,16 @@ export class ClientAppService {
     }));
   }
 
-  /** Available credit packages (from sihltraining.ch pricing) */
-  async getPackages() {
+  /**
+   * Available packages. Without `kind` returns credit packs (preserves the
+   * existing credits screen); pass kind='coaching' for online-coaching tiers.
+   */
+  async getPackages(kind?: string) {
     try {
+      const wantKind = kind ?? 'credits';
       const rows: any[] = await this.dataSource.query(
-        'SELECT * FROM credit_package WHERE active = 1 ORDER BY sort_order',
+        "SELECT * FROM credit_package WHERE active = 1 AND COALESCE(kind, 'credits') = ? ORDER BY sort_order",
+        [wantKind],
       );
       return rows.map((r) => ({
         id: r.id,
@@ -229,10 +236,23 @@ export class ClientAppService {
         durationMonths: r.duration_months,
         description: r.description,
         includes: r.includes,
+        kind: r.kind ?? 'credits',
       }));
     } catch {
       return [];
     }
+  }
+
+  /** Online-coaching subscription status for the paywall gate. */
+  async getSubscriptionStatus(clientId: number) {
+    const sub = await this.entitlementService.getActiveSubscription(clientId);
+    if (!sub) return { active: false };
+    return {
+      active: true,
+      tier: sub.tier,
+      validFrom: sub.validFrom,
+      validTo: sub.validTo,
+    };
   }
 
   /**
@@ -289,6 +309,18 @@ export class ClientAppService {
           { clientId, packageName, amount: price, credits, durationMonths: durationMonths ?? 1 },
           queryRunner,
         );
+
+        // 4c. Coaching package → also create the subscription entitlement period
+        if (pkg.kind === 'coaching') {
+          const tier = (durationMonths ?? 1) >= 12 ? 'yearly' : 'monthly';
+          logger.log(`Creating coaching subscription: tier=${tier}, valid ${startDate}..${expiresStr}`);
+          await queryRunner.query(
+            `INSERT INTO coaching_subscription
+               (client_id, package_id, tier, status, valid_from, valid_to, invoice_number)
+             VALUES (?, ?, ?, 'active', ?, ?, ?)`,
+            [clientId, packageId, tier, startDate, expiresStr, invoiceNumber],
+          );
+        }
 
         await queryRunner.commitTransaction();
         logger.log(`Transaction committed: credits + invoice ${invoiceNumber}`);

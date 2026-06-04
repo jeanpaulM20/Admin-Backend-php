@@ -68,6 +68,8 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       `ALTER TABLE training ADD INDEX idx_training_plan_id (training_plan_id)`,
       // Online coaching workouts don't require a training type (type_id nullable)
       `ALTER TABLE training MODIFY COLUMN type_id INT DEFAULT NULL`,
+      // Distinguish credit packs from coaching-subscription packages
+      `ALTER TABLE credit_package ADD COLUMN kind VARCHAR(20) DEFAULT 'credits'`,
     ];
 
     // Create training_plan_comment table if not exists
@@ -138,6 +140,28 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       this.logger.log('push_subscription table ready');
     } catch (err: any) {
       this.logger.warn(`push_subscription table creation: ${err.message}`);
+    }
+
+    // Create coaching_subscription table (online coaching entitlement periods)
+    try {
+      await this.dataSource.query(`
+        CREATE TABLE IF NOT EXISTS coaching_subscription (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          client_id INT NOT NULL,
+          package_id INT DEFAULT NULL,
+          tier VARCHAR(20) NOT NULL,
+          status VARCHAR(20) DEFAULT 'active',
+          valid_from DATE NOT NULL,
+          valid_to DATE NOT NULL,
+          invoice_number VARCHAR(20) DEFAULT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_cs_client (client_id),
+          INDEX idx_cs_active (client_id, status, valid_to)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+      this.logger.log('coaching_subscription table ready');
+    } catch (err: any) {
+      this.logger.warn(`coaching_subscription table creation: ${err.message}`);
     }
 
     // Create invoice table
@@ -249,6 +273,9 @@ export class StartupMigrationService implements OnApplicationBootstrap {
 
     // Ensure credit packages from website pricing
     await this.ensureCreditPackages();
+
+    // Ensure online-coaching subscription packages (kind='coaching')
+    await this.ensureCoachingPackages();
 
     // Sync trainer-client assignments from old PHP database
     await this.syncTrainerClients();
@@ -422,6 +449,7 @@ export class StartupMigrationService implements OnApplicationBootstrap {
           description TEXT DEFAULT NULL,
           \`includes\` TEXT DEFAULT NULL,
           sort_order INT DEFAULT 0,
+          kind VARCHAR(20) DEFAULT 'credits',
           active TINYINT(1) DEFAULT 1
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);
@@ -481,6 +509,62 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       this.logger.log('Credit packages setup complete');
     } catch (err: any) {
       this.logger.warn(`Credit packages setup error: ${err.message}`);
+    }
+  }
+
+  /**
+   * Ensures the online-coaching subscription packages (kind='coaching') exist.
+   * Monthly: CHF 180 / 4 credits / 1 month. Yearly: CHF 1680 / 52 credits / 12 months.
+   * These are purchased through the same pipeline as credit packs, but their
+   * purchase additionally creates a coaching_subscription entitlement period.
+   */
+  private async ensureCoachingPackages() {
+    try {
+      const packages = [
+        {
+          name: 'Online Coaching Monat',
+          credits: 4,
+          price: 180.0,
+          pricePerSession: 45.0,
+          durationMonths: 1,
+          description: 'Monatliches Online-Coaching — 4 Credits',
+          includes: 'Trainingsplan, Chat-Feedback, HR-Analysen',
+          sortOrder: 10,
+        },
+        {
+          name: 'Online Coaching Jahr',
+          credits: 52,
+          price: 1680.0,
+          pricePerSession: 32.31,
+          durationMonths: 12,
+          description: 'Jährliches Online-Coaching — 52 Credits (1 pro Woche)',
+          includes: 'Trainingsplan, Chat-Feedback, HR-Analysen, Bonus-Credits',
+          sortOrder: 11,
+        },
+      ];
+
+      for (const pkg of packages) {
+        const [existing]: any = await this.dataSource.query(
+          'SELECT id FROM credit_package WHERE name = ?',
+          [pkg.name],
+        );
+        if (existing) {
+          await this.dataSource.query(
+            "UPDATE credit_package SET credits = ?, price = ?, price_per_session = ?, duration_months = ?, description = ?, `includes` = ?, sort_order = ?, kind = 'coaching', active = 1 WHERE id = ?",
+            [pkg.credits, pkg.price, pkg.pricePerSession, pkg.durationMonths, pkg.description, pkg.includes, pkg.sortOrder, existing.id],
+          );
+          this.logger.log(`Coaching package "${pkg.name}" updated`);
+        } else {
+          await this.dataSource.query(
+            "INSERT INTO credit_package (name, credits, price, price_per_session, duration_months, description, `includes`, sort_order, kind, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'coaching', 1)",
+            [pkg.name, pkg.credits, pkg.price, pkg.pricePerSession, pkg.durationMonths, pkg.description, pkg.includes, pkg.sortOrder],
+          );
+          this.logger.log(`Coaching package "${pkg.name}" created`);
+        }
+      }
+      this.logger.log('Coaching packages setup complete');
+    } catch (err: any) {
+      this.logger.warn(`Coaching packages setup error: ${err.message}`);
     }
   }
 

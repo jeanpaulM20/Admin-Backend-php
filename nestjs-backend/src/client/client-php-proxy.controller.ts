@@ -69,10 +69,17 @@ export class ClientAppController {
     return this.appService.getCredits(clientId);
   }
 
-  /** Available credit packages (pricing from website — read-only, no clientId) */
+  /** Available packages (read-only). ?kind=coaching for subscription tiers. */
   @Get('packages')
-  packages() {
-    return this.appService.getPackages();
+  packages(@Query('kind') kind?: string) {
+    return this.appService.getPackages(kind);
+  }
+
+  /** Online-coaching subscription status — drives the client-app paywall gate */
+  @Get('subscription/:clientId')
+  subscription(@Req() req: Request, @Param('clientId', ParseIntPipe) clientId: number) {
+    this.assertClientAccess(req, clientId);
+    return this.appService.getSubscriptionStatus(clientId);
   }
 
   /** Purchase a credit package (creates credits + invoice) */
