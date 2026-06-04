@@ -179,7 +179,7 @@ export class TrainingService {
     try {
       saved = await this.repo.save(training as Training);
     } catch (err: any) {
-      throw new BadRequestException(`Training konnte nicht gespeichert werden: ${err.message}`);
+      throw new BadRequestException('Training konnte nicht gespeichert werden. Bitte Eingaben prüfen.');
     }
 
     // ── 6. Push notification to client ────────────────────────────

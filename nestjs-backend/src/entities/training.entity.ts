@@ -74,7 +74,7 @@ export class Training {
   @JoinColumn({ name: 'training_plan_id' })
   trainingPlan: TrainingPlan;
 
-  @ManyToOne(() => TrainingType)
+  @ManyToOne(() => TrainingType, { nullable: true })
   @JoinColumn({ name: 'type_id' })
   trainingType: TrainingType;
 

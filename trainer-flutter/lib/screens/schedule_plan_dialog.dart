@@ -58,21 +58,16 @@ class _SchedulePlanDialogState extends State<SchedulePlanDialog> {
 
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
   TimeOfDay _selectedTime = const TimeOfDay(hour: 9, minute: 0);
-  int? _selectedLocationId;
-
   @override
   void initState() {
     super.initState();
-    if (widget.locations.isNotEmpty) {
-      _selectedLocationId = widget.locations.first.id;
-    }
   }
 
   Future<void> _pickDate() async {
     final date = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
-      firstDate: DateTime.now(),
+      firstDate: DateTime.now().add(const Duration(days: 1)),
       lastDate: DateTime.now().add(const Duration(days: 365)),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
@@ -105,6 +100,10 @@ class _SchedulePlanDialogState extends State<SchedulePlanDialog> {
   }
 
   Future<void> _schedule() async {
+    if (widget.plan.id == null) {
+      setState(() => _error = 'Trainingsplan hat keine gültige ID');
+      return;
+    }
     setState(() { _saving = true; _error = null; });
     try {
       final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
