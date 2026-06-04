@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TrainingPlan } from '../entities/training-plan.entity';
+import { TrainingPlanLike } from '../entities/training-plan-like.entity';
 import { PerformanceTest } from '../entities/performance-test.entity';
 import { ClientAnamnese } from '../entities/client-anamnese.entity';
 import { Exercise } from '../entities/exercise.entity';
@@ -20,6 +21,7 @@ import { RealtimeModule } from '../realtime/realtime.module';
     TypeOrmModule.forFeature([
       TrainingPlan,
       TrainingPlanComment,
+      TrainingPlanLike,
       PerformanceTest,
       ClientAnamnese,
       Exercise,

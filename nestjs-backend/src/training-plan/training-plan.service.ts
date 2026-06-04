@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { TrainingPlan } from '../entities/training-plan.entity';
 import { TrainingPlanComment } from '../entities/training-plan-comment.entity';
+import { TrainingPlanLike } from '../entities/training-plan-like.entity';
 import { RealtimeService } from '../realtime/realtime.service';
 
 @Injectable()
@@ -12,6 +13,8 @@ export class TrainingPlanService {
     private readonly repo: Repository<TrainingPlan>,
     @InjectRepository(TrainingPlanComment)
     private readonly commentRepo: Repository<TrainingPlanComment>,
+    @InjectRepository(TrainingPlanLike)
+    private readonly likeRepo: Repository<TrainingPlanLike>,
     private readonly realtime: RealtimeService,
   ) {}
 
@@ -32,12 +35,16 @@ export class TrainingPlanService {
     });
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, clientId?: number) {
     const plan = await this.repo.findOne({
       where: { id },
       relations: ['client'],
     });
     if (!plan) throw new NotFoundException(`TrainingPlan ${id} not found`);
+    if (clientId) {
+      const likes = await this.getClientLikes(clientId, id);
+      return { ...plan, clientLikes: likes };
+    }
     return plan;
   }
 
@@ -123,24 +130,118 @@ export class TrainingPlanService {
     authorName: string,
     text: string,
     exerciseKey?: string,
+    clientId?: number,
+    senderType: 'trainer' | 'client' = 'trainer',
   ): Promise<TrainingPlanComment> {
     const plan = await this.findOne(planId); // ensure plan exists
     const comment = this.commentRepo.create({
       planId, trainerId, authorName, text,
       ...(exerciseKey ? { exerciseKey } : {}),
+      ...(clientId ? { clientId } : {}),
+      senderType,
     } as any);
     const saved = await this.commentRepo.save(comment as any);
     this.realtime.emitToClient(plan.clientId, 'plan_comment', { planId, exerciseKey: exerciseKey ?? null });
     return saved;
   }
 
-  async removeComment(commentId: number, requestingTrainerId?: number): Promise<void> {
+  async removeComment(
+    commentId: number,
+    requestingTrainerId?: number,
+    requestingClientId?: number,
+  ): Promise<void> {
     const comment = await this.commentRepo.findOne({ where: { id: commentId } });
     if (!comment) throw new NotFoundException(`Comment ${commentId} not found`);
-    if (comment.trainerId && requestingTrainerId && comment.trainerId !== requestingTrainerId) {
+    // Trainers can delete their own comments; clients can delete their own
+    const isOwnTrainer = requestingTrainerId && (comment as any).trainerId === requestingTrainerId;
+    const isOwnClient = requestingClientId && (comment as any).clientId === requestingClientId;
+    if (!isOwnTrainer && !isOwnClient) {
       throw new ForbiddenException('Nur eigene Kommentare können gelöscht werden');
     }
     await this.commentRepo.remove(comment);
+  }
+
+  // ─── Client: like/dislike per exercise ─────────────────────────────────────
+
+  /** Toggle a like or dislike. Returns the updated like map for the client. */
+  async toggleLike(
+    clientId: number,
+    planId: number,
+    exerciseKey: string,
+    type: 'like' | 'dislike',
+  ): Promise<Record<string, 'like' | 'dislike'>> {
+    const plan = await this.findOne(planId);
+    if (plan.clientId !== clientId) throw new ForbiddenException('Zugriff verweigert');
+
+    const existing = await this.likeRepo.findOne({
+      where: { planId, clientId, exerciseKey },
+    });
+
+    if (existing) {
+      if (existing.type === type) {
+        // Same type → remove (toggle off)
+        await this.likeRepo.remove(existing);
+      } else {
+        // Different type → switch
+        existing.type = type;
+        await this.likeRepo.save(existing);
+      }
+    } else {
+      await this.likeRepo.save(
+        this.likeRepo.create({ planId, clientId, exerciseKey, type }),
+      );
+    }
+
+    return this.getClientLikes(clientId, planId);
+  }
+
+  /** All like/dislike entries for a client on a plan, keyed by exerciseKey. */
+  async getClientLikes(
+    clientId: number,
+    planId: number,
+  ): Promise<Record<string, 'like' | 'dislike'>> {
+    const rows = await this.likeRepo.find({ where: { planId, clientId } });
+    const map: Record<string, 'like' | 'dislike'> = {};
+    for (const r of rows) map[r.exerciseKey] = r.type as 'like' | 'dislike';
+    return map;
+  }
+
+  // ─── Client: save training results (dates columns only) ────────────────────
+
+  /**
+   * Merges only the per-exercise `dates` arrays from the client submission into
+   * the plan's values JSON. All other fields (exercise name, device, timers, etc.)
+   * are preserved from the trainer's plan — the client can't overwrite them.
+   */
+  async saveClientResults(
+    clientId: number,
+    planId: number,
+    submittedValues: any,
+  ): Promise<void> {
+    const plan = await this.findOne(planId);
+    if (plan.clientId !== clientId) throw new ForbiddenException('Zugriff verweigert');
+
+    let current: any = {};
+    try {
+      current = typeof plan.values === 'string' ? JSON.parse(plan.values) : (plan.values ?? {});
+    } catch { /* keep empty */ }
+
+    const submitted = typeof submittedValues === 'string'
+      ? JSON.parse(submittedValues)
+      : (submittedValues ?? {});
+
+    // Merge ONLY the dates arrays — nothing else
+    for (const section of ['sonsomo', 'main', 'core', 'mobility']) {
+      if (!Array.isArray(current[section])) continue;
+      for (let i = 0; i < current[section].length; i++) {
+        if (Array.isArray(submitted?.[section]?.[i]?.dates)) {
+          current[section][i].dates = submitted[section][i].dates;
+        }
+      }
+    }
+
+    await this.repo.update(planId, { values: JSON.stringify(current) });
+    this.notifyPlanChanged({ id: planId, clientId });
   }
 
   // ─── Values JSON validation ─────────────────────────────────────────────

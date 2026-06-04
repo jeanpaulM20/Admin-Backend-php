@@ -152,16 +152,16 @@ export class TrainingPlanController {
     @CurrentClient() client: Client,
     @CurrentTrainer() trainer: Trainer,
   ) {
-    const plan = await this.service.findOne(id);
+    const plan = await this.service.findOne(id, client?.id);
     this.assertPlanAccess(plan, client, trainer);
     if (trainer) return plan; // trainer: always full
 
     // Client: drafts are invisible; full content only when entitled, else teaser.
-    if (plan.status !== 'published') {
+    if ((plan as any).status !== 'published') {
       throw new ForbiddenException('Dieser Plan ist noch nicht freigegeben');
     }
-    const full = await this.entitlement.canAccessPlanFully(client.id, plan.publishedAt);
-    return full ? plan : this.toTeaser(plan);
+    const full = await this.entitlement.canAccessPlanFully(client.id, (plan as any).publishedAt);
+    return full ? plan : this.toTeaser(plan as any);
   }
 
   @Post()
@@ -272,6 +272,34 @@ export class TrainingPlanController {
     return this.service.remove(id);
   }
 
+  // ── Client-specific write endpoints ────────────────────────────────────────
+
+  /** POST /api/training-plan/:id/like — toggle like/dislike on an exercise (client only) */
+  @Post(':id/like')
+  toggleLike(
+    @Param('id', ParseIntPipe) planId: number,
+    @CurrentClient() client: Client,
+    @Body() body: { exerciseKey: string; type: 'like' | 'dislike' },
+  ) {
+    if (!client) throw new ForbiddenException('Nur Clients können Übungen bewerten');
+    if (!body?.exerciseKey || !['like', 'dislike'].includes(body?.type)) {
+      throw new BadRequestException('exerciseKey und type (like|dislike) sind erforderlich');
+    }
+    return this.service.toggleLike(client.id, planId, body.exerciseKey, body.type);
+  }
+
+  /** POST /api/training-plan/:id/results — client saves their training results (dates only) */
+  @Post(':id/results')
+  async saveResults(
+    @Param('id', ParseIntPipe) planId: number,
+    @CurrentClient() client: Client,
+    @Body() body: { values: any },
+  ) {
+    if (!client) throw new ForbiddenException('Nur Clients können Ergebnisse speichern');
+    await this.service.saveClientResults(client.id, planId, body.values);
+    return { success: true };
+  }
+
   /** POST /api/training-plan/:id/publish — release plan to the client (trainer only) */
   @Post(':id/publish')
   publish(@Param('id', ParseIntPipe) id: number, @CurrentTrainer() trainer: Trainer) {
@@ -293,23 +321,29 @@ export class TrainingPlanController {
   addComment(
     @Param('id', ParseIntPipe) planId: number,
     @CurrentTrainer() trainer: Trainer,
+    @CurrentClient() client: Client,
     @Body() body: { text: string; exerciseKey?: string },
   ) {
-    this.assertTrainer(trainer);
+    if (!trainer && !client) throw new ForbiddenException('Anmeldung erforderlich');
     const text = (body.text ?? '').trim();
     if (!text) throw new BadRequestException('Kommentar darf nicht leer sein');
-    const authorName =
-      `${trainer.firstname ?? ''} ${trainer.lastname ?? ''}`.trim() || 'Trainer';
-    return this.service.addComment(planId, trainer.id, authorName, text, body.exerciseKey);
+    if (trainer) {
+      const authorName = `${trainer.firstname ?? ''} ${trainer.lastname ?? ''}`.trim() || 'Trainer';
+      return this.service.addComment(planId, trainer.id, authorName, text, body.exerciseKey, undefined, 'trainer');
+    }
+    // Client comment
+    const clientName = `${(client as any).firstname ?? ''} ${(client as any).lastname ?? ''}`.trim() || 'Client';
+    return this.service.addComment(planId, undefined, clientName, text, body.exerciseKey, client.id, 'client');
   }
 
-  /** DELETE /api/training-plan/comments/:commentId — delete a comment */
+  /** DELETE /api/training-plan/comments/:commentId — delete own comment */
   @Delete('comments/:commentId')
   removeComment(
     @Param('commentId', ParseIntPipe) commentId: number,
     @CurrentTrainer() trainer: Trainer,
+    @CurrentClient() client: Client,
   ) {
-    this.assertTrainer(trainer);
-    return this.service.removeComment(commentId, trainer.id);
+    if (!trainer && !client) throw new ForbiddenException('Anmeldung erforderlich');
+    return this.service.removeComment(commentId, trainer?.id, client?.id);
   }
 }

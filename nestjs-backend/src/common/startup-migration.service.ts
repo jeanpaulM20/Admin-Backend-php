@@ -68,6 +68,9 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       `ALTER TABLE training ADD INDEX idx_training_plan_id (training_plan_id)`,
       // Online coaching workouts don't require a training type (type_id nullable)
       `ALTER TABLE training MODIFY COLUMN type_id INT DEFAULT NULL`,
+      // Client like/dislike per exercise (separate from trainer's plan JSON)
+      `ALTER TABLE training_plan_comment ADD COLUMN client_id INT DEFAULT NULL`,
+      `ALTER TABLE training_plan_comment ADD COLUMN sender_type VARCHAR(10) DEFAULT 'trainer'`,
       // Distinguish credit packs from coaching-subscription packages
       `ALTER TABLE credit_package ADD COLUMN kind VARCHAR(20) DEFAULT 'credits'`,
       // Plan publication workflow: draft until the trainer releases it to the client
@@ -143,6 +146,25 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       this.logger.log('push_subscription table ready');
     } catch (err: any) {
       this.logger.warn(`push_subscription table creation: ${err.message}`);
+    }
+
+    // Client like/dislike per exercise in a training plan
+    try {
+      await this.dataSource.query(`
+        CREATE TABLE IF NOT EXISTS training_plan_like (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          plan_id INT NOT NULL,
+          client_id INT NOT NULL,
+          exercise_key VARCHAR(20) NOT NULL,
+          type VARCHAR(10) NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE KEY uk_tpl_plan_client_ex (plan_id, client_id, exercise_key),
+          INDEX idx_tpl_plan_client (plan_id, client_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+      this.logger.log('training_plan_like table ready');
+    } catch (err: any) {
+      this.logger.warn(`training_plan_like table: ${err.message}`);
     }
 
     // Create coaching_subscription table (online coaching entitlement periods)

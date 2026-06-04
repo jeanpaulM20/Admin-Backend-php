@@ -117,6 +117,9 @@ class ClientTrainingPlan {
   /// Full content — only present when unlocked.
   final TrainingPlanValues? values;
 
+  /// Client's like/dislike per exercise key (from server, included in full plan).
+  final Map<String, String>? clientLikes;
+
   ClientTrainingPlan({
     this.id,
     this.clientId,
@@ -128,6 +131,7 @@ class ClientTrainingPlan {
     this.requiresSubscription = false,
     Map<String, int>? sections,
     this.values,
+    this.clientLikes,
   }) : sections = sections ?? {};
 
   int get totalExercises =>
@@ -174,6 +178,10 @@ class ClientTrainingPlan {
       requiresSubscription: json['requiresSubscription'] == true,
       sections: sections,
       values: values,
+      clientLikes: json['clientLikes'] is Map
+          ? Map<String, String>.from(
+              (json['clientLikes'] as Map).map((k, v) => MapEntry(k.toString(), v.toString())))
+          : null,
     );
   }
 }
