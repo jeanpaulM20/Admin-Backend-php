@@ -546,11 +546,6 @@ class _CreditsContent extends StatelessWidget {
       children: [
         _SummaryCard(activeCredits: activeCredits, packCount: credits.length),
         const SizedBox(height: 8),
-        if (credits.isNotEmpty) ...[
-          const _SectionHeader(icon: Icons.toll_outlined, title: 'Deine Credits'),
-          ...credits.map((c) => _CreditPackCard(credit: c)),
-          const SizedBox(height: 16),
-        ],
         if (packages.isNotEmpty) ...[
           const _SectionHeader(icon: Icons.local_offer_outlined, title: 'Unsere Pakete'),
           ...packages.map((p) => _PackageCard(package: p, onPurchase: () => onPurchase(p), purchasing: purchasing)),
@@ -643,119 +638,6 @@ class _SectionHeader extends StatelessWidget {
           letterSpacing: 0.5,
         )),
       ]),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Client's credit pack card
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class _CreditPackCard extends StatelessWidget {
-  final ClientCredit credit;
-
-  const _CreditPackCard({required this.credit});
-
-  String _formatDate(String? dateStr) {
-    if (dateStr == null || dateStr.isEmpty) return '';
-    try {
-      return DateFormat('dd.MM.yyyy').format(DateTime.parse(dateStr));
-    } catch (_) {
-      return dateStr;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final fraction = credit.paid > 0 ? credit.remaining / credit.paid : 0.0;
-    final isExpired = credit.expires != null &&
-        DateTime.tryParse(credit.expires!)?.isBefore(DateTime.now()) == true;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Container(
-              width: 40, height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withAlpha(20),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.toll_outlined, color: AppColors.primary, size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(credit.title, style: const TextStyle(
-                  color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700,
-                )),
-                const SizedBox(height: 2),
-                Text('${credit.remaining} von ${credit.paid} verbleibend',
-                    style: const TextStyle(color: AppColors.muted, fontSize: 12)),
-              ],
-            )),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: (isExpired ? AppColors.red : AppColors.primary).withAlpha(20),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                '${credit.remaining} / ${credit.paid}',
-                style: TextStyle(
-                  color: isExpired ? AppColors.red : AppColors.primary,
-                  fontSize: 13, fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ]),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: fraction.clamp(0.0, 1.0).toDouble(),
-              minHeight: 6,
-              backgroundColor: AppColors.surface2,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                  isExpired ? AppColors.red : AppColors.primary),
-            ),
-          ),
-          if (credit.startdate != null || credit.expires != null) ...[
-            const SizedBox(height: 10),
-            Row(children: [
-              if (credit.startdate != null) ...[
-                const Icon(Icons.calendar_today_rounded, size: 12, color: AppColors.muted),
-                const SizedBox(width: 4),
-                Text('Ab ${_formatDate(credit.startdate)}',
-                    style: const TextStyle(color: AppColors.muted, fontSize: 11)),
-              ],
-              if (credit.startdate != null && credit.expires != null) const SizedBox(width: 12),
-              if (credit.expires != null) ...[
-                Icon(Icons.event_busy_rounded, size: 12,
-                    color: isExpired ? AppColors.red : AppColors.muted),
-                const SizedBox(width: 4),
-                Text(
-                  isExpired
-                      ? 'Abgelaufen ${_formatDate(credit.expires)}'
-                      : 'Gueltig bis ${_formatDate(credit.expires)}',
-                  style: TextStyle(
-                    color: isExpired ? AppColors.red : AppColors.muted, fontSize: 11,
-                  ),
-                ),
-              ],
-            ]),
-          ],
-        ],
-      ),
     );
   }
 }
