@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../config/app_colors.dart';
+import '../config/api_config.dart';
 import '../models/training_plan.dart';
 import '../providers/auth_provider.dart';
 import '../providers/exercise_timer.dart';
@@ -61,6 +62,9 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
   // Comment counts per exerciseKey
   Map<String, int> _commentCounts = {};
 
+  // Exercise name → id map for icon display
+  Map<String, int> _exerciseIdMap = {};
+
   RealtimeService? _realtime;
 
   @override
@@ -69,7 +73,22 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
     _tabCtrl = TabController(length: 4, vsync: this);
     _timer = ExerciseTimer()..addListener(() => setState(() {}));
     _load();
+    _loadExerciseIds();
     _subscribeRealtime();
+  }
+
+  Future<void> _loadExerciseIds() async {
+    try {
+      final data = await apiClient.get('api/exercise');
+      if (data is List && mounted) {
+        setState(() {
+          _exerciseIdMap = {
+            for (final ex in data)
+              if (ex['name'] != null) ex['name'].toString(): ex['id'] as int,
+          };
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -483,21 +502,8 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               child: Row(children: [
-                // Icon or number badge
-                Container(
-                  width: 34, height: 34,
-                  decoration: BoxDecoration(
-                    color: (isLiked ? AppColors.green : isDisliked ? AppColors.red : meta.color)
-                        .withAlpha(46),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Center(child: Text('${i + 1}',
-                      style: GoogleFonts.montserrat(
-                          color: isLiked ? AppColors.green
-                              : isDisliked ? AppColors.red
-                              : meta.color,
-                          fontSize: 13, fontWeight: FontWeight.w800))),
-                ),
+                // Exercise icon (from API) or number badge fallback
+                _buildExerciseBadge(i, row.exercise, meta.color, isLiked, isDisliked),
                 const SizedBox(width: 12),
                 // Name + hints
                 Expanded(
@@ -552,8 +558,8 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
                   _buildErgebnisse(meta.key, i, row),
                   const SizedBox(height: 12),
 
-                  // Timer chips — use only, no add/delete
-                  if (row.timers.isNotEmpty) _buildTimerChips(meta, i, row),
+                  // Timer chips — always visible; fallback presets when trainer set none
+                  _buildTimerChips(meta, i, row),
 
                   const SizedBox(height: 12),
                   // Action buttons
@@ -564,6 +570,39 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildExerciseBadge(int i, String name, Color color, bool liked, bool disliked) {
+    final activeColor = liked ? AppColors.green : disliked ? AppColors.red : color;
+    final exerciseId = _exerciseIdMap[name];
+    if (exerciseId != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.network(
+          '${ApiConfig.baseUrl}api/exercise/$exerciseId/icon.png',
+          width: 40, height: 40,
+          fit: BoxFit.cover,
+          headers: apiClient.token != null
+              ? {ApiConfig.authHeader: apiClient.token!}
+              : {},
+          errorBuilder: (_, __, ___) => _numberBadge(i, activeColor),
+        ),
+      );
+    }
+    return _numberBadge(i, activeColor);
+  }
+
+  Widget _numberBadge(int i, Color color) {
+    return Container(
+      width: 40, height: 40,
+      decoration: BoxDecoration(
+        color: color.withAlpha(46),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Center(child: Text('${i + 1}',
+          style: GoogleFonts.montserrat(
+              color: color, fontSize: 13, fontWeight: FontWeight.w800))),
     );
   }
 
@@ -664,17 +703,29 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
   // ─── Timer chips (use only) ───────────────────────────────────────────────
 
   Widget _buildTimerChips(_SectionMeta meta, int i, TrainingPlanRow row) {
+    // Use trainer-defined timers if available; otherwise show common presets
+    final timerValues = row.timers.isNotEmpty ? row.timers : [30, 60, 90, 120];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('TIMER',
-            style: GoogleFonts.openSans(
-                color: AppColors.muted, fontSize: 9,
-                fontWeight: FontWeight.w600, letterSpacing: 1.5)),
+        Row(children: [
+          Text('TIMER',
+              style: GoogleFonts.openSans(
+                  color: AppColors.muted, fontSize: 9,
+                  fontWeight: FontWeight.w600, letterSpacing: 1.5)),
+          if (row.timers.isEmpty) ...[
+            const SizedBox(width: 6),
+            Text('(Vorschläge)',
+                style: GoogleFonts.openSans(
+                    color: AppColors.muted.withAlpha(120), fontSize: 9,
+                    letterSpacing: 0.5)),
+          ],
+        ]),
         const SizedBox(height: 6),
         Wrap(
           spacing: 6, runSpacing: 6,
-          children: row.timers.map((secs) {
+          children: timerValues.map((secs) {
             final isActive = _timer.isCountdown &&
                 _timer.activePrefix == meta.key &&
                 _timer.activeIndex == i &&
