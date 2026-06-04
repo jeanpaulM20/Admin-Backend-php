@@ -51,7 +51,7 @@ export class TrainingController {
   }
 
   // ── iCal download ────────────────────────────────────────────────────────
-  @Public()
+  // Auth via query param is supported: GET /api/training/:id/ical?token=...
   @Get(':id/ical')
   async getIcal(
     @Param('id', ParseIntPipe) id: number,
@@ -106,7 +106,7 @@ export class TrainingController {
     @Body() body: Partial<Training>,
   ) {
     if (!trainer) throw new ForbiddenException('Nur Trainer können Trainings bearbeiten');
-    return this.service.update(id, body);
+    return this.service.update(trainer.id, id, body);
   }
 
   @Post(':id/cancel')
@@ -115,7 +115,7 @@ export class TrainingController {
     @Param('id', ParseIntPipe) id: number,
   ) {
     if (!trainer) throw new ForbiddenException('Nur Trainer können Trainings absagen');
-    return this.service.cancel(id);
+    return this.service.cancel(trainer.id, id);
   }
 
   @Delete(':id')
@@ -124,6 +124,6 @@ export class TrainingController {
     @Param('id', ParseIntPipe) id: number,
   ) {
     if (!trainer) throw new ForbiddenException('Nur Trainer können Trainings löschen');
-    return this.service.remove(id);
+    return this.service.remove(trainer.id, id);
   }
 }

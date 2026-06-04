@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, MoreThanOrEqual, LessThanOrEqual, In } from 'typeorm';
 import { Training, TrainingStatus } from '../entities/training.entity';
@@ -220,14 +220,20 @@ export class TrainingService {
 
   // ── CRUD ────────────────────────────────────────────────────────────────
 
-  async update(id: number, data: Partial<Training>) {
-    await this.findOne(id);
+  async update(trainerId: number, id: number, data: Partial<Training>) {
+    const training = await this.findOne(id);
+    if (training.trainerId !== trainerId) {
+      throw new ForbiddenException('Nicht berechtigt, dieses Training zu bearbeiten');
+    }
     await this.repo.update(id, data);
     return this.findOne(id);
   }
 
-  async cancel(id: number) {
+  async cancel(trainerId: number, id: number) {
     const training = await this.findOne(id);
+    if (training.trainerId !== trainerId) {
+      throw new ForbiddenException('Nicht berechtigt, dieses Training abzusagen');
+    }
     if (training.status === TrainingStatus.ATTENDED) {
       throw new BadRequestException('Abgeschlossene Trainings können nicht abgesagt werden');
     }
@@ -246,17 +252,20 @@ export class TrainingService {
         .execute();
     } catch (err: any) {
       this.logger.error(`Cancel failed for training ${id}: ${err.message}`);
-      throw new BadRequestException(`Training konnte nicht abgesagt werden: ${err.message}`);
+      throw new BadRequestException('Training konnte nicht abgesagt werden.');
     }
     return this.findOne(id);
   }
 
-  async remove(id: number) {
+  async remove(trainerId: number, id: number) {
     const raw = await this.repo.findOne({
       where: { id },
       relations: ['trainer', 'client', 'trainingType', 'location'],
     });
     if (!raw) throw new NotFoundException(`Training ${id} not found`);
+    if (raw.trainerId !== trainerId) {
+      throw new ForbiddenException('Nicht berechtigt, dieses Training zu löschen');
+    }
     return this.repo.remove(raw);
   }
 }
