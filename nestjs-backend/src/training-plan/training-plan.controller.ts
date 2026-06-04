@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, ParseIntPipe, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, ParseIntPipe, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { TrainingPlanService } from './training-plan.service';
 import { AiPlanService } from './ai-plan.service';
 import { TrainingPlan } from '../entities/training-plan.entity';
@@ -15,6 +15,20 @@ export class TrainingPlanController {
     private readonly service: TrainingPlanService,
     private readonly aiService: AiPlanService,
   ) {}
+
+  // ── Authorization helpers ──────────────────────────────────────────────
+  /** Mutations (create/update/delete/AI) are trainer-only. */
+  private assertTrainer(trainer?: Trainer): void {
+    if (!trainer) throw new ForbiddenException('Nur Trainer dürfen Trainingspläne bearbeiten');
+  }
+
+  /** Read access: trainers see all plans, clients only their own. */
+  private assertPlanAccess(plan: TrainingPlan, client?: Client, trainer?: Trainer): void {
+    if (trainer) return;
+    if (!client || plan.clientId !== client.id) {
+      throw new ForbiddenException('Zugriff verweigert');
+    }
+  }
 
   /** Debug endpoint — shows AI provider status (auth required) */
   @Get('ai/status')
@@ -40,41 +54,64 @@ export class TrainingPlanController {
   @Post('ai/recommend/:clientId')
   recommend(
     @Param('clientId', ParseIntPipe) clientId: number,
+    @CurrentTrainer() trainer: Trainer,
     @Body() body: any,
   ) {
+    this.assertTrainer(trainer);
     const request = this.validatePlanRequest(body);
     return this.aiService.generateAiPlan(clientId, request);
   }
 
   /** GET kept for backward compatibility — generates with default params */
   @Get('ai/recommend/:clientId')
-  recommendGet(@Param('clientId', ParseIntPipe) clientId: number) {
+  recommendGet(
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @CurrentTrainer() trainer: Trainer,
+  ) {
+    this.assertTrainer(trainer);
     return this.aiService.generateAiPlan(clientId);
   }
 
   /** GET /api/training-plan/:id/comments — list comments for a plan or exercise */
   @Get(':id/comments')
-  getComments(
+  async getComments(
     @Param('id', ParseIntPipe) planId: number,
+    @CurrentClient() client: Client,
+    @CurrentTrainer() trainer: Trainer,
     @Query('exerciseKey') exerciseKey?: string,
   ) {
+    const plan = await this.service.findOne(planId);
+    this.assertPlanAccess(plan, client, trainer);
     return this.service.getComments(planId, exerciseKey);
   }
 
   /** GET /api/training-plan/:id/comment-counts — comment counts per exercise */
   @Get(':id/comment-counts')
-  getCommentCounts(@Param('id', ParseIntPipe) planId: number) {
+  async getCommentCounts(
+    @Param('id', ParseIntPipe) planId: number,
+    @CurrentClient() client: Client,
+    @CurrentTrainer() trainer: Trainer,
+  ) {
+    const plan = await this.service.findOne(planId);
+    this.assertPlanAccess(plan, client, trainer);
     return this.service.getCommentCounts(planId);
   }
 
   // NB: :id route MUST come after /ai/* and multi-segment routes to avoid "ai" matching as :id
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.service.findOne(id);
+  async findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentClient() client: Client,
+    @CurrentTrainer() trainer: Trainer,
+  ) {
+    const plan = await this.service.findOne(id);
+    this.assertPlanAccess(plan, client, trainer);
+    return plan;
   }
 
   @Post()
-  create(@Body() body: any) {
+  create(@CurrentTrainer() trainer: Trainer, @Body() body: any) {
+    this.assertTrainer(trainer);
     // Flutter sends snake_case (client_id), but TypeORM entity uses camelCase (clientId)
     const mapped: Partial<TrainingPlan> = {
       ...body,
@@ -94,8 +131,10 @@ export class TrainingPlanController {
   @Post('ai/generate/:clientId')
   generate(
     @Param('clientId', ParseIntPipe) clientId: number,
+    @CurrentTrainer() trainer: Trainer,
     @Body() body: any,
   ) {
+    this.assertTrainer(trainer);
     const request = this.validatePlanRequest(body);
     return this.aiService.generateAndSave(clientId, request);
   }
@@ -161,7 +200,8 @@ export class TrainingPlanController {
   }
 
   @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() body: any) {
+  update(@Param('id', ParseIntPipe) id: number, @CurrentTrainer() trainer: Trainer, @Body() body: any) {
+    this.assertTrainer(trainer);
     // Flutter sends snake_case (client_id), but TypeORM entity uses camelCase (clientId)
     const mapped: Partial<TrainingPlan> = {
       ...body,
@@ -172,7 +212,8 @@ export class TrainingPlanController {
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
+  remove(@Param('id', ParseIntPipe) id: number, @CurrentTrainer() trainer: Trainer) {
+    this.assertTrainer(trainer);
     return this.service.remove(id);
   }
 
@@ -185,12 +226,12 @@ export class TrainingPlanController {
     @CurrentTrainer() trainer: Trainer,
     @Body() body: { text: string; exerciseKey?: string },
   ) {
+    this.assertTrainer(trainer);
     const text = (body.text ?? '').trim();
     if (!text) throw new BadRequestException('Kommentar darf nicht leer sein');
-    const authorName = trainer
-      ? `${trainer.firstname ?? ''} ${trainer.lastname ?? ''}`.trim() || 'Trainer'
-      : 'Unbekannt';
-    return this.service.addComment(planId, trainer?.id, authorName, text, body.exerciseKey);
+    const authorName =
+      `${trainer.firstname ?? ''} ${trainer.lastname ?? ''}`.trim() || 'Trainer';
+    return this.service.addComment(planId, trainer.id, authorName, text, body.exerciseKey);
   }
 
   /** DELETE /api/training-plan/comments/:commentId — delete a comment */
@@ -199,6 +240,7 @@ export class TrainingPlanController {
     @Param('commentId', ParseIntPipe) commentId: number,
     @CurrentTrainer() trainer: Trainer,
   ) {
-    return this.service.removeComment(commentId, trainer?.id);
+    this.assertTrainer(trainer);
+    return this.service.removeComment(commentId, trainer.id);
   }
 }
