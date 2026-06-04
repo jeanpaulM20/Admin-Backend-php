@@ -176,14 +176,22 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
     final plan = _plan;
     if (plan?.id == null || plan?.values == null) return;
     final v = plan!.values!;
-    // Build values with updated dates
     final updated = _buildUpdatedValues(v);
     try {
       await apiClient.post(
         'api/training-plan/${plan.id}/results',
         body: {'values': updated},
       );
-    } catch (_) {/* silent — user gets live feedback via SSE re-fetch */}
+    } catch (_) {
+      // Show a subtle indicator so the user knows results weren't saved.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Ergebnisse konnten nicht gespeichert werden — bitte erneut versuchen'),
+          backgroundColor: AppColors.red,
+          duration: Duration(seconds: 3),
+        ));
+      }
+    }
   }
 
   Map<String, dynamic> _buildUpdatedValues(TrainingPlanValues v) {
@@ -218,7 +226,9 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
   Future<void> _toggleLike(String exerciseKey, String type) async {
     final plan = _plan;
     if (plan?.id == null) return;
-    // Optimistic update
+
+    // Snapshot before optimistic update so we can revert precisely (no full reload)
+    final prevLikes = Map<String, String>.from(_likes);
     setState(() {
       if (_likes[exerciseKey] == type) {
         _likes.remove(exerciseKey);
@@ -231,12 +241,12 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
         'api/training-plan/${plan!.id}/like',
         body: {'exerciseKey': exerciseKey, 'type': type},
       );
-      if (result is Map) {
+      if (result is Map && mounted) {
         setState(() => _likes = Map<String, String>.from(result));
       }
     } catch (_) {
-      // Revert on error
-      await _load();
+      // Revert to snapshot — no full re-fetch that would lose user's open tiles
+      if (mounted) setState(() => _likes = prevLikes);
     }
   }
 

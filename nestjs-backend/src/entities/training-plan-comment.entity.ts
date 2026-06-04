@@ -23,6 +23,14 @@ export class TrainingPlanComment {
   @Column({ name: 'author_name', nullable: true })
   authorName: string;
 
+  /** Set when a client writes the comment (null for trainer comments). */
+  @Column({ name: 'client_id', nullable: true })
+  clientId: number | null;
+
+  /** 'trainer' | 'client' — lets UI distinguish author type. */
+  @Column({ name: 'sender_type', default: 'trainer' })
+  senderType: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

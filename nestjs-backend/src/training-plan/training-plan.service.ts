@@ -23,6 +23,13 @@ export class TrainingPlanService {
     this.realtime.emitToClient(plan.clientId, 'plan_updated', { planId: plan.id });
   }
 
+  /** Throws if the plan is not published — used for client-facing write actions. */
+  private assertPublished(plan: any): void {
+    if ((plan as any).status !== 'published') {
+      throw new ForbiddenException('Dieser Plan ist noch nicht freigegeben');
+    }
+  }
+
   findAll(clientId?: number, publishedOnly = false) {
     const where: any = clientId ? { clientId } : {};
     if (publishedOnly) where.status = 'published';
@@ -152,12 +159,21 @@ export class TrainingPlanService {
   ): Promise<void> {
     const comment = await this.commentRepo.findOne({ where: { id: commentId } });
     if (!comment) throw new NotFoundException(`Comment ${commentId} not found`);
-    // Trainers can delete their own comments; clients can delete their own
-    const isOwnTrainer = requestingTrainerId && (comment as any).trainerId === requestingTrainerId;
-    const isOwnClient = requestingClientId && (comment as any).clientId === requestingClientId;
-    if (!isOwnTrainer && !isOwnClient) {
+
+    // Verify the requesting user is associated with this plan
+    const plan = await this.findOne(comment.planId);
+    const trainerOwnsComment = requestingTrainerId && comment.trainerId === requestingTrainerId;
+    const clientOwnsComment  = requestingClientId  && comment.clientId  === requestingClientId;
+
+    if (!trainerOwnsComment && !clientOwnsComment) {
       throw new ForbiddenException('Nur eigene Kommentare können gelöscht werden');
     }
+
+    // Extra: clients can only delete comments on their own plan
+    if (requestingClientId && (plan as any).clientId !== requestingClientId) {
+      throw new ForbiddenException('Zugriff verweigert');
+    }
+
     await this.commentRepo.remove(comment);
   }
 
@@ -171,7 +187,8 @@ export class TrainingPlanService {
     type: 'like' | 'dislike',
   ): Promise<Record<string, 'like' | 'dislike'>> {
     const plan = await this.findOne(planId);
-    if (plan.clientId !== clientId) throw new ForbiddenException('Zugriff verweigert');
+    if ((plan as any).clientId !== clientId) throw new ForbiddenException('Zugriff verweigert');
+    this.assertPublished(plan);
 
     const existing = await this.likeRepo.findOne({
       where: { planId, clientId, exerciseKey },
@@ -219,11 +236,14 @@ export class TrainingPlanService {
     submittedValues: any,
   ): Promise<void> {
     const plan = await this.findOne(planId);
-    if (plan.clientId !== clientId) throw new ForbiddenException('Zugriff verweigert');
+    if ((plan as any).clientId !== clientId) throw new ForbiddenException('Zugriff verweigert');
+    this.assertPublished(plan);
 
     let current: any = {};
     try {
-      current = typeof plan.values === 'string' ? JSON.parse(plan.values) : (plan.values ?? {});
+      current = typeof (plan as any).values === 'string'
+        ? JSON.parse((plan as any).values)
+        : ((plan as any).values ?? {});
     } catch { /* keep empty */ }
 
     const submitted = typeof submittedValues === 'string'
@@ -241,7 +261,9 @@ export class TrainingPlanService {
     }
 
     await this.repo.update(planId, { values: JSON.stringify(current) });
-    this.notifyPlanChanged({ id: planId, clientId });
+    // Do NOT emit plan_updated here — that would trigger a re-fetch in the
+    // client app and interrupt the user while they are still typing results.
+    // Trainer edits (update/publish) are the ones that warrant a live reload.
   }
 
   // ─── Values JSON validation ─────────────────────────────────────────────
