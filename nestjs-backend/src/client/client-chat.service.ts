@@ -165,12 +165,34 @@ export class ClientChatService {
 
   /**
    * Client sends a message to a trainer.
+   * Rate-limited: max 5 real chat messages per day (system/circle messages excluded).
    */
   async sendMessage(clientId: number, trainerId: number, text: string) {
     // Sanitize: trim whitespace and enforce max length (5000 chars)
     const sanitized = (text ?? '').trim().slice(0, 5000);
     if (!sanitized) {
       throw new BadRequestException('Nachricht darf nicht leer sein');
+    }
+
+    // ── Rate limit: max 5 messages per day per subscription plan ────────────
+    // Only counts real chat messages (is_circle=0, sender_type='client').
+    // System notifications (is_circle=1) are excluded.
+    try {
+      const [row]: any = await this.feedbackRepo.query(
+        `SELECT COUNT(*) AS cnt FROM feedback
+         WHERE client_id = ? AND sender_type = 'client' AND is_circle = 0
+         AND DATE(created_at) = CURDATE()`,
+        [clientId],
+      );
+      const count = parseInt(row?.cnt ?? '0', 10);
+      if (count >= 5) {
+        throw new BadRequestException(
+          'Tageslimit erreicht — du kannst deinem Trainer heute maximal 5 Nachrichten senden.',
+        );
+      }
+    } catch (err: any) {
+      if (err?.response?.statusCode === 400) throw err; // re-throw BadRequest
+      // DB error counting → allow (fail open, don't block user)
     }
 
     const msg = this.feedbackRepo.create({

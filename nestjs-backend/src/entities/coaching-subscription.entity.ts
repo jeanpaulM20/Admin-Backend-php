@@ -27,6 +27,9 @@ export class CoachingSubscription {
 
   @Column({ name: 'invoice_number', nullable: true }) invoiceNumber: string;
 
+  @Column({ name: 'last_reminded_at', type: 'datetime', nullable: true })
+  lastRemindedAt: Date | null;
+
   @Column({ name: 'created_at', type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;
 

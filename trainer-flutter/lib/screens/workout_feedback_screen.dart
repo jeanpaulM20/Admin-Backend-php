@@ -95,7 +95,11 @@ class _WorkoutFeedbackScreenState extends State<WorkoutFeedbackScreen> {
       channel: 'client_${widget.client.id}',
       token: token,
       onEvent: (type) {
-        if (mounted && !_loading && type == 'chat') _loadMessages();
+        if (!mounted) return;
+        // Reload messages on new chat OR when client logs training results
+        if (!_loading && (type == 'chat' || type == 'client_trained')) {
+          _loadMessages();
+        }
       },
     )..connect();
   }

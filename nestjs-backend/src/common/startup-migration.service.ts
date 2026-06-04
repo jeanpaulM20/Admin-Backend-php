@@ -68,6 +68,8 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       `ALTER TABLE training ADD INDEX idx_training_plan_id (training_plan_id)`,
       // Online coaching workouts don't require a training type (type_id nullable)
       `ALTER TABLE training MODIFY COLUMN type_id INT DEFAULT NULL`,
+      // Track when subscription renewal reminders were last sent (prevents duplicates)
+      `ALTER TABLE coaching_subscription ADD COLUMN last_reminded_at DATETIME DEFAULT NULL`,
       // Client like/dislike per exercise (separate from trainer's plan JSON)
       `ALTER TABLE training_plan_comment ADD COLUMN client_id INT DEFAULT NULL`,
       `ALTER TABLE training_plan_comment ADD COLUMN sender_type VARCHAR(10) DEFAULT 'trainer'`,

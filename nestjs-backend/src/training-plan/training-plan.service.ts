@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { Repository, IsNull, DataSource } from 'typeorm';
 import { TrainingPlan } from '../entities/training-plan.entity';
 import { TrainingPlanComment } from '../entities/training-plan-comment.entity';
 import { TrainingPlanLike } from '../entities/training-plan-like.entity';
@@ -16,7 +16,10 @@ export class TrainingPlanService {
     @InjectRepository(TrainingPlanLike)
     private readonly likeRepo: Repository<TrainingPlanLike>,
     private readonly realtime: RealtimeService,
+    private readonly dataSource: DataSource,
   ) {}
+
+  private readonly logger = new Logger(TrainingPlanService.name);
 
   /** Notify the client (and any trainer watching) that a plan changed. */
   private notifyPlanChanged(plan: { id: number; clientId: number }): void {
@@ -264,6 +267,42 @@ export class TrainingPlanService {
     // Do NOT emit plan_updated here — that would trigger a re-fetch in the
     // client app and interrupt the user while they are still typing results.
     // Trainer edits (update/publish) are the ones that warrant a live reload.
+
+    // Notify assigned trainer(s) that the client logged training (fire-and-forget)
+    this.notifyTrainersClientTrained(clientId, (plan as any).name ?? 'Trainingsplan').catch(
+      (err) => this.logger.warn(`Trainer-notification failed: ${err.message}`),
+    );
+  }
+
+  /**
+   * Creates a system chat message for each trainer assigned to the client.
+   * Appears in the trainer's Nachrichten screen — persistent even if offline.
+   * SSE 'client_trained' is also emitted so open trainer screens react live.
+   */
+  private async notifyTrainersClientTrained(clientId: number, planName: string): Promise<void> {
+    // Find all trainers assigned to this client
+    const trainerRows: { trainer_id: number }[] = await this.dataSource.query(
+      'SELECT trainer_id FROM trainer_client WHERE client_id = ?',
+      [clientId],
+    );
+    if (!trainerRows?.length) return;
+
+    const text = `✅ Hat Training erfasst — ${planName}`;
+
+    for (const row of trainerRows) {
+      try {
+        await this.dataSource.query(
+          `INSERT INTO feedback (client_id, trainer_id, text, sender_type, is_circle,
+            read_client, read_trainer, created_at)
+           VALUES (?, ?, ?, 'client', 1, 1, 0, NOW())`,
+          [clientId, row.trainer_id, text],
+        );
+      } catch (err: any) {
+        this.logger.warn(`Insert trainer notification failed: ${err.message}`);
+      }
+    }
+    // SSE ping so trainer's open chat screen refreshes without reload
+    this.realtime.emitToClient(clientId, 'client_trained', { planName });
   }
 
   // ─── Values JSON validation ─────────────────────────────────────────────

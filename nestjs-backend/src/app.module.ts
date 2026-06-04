@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ServeStaticModule } from '@nestjs/serve-static';
+import { ScheduleModule } from '@nestjs/schedule';
 import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
 import { TrainerModule } from './trainer/trainer.module';
@@ -18,6 +19,7 @@ import { ReviewModule } from './review/review.module';
 import { FileModule } from './file/file.module';
 import { PushModule } from './push/push.module';
 import { RealtimeModule } from './realtime/realtime.module';
+import { EntitlementModule } from './entitlement/entitlement.module';
 // Garmin module kept for later — not imported until Consumer Key is configured
 // import { GarminModule } from './garmin/garmin.module';
 import { PreferenceController } from './file/preference.controller';
@@ -48,6 +50,7 @@ const dbConfig: any = isSqlite
 @Module({
   imports: [
     TypeOrmModule.forRoot(dbConfig),
+    ScheduleModule.forRoot(),
     ServeStaticModule.forRoot(
       {
         rootPath: join(__dirname, 'public'),
@@ -81,6 +84,7 @@ const dbConfig: any = isSqlite
     FileModule,
     PushModule,
     RealtimeModule,
+    EntitlementModule,
     // GarminModule, // re-enable when GARMIN_CONSUMER_KEY is set
   ],
   controllers: [PreferenceController],
