@@ -20,19 +20,19 @@ const RESOURCES = {"version.json": "df3b1bd3d5cffcfead453e6c90187824",
 "canvaskit/canvaskit.wasm": "e7602c687313cfac5f495c5eac2fb324",
 "flutter.js": "4b2350e14c6650ba82871f60906437ea",
 "apple-touch-icon.png": "962354807350bed39a2cbebdc1951bca",
-"flutter_bootstrap.js": "aef1b27ed516b319dad1b782a952c185",
+"flutter_bootstrap.js": "f4ef52424f3e3636caf959b88d1ba447",
 "manifest.json": "e68ae8afcae584e181eea11ce5c4b9fe",
 "index.html": "1370ce4251d4ee4deda766b52ad49a71",
 "/": "1370ce4251d4ee4deda766b52ad49a71",
 "favicon.png": "2d4901bc5b8509dd0ac7f78c48cd9004",
-"main.dart.js": "e35dedeae7cf9ba410c0ab291027747b",
+"main.dart.js": "af8ce86c9ed16f0d4492b08ddb05482e",
 "assets/NOTICES": "aea4e56391eee4ff3f0c88325c39ecbf",
 "assets/AssetManifest.bin": "f300c3530514fb2ae777a511970215a6",
 "assets/AssetManifest.bin.json": "a9d7f1aae082b0360280a3ff6c4373e4",
 "assets/AssetManifest.json": "f534791734053e8f0aa77523db0292d0",
 "assets/FontManifest.json": "7b2a36307916a9721811788013e65289",
 "assets/shaders/ink_sparkle.frag": "ecc85a2e95f5e9f53123dcaf8cb9b6ce",
-"assets/fonts/MaterialIcons-Regular.otf": "3c7fdb10b19e9fe8f7a61b17549074e9"};
+"assets/fonts/MaterialIcons-Regular.otf": "b272f2e66699e9f328b5027c9905cfc7"};
 // The application shell files that are downloaded before a service worker can
 // start.
 const CORE = ["main.dart.js",
