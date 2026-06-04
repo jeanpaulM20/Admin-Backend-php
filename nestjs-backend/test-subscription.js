@@ -63,7 +63,9 @@ async function run() {
 
 function summary() {
   console.log(`\n=== Results: ${passed} passed, ${failed} failed ===`);
-  process.exit(failed > 0 ? 1 : 0);
+  // Set exitCode and let the event loop drain naturally — avoids the libuv
+  // UV_HANDLE_CLOSING assertion that process.exit() triggers on Windows.
+  process.exitCode = failed > 0 ? 1 : 0;
 }
 
-run().catch((e) => { console.error('FATAL:', e); process.exit(1); });
+run().catch((e) => { console.error('FATAL:', e); process.exitCode = 1; });
