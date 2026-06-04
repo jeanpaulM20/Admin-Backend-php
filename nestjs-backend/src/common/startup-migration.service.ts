@@ -66,6 +66,8 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       // Optional plan link on a training (calendar event with assigned workout)
       `ALTER TABLE training ADD COLUMN training_plan_id INT DEFAULT NULL`,
       `ALTER TABLE training ADD INDEX idx_training_plan_id (training_plan_id)`,
+      // Online coaching workouts don't require a training type (type_id nullable)
+      `ALTER TABLE training MODIFY COLUMN type_id INT DEFAULT NULL`,
     ];
 
     // Create training_plan_comment table if not exists
