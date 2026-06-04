@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Feedback } from '../entities/feedback.entity';
@@ -6,6 +6,8 @@ import { Client } from '../entities/client.entity';
 
 @Injectable()
 export class ClientChatService {
+  private readonly logger = new Logger(ClientChatService.name);
+
   constructor(
     @InjectRepository(Feedback) private readonly feedbackRepo: Repository<Feedback>,
     @InjectRepository(Client) private readonly clientRepo: Repository<Client>,
@@ -157,6 +159,7 @@ export class ClientChatService {
       // Prefer explicit sender_type column; fall back to read-flag heuristic for legacy data
       sender_type: row.sender_type
         ?? (row.read_trainer === 1 && row.read_client === 0 ? 'trainer' : 'client'),
+      is_circle: row.is_circle ?? 0,
       created_at: row.created_at ?? null,
       read_client: row.read_client,
       read_trainer: row.read_trainer,
@@ -193,6 +196,7 @@ export class ClientChatService {
     } catch (err: any) {
       if (err?.response?.statusCode === 400) throw err; // re-throw BadRequest
       // DB error counting → allow (fail open, don't block user)
+      this.logger.warn(`Rate-limit check failed for client ${clientId}: ${err?.message}`);
     }
 
     const msg = this.feedbackRepo.create({
