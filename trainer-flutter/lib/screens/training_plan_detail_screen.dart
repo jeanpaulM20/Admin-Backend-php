@@ -25,6 +25,8 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
     with SingleTickerProviderStateMixin {
   final _api = ApiService();
   bool _saving = false;
+  bool _publishing = false;
+  String _status = 'draft';
   late TrainingPlanValues _values;
   final _nameCtrl = TextEditingController();
   late TabController _tabCtrl;
@@ -63,6 +65,7 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
     _tabCtrl = TabController(length: 4, vsync: this);
     _values = widget.plan?.values ?? TrainingPlanValues();
     _nameCtrl.text = widget.plan?.name ?? '';
+    _status = widget.plan?.status ?? 'draft';
     for (var i = 0; i < 8; i++) _dateCtrls[i].text = _values.dates[i];
 
     final rowsMap = {
@@ -473,6 +476,33 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
     }
   }
 
+  /// Release the plan to the client (or revert to draft). Requires a saved plan.
+  Future<void> _togglePublish() async {
+    final planId = widget.plan?.id;
+    if (planId == null) return;
+    final publishing = _status != 'published';
+    setState(() => _publishing = true);
+    try {
+      final action = publishing ? 'publish' : 'unpublish';
+      await _api.post('${ApiConfig.trainingPlan}/$planId/$action');
+      if (mounted) {
+        setState(() => _status = publishing ? 'published' : 'draft');
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(publishing
+              ? 'Plan veröffentlicht — für den Kunden sichtbar'
+              : 'Plan auf Entwurf zurückgesetzt'),
+          backgroundColor: publishing ? AppColors.green : AppColors.surface2,
+        ));
+      }
+    } on ApiException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message), backgroundColor: AppColors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _publishing = false);
+    }
+  }
+
   @override
   void dispose() {
     _autoSaveTimer?.cancel();
@@ -581,6 +611,10 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
                       const SizedBox(width: 4),
                       Text(widget.client.name,
                           style: GoogleFonts.openSans(color: Colors.white38, fontSize: 12)),
+                      if (widget.plan?.id != null) ...[
+                        const SizedBox(width: 8),
+                        _publishPill(),
+                      ],
                     ]),
                   ],
                 ),
@@ -598,6 +632,34 @@ class _TrainingPlanDetailScreenState extends State<TrainingPlanDetailScreen>
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// Tappable draft/published indicator. Tap toggles publication.
+  Widget _publishPill() {
+    final published = _status == 'published';
+    final color = published ? AppColors.green : AppColors.muted;
+    return GestureDetector(
+      onTap: _publishing ? null : _togglePublish,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: color.withAlpha(36),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withAlpha(120)),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          if (_publishing)
+            const SizedBox(width: 10, height: 10,
+                child: CircularProgressIndicator(strokeWidth: 1.5))
+          else
+            Icon(published ? Icons.public : Icons.public_off, size: 11, color: color),
+          const SizedBox(width: 4),
+          Text(published ? 'Veröffentlicht' : 'Entwurf',
+              style: GoogleFonts.openSans(
+                  color: color, fontSize: 10, fontWeight: FontWeight.w700)),
+        ]),
       ),
     );
   }

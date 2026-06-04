@@ -132,6 +132,9 @@ class TrainingPlan {
   String? name;
   TrainingPlanValues values;
   String? createdAt;
+  /// 'draft' = trainer still editing; 'published' = released to the client
+  String? status;
+  String? publishedAt;
 
   TrainingPlan({
     this.id,
@@ -139,7 +142,11 @@ class TrainingPlan {
     this.name,
     TrainingPlanValues? values,
     this.createdAt,
+    this.status,
+    this.publishedAt,
   }) : values = values ?? TrainingPlanValues();
+
+  bool get isPublished => status == 'published';
 
   factory TrainingPlan.fromJson(Map<String, dynamic> json) {
     TrainingPlanValues parsedValues;
@@ -165,6 +172,8 @@ class TrainingPlan {
       name: json['name']?.toString(),
       values: parsedValues,
       createdAt: json['created_at']?.toString(),
+      status: json['status']?.toString(),
+      publishedAt: (json['publishedAt'] ?? json['published_at'])?.toString(),
     );
   }
 
