@@ -1,3 +1,5 @@
+import 'dart:html' as html;
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/exercise.dart';
@@ -57,6 +59,10 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
   String? _filterBodyRegion;
   int? _filterGroupId;
   List<Exercise>? _filteredCache;
+
+  // Icon upload: track which exercise is uploading + force-rebuild key
+  final Map<int, int> _iconVersion = {}; // exerciseId → version (incremented on upload)
+  int? _uploadingIconId;
 
   // Create mode
   bool _showCreateForm = false;
@@ -450,32 +456,110 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
     );
   }
 
+  /// Opens a file picker and uploads the chosen image as the exercise icon.
+  Future<void> _uploadIcon(Exercise ex) async {
+    final input = html.FileUploadInputElement()..accept = 'image/png,image/jpeg,image/webp';
+    input.click();
+    await input.onChange.first;
+    final file = input.files?.first;
+    if (file == null) return;
+
+    setState(() => _uploadingIconId = ex.id);
+    try {
+      final reader = html.FileReader();
+      reader.readAsArrayBuffer(file);
+      await reader.onLoad.first;
+      final bytes = (reader.result as Uint8List).toList();
+      final mime = file.type.isNotEmpty ? file.type : 'image/png';
+
+      await _api.putFile(
+        'exercise/${ex.id}/icon/upload',
+        fieldName: 'icon',
+        bytes: bytes,
+        mimeType: mime,
+        filename: file.name,
+      );
+
+      setState(() => _iconVersion[ex.id] = (_iconVersion[ex.id] ?? 0) + 1);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Bild für "${ex.name}" gespeichert'),
+          backgroundColor: AppColors.green,
+          duration: const Duration(seconds: 2),
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Upload fehlgeschlagen: $e'),
+          backgroundColor: AppColors.red,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingIconId = null);
+    }
+  }
+
   Widget _buildExerciseRow(Exercise ex) {
+    final iconVer = _iconVersion[ex.id] ?? 0;
+    final isUploading = _uploadingIconId == ex.id;
+
     return InkWell(
       onTap: () => _select(ex),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         child: Row(
           children: [
-            // Exercise line-art icon (AI-generated) with fallback
-            ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: Image.network(
-                '${ApiConfig.baseUrl.replaceAll('/api/', '')}/api/exercise/${ex.id}/icon.png',
-                width: 100, height: 100,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  width: 100, height: 100,
-                  decoration: BoxDecoration(
-                    color: _regionColor(ex.bodyRegion).withAlpha(30),
+            // Exercise icon — long-press to upload a custom photo
+            GestureDetector(
+              onLongPress: () => _uploadIcon(ex),
+              child: Stack(
+                children: [
+                  ClipRRect(
                     borderRadius: BorderRadius.circular(14),
+                    child: Image.network(
+                      '${ApiConfig.baseUrl.replaceAll('/api/', '')}/api/exercise/${ex.id}/icon.png?v=$iconVer',
+                      width: 100, height: 100,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 100, height: 100,
+                        decoration: BoxDecoration(
+                          color: _regionColor(ex.bodyRegion).withAlpha(30),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(
+                          _regionIcon(ex.bodyRegion),
+                          color: _regionColor(ex.bodyRegion),
+                          size: 32,
+                        ),
+                      ),
+                    ),
                   ),
-                  child: Icon(
-                    _regionIcon(ex.bodyRegion),
-                    color: _regionColor(ex.bodyRegion),
-                    size: 32,
-                  ),
-                ),
+                  // Upload overlay (spinner while uploading, camera hint otherwise)
+                  if (isUploading)
+                    Container(
+                      width: 100, height: 100,
+                      decoration: BoxDecoration(
+                        color: Colors.black45,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Center(child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2,
+                      )),
+                    )
+                  else
+                    Positioned(
+                      right: 4, bottom: 4,
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Icon(Icons.photo_camera, size: 14, color: Colors.white),
+                      ),
+                    ),
+                ],
               ),
             ),
             const SizedBox(width: 12),

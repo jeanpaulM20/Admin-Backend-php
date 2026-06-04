@@ -120,6 +120,34 @@ class ApiService {
     }
   }
 
+  /// PUT with multipart/form-data — for file uploads (e.g. exercise icons).
+  /// [fieldName] is the form field name; [bytes] is the raw file content.
+  Future<dynamic> putFile(
+    String endpoint, {
+    required String fieldName,
+    required List<int> bytes,
+    required String mimeType,
+    String filename = 'upload',
+    Duration? timeout,
+  }) async {
+    try {
+      final uri = _buildUri(endpoint);
+      final req = http.MultipartRequest('PUT', uri);
+      if (_authToken != null) req.headers[ApiConfig.authHeader] = _authToken!;
+      req.files.add(http.MultipartFile.fromBytes(
+        fieldName, bytes, filename: filename,
+        contentType: http.MediaType.parse(mimeType),
+      ));
+      final streamed = await req.send().timeout(timeout ?? const Duration(seconds: 30));
+      final response = await http.Response.fromStream(streamed);
+      return _handleResponse(response);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw ApiException('Network error: ${e.toString()}');
+    }
+  }
+
   /// POST with application/x-www-form-urlencoded (required for PHP $_POST reads)
   Future<dynamic> postForm(String endpoint,
       {Map<String, String>? body}) async {

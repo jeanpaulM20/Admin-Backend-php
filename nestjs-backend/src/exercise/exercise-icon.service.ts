@@ -274,6 +274,20 @@ export class ExerciseIconService {
     return { deleted: count };
   }
 
+  /** Save an arbitrary image buffer as the icon (manual upload). */
+  async saveIconBuffer(exerciseId: number, buffer: Buffer): Promise<string | null> {
+    const exercise = await this.exerciseRepo.findOne({ where: { id: exerciseId } });
+    if (!exercise) return null;
+    await this.exerciseRepo
+      .createQueryBuilder()
+      .update(Exercise)
+      .set({ icon: buffer } as any)
+      .where('id = :id', { id: exerciseId })
+      .execute();
+    this.logger.log(`Custom icon uploaded for "${exercise.name}" (${buffer.length} bytes)`);
+    return this.iconUrl(exerciseId);
+  }
+
   /** Delete an icon from DB (for regeneration) */
   async deleteIcon(exerciseId: number): Promise<boolean> {
     const result = await this.exerciseRepo

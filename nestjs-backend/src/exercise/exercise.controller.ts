@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, Res, ParseIntPipe, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, Res, ParseIntPipe, BadRequestException, NotFoundException, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { ExerciseService } from './exercise.service';
 import { ExerciseIconService } from './exercise-icon.service';
@@ -80,6 +81,27 @@ export class ExerciseController {
       'Cache-Control': 'public, max-age=86400',
     });
     res.send(buffer);
+  }
+
+  /**
+   * PUT /api/exercise/:id/icon/upload — manually upload a PNG/JPEG as icon.
+   * Replaces any existing icon (AI-generated or previous upload).
+   * Field name: "icon", max size: 5 MB.
+   */
+  @Put(':id/icon/upload')
+  @UseInterceptors(FileInterceptor('icon', { limits: { fileSize: 5 * 1024 * 1024 } }))
+  async uploadIcon(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('Kein Bild hochgeladen (field: icon)');
+    const allowed = ['image/png', 'image/jpeg', 'image/webp'];
+    if (!allowed.includes(file.mimetype)) {
+      throw new BadRequestException('Nur PNG, JPEG oder WebP erlaubt');
+    }
+    const url = await this.iconService.saveIconBuffer(id, file.buffer);
+    if (!url) throw new NotFoundException(`Übung ${id} nicht gefunden`);
+    return { url, exerciseId: id };
   }
 
   /** POST /api/exercise/:id/icon — generate or regenerate icon */
