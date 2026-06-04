@@ -24,7 +24,7 @@ export class TrainingPlanComment {
   authorName: string;
 
   /** Set when a client writes the comment (null for trainer comments). */
-  @Column({ name: 'client_id', nullable: true })
+  @Column({ name: 'client_id', type: 'int', nullable: true })
   clientId: number | null;
 
   /** 'trainer' | 'client' — lets UI distinguish author type. */
