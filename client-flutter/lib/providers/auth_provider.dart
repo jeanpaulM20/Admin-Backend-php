@@ -29,8 +29,26 @@ class AuthProvider extends ChangeNotifier {
       _clientId = prefs.getString('client_id');
       if (_token != null) {
         apiClient.setToken(_token);
+        // Recover client_id from server if it wasn't stored locally
+        // (happens with sessions created before client_id was persisted)
+        if (_clientId == null || _clientId!.isEmpty) {
+          await _recoverClientId(prefs);
+        }
       }
       notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> _recoverClientId(SharedPreferences prefs) async {
+    try {
+      final data = await apiClient.get('api/client/me');
+      if (data is Map<String, dynamic>) {
+        final id = data['id']?.toString();
+        if (id != null && id.isNotEmpty) {
+          _clientId = id;
+          await prefs.setString('client_id', id);
+        }
+      }
     } catch (_) {}
   }
 
