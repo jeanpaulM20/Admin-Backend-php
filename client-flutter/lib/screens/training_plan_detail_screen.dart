@@ -578,10 +578,10 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
     final exerciseId = _exerciseIdMap[name];
     if (exerciseId != null) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
         child: Image.network(
           '${ApiConfig.baseUrl}api/exercise/$exerciseId/icon.png',
-          width: 40, height: 40,
+          width: 100, height: 100,
           fit: BoxFit.cover,
           headers: apiClient.token != null
               ? {ApiConfig.authHeader: apiClient.token!}
