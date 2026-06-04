@@ -29,6 +29,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
   String? _error;
   List<TrainingPlan> _plans = [];
   String _query = '';
+  int? _publishingId;
 
   // Accent colors for plan icons (cycling)
   static const _accentColors = [
@@ -89,6 +90,31 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
       ),
     );
     if (ok == true) _load();
+  }
+
+  /// Publish / unpublish a plan straight from the list (no need to open it).
+  Future<void> _togglePublish(TrainingPlan plan) async {
+    if (plan.id == null) return;
+    final publishing = !plan.isPublished;
+    setState(() => _publishingId = plan.id);
+    try {
+      await _api.post('${ApiConfig.trainingPlan}/${plan.id}/${publishing ? 'publish' : 'unpublish'}');
+      if (mounted) {
+        setState(() => plan.status = publishing ? 'published' : 'draft');
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(publishing
+              ? 'Plan veröffentlicht — für den Kunden sichtbar'
+              : 'Plan auf Entwurf zurückgesetzt'),
+          backgroundColor: publishing ? AppColors.green : AppColors.surface2,
+        ));
+      }
+    } on ApiException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message), backgroundColor: AppColors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _publishingId = null);
+    }
   }
 
   static const _aiSteps = [
@@ -1727,11 +1753,15 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                           style: GoogleFonts.openSans(
                               color: AppColors.muted, fontSize: 11),
                         ),
+                      const SizedBox(width: 8),
+                      _statusTag(plan),
                     ],
                   ),
                 ],
               ),
             ),
+            // Publish toggle — release plan to the client right from the list
+            _publishButton(plan),
             // Schedule button — assign plan to calendar
             IconButton(
               icon: const Icon(Icons.event_available,
@@ -1745,6 +1775,35 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
         ),
       ),
     ),
+    );
+  }
+
+  Widget _statusTag(TrainingPlan plan) {
+    final published = plan.isPublished;
+    final color = published ? AppColors.green : AppColors.muted;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: color.withAlpha(30),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(published ? 'Live' : 'Entwurf',
+          style: GoogleFonts.openSans(
+              color: color, fontSize: 9, fontWeight: FontWeight.w700)),
+    );
+  }
+
+  Widget _publishButton(TrainingPlan plan) {
+    final published = plan.isPublished;
+    final busy = _publishingId == plan.id;
+    return IconButton(
+      icon: busy
+          ? const SizedBox(width: 18, height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary))
+          : Icon(published ? Icons.public : Icons.public_off,
+              color: published ? AppColors.green : AppColors.muted, size: 22),
+      tooltip: published ? 'Veröffentlicht — tippen zum Zurückziehen' : 'Für Kunde freigeben',
+      onPressed: busy ? null : () => _togglePublish(plan),
     );
   }
 

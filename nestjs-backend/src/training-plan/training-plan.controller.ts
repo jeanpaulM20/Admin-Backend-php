@@ -71,8 +71,13 @@ export class TrainingPlanController {
     @CurrentTrainer() trainer: Trainer,
     @Query('client_id') clientId?: number,
   ) {
-    // Trainer (or internal): full list, all statuses.
-    if (!client) return this.service.findAll(clientId);
+    // Trainer/admin context: must target a specific client — never dump
+    // every client's plans (data leak + breaks the client app if a trainer
+    // logs in there). The trainer app always passes client_id.
+    if (!client) {
+      if (!clientId) return [];
+      return this.service.findAll(clientId);
+    }
 
     // Client: only own + published plans, as teasers with per-plan lock state.
     // One subscription lookup; the free-window check per plan is pure date math.
