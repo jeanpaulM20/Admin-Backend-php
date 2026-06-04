@@ -97564,11 +97564,11 @@ a8d(a,b,c,d,e){var s,r,q,p,o
 if(d)s=B.z
 else s=e?B.x:c
 r=this.ax.h(0,b)
-if(r!=null){q=A.a2(8)
+if(r!=null){q=A.a2(10)
 p=$.bE().a
 o=t.N
 p=p!=null?A.au(["X-Auth-Token",p],o,o):A.K(o,o)
-return A.aHt(q,new A.rF(A.aOy(null,null,new A.wS("https://admin-backend-php-production.up.railway.app/api/exercise/"+A.k(r)+"/icon.png",1,p)),new A.atS(this,a,s),40,40,B.Nv,null),B.cg)}return this.Sv(a,s)},
+return A.aHt(q,new A.rF(A.aOy(null,null,new A.wS("https://admin-backend-php-production.up.railway.app/api/exercise/"+A.k(r)+"/icon.png",1,p)),new A.atS(this,a,s),100,100,B.Nv,null),B.cg)}return this.Sv(a,s)},
 Sv(a,b){var s=null,r=A.S(46,b.gj(0)>>>16&255,b.gj(0)>>>8&255,b.gj(0)&255),q=A.a2(8)
 return A.a6(s,A.c5(A.H(""+(a+1),s,s,s,s,A.dv().$3$color$fontSize$fontWeight(b,13,B.b4),s,s),s,s),B.j,s,s,new A.a0(r,s,s,q,s,s,B.o),s,40,s,s,s,s,s,40)},
 a9f(a,b,c,d){var s=null,r=A.a([],t.s),q=a.r
