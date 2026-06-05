@@ -499,10 +499,10 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
             borderRadius: BorderRadius.circular(12),
             onTap: () => setState(() => isExpanded ? _expanded.remove(key) : _expanded.add(key)),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(children: [
                 // Exercise icon (from API) or number badge fallback
-                _buildExerciseBadge(i, row.exercise, meta.color, isLiked, isDisliked),
+                _buildExerciseBadge(i, row.exercise, meta.color, isLiked, isDisliked, isExpanded),
                 const SizedBox(width: 12),
                 // Name + hints
                 Expanded(
@@ -542,7 +542,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
           if (isExpanded) ...[
             const Divider(color: AppColors.border, height: 1, indent: 14, endIndent: 14),
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -572,32 +572,43 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
     );
   }
 
-  Widget _buildExerciseBadge(int i, String name, Color color, bool liked, bool disliked) {
+  Widget _buildExerciseBadge(int i, String name, Color color, bool liked, bool disliked, bool isExpanded) {
     final activeColor = liked ? AppColors.green : disliked ? AppColors.red : color;
     final exerciseId = _exerciseIdMap[name];
+    final size = isExpanded ? 100.0 : 56.0;
+    final radius = isExpanded ? 12.0 : 8.0;
+
     if (exerciseId != null) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(10),
-        child: Image.network(
-          '${ApiConfig.baseUrl}api/exercise/$exerciseId/icon.png',
-          width: 100, height: 100,
-          fit: BoxFit.cover,
-          headers: apiClient.token != null
-              ? {ApiConfig.authHeader: apiClient.token!}
-              : {},
-          errorBuilder: (_, __, ___) => _numberBadge(i, activeColor),
+      return AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeInOut,
+        width: size,
+        height: size,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(radius),
+          child: Image.network(
+            '${ApiConfig.baseUrl}api/exercise/$exerciseId/icon.png',
+            width: size, height: size,
+            fit: BoxFit.cover,
+            headers: apiClient.token != null
+                ? {ApiConfig.authHeader: apiClient.token!}
+                : {},
+            errorBuilder: (_, __, ___) => _numberBadge(i, activeColor, size),
+          ),
         ),
       );
     }
-    return _numberBadge(i, activeColor);
+    return _numberBadge(i, activeColor, size);
   }
 
-  Widget _numberBadge(int i, Color color) {
-    return Container(
-      width: 40, height: 40,
+  Widget _numberBadge(int i, Color color, [double size = 56]) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+      width: size, height: size,
       decoration: BoxDecoration(
         color: color.withAlpha(46),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(size >= 80 ? 12 : 8),
       ),
       child: Center(child: Text('${i + 1}',
           style: GoogleFonts.montserrat(

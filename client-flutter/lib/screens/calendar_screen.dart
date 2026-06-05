@@ -1304,7 +1304,7 @@ class _CalendarEventCard extends StatelessWidget {
         splashColor: accentColor.withAlpha(30),
         highlightColor: accentColor.withAlpha(15),
         child: Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: accentColor.withAlpha(40)),
