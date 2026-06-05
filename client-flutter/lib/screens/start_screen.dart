@@ -9,7 +9,8 @@ import '../widgets/loading_indicator.dart';
 import '../widgets/error_view.dart';
 
 class StartScreen extends StatefulWidget {
-  const StartScreen({super.key});
+  final VoidCallback? onGoToCalendar;
+  const StartScreen({super.key, this.onGoToCalendar});
 
   @override
   State<StartScreen> createState() => _StartScreenState();
@@ -33,6 +34,7 @@ class _StartScreenState extends State<StartScreen> {
   Widget build(BuildContext context) {
     final appt = context.watch<AppointmentProvider>();
     final firstName = appt.startData?.firstName ?? '';
+    final totalCredits = appt.startData?.totalCredits ?? 0;
 
     // Dynamic greeting based on time of day
     final hour = DateTime.now().hour;
@@ -98,7 +100,7 @@ class _StartScreenState extends State<StartScreen> {
                                       child: _SummaryCard(
                                         icon: Icons.calendar_today_outlined,
                                         value: nextAppt != null
-                                            ? DateFormat('dd.MM.yyyy').format(nextAppt.startDate)
+                                            ? DateFormat('dd.MM.  HH:mm').format(nextAppt.startDate)
                                             : '–',
                                         label: 'Nächster Termin',
                                       ),
@@ -107,9 +109,9 @@ class _StartScreenState extends State<StartScreen> {
                                     Expanded(
                                       flex: 2,
                                       child: _SummaryCard(
-                                        icon: Icons.check_box_outlined,
-                                        value: '${appointments.length}',
-                                        label: 'Termine gesamt',
+                                        icon: Icons.toll_outlined,
+                                        value: '$totalCredits',
+                                        label: 'Credits',
                                       ),
                                     ),
                                   ],
@@ -150,7 +152,7 @@ class _StartScreenState extends State<StartScreen> {
                                 const SizedBox(height: 16),
 
                                 if (upcoming.isEmpty)
-                                  _EmptyState()
+                                  _EmptyState(onBookNow: widget.onGoToCalendar)
                                 else
                                   ...upcoming.map((a) => Padding(
                                         padding: const EdgeInsets.only(bottom: 10),
@@ -216,6 +218,9 @@ class _SummaryCard extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
+  final VoidCallback? onBookNow;
+  const _EmptyState({this.onBookNow});
+
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -225,7 +230,7 @@ class _EmptyState extends StatelessWidget {
           Container(
             width: 80,
             height: 80,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppColors.surface2,
               shape: BoxShape.circle,
             ),
@@ -253,6 +258,20 @@ class _EmptyState extends StatelessWidget {
             ),
             textAlign: TextAlign.center,
           ),
+          if (onBookNow != null) ...[
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
+              onPressed: onBookNow,
+              icon: const Icon(Icons.calendar_month_rounded, size: 18),
+              label: const Text('Termin buchen'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
         ],
       ),
     );

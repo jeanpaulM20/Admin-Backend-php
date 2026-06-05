@@ -36,13 +36,19 @@ class _MainScreenState extends State<MainScreen> {
     _NavItem(icon: Icons.show_chart_rounded, label: 'Analytics'),
   ];
 
-  final List<Widget> _screens = const [
-    StartScreen(),
-    TrainingPlanListScreen(),
-    CalendarScreen(),
-    ChatScreen(),
-    PerformanceScreen(),
-  ];
+  late final List<Widget> _screens;
+
+  @override
+  void initState() {
+    super.initState();
+    _screens = [
+      StartScreen(onGoToCalendar: () => setState(() => _currentIndex = 2)),
+      const TrainingPlanListScreen(),
+      const CalendarScreen(),
+      const ChatScreen(),
+      const PerformanceScreen(),
+    ];
+  }
 
   String get _currentTitle {
     switch (_currentIndex) {

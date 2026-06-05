@@ -56,7 +56,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
           a.startDate.month == day.month &&
           a.startDate.day == day.day;
     }).toList()
-      ..sort((a, b) => a.startDate.compareTo(b.startDate));
+      ..sort((a, b) {
+        final aCancelled = a.status.toLowerCase() == 'cancelled' ? 1 : 0;
+        final bCancelled = b.status.toLowerCase() == 'cancelled' ? 1 : 0;
+        if (aCancelled != bCancelled) return aCancelled - bCancelled;
+        return a.startDate.compareTo(b.startDate);
+      });
   }
 
   List<AvailabilityInterval> _getAvailabilityForDay(DateTime day) {
@@ -1016,21 +1021,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                       const SizedBox(width: 4),
                                       Text('$availableSlots Slots frei', style: const TextStyle(color: AppColors.green, fontSize: 11, fontWeight: FontWeight.w500)),
                                     ]),
-                                  ),
-                                if (calData != null && calData.credits > 0)
-                                  Padding(
-                                    padding: const EdgeInsets.only(left: 8),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primary.withAlpha(20),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Text(
-                                        '${calData.credits} Cr.',
-                                        style: const TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w500),
-                                      ),
-                                    ),
                                   ),
                               ]),
                             ),
