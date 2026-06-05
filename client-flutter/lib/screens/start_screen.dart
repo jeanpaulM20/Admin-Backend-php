@@ -184,11 +184,10 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -227,22 +226,25 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         children: [
           const SizedBox(height: 40),
-          Container(
-            width: 80,
-            height: 80,
-            decoration: const BoxDecoration(
-              color: AppColors.surface2,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.event_busy_rounded,
-              color: AppColors.muted,
-              size: 36,
+          Opacity(
+            opacity: 0.4,
+            child: Container(
+              width: 64,
+              height: 64,
+              decoration: const BoxDecoration(
+                color: AppColors.surface2,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.calendar_today_rounded,
+                color: AppColors.muted,
+                size: 28,
+              ),
             ),
           ),
           const SizedBox(height: 20),
           const Text(
-            'Keine bevorstehenden Termine',
+            'Dein nächstes Training wartet',
             style: TextStyle(
               color: AppColors.text,
               fontSize: 16,
@@ -251,7 +253,7 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Buche einen Termin im Kalender, um loszulegen.',
+            'Buche jetzt einen Termin mit deinem Trainer.',
             style: TextStyle(
               color: AppColors.muted,
               fontSize: 14,
@@ -292,8 +294,7 @@ class _AppointmentCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
@@ -303,7 +304,7 @@ class _AppointmentCard extends StatelessWidget {
             height: 50,
             decoration: BoxDecoration(
               color: AppColors.primary.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -381,14 +382,14 @@ class _AppointmentCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: AppColors.green.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
               appointment.status == 'booked' ? 'Gebucht' : appointment.status,
               style: const TextStyle(
                 color: AppColors.green,
                 fontSize: 11,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),

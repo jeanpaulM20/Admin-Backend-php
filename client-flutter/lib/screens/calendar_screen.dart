@@ -1034,9 +1034,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               delegate: SliverChildBuilderDelegate(
                                 (ctx, i) => Padding(
                                   padding: const EdgeInsets.only(bottom: 8),
-                                  child: _CalendarEventCard(
-                                    appointment: events[i],
-                                    onTap: () => _showAppointmentDetail(events[i]),
+                                  child: Opacity(
+                                    opacity: events[i].status.toLowerCase() == 'cancelled' ? 0.45 : 1.0,
+                                    child: _CalendarEventCard(
+                                      appointment: events[i],
+                                      onTap: () => _showAppointmentDetail(events[i]),
+                                    ),
                                   ),
                                 ),
                                 childCount: events.length,
@@ -1292,16 +1295,21 @@ class _CalendarEventCard extends StatelessWidget {
     final endTime = appointment.startDate.add(Duration(minutes: appointment.duration));
     final endTimeStr = DateFormat('HH:mm').format(endTime);
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: accentColor.withAlpha(10),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: accentColor.withAlpha(40)),
-        ),
-        child: Row(children: [
+    return Material(
+      color: accentColor.withAlpha(10),
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        splashColor: accentColor.withAlpha(30),
+        highlightColor: accentColor.withAlpha(15),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: accentColor.withAlpha(40)),
+          ),
+          child: Row(children: [
           Container(width: 4, height: 44, decoration: BoxDecoration(color: accentColor, borderRadius: BorderRadius.circular(2))),
           const SizedBox(width: 12),
           Expanded(child: Column(
@@ -1362,6 +1370,7 @@ class _CalendarEventCard extends StatelessWidget {
           else
             const Icon(Icons.chevron_right, color: AppColors.muted, size: 18),
         ]),
+        ),
       ),
     );
   }
