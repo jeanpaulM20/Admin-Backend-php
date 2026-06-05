@@ -94624,7 +94624,7 @@ $1(a){return a.a===this.a.a},
 $S:218}
 A.asP.prototype={
 $1(a){var s=null,r=A.a2(14)
-return A.o4(A.a([A.i3(!1,B.M_,s,s,B.al,s,s,s,s,new A.asN(a),s,s),A.aYG(B.V5,B.al4,new A.asO(this.a,a),A.k4(s,s,B.f,s,s,s,s,s,s,B.p,s,s,s,s,new A.bH(A.a2(8),B.r),s,s,s,s))],t.p),B.y,B.alJ,new A.bH(r,B.r),B.akj)},
+return A.o4(A.a([A.i3(!1,B.M_,s,s,B.al,s,s,s,s,new A.asN(a),s,s),A.aYG(B.V5,B.al3,new A.asO(this.a,a),A.k4(s,s,B.f,s,s,s,s,s,s,B.p,s,s,s,s,new A.bH(A.a2(8),B.r),s,s,s,s))],t.p),B.y,B.alJ,new A.bH(r,B.r),B.akj)},
 $S:43}
 A.asN.prototype={
 $0(){A.bA(this.a,!1).cA(null)
@@ -96038,7 +96038,7 @@ $0(){return this.a.d=!1},
 $S:0}
 A.av0.prototype={
 $1(a){var s=null
-return new A.av(B.SW,A.aL(A.a([A.a6(s,s,B.i,s,s,new A.a_(A.S(B.c.an(76.5),B.q.gj(0)>>>16&255,B.q.gj(0)>>>8&255,B.q.gj(0)&255),s,s,A.a2(2),s,s,B.o),s,4,s,s,s,s,s,40),B.b6,B.al7,B.cb,A.H(this.a.b+" \u2013 CHF "+this.b,s,s,s,s,B.bm,s,s),B.b6,new A.Jb(B.ub,"Online bezahlen","Kreditkarte, TWINT, PostFinance, Apple Pay",new A.auZ(a),s),B.d9,new A.Jb(B.Um,"Bankueberweisung","Rechnung per E-Mail mit QR-Einzahlungsschein",new A.av_(a),s)],t.p),B.m,B.e,B.a0),s)},
+return new A.av(B.SW,A.aL(A.a([A.a6(s,s,B.i,s,s,new A.a_(A.S(B.c.an(76.5),B.q.gj(0)>>>16&255,B.q.gj(0)>>>8&255,B.q.gj(0)&255),s,s,A.a2(2),s,s,B.o),s,4,s,s,s,s,s,40),B.b6,B.al6,B.cb,A.H(this.a.b+" \u2013 CHF "+this.b,s,s,s,s,B.bm,s,s),B.b6,new A.Jb(B.ub,"Online bezahlen","Kreditkarte, TWINT, PostFinance, Apple Pay",new A.auZ(a),s),B.d9,new A.Jb(B.Um,"Bankueberweisung","Rechnung per E-Mail mit QR-Einzahlungsschein",new A.av_(a),s)],t.p),B.m,B.e,B.a0),s)},
 $S:225}
 A.auZ.prototype={
 $0(){A.bA(this.a,!1).cA("online")
@@ -96476,7 +96476,7 @@ $0(){return this.a.d=this.b},
 $S:0}
 A.q_.prototype={}
 A.x4.prototype={
-F(a){var s,r,q,p,o,n=this,m=null,l=n.c,k=A.m7(m,B.y,m,m,0,B.H,m,m,A.H(l.a,m,m,m,m,m,m,m)),j=A.a2(16),i=A.bq(B.K,1),h=t.p,g=A.aL(A.a([B.akD,B.cb,A.H(l.b,m,m,m,m,B.ahB,m,m)],h),B.J,B.e,B.k),f=A.aL(A.a([B.al3,B.cb,A.H(l.c,m,m,m,m,B.ajM,m,m)],h),B.cz,B.e,B.k),e=n.gOK()
+F(a){var s,r,q,p,o,n=this,m=null,l=n.c,k=A.m7(m,B.y,m,m,0,B.H,m,m,A.H(l.a,m,m,m,m,m,m,m)),j=A.a2(16),i=A.bq(B.K,1),h=t.p,g=A.aL(A.a([B.akD,B.cb,A.H(l.b,m,m,m,m,B.ahB,m,m)],h),B.J,B.e,B.k),f=A.aL(A.a([B.al2,B.cb,A.H(l.c,m,m,m,m,B.ajM,m,m)],h),B.cz,B.e,B.k),e=n.gOK()
 e=A.S(31,e.gj(0)>>>16&255,e.gj(0)>>>8&255,e.gj(0)&255)
 s=A.a2(8)
 j=A.a([A.a6(m,A.aD(A.a([g,B.eL,f,B.pm,A.a6(m,A.H(l.d,m,m,m,m,A.cj(m,m,n.gOK(),m,m,m,m,m,m,m,m,15,m,m,B.D,m,m,!0,m,m,m,m,m,m,m,m),m,m),B.i,m,m,new A.a_(e,m,m,s,m,m,B.o),m,m,m,m,B.n8,m,m,m)],h),B.m,B.e,B.k),B.i,m,m,new A.a_(B.y,m,i,j,m,m,B.o),m,m,m,m,B.c5,m,m,m),B.da],h)
@@ -96956,7 +96956,7 @@ n=i.FX(n==null?h:n.w)
 B.b.L(p,A.a([B.bC,new A.kJ(B.Un,"Archiv",""+o+" abgelaufene Pakete",A.X(new A.Y(n,new A.aAl(),A.T(n).i("Y<1,e>")),!0,t.o),!1,h)],r))}o=A.a2(14)
 n=A.bq(B.K,1)
 m=A.a6(h,B.Vo,B.i,h,h,new A.a_(A.S(30,B.f.gj(0)>>>16&255,B.f.gj(0)>>>8&255,B.f.gj(0)&255),h,h,A.a2(9),h,h,B.o),h,36,h,h,h,h,h,36)
-o=A.d8(h,A.a6(h,A.aD(A.a([m,B.bB,A.b7(A.aL(A.a([B.akZ,A.H(J.e0(e.e)?"Pakete ansehen":""+J.bN(e.e)+" Pakete verf\xfcgbar",h,h,h,h,B.aM,h,h)],r),B.J,B.e,B.k),1),B.un],r),B.m,B.e,B.k),B.i,h,h,new A.a_(B.y,h,n,o,h,h,B.o),h,h,h,h,B.tg,h,h,h),B.U,!1,h,h,h,h,h,h,h,h,h,h,h,h,h,i.gaiq(),h,h,h,h,h,h)
+o=A.d8(h,A.a6(h,A.aD(A.a([m,B.bB,A.b7(A.aL(A.a([B.al8,A.H(J.e0(e.e)?"Credits ansehen":""+J.bN(e.e)+" Pakete verf\xfcgbar",h,h,h,h,B.aM,h,h)],r),B.J,B.e,B.k),1),B.un],r),B.m,B.e,B.k),B.i,h,h,new A.a_(B.y,h,n,o,h,h,B.o),h,h,h,h,B.tg,h,h,h),B.U,!1,h,h,h,h,h,h,h,h,h,h,h,h,h,i.gaiq(),h,h,h,h,h,h)
 n=f.e.length
 if(n===0)n="Keine Rechnungen"
 else{m=n===1?"Rechnung":g
@@ -97058,7 +97058,7 @@ $0(){return this.a.e=!1},
 $S:0}
 A.aA7.prototype={
 $1(a){var s=null,r=A.a2(16)
-return A.o4(A.a([A.i3(!1,B.iy,s,s,B.al,s,s,s,s,new A.aA5(a),s,s),A.l5(!1,B.al2,s,s,B.al,s,s,s,s,new A.aA6(a),s,A.k4(s,s,B.x,s,s,s,s,s,s,B.p,s,s,s,s,new A.bH(A.a2(8),B.r),s,s,s,s))],t.p),B.y,B.alP,new A.bH(r,B.r),B.alk)},
+return A.o4(A.a([A.i3(!1,B.iy,s,s,B.al,s,s,s,s,new A.aA5(a),s,s),A.l5(!1,B.al1,s,s,B.al,s,s,s,s,new A.aA6(a),s,A.k4(s,s,B.x,s,s,s,s,s,s,B.p,s,s,s,s,new A.bH(A.a2(8),B.r),s,s,s,s))],t.p),B.y,B.alP,new A.bH(r,B.r),B.alk)},
 $S:43}
 A.aA5.prototype={
 $0(){A.bA(this.a,!1).cA(!1)
@@ -103906,8 +103906,8 @@ B.afG=new A.l(!0,B.aP,null,null,null,null,14,null,null,null,null,null,null,null,
 B.alw=new A.aq("Keine Termine an diesem Tag verf\xfcgbar.",null,B.afG,null,null,null,null,null,null,null)
 B.c_=new A.cb(null,4,null,null)
 B.aM=new A.l(!0,B.q,null,null,null,null,12,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null)
-B.al6=new A.aq("Bitte einen anderen Tag w\xe4hlen.",null,B.aM,null,null,null,null,null,null,null)
-B.a1B=A.a(s([B.W8,B.bC,B.alw,B.c_,B.al6]),t.p)
+B.al5=new A.aq("Bitte einen anderen Tag w\xe4hlen.",null,B.aM,null,null,null,null,null,null,null)
+B.a1B=A.a(s([B.W8,B.bC,B.alw,B.c_,B.al5]),t.p)
 B.QZ=new A.me(B.aA,B.e,B.k,B.m,null,B.aN,null,0,B.a1B,null)
 B.Vp=new A.b_(B.u6,28,B.q,null,null)
 B.akW=new A.aq("Keine Verf\xfcgbarkeit an diesem Tag.",null,B.cJ,null,null,null,null,null,null,null)
@@ -107013,14 +107013,14 @@ B.a_N=A.a(s([B.Vq,B.bN,B.akB]),t.p)
 B.abC=new A.f_(B.ao,B.e,B.k,B.m,null,B.aN,null,0,B.a_N,null)
 B.aaj=new A.av(B.SA,B.abC,null)
 B.ah2=new A.l(!0,B.p,null,null,null,null,16,B.D,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null)
-B.al8=new A.aq("Allgemeine Geschaeftsbedingungen",null,B.ah2,null,null,null,null,null,null,null)
-B.aak=new A.av(B.nd,B.al8,null)
+B.al7=new A.aq("Allgemeine Geschaeftsbedingungen",null,B.ah2,null,null,null,null,null,null,null)
+B.aak=new A.av(B.nd,B.al7,null)
 B.So=new A.V(0,6,0,0)
 B.VO=new A.b_(B.u_,13,B.aP,null,null)
 B.co=new A.cb(4,null,null,null)
 B.LJ=new A.l(!0,B.aP,null,null,null,null,11,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null)
-B.al5=new A.aq("Standort angepasst (Pufferzeit mit neuem Trainer)",null,B.LJ,null,null,null,null,null,null,null)
-B.Tp=new A.hD(1,B.cS,B.al5,null)
+B.al4=new A.aq("Standort angepasst (Pufferzeit mit neuem Trainer)",null,B.LJ,null,null,null,null,null,null,null)
+B.Tp=new A.hD(1,B.cS,B.al4,null)
 B.a3V=A.a(s([B.VO,B.co,B.Tp]),t.p)
 B.abI=new A.f_(B.ao,B.e,B.k,B.m,null,B.aN,null,0,B.a3V,null)
 B.aal=new A.av(B.So,B.abI,null)
@@ -107138,8 +107138,8 @@ B.U8=new A.ao(58780,!1)
 B.Vl=new A.b_(B.U8,20,B.p,null,null)
 B.b2=new A.cb(8,null,null,null)
 B.LU=new A.l(!0,null,null,null,null,null,14,B.D,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null)
-B.al0=new A.aq("Paket kaufen",null,B.LU,null,null,null,null,null,null,null)
-B.a4C=A.a(s([B.Vl,B.b2,B.al0]),t.p)
+B.al_=new A.aq("Paket kaufen",null,B.LU,null,null,null,null,null,null,null)
+B.a4C=A.a(s([B.Vl,B.b2,B.al_]),t.p)
 B.abB=new A.f_(B.ao,B.dr,B.k,B.m,null,B.aN,null,0,B.a4C,null)
 B.adS=new A.cb(18,18,B.hc,null)
 B.alf=new A.aq("Wird verarbeitet...",null,B.LU,null,null,null,null,null,null,null)
@@ -107425,8 +107425,8 @@ B.ae4=new A.xR(null,null,null,null,null,null,null,null,null,null,null,null,null,
 B.alt=new A.aq("Ergebnisse konnten nicht gespeichert werden \u2014 bitte erneut versuchen",null,null,null,null,null,null,null,null,null)
 B.ae5=new A.f1(B.alt,B.x,null,null,null,null,null,null,null,null,null,null,null,B.n1,null,null,null,B.I,null)
 B.lz=new A.cb(16,16,B.hc,null)
-B.al1=new A.aq("Paket wird gebucht...",null,null,null,null,null,null,null,null,null)
-B.a40=A.a(s([B.lz,B.bB,B.al1]),t.p)
+B.al0=new A.aq("Paket wird gebucht...",null,null,null,null,null,null,null,null,null)
+B.a40=A.a(s([B.lz,B.bB,B.al0]),t.p)
 B.abG=new A.f_(B.ao,B.e,B.k,B.m,null,B.aN,null,0,B.a40,null)
 B.ae6=new A.f1(B.abG,B.f,null,null,null,null,null,null,null,null,null,null,null,B.f6,null,null,null,B.I,null)
 B.alr=new A.aq("Slot nicht mehr verf\xfcgbar.",null,null,null,null,null,null,null,null,null)
@@ -107437,8 +107437,8 @@ B.alo=new A.aq("Kalender-Download fehlgeschlagen.",null,null,null,null,null,null
 B.ae9=new A.f1(B.alo,B.x,null,null,null,null,null,null,null,null,null,null,null,B.bc,null,null,null,B.I,null)
 B.akx=new A.aq("Bitte E-Mail und Passwort eingeben",null,null,null,null,null,null,null,null,null)
 B.aea=new A.f1(B.akx,null,null,null,null,null,null,null,null,null,null,null,null,B.bc,null,null,null,B.I,null)
-B.al_=new A.aq("Polar-Trainings synchronisiert!",null,null,null,null,null,null,null,null,null)
-B.aeb=new A.f1(B.al_,null,null,null,null,null,null,null,null,null,null,null,null,B.bc,null,null,null,B.I,null)
+B.akZ=new A.aq("Polar-Trainings synchronisiert!",null,null,null,null,null,null,null,null,null)
+B.aeb=new A.f1(B.akZ,null,null,null,null,null,null,null,null,null,null,null,null,B.bc,null,null,null,B.I,null)
 B.akp=new A.aq("Termin wird abgesagt...",null,null,null,null,null,null,null,null,null)
 B.X9=A.a(s([B.lz,B.bB,B.akp]),t.p)
 B.abK=new A.f_(B.ao,B.e,B.k,B.m,null,B.aN,null,0,B.X9,null)
@@ -107932,11 +107932,11 @@ B.akU=new A.aq("Credits & Pakete",null,B.ahW,null,null,null,null,null,null,null)
 B.akV=new A.aq("Abbrechen",null,null,null,null,null,null,null,null,null)
 B.ahX=new A.l(!0,null,null,null,null,null,16,B.D,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null)
 B.akX=new A.aq("Anmelden",null,B.ahX,null,null,null,null,null,null,null)
-B.akZ=new A.aq("Pakete kaufen",null,B.dy,null,null,null,null,null,null,null)
-B.al2=new A.aq("Abmelden",null,null,null,null,null,null,null,null,null)
-B.al3=new A.aq("Vorher",null,B.bm,null,null,null,null,null,null,null)
-B.al4=new A.aq("Credits kaufen",null,null,null,null,null,null,null,null,null)
-B.al7=new A.aq("Zahlungsmethode w\xe4hlen",null,B.pB,null,null,null,null,null,null,null)
+B.al1=new A.aq("Abmelden",null,null,null,null,null,null,null,null,null)
+B.al2=new A.aq("Vorher",null,B.bm,null,null,null,null,null,null,null)
+B.al3=new A.aq("Credits kaufen",null,null,null,null,null,null,null,null,null)
+B.al6=new A.aq("Zahlungsmethode w\xe4hlen",null,B.pB,null,null,null,null,null,null,null)
+B.al8=new A.aq("Credits kaufen",null,B.dy,null,null,null,null,null,null,null)
 B.aj4=new A.l(!0,B.f,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null)
 B.al9=new A.aq("Schlie\xdfen",null,B.aj4,null,null,null,null,null,null,null)
 B.ahf=new A.l(!0,B.x,null,null,null,null,11,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null)
