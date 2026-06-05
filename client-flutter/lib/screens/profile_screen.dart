@@ -306,7 +306,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                                 const SizedBox(height: 10),
 
-                                // Pakete kaufen → navigates to full Credits/purchase screen
+                                // Credits kaufen → navigates to full Credits/purchase screen
                                 GestureDetector(
                                   onTap: _openCredits,
                                   child: Container(
@@ -331,11 +331,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            const Text('Pakete kaufen',
+                                            const Text('Credits kaufen',
                                                 style: TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
                                             Text(
                                               credits.packages.isEmpty
-                                                  ? 'Pakete ansehen'
+                                                  ? 'Credits ansehen'
                                                   : '${credits.packages.length} Pakete verfügbar',
                                               style: const TextStyle(color: AppColors.muted, fontSize: 12),
                                             ),
