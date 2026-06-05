@@ -55,12 +55,12 @@ class AuthProvider extends ChangeNotifier {
   Future<void> _saveAuth() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      if (_token != null) {
+      if (_token != null && _token!.isNotEmpty) {
         await prefs.setString('auth_token', _token!);
       } else {
         await prefs.remove('auth_token');
       }
-      if (_clientId != null) {
+      if (_clientId != null && _clientId!.isNotEmpty) {
         await prefs.setString('client_id', _clientId!);
       } else {
         await prefs.remove('client_id');

@@ -274,10 +274,17 @@ export class ExerciseIconService {
     return { deleted: count };
   }
 
-  /** Save an arbitrary image buffer as the icon (manual upload). */
+  /** Save an arbitrary image buffer as the icon (manual upload). Max 5 MB. */
   async saveIconBuffer(exerciseId: number, buffer: Buffer): Promise<string | null> {
+    const MAX_BYTES = 5 * 1024 * 1024;
+    if (buffer.length > MAX_BYTES) {
+      throw new Error(`Icon zu gross: ${(buffer.length / 1024 / 1024).toFixed(1)} MB (max 5 MB)`);
+    }
     const exercise = await this.exerciseRepo.findOne({ where: { id: exerciseId } });
-    if (!exercise) return null;
+    if (!exercise) {
+      this.logger.warn(`saveIconBuffer: exercise ${exerciseId} not found`);
+      return null;
+    }
     await this.exerciseRepo
       .createQueryBuilder()
       .update(Exercise)

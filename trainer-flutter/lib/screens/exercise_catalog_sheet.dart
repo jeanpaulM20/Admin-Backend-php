@@ -464,12 +464,29 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
     final file = input.files?.first;
     if (file == null) return;
 
+    // Validate MIME type before reading
+    const allowed = ['image/png', 'image/jpeg', 'image/webp'];
+    if (file.type.isNotEmpty && !allowed.contains(file.type)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Nur PNG, JPEG oder WebP erlaubt'),
+          backgroundColor: AppColors.red,
+          duration: const Duration(seconds: 2),
+        ));
+      }
+      return;
+    }
+
     setState(() => _uploadingIconId = ex.id);
     try {
       final reader = html.FileReader();
       reader.readAsArrayBuffer(file);
-      await reader.onLoad.first;
-      final bytes = (reader.result as Uint8List).toList();
+      // Race onLoad vs onError so we don't hang on broken files
+      await Future.any([reader.onLoad.first, reader.onError.first]);
+      if (reader.error != null) throw Exception('Datei konnte nicht gelesen werden');
+      final result = reader.result;
+      if (result == null) throw Exception('Leeres Ergebnis vom FileReader');
+      final bytes = (result as Uint8List).toList();
       final mime = file.type.isNotEmpty ? file.type : 'image/png';
 
       await _api.putFile(

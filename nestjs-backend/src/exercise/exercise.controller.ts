@@ -61,10 +61,9 @@ export class ExerciseController {
     @Query('limit') limit?: string,
     @Query('delay') delay?: string,
   ) {
-    return this.iconService.generateMissing({
-      limit: limit ? parseInt(limit, 10) : 50,
-      delayMs: delay ? parseInt(delay, 10) : 2000,
-    });
+    const limitNum = limit ? Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200) : 50;
+    const delayNum = delay ? Math.min(Math.max(parseInt(delay, 10) || 2000, 500), 60_000) : 2000;
+    return this.iconService.generateMissing({ limit: limitNum, delayMs: delayNum });
   }
 
   /** GET /api/exercise/:id/icon.png — serve the icon as PNG image */
