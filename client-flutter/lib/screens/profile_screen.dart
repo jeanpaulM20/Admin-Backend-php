@@ -10,7 +10,9 @@ import '../config/app_colors.dart';
 import '../config/api_config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/profile_provider.dart';
+import '../providers/credits_provider.dart';
 import '../models/credit_pack.dart';
+import 'credits_screen.dart';
 import '../models/invoice.dart';
 import '../models/client_file.dart';
 import '../services/api_client.dart';
@@ -45,6 +47,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final auth = context.read<AuthProvider>();
     if (auth.clientId != null) {
       await context.read<ProfileProvider>().fetch(auth.clientId!);
+      await context.read<CreditsProvider>().fetch(auth.clientId!);
       await _loadPolarStatus(auth.clientId!);
       await _loadPushStatus();
     }
@@ -159,8 +162,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   @override
+  void _openCredits() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const CreditsScreen()),
+    ).then((_) => _loadData()); // refresh after potential purchase
+  }
+
   Widget build(BuildContext context) {
     final profile = context.watch<ProfileProvider>();
+    final credits = context.watch<CreditsProvider>();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -246,6 +256,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       ),
                                     ],
                                   ],
+                                ),
+                                const SizedBox(height: 10),
+
+                                // Pakete kaufen → navigates to full Credits/purchase screen
+                                GestureDetector(
+                                  onTap: _openCredits,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surface,
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(color: AppColors.border),
+                                    ),
+                                    child: Row(children: [
+                                      Container(
+                                        width: 36, height: 36,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary.withAlpha(30),
+                                          borderRadius: BorderRadius.circular(9),
+                                        ),
+                                        child: const Icon(Icons.shopping_cart_outlined,
+                                            color: AppColors.primary, size: 18),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text('Pakete kaufen',
+                                                style: TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
+                                            Text(
+                                              credits.packages.isEmpty
+                                                  ? 'Pakete ansehen'
+                                                  : '${credits.packages.length} Pakete verfügbar',
+                                              style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const Icon(Icons.chevron_right_rounded, color: AppColors.muted, size: 22),
+                                    ]),
+                                  ),
                                 ),
                                 const SizedBox(height: 10),
 

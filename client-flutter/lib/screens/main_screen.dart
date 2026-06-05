@@ -35,7 +35,6 @@ class _MainScreenState extends State<MainScreen> {
     _NavItem(icon: Icons.fitness_center_rounded, label: 'Training'),
     _NavItem(icon: Icons.calendar_month_rounded, label: 'Kalender'),
     _NavItem(icon: Icons.chat_bubble_outline_rounded, label: 'Chat'),
-    _NavItem(icon: Icons.credit_card_rounded, label: 'Credits'),
     _NavItem(icon: Icons.show_chart_rounded, label: 'Analytics'),
     _NavItem(icon: Icons.person_rounded, label: 'Profil'),
   ];
@@ -45,29 +44,19 @@ class _MainScreenState extends State<MainScreen> {
     TrainingPlanListScreen(),
     CalendarScreen(),
     ChatScreen(),
-    CreditsScreen(),
     PerformanceScreen(),
     ProfileScreen(),
   ];
 
   String get _currentTitle {
     switch (_currentIndex) {
-      case 0:
-        return 'Start';
-      case 1:
-        return 'Training';
-      case 2:
-        return 'Kalender';
-      case 3:
-        return 'Chat';
-      case 4:
-        return 'Credits';
-      case 5:
-        return 'Analytics';
-      case 6:
-        return 'Profil';
-      default:
-        return 'Sihl Training';
+      case 0: return 'Start';
+      case 1: return 'Training';
+      case 2: return 'Kalender';
+      case 3: return 'Chat';
+      case 4: return 'Analytics';
+      case 5: return 'Profil';
+      default: return 'Sihl Training';
     }
   }
 
