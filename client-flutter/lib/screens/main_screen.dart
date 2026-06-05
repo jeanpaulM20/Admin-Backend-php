@@ -190,7 +190,7 @@ class _MainScreenState extends State<MainScreen> {
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.person_rounded,
-                          color: Colors.white, size: 20),
+                          color: AppColors.white, size: 20),
                     ),
                   ),
                 ],
