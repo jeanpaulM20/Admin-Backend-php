@@ -61,6 +61,14 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
+  String _buildInitials(String? firstName, String? lastName) {
+    final f = firstName?.trim() ?? '';
+    final l = lastName?.trim() ?? '';
+    final fi = f.isNotEmpty ? f[0] : '';
+    final li = l.isNotEmpty ? l[0] : '';
+    return '$fi$li'.toUpperCase();
+  }
+
   void _openProfile() {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const ProfileScreen()),
@@ -142,6 +150,9 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final startData = context.watch<AppointmentProvider>().startData;
+    final initials = _buildInitials(startData?.firstName, startData?.lastName);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: PreferredSize(
@@ -191,12 +202,23 @@ class _MainScreenState extends State<MainScreen> {
                     onTap: _openProfile,
                     child: Container(
                       width: 36, height: 36,
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         color: AppColors.primary,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.person_rounded,
-                          color: AppColors.white, size: 20),
+                      child: Center(
+                        child: initials.isNotEmpty
+                            ? Text(
+                                initials,
+                                style: const TextStyle(
+                                  color: AppColors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              )
+                            : const Icon(Icons.person_rounded,
+                                color: AppColors.white, size: 20),
+                      ),
                     ),
                   ),
                 ],
