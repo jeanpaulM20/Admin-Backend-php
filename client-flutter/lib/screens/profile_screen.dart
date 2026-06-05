@@ -11,6 +11,7 @@ import '../config/api_config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/profile_provider.dart';
 import '../providers/credits_provider.dart';
+import 'login_screen.dart';
 import '../models/credit_pack.dart';
 import 'credits_screen.dart';
 import '../models/invoice.dart';
@@ -162,6 +163,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   @override
+  Future<void> _logout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Abmelden', style: TextStyle(color: AppColors.text)),
+        content: const Text('Möchtest du dich wirklich abmelden?',
+            style: TextStyle(color: AppColors.muted)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen', style: TextStyle(color: AppColors.muted)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Abmelden'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      await context.read<AuthProvider>().logout();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    }
+  }
+
   void _openCredits() {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const CreditsScreen()),
@@ -174,16 +210,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: RefreshIndicator(
-          color: AppColors.primary,
-          backgroundColor: AppColors.surface,
-          onRefresh: _loadData,
-          child: profile.isLoading
-              ? const LoadingIndicator(message: 'Lade Profil...')
-              : profile.error != null
-                  ? ErrorView(message: profile.error!, onRetry: _loadData)
-                  : CustomScrollView(
+      appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.text,
+        elevation: 0,
+        centerTitle: false,
+        title: const Text('Profil',
+            style: TextStyle(color: AppColors.text, fontSize: 17, fontWeight: FontWeight.w700)),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(height: 1, color: AppColors.border),
+        ),
+      ),
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        backgroundColor: AppColors.surface,
+        onRefresh: _loadData,
+        child: profile.isLoading
+            ? const LoadingIndicator(message: 'Lade Profil...')
+            : profile.error != null
+                ? ErrorView(message: profile.error!, onRetry: _loadData)
+                : CustomScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       slivers: [
                         SliverPadding(
@@ -367,6 +414,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     ],
                                   );
                                 }),
+                                const SizedBox(height: 24),
+
+                                // Logout button
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: _logout,
+                                    icon: const Icon(Icons.logout_rounded, size: 18),
+                                    label: const Text('Abmelden',
+                                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppColors.red,
+                                      side: BorderSide(color: AppColors.red.withAlpha(120)),
+                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12)),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
                               ],
                             ),
                           ),

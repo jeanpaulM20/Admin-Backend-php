@@ -14,10 +14,8 @@ import 'start_screen.dart';
 import 'calendar_screen.dart';
 import 'chat_screen.dart';
 import 'profile_screen.dart';
-import 'credits_screen.dart';
 import 'performance_screen.dart';
 import 'training_plan_list_screen.dart';
-import 'login_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -36,7 +34,6 @@ class _MainScreenState extends State<MainScreen> {
     _NavItem(icon: Icons.calendar_month_rounded, label: 'Kalender'),
     _NavItem(icon: Icons.chat_bubble_outline_rounded, label: 'Chat'),
     _NavItem(icon: Icons.show_chart_rounded, label: 'Analytics'),
-    _NavItem(icon: Icons.person_rounded, label: 'Profil'),
   ];
 
   final List<Widget> _screens = const [
@@ -45,7 +42,6 @@ class _MainScreenState extends State<MainScreen> {
     CalendarScreen(),
     ChatScreen(),
     PerformanceScreen(),
-    ProfileScreen(),
   ];
 
   String get _currentTitle {
@@ -55,9 +51,14 @@ class _MainScreenState extends State<MainScreen> {
       case 2: return 'Kalender';
       case 3: return 'Chat';
       case 4: return 'Analytics';
-      case 5: return 'Profil';
       default: return 'Sihl Training';
     }
+  }
+
+  void _openProfile() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+    );
   }
 
   @override
@@ -92,45 +93,6 @@ class _MainScreenState extends State<MainScreen> {
     context.read<PerformanceProvider>().loadMockData();
     context.read<ChatProvider>().loadMockData();
     context.read<TrainingPlanProvider>().loadMockData();
-  }
-
-  Future<void> _logout() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Abmelden',
-            style: TextStyle(color: AppColors.text)),
-        content: const Text('Möchtest du dich wirklich abmelden?',
-            style: TextStyle(color: AppColors.muted)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Abbrechen',
-                style: TextStyle(color: AppColors.muted)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.red,
-              foregroundColor: AppColors.white,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text('Abmelden'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && mounted) {
-      await context.read<AuthProvider>().logout();
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (route) => false,
-      );
-    }
   }
 
   Widget _buildNavIcon(BuildContext context, IconData icon, int index, bool isSelected) {
@@ -218,14 +180,18 @@ class _MainScreenState extends State<MainScreen> {
                     ),
                   ),
                   const Spacer(),
-                  IconButton(
-                    onPressed: _logout,
-                    icon: const Icon(Icons.logout_rounded,
-                        color: AppColors.muted, size: 22),
-                    tooltip: 'Abmelden',
-                    padding: EdgeInsets.zero,
-                    constraints:
-                        const BoxConstraints(minWidth: 40, minHeight: 40),
+                  // Profile avatar — tap to open Profil screen
+                  GestureDetector(
+                    onTap: _openProfile,
+                    child: Container(
+                      width: 36, height: 36,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.person_rounded,
+                          color: Colors.white, size: 20),
+                    ),
                   ),
                 ],
               ),
