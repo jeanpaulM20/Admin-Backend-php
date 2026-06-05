@@ -93590,18 +93590,20 @@ s=6
 return A.p(A.SU(),$async$lo)
 case 6:n=b
 m=o.c
-s=m!=null?7:9
+s=m!=null&&m.length!==0?7:9
 break
-case 7:s=10
+case 7:m.toString
+s=10
 return A.p(n.Hw("String","auth_token",m),$async$lo)
 case 10:s=8
 break
 case 9:s=11
 return A.p(J.kP(n,"auth_token"),$async$lo)
 case 11:case 8:m=o.b
-s=m!=null?12:14
+s=m!=null&&m.length!==0?12:14
 break
-case 12:s=15
+case 12:m.toString
+s=15
 return A.p(n.Hw("String","client_id",m),$async$lo)
 case 15:s=13
 break
