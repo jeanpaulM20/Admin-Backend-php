@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -332,7 +332,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
                   children: [
                     const SizedBox(height: 4),
                     Text(plan.name ?? 'Trainingsplan',
-                        style: GoogleFonts.montserrat(
+                        style: GoogleFonts.inter(
                             color: Colors.white, fontSize: 20,
                             fontWeight: FontWeight.w800, letterSpacing: -0.5)),
                     const SizedBox(height: 2),
@@ -416,7 +416,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Text(t.display,
-                  style: GoogleFonts.montserrat(
+                  style: GoogleFonts.inter(
                       color: (t.isCountdown && t.countdownRemaining == 0 && !t.isRunning)
                           ? AppColors.red : AppColors.text,
                       fontSize: 36, fontWeight: FontWeight.w700, letterSpacing: 2)),
@@ -611,7 +611,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
         borderRadius: BorderRadius.circular(size >= 80 ? 12 : 8),
       ),
       child: Center(child: Text('${i + 1}',
-          style: GoogleFonts.montserrat(
+          style: GoogleFonts.inter(
               color: color, fontSize: 13, fontWeight: FontWeight.w800))),
     );
   }
@@ -864,7 +864,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
       appBar: AppBar(
         backgroundColor: AppColors.surface, elevation: 0,
         title: Text(plan.name ?? 'Trainingsplan',
-            style: GoogleFonts.montserrat(color: AppColors.text,
+            style: GoogleFonts.inter(color: AppColors.text,
                 fontSize: 17, fontWeight: FontWeight.w700)),
         iconTheme: const IconThemeData(color: AppColors.text),
       ),
@@ -875,7 +875,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
             const Icon(Icons.lock_outline, color: AppColors.orange, size: 48),
             const SizedBox(height: 16),
             Text('Dieser Plan ist gesperrt',
-                style: GoogleFonts.montserrat(color: AppColors.text,
+                style: GoogleFonts.inter(color: AppColors.text,
                     fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             Text('Schalte Online Coaching frei, um den Plan zu sehen.',
@@ -1013,7 +1013,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
         title: Text('Kommentar löschen?',
-            style: GoogleFonts.montserrat(color: AppColors.text, fontWeight: FontWeight.w700)),
+            style: GoogleFonts.inter(color: AppColors.text, fontWeight: FontWeight.w700)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Abbrechen', style: TextStyle(color: AppColors.muted))),
@@ -1051,7 +1051,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
           child: Text(widget.exerciseName != null
               ? 'Kommentare · ${widget.exerciseName}'
               : 'Plan-Kommentare',
-              style: GoogleFonts.montserrat(color: AppColors.text,
+              style: GoogleFonts.inter(color: AppColors.text,
                   fontSize: 15, fontWeight: FontWeight.w700)),
         ),
         Expanded(
@@ -1126,7 +1126,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
             ),
             child: Center(child: Text(
               author.isNotEmpty ? author[0].toUpperCase() : '?',
-              style: GoogleFonts.montserrat(
+              style: GoogleFonts.inter(
                   color: isClient ? AppColors.primary : AppColors.blue,
                   fontSize: 13, fontWeight: FontWeight.w700),
             )),

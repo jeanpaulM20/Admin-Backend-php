@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../config/app_colors.dart';
@@ -87,40 +87,50 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
   Widget _subscriptionBanner(TrainingPlanProvider prov) {
     final sub = prov.subscription;
     final active = sub.active;
+    // Inactive: amber/gold accent — creates desire, not blockade
+    final accentColor = active ? AppColors.primary : const Color(0xFFD97706);
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: active
-              ? [AppColors.primary.withAlpha(60), AppColors.surface]
-              : [AppColors.surface2, AppColors.surface],
-        ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: active ? AppColors.primary.withAlpha(120) : AppColors.border),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: accentColor.withAlpha(active ? 120 : 80)),
       ),
       child: Row(
         children: [
-          Icon(active ? Icons.workspace_premium : Icons.lock_outline,
-              color: active ? AppColors.primary : AppColors.muted, size: 22),
+          Container(
+            width: 36, height: 36,
+            decoration: BoxDecoration(
+              color: accentColor.withAlpha(30),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              active ? Icons.workspace_premium : Icons.emoji_events_rounded,
+              color: accentColor, size: 20,
+            ),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(active ? '${sub.tierLabel} aktiv' : 'Online Coaching',
-                    style: GoogleFonts.montserrat(
-                        color: AppColors.text, fontSize: 14, fontWeight: FontWeight.w700)),
+                Text(
+                  active ? '${sub.tierLabel} aktiv' : 'Starte dein Online Coaching',
+                  style: GoogleFonts.inter(
+                      color: AppColors.text, fontSize: 14, fontWeight: FontWeight.w700),
+                ),
                 const SizedBox(height: 2),
                 Text(
                   active
                       ? 'Gültig bis ${_fmtDate(sub.validTo)}'
-                      : 'Schalte deine Trainingspläne frei',
+                      : 'Trainingsplan · HR-Analyse · Chat-Feedback',
                   style: GoogleFonts.inter(color: AppColors.muted, fontSize: 12),
                 ),
               ],
             ),
           ),
+          Icon(Icons.chevron_right, color: accentColor.withAlpha(180), size: 20),
         ],
       ),
     );
@@ -128,64 +138,75 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
 
   Widget _planCard(ClientTrainingPlan plan) {
     final locked = plan.locked;
+    final borderColor = locked ? AppColors.muted : AppColors.primary;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Material(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: () => _openPlan(plan),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 46, height: 46,
-                  decoration: BoxDecoration(
-                    color: (locked ? AppColors.muted : AppColors.primary).withAlpha(38),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(locked ? Icons.lock_outline : Icons.fitness_center,
-                      color: locked ? AppColors.muted : AppColors.primary, size: 22),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(plan.name ?? 'Trainingsplan',
-                          maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.montserrat(
-                              color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 6),
-                      Wrap(spacing: 6, runSpacing: 4, children: [
-                        _countChip('${plan.totalExercises} Übungen', AppColors.primary),
-                        ...plan.sections.entries.take(2).map((e) =>
-                            _countChip('${_sectionLabels[e.key] ?? e.key} ${e.value}', AppColors.muted)),
-                      ]),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                if (locked)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.orange.withAlpha(36),
-                      borderRadius: BorderRadius.circular(20),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Material(
+          color: AppColors.surface,
+          child: InkWell(
+            onTap: () => _openPlan(plan),
+            splashColor: AppColors.primary.withAlpha(20),
+            highlightColor: AppColors.primary.withAlpha(10),
+            child: IntrinsicHeight(
+              child: Row(
+                children: [
+                  // ── Left-Border accent ──
+                  Container(width: 3, color: borderColor),
+                  // ── Card content ──
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40, height: 40,
+                            decoration: BoxDecoration(
+                              color: (locked ? AppColors.muted : AppColors.primary).withAlpha(38),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(locked ? Icons.lock_outline : Icons.fitness_center,
+                                color: locked ? AppColors.muted : AppColors.primary, size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(plan.name ?? 'Trainingsplan',
+                                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.inter(
+                                        color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
+                                const SizedBox(height: 6),
+                                Wrap(spacing: 6, runSpacing: 4, children: [
+                                  _countChip('${plan.totalExercises} Übungen', AppColors.primary),
+                                  ...plan.sections.entries.take(2).map((e) =>
+                                      _countChip('${_sectionLabels[e.key] ?? e.key} ${e.value}', AppColors.muted)),
+                                ]),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          if (locked)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppColors.orange.withAlpha(36),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text('Abo',
+                                  style: GoogleFonts.inter(
+                                      color: AppColors.orange, fontSize: 10, fontWeight: FontWeight.w700)),
+                            )
+                          else
+                            const Icon(Icons.chevron_right, color: AppColors.muted, size: 20),
+                        ],
+                      ),
                     ),
-                    child: Text('Abo',
-                        style: GoogleFonts.inter(
-                            color: AppColors.orange, fontSize: 10, fontWeight: FontWeight.w700)),
-                  )
-                else
-                  const Icon(Icons.chevron_right, color: AppColors.muted, size: 22),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -215,7 +236,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
             const Icon(Icons.assignment_outlined, color: AppColors.muted, size: 48),
             const SizedBox(height: 16),
             Text('Noch keine Trainingspläne',
-                style: GoogleFonts.montserrat(
+                style: GoogleFonts.inter(
                     color: AppColors.text, fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             Text('Dein Trainer gibt dir hier deinen Plan frei, sobald er bereit ist.',

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../config/app_colors.dart';
@@ -177,7 +177,7 @@ class _MainScreenState extends State<MainScreen> {
                     child: Center(
                       child: Text(
                         'ST',
-                        style: GoogleFonts.montserrat(
+                        style: GoogleFonts.inter(
                           color: AppColors.white,
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
@@ -189,7 +189,7 @@ class _MainScreenState extends State<MainScreen> {
                   const SizedBox(width: 10),
                   Text(
                     _currentTitle,
-                    style: GoogleFonts.montserrat(
+                    style: GoogleFonts.inter(
                       color: AppColors.text,
                       fontSize: 17,
                       fontWeight: FontWeight.w700,

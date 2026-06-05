@@ -37,7 +37,7 @@ class TrainingCompareScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text('Vergleich',
-            style: GoogleFonts.montserrat(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
+            style: GoogleFonts.inter(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(1),
           child: Divider(color: AppColors.border, height: 1),
@@ -136,7 +136,7 @@ class TrainingCompareScreen extends StatelessWidget {
                       Padding(
                         padding: const EdgeInsets.only(left: 8, bottom: 4),
                         child: Text('Herzfrequenz-Verlauf (bpm)',
-                            style: GoogleFonts.montserrat(color: AppColors.text, fontSize: 14, fontWeight: FontWeight.w700)),
+                            style: GoogleFonts.inter(color: AppColors.text, fontSize: 14, fontWeight: FontWeight.w700)),
                       ),
                       Padding(
                         padding: const EdgeInsets.only(left: 8, bottom: 14),

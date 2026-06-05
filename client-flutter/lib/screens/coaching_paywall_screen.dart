@@ -1,4 +1,4 @@
-import 'dart:html' as html;
+﻿import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -92,7 +92,7 @@ class _CoachingPaywallScreenState extends State<CoachingPaywallScreen> {
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Zahlung läuft',
-            style: GoogleFonts.montserrat(color: AppColors.text, fontWeight: FontWeight.w700)),
+            style: GoogleFonts.inter(color: AppColors.text, fontWeight: FontWeight.w700)),
         content: Text(
           'Schließe die Zahlung im neuen Browser-Tab ab (Rechnung $invoiceNumber). '
           'Danach ist dein Online Coaching freigeschaltet.',
@@ -125,7 +125,7 @@ class _CoachingPaywallScreenState extends State<CoachingPaywallScreen> {
         backgroundColor: AppColors.surface,
         elevation: 0,
         title: Text('Freischalten',
-            style: GoogleFonts.montserrat(
+            style: GoogleFonts.inter(
                 color: AppColors.text, fontSize: 17, fontWeight: FontWeight.w700)),
         iconTheme: const IconThemeData(color: AppColors.text),
       ),
@@ -137,7 +137,7 @@ class _CoachingPaywallScreenState extends State<CoachingPaywallScreen> {
                 _teaserCard(),
                 const SizedBox(height: 20),
                 Text('Online Coaching wählen',
-                    style: GoogleFonts.montserrat(
+                    style: GoogleFonts.inter(
                         color: AppColors.text, fontSize: 16, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
                 Text('Voller Zugriff auf deine Pläne, Chat-Feedback und Analysen.',
@@ -159,7 +159,7 @@ class _CoachingPaywallScreenState extends State<CoachingPaywallScreen> {
                         ? const SizedBox(width: 22, height: 22,
                             child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                         : Text('Jetzt freischalten',
-                            style: GoogleFonts.montserrat(fontSize: 15, fontWeight: FontWeight.w700)),
+                            style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700)),
                   ),
                 ),
               ],
@@ -187,7 +187,7 @@ class _CoachingPaywallScreenState extends State<CoachingPaywallScreen> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(plan.name ?? 'Trainingsplan',
-                  style: GoogleFonts.montserrat(
+                  style: GoogleFonts.inter(
                       color: AppColors.text, fontSize: 16, fontWeight: FontWeight.w700)),
             ),
           ]),
@@ -237,7 +237,7 @@ class _CoachingPaywallScreenState extends State<CoachingPaywallScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(pkg.name,
-                      style: GoogleFonts.montserrat(
+                      style: GoogleFonts.inter(
                           color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 2),
                   Text('${pkg.credits} Credits${pkg.includes != null ? ' · ${pkg.includes}' : ''}',
@@ -247,7 +247,7 @@ class _CoachingPaywallScreenState extends State<CoachingPaywallScreen> {
             ),
             const SizedBox(width: 8),
             Text('CHF ${pkg.price.toStringAsFixed(0)}',
-                style: GoogleFonts.montserrat(
+                style: GoogleFonts.inter(
                     color: AppColors.primary, fontSize: 16, fontWeight: FontWeight.w800)),
           ],
         ),

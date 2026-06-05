@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../config/app_colors.dart';
@@ -87,7 +87,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Center(
                       child: Text(
                         'ST',
-                        style: GoogleFonts.montserrat(
+                        style: GoogleFonts.inter(
                           color: AppColors.white,
                           fontSize: 28,
                           fontWeight: FontWeight.w900,
@@ -99,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 24),
                   Text(
                     'Sihl Training',
-                    style: GoogleFonts.montserrat(
+                    style: GoogleFonts.inter(
                       color: AppColors.text,
                       fontSize: 24,
                       fontWeight: FontWeight.w800,

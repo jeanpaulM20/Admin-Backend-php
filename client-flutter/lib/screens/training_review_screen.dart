@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -24,7 +24,7 @@ class TrainingReviewDetailScreen extends StatelessWidget {
         ),
         child: Column(children: [
           Text(value,
-              style: GoogleFonts.montserrat(color: color, fontSize: 18, fontWeight: FontWeight.w800),
+              style: GoogleFonts.inter(color: color, fontSize: 18, fontWeight: FontWeight.w800),
               textAlign: TextAlign.center),
           const Text('Load', style: TextStyle(color: AppColors.muted, fontSize: 10)),
           if (rating.isNotEmpty) ...[
@@ -63,7 +63,7 @@ class TrainingReviewDetailScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(review.trainingType,
-                style: GoogleFonts.montserrat(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
+                style: GoogleFonts.inter(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
             Text(_formatDate(review.date),
                 style: const TextStyle(color: AppColors.muted, fontSize: 11)),
           ],
@@ -111,7 +111,7 @@ class TrainingReviewDetailScreen extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text('Herzfrequenz-Verlauf (bpm)',
-                              style: GoogleFonts.montserrat(color: AppColors.text, fontSize: 14, fontWeight: FontWeight.w700)),
+                              style: GoogleFonts.inter(color: AppColors.text, fontSize: 14, fontWeight: FontWeight.w700)),
                         ),
                         GestureDetector(
                           onTap: () => _openFullscreenChart(context),
@@ -310,7 +310,7 @@ class _HrChartFullScreenState extends State<_HrChartFullScreen> {
                   Expanded(
                     child: Text(
                       'Herzfrequenz-Verlauf',
-                      style: GoogleFonts.montserrat(color: AppColors.text, fontSize: 14, fontWeight: FontWeight.w700),
+                      style: GoogleFonts.inter(color: AppColors.text, fontSize: 14, fontWeight: FontWeight.w700),
                     ),
                   ),
                   // Stats chips
@@ -377,7 +377,7 @@ class _StatCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
         decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.border)),
         child: Column(children: [
-          Text(value, style: GoogleFonts.montserrat(color: color, fontSize: 18, fontWeight: FontWeight.w800), textAlign: TextAlign.center),
+          Text(value, style: GoogleFonts.inter(color: color, fontSize: 18, fontWeight: FontWeight.w800), textAlign: TextAlign.center),
           Text(unit, style: const TextStyle(color: AppColors.muted, fontSize: 10)),
           const SizedBox(height: 2),
           Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 10), textAlign: TextAlign.center),
