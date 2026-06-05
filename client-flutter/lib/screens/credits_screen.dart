@@ -185,7 +185,7 @@ class _CreditsScreenState extends State<CreditsScreen> {
     if (isPaid && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Zahlung erfolgreich! Paket aktiviert.'),
+          content: Text('Zahlung erfolgreich! Abo aktiviert.'),
           backgroundColor: AppColors.green,
           duration: Duration(seconds: 4),
         ),
@@ -396,7 +396,7 @@ class _CreditsScreenState extends State<CreditsScreen> {
         content: Row(children: [
           SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
           SizedBox(width: 12),
-          Text('Paket wird gebucht...'),
+          Text('Abo wird gebucht...'),
         ]),
         backgroundColor: AppColors.primary,
         duration: Duration(seconds: 15),
@@ -412,7 +412,7 @@ class _CreditsScreenState extends State<CreditsScreen> {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
       final success = result['success'] == true;
-      final message = result['message']?.toString() ?? (success ? 'Paket gebucht!' : 'Fehler beim Kauf');
+      final message = result['message']?.toString() ?? (success ? 'Abo gebucht!' : 'Fehler beim Kauf');
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -455,7 +455,7 @@ class _CreditsScreenState extends State<CreditsScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
-          'Credits & Pakete',
+          'Credits & Abos',
           style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
         ),
         bottom: const PreferredSize(
@@ -562,7 +562,7 @@ class _CreditsContent extends StatelessWidget {
         _SummaryCard(activeCredits: activeCredits, packCount: credits.length),
         const SizedBox(height: 8),
         if (packages.isNotEmpty) ...[
-          const _SectionHeader(icon: Icons.local_offer_outlined, title: 'Unsere Pakete'),
+          const _SectionHeader(icon: Icons.local_offer_outlined, title: 'Unsere Abos'),
           ...packages.map((p) => _PackageCard(package: p, onPurchase: () => onPurchase(p), purchasing: purchasing)),
         ],
       ],
@@ -620,8 +620,8 @@ class _SummaryCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               hasCredits
-                  ? 'Aus $packCount Credit-Paket${packCount != 1 ? 'en' : ''}'
-                  : 'Waehle ein Paket und bestelle direkt',
+                  ? 'Aus $packCount Abo${packCount != 1 ? 's' : ''}'
+                  : 'Wähle ein Abo und bestelle direkt',
               style: const TextStyle(color: AppColors.muted, fontSize: 12),
             ),
           ],
@@ -780,7 +780,7 @@ class _PackageCard extends StatelessWidget {
                       children: [
                         Icon(Icons.shopping_cart, size: 20, color: Colors.white),
                         SizedBox(width: 8),
-                        Text('Paket kaufen', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                        Text('Abo kaufen', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                       ],
                     ),
             ),

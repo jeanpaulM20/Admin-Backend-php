@@ -336,7 +336,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                             Text(
                                               credits.packages.isEmpty
                                                   ? 'Credits ansehen'
-                                                  : '${credits.packages.length} Pakete verfügbar',
+                                                  : '${credits.packages.length} Abos verfügbar',
                                               style: const TextStyle(color: AppColors.muted, fontSize: 12),
                                             ),
                                           ],
