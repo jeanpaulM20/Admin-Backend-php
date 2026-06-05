@@ -37,12 +37,28 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: RefreshIndicator(
-          color: AppColors.primary,
-          backgroundColor: AppColors.surface,
-          onRefresh: _loadData,
-          child: invoices.isLoading
+      appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.text,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text(
+          'Rechnungen',
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+        ),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, color: AppColors.border),
+        ),
+      ),
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        backgroundColor: AppColors.surface,
+        onRefresh: _loadData,
+        child: invoices.isLoading
               ? const LoadingIndicator(message: 'Lade Rechnungen...')
               : invoices.error != null
                   ? ErrorView(
@@ -66,7 +82,6 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                                 invoice: invoices.data[index]);
                           },
                         ),
-        ),
       ),
     );
   }
