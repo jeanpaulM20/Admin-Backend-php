@@ -8,6 +8,8 @@ class CreditPackage {
   final int? durationMonths;
   final String? description;
   final String? includes;
+  /// 'credits' = Einzellektionen/Pakete, 'coaching' = Online-Coaching-Abo
+  final String kind;
 
   CreditPackage({
     required this.id,
@@ -18,7 +20,10 @@ class CreditPackage {
     this.durationMonths,
     this.description,
     this.includes,
+    this.kind = 'credits',
   });
+
+  bool get isCoaching => kind == 'coaching';
 
   factory CreditPackage.fromJson(Map<String, dynamic> json) {
     return CreditPackage(
@@ -34,6 +39,7 @@ class CreditPackage {
           : null,
       description: json['description']?.toString(),
       includes: json['includes']?.toString(),
+      kind: json['kind']?.toString() ?? 'credits',
     );
   }
 }

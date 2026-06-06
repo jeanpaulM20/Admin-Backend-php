@@ -561,9 +561,18 @@ class _CreditsContent extends StatelessWidget {
       children: [
         _SummaryCard(activeCredits: activeCredits, packCount: credits.length),
         const SizedBox(height: 8),
-        if (packages.isNotEmpty) ...[
-          const _SectionHeader(icon: Icons.local_offer_outlined, title: 'Unsere Abos'),
-          ...packages.map((p) => _PackageCard(package: p, onPurchase: () => onPurchase(p), purchasing: purchasing)),
+        // ── Coaching Abos ──
+        if (packages.any((p) => p.isCoaching)) ...[
+          const _SectionHeader(icon: Icons.emoji_events_rounded, title: 'Online Coaching'),
+          ...packages.where((p) => p.isCoaching).map((p) =>
+              _PackageCard(package: p, onPurchase: () => onPurchase(p), purchasing: purchasing)),
+          const SizedBox(height: 8),
+        ],
+        // ── Lektionen & Pakete ──
+        if (packages.any((p) => !p.isCoaching)) ...[
+          const _SectionHeader(icon: Icons.local_offer_outlined, title: 'Lektionen & Pakete'),
+          ...packages.where((p) => !p.isCoaching).map((p) =>
+              _PackageCard(package: p, onPurchase: () => onPurchase(p), purchasing: purchasing)),
         ],
       ],
     );

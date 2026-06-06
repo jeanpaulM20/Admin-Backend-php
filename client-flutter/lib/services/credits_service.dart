@@ -15,17 +15,21 @@ class CreditsService {
     return [];
   }
 
-  /// Fetch available credit packages (pricing from website)
+  /// Fetch all available packages — credit packs + coaching abos combined
   Future<List<CreditPackage>> listPackages() async {
-    final data = await apiClient.get('api/client/packages');
-    if (data == null) return [];
-    if (data is List) {
-      return data
-          .whereType<Map<String, dynamic>>()
-          .map(CreditPackage.fromJson)
-          .toList();
+    final results = await Future.wait([
+      apiClient.get('api/client/packages'),              // kind=credits (default)
+      apiClient.get('api/client/packages?kind=coaching'), // coaching tiers
+    ]);
+    final combined = <CreditPackage>[];
+    for (final data in results) {
+      if (data is List) {
+        combined.addAll(data
+            .whereType<Map<String, dynamic>>()
+            .map(CreditPackage.fromJson));
+      }
     }
-    return [];
+    return combined;
   }
 
   /// Purchase a credit package
