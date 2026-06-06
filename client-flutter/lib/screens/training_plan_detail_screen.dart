@@ -501,8 +501,8 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(children: [
-                // Exercise icon (from API) or number badge fallback
-                _buildExerciseBadge(i, row.exercise, meta.color, isLiked, isDisliked, isExpanded),
+                // Exercise icon — always 40px in header (compact, title not truncated)
+                _buildExerciseBadge(i, row.exercise, meta.color, isLiked, isDisliked, false),
                 const SizedBox(width: 12),
                 // Name + hints
                 Expanded(
@@ -546,6 +546,24 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Large exercise image in expanded state
+                  if (_exerciseIdMap[row.exercise] != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.network(
+                          '${ApiConfig.baseUrl}api/exercise/${_exerciseIdMap[row.exercise]}/icon.png',
+                          width: double.infinity,
+                          height: 160,
+                          fit: BoxFit.cover,
+                          headers: apiClient.token != null
+                              ? {ApiConfig.authHeader: apiClient.token!}
+                              : {},
+                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        ),
+                      ),
+                    ),
                   // Device + Position (READ-ONLY)
                   if (row.device.isNotEmpty || row.position.isNotEmpty)
                     _readOnlyRow(row.device, row.position),
