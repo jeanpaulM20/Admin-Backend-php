@@ -5,6 +5,7 @@ import { TrainingPlan } from '../entities/training-plan.entity';
 import { TrainingPlanComment } from '../entities/training-plan-comment.entity';
 import { TrainingPlanLike } from '../entities/training-plan-like.entity';
 import { RealtimeService } from '../realtime/realtime.service';
+import { PushService } from '../push/push.service';
 
 @Injectable()
 export class TrainingPlanService {
@@ -17,6 +18,7 @@ export class TrainingPlanService {
     private readonly likeRepo: Repository<TrainingPlanLike>,
     private readonly realtime: RealtimeService,
     private readonly dataSource: DataSource,
+    private readonly pushService: PushService,
   ) {}
 
   private readonly logger = new Logger(TrainingPlanService.name);
@@ -152,6 +154,15 @@ export class TrainingPlanService {
     } as any);
     const saved = await this.commentRepo.save(comment as any);
     this.realtime.emitToClient(plan.clientId, 'plan_comment', { planId, exerciseKey: exerciseKey ?? null });
+    // Push notification to client when a trainer adds a comment
+    if (senderType === 'trainer' && plan.clientId) {
+      const snippet = text.length > 80 ? text.substring(0, 80) + '…' : text;
+      this.pushService.sendToClient(plan.clientId, {
+        title: exerciseKey ? `${authorName} hat eine Übung kommentiert` : `${authorName} hat deinen Plan kommentiert`,
+        body: snippet,
+        url: '/client/',
+      }).catch(() => {}); // non-blocking — push failure must not abort comment save
+    }
     return saved;
   }
 

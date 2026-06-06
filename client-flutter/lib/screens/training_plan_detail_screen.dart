@@ -338,7 +338,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
                     const SizedBox(height: 2),
                     if (plan.totalExercises > 0)
                       Text('${plan.totalExercises} Übungen',
-                          style: GoogleFonts.openSans(color: Colors.white38, fontSize: 12)),
+                          style: GoogleFonts.inter(color: Colors.white38, fontSize: 12)),
                   ],
                 ),
               ),
@@ -364,8 +364,8 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
           unselectedLabelColor: AppColors.muted,
           indicatorColor: AppColors.primary,
           indicatorWeight: 2.5,
-          labelStyle: GoogleFonts.openSans(fontSize: 12, fontWeight: FontWeight.w700),
-          unselectedLabelStyle: GoogleFonts.openSans(fontSize: 12),
+          labelStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700),
+          unselectedLabelStyle: GoogleFonts.inter(fontSize: 12),
           tabs: _sections.map((m) => Tab(
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(m.icon, size: 14, color: m.color),
@@ -422,7 +422,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
                       fontSize: 36, fontWeight: FontWeight.w700, letterSpacing: 2)),
               Text(
                 t.isCountdown ? 'Countdown · ${t.activeName}' : 'Stoppuhr',
-                style: GoogleFonts.openSans(color: AppColors.muted, fontSize: 11),
+                style: GoogleFonts.inter(color: AppColors.muted, fontSize: 11),
               ),
             ],
           ),
@@ -457,7 +457,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
     if (rows.isEmpty) {
       return Center(
         child: Text('Keine Übungen in diesem Abschnitt',
-            style: GoogleFonts.openSans(color: AppColors.muted, fontSize: 13)),
+            style: GoogleFonts.inter(color: AppColors.muted, fontSize: 13)),
       );
     }
     return ListView.builder(
@@ -511,7 +511,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
                     children: [
                       Text(row.exercise.isEmpty ? 'Übung ${i + 1}' : row.exercise,
                           maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.openSans(
+                          style: GoogleFonts.inter(
                               color: AppColors.text, fontSize: 14,
                               fontWeight: FontWeight.w600)),
                       if (!isExpanded)
@@ -525,7 +525,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
                     Icon(Icons.chat_bubble_outline, size: 12, color: meta.color.withAlpha(200)),
                     const SizedBox(width: 2),
                     Text('$commentCount',
-                        style: GoogleFonts.openSans(color: meta.color, fontSize: 11)),
+                        style: GoogleFonts.inter(color: meta.color, fontSize: 11)),
                     const SizedBox(width: 6),
                   ]),
                 // Chevron
@@ -625,7 +625,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
     if (parts.isEmpty) return const SizedBox.shrink();
     return Text(parts.join(' · '),
         maxLines: 1, overflow: TextOverflow.ellipsis,
-        style: GoogleFonts.openSans(color: AppColors.muted, fontSize: 11));
+        style: GoogleFonts.inter(color: AppColors.muted, fontSize: 11));
   }
 
   Widget _readOnlyRow(String left, String right) {
@@ -647,7 +647,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
         color: AppColors.surface2,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(text, style: GoogleFonts.openSans(color: AppColors.text, fontSize: 12)),
+      child: Text(text, style: GoogleFonts.inter(color: AppColors.text, fontSize: 12)),
     );
   }
 
@@ -663,7 +663,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('ERGEBNISSE',
-            style: GoogleFonts.openSans(
+            style: GoogleFonts.inter(
                 color: AppColors.muted, fontSize: 9,
                 fontWeight: FontWeight.w600, letterSpacing: 1.5)),
         const SizedBox(height: 6),
@@ -677,7 +677,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
                 children: [
                   Text(label,
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.openSans(
+                      style: GoogleFonts.inter(
                           color: AppColors.muted, fontSize: 9)),
                   const SizedBox(height: 2),
                   Container(
@@ -691,7 +691,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
                       controller: rowCtrls[j],
                       textAlign: TextAlign.center,
                       keyboardType: TextInputType.text,
-                      style: GoogleFonts.openSans(
+                      style: GoogleFonts.inter(
                           color: AppColors.text, fontSize: 12,
                           fontWeight: FontWeight.w700),
                       decoration: const InputDecoration(
@@ -721,13 +721,13 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
       children: [
         Row(children: [
           Text('TIMER',
-              style: GoogleFonts.openSans(
+              style: GoogleFonts.inter(
                   color: AppColors.muted, fontSize: 9,
                   fontWeight: FontWeight.w600, letterSpacing: 1.5)),
           if (row.timers.isEmpty) ...[
             const SizedBox(width: 6),
             Text('(Vorschläge)',
-                style: GoogleFonts.openSans(
+                style: GoogleFonts.inter(
                     color: AppColors.muted.withAlpha(120), fontSize: 9,
                     letterSpacing: 0.5)),
           ],
@@ -764,7 +764,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
                     Icon(Icons.timer_outlined, size: 14, color: AppColors.muted),
                   const SizedBox(width: 4),
                   Text(_fmtSec(secs),
-                      style: GoogleFonts.openSans(
+                      style: GoogleFonts.inter(
                           color: isActive ? meta.color : AppColors.muted,
                           fontSize: 12, fontWeight: FontWeight.w600)),
                 ]),
@@ -830,7 +830,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
           Icon(icon, size: 14, color: active ? color : AppColors.muted),
           const SizedBox(width: 4),
           Text(label,
-              style: GoogleFonts.openSans(
+              style: GoogleFonts.inter(
                   color: active ? color : AppColors.muted,
                   fontSize: 12, fontWeight: FontWeight.w600)),
         ]),
@@ -1059,7 +1059,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
               ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
               : _comments.isEmpty
               ? Center(child: Text('Noch keine Kommentare',
-                  style: GoogleFonts.openSans(color: AppColors.muted)))
+                  style: GoogleFonts.inter(color: AppColors.muted)))
               : ListView.builder(
                   controller: _scroll,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -1075,10 +1075,10 @@ class _CommentsSheetState extends State<_CommentsSheet> {
               child: TextField(
                 controller: _ctrl,
                 maxLines: 3, minLines: 1,
-                style: GoogleFonts.openSans(color: AppColors.text, fontSize: 14),
+                style: GoogleFonts.inter(color: AppColors.text, fontSize: 14),
                 decoration: InputDecoration(
                   hintText: 'Kommentar schreiben…',
-                  hintStyle: GoogleFonts.openSans(color: AppColors.muted, fontSize: 14),
+                  hintStyle: GoogleFonts.inter(color: AppColors.muted, fontSize: 14),
                   filled: true, fillColor: AppColors.surface2,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
@@ -1138,7 +1138,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
               children: [
                 Row(children: [
                   Text(author,
-                      style: GoogleFonts.openSans(color: AppColors.text,
+                      style: GoogleFonts.inter(color: AppColors.text,
                           fontSize: 12, fontWeight: FontWeight.w700)),
                   if (isClient) ...[
                     const SizedBox(width: 6),
@@ -1147,7 +1147,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                       decoration: BoxDecoration(
                           color: AppColors.primary.withAlpha(36),
                           borderRadius: BorderRadius.circular(6)),
-                      child: Text('Du', style: GoogleFonts.openSans(
+                      child: Text('Du', style: GoogleFonts.inter(
                           color: AppColors.primary, fontSize: 9, fontWeight: FontWeight.w700)),
                     ),
                   ],
@@ -1169,7 +1169,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                     ),
                   ),
                   child: Text(text,
-                      style: GoogleFonts.openSans(color: AppColors.text, fontSize: 13)),
+                      style: GoogleFonts.inter(color: AppColors.text, fontSize: 13)),
                 ),
               ],
             ),

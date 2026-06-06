@@ -15,6 +15,7 @@ import { AiPlanService } from './ai-plan.service';
 import { TrainingPlanController } from './training-plan.controller';
 import { EntitlementModule } from '../entitlement/entitlement.module';
 import { RealtimeModule } from '../realtime/realtime.module';
+import { PushModule } from '../push/push.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { RealtimeModule } from '../realtime/realtime.module';
     ]),
     EntitlementModule,
     RealtimeModule,
+    PushModule,
   ],
   providers: [TrainingPlanService, AiPlanService],
   controllers: [TrainingPlanController],
