@@ -645,7 +645,7 @@ class _SummaryCard extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _SectionHeader extends StatelessWidget {
-  final IconData icon;
+  final IconData icon; // kept for API compatibility, not rendered
   final String title;
 
   const _SectionHeader({required this.icon, required this.title});
@@ -654,14 +654,10 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10, top: 8),
-      child: Row(children: [
-        Icon(icon, size: 16, color: AppColors.muted),
-        const SizedBox(width: 6),
-        Text(title, style: const TextStyle(
-          color: AppColors.muted, fontSize: 13, fontWeight: FontWeight.w700,
-          letterSpacing: 0.5,
-        )),
-      ]),
+      child: Text(title, style: const TextStyle(
+        color: AppColors.muted, fontSize: 11, fontWeight: FontWeight.w700,
+        letterSpacing: 0.8,
+      )),
     );
   }
 }

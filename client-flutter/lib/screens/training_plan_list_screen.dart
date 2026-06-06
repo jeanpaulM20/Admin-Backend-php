@@ -104,28 +104,18 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: accentColor.withAlpha(active ? 120 : 80)),
+        border: Border.all(color: active ? AppColors.primary.withAlpha(100) : AppColors.border),
       ),
       child: Row(
         children: [
-          Container(
-            width: 36, height: 36,
-            decoration: BoxDecoration(
-              color: accentColor.withAlpha(30),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              active ? Icons.workspace_premium : Icons.emoji_events_rounded,
-              color: accentColor, size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  active ? '${sub.tierLabel} aktiv' : 'Starte dein Online Coaching',
+                  active
+                      ? '${sub.tierLabel} aktiv'
+                      : 'Trainingsplan · HR-Analyse · Chat-Feedback',
                   style: GoogleFonts.inter(
                       color: AppColors.text, fontSize: 14, fontWeight: FontWeight.w700),
                 ),
@@ -133,13 +123,15 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                 Text(
                   active
                       ? 'Gültig bis ${_fmtDate(sub.validTo)}'
-                      : 'Trainingsplan · HR-Analyse · Chat-Feedback',
-                  style: GoogleFonts.inter(color: AppColors.muted, fontSize: 12),
+                      : 'Online Coaching starten',
+                  style: GoogleFonts.inter(
+                      color: active ? AppColors.muted : accentColor, fontSize: 12),
                 ),
               ],
             ),
           ),
-          Icon(Icons.chevron_right, color: accentColor.withAlpha(180), size: 20),
+          if (!active)
+            Icon(Icons.chevron_right, color: accentColor.withAlpha(200), size: 20),
         ],
       ),
     ));

@@ -124,7 +124,7 @@ class _CoachingPaywallScreenState extends State<CoachingPaywallScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.surface,
         elevation: 0,
-        title: Text('Freischalten',
+        title: Text('Online Coaching',
             style: GoogleFonts.inter(
                 color: AppColors.text, fontSize: 17, fontWeight: FontWeight.w700)),
         iconTheme: const IconThemeData(color: AppColors.text),
@@ -136,11 +136,11 @@ class _CoachingPaywallScreenState extends State<CoachingPaywallScreen> {
               children: [
                 _teaserCard(),
                 const SizedBox(height: 20),
-                Text('Online Coaching wählen',
+                Text('Trainingsplan · Chat-Feedback · Analysen',
                     style: GoogleFonts.inter(
-                        color: AppColors.text, fontSize: 16, fontWeight: FontWeight.w700)),
+                        color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
-                Text('Voller Zugriff auf deine Pläne, Chat-Feedback und Analysen.',
+                Text('Wähle dein Abo und schalte alle Pläne frei.',
                     style: GoogleFonts.inter(color: AppColors.muted, fontSize: 13)),
                 const SizedBox(height: 14),
                 if (_error != null) _errorBox(_error!),
@@ -151,14 +151,14 @@ class _CoachingPaywallScreenState extends State<CoachingPaywallScreen> {
                   child: ElevatedButton(
                     onPressed: (_purchasing || _selectedId == null) ? null : _purchase,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
+                      backgroundColor: AppColors.primaryDark,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                     child: _purchasing
                         ? const SizedBox(width: 22, height: 22,
                             child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : Text('Jetzt freischalten',
+                        : Text('Online Coaching freischalten',
                             style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700)),
                   ),
                 ),
@@ -172,25 +172,16 @@ class _CoachingPaywallScreenState extends State<CoachingPaywallScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft, end: Alignment.bottomRight,
-          colors: [AppColors.surface2, AppColors.surface],
-        ),
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            const Icon(Icons.lock_outline, color: AppColors.orange, size: 20),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(plan.name ?? 'Trainingsplan',
-                  style: GoogleFonts.inter(
-                      color: AppColors.text, fontSize: 16, fontWeight: FontWeight.w700)),
-            ),
-          ]),
+          Text(plan.name ?? 'Trainingsplan',
+              style: GoogleFonts.inter(
+                  color: AppColors.text, fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 12),
           Text('${plan.totalExercises} Übungen in diesem Plan',
               style: GoogleFonts.inter(color: AppColors.muted, fontSize: 13)),
@@ -220,35 +211,48 @@ class _CoachingPaywallScreenState extends State<CoachingPaywallScreen> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: selected ? AppColors.primary.withAlpha(28) : AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
+          color: selected ? AppColors.primary.withAlpha(20) : AppColors.surface,
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: selected ? AppColors.primary : AppColors.border,
-            width: selected ? 1.5 : 1,
+            width: selected ? 2 : 1,
           ),
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(selected ? Icons.radio_button_checked : Icons.radio_button_off,
-                color: selected ? AppColors.primary : AppColors.muted, size: 22),
-            const SizedBox(width: 14),
+            // Dominant price — the single primary value
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('CHF ${pkg.price.toStringAsFixed(0)}',
+                    style: GoogleFonts.inter(
+                        color: selected ? AppColors.primary : AppColors.text,
+                        fontSize: 24, fontWeight: FontWeight.w800)),
+                Text(pkg.durationMonths != null
+                    ? '/ ${pkg.durationMonths == 1 ? 'Monat' : 'Jahr'}'
+                    : '',
+                    style: GoogleFonts.inter(color: AppColors.muted, fontSize: 11)),
+              ],
+            ),
+            const SizedBox(width: 16),
+            // Name + metadata
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(pkg.name,
                       style: GoogleFonts.inter(
-                          color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
+                          color: AppColors.text, fontSize: 14, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 2),
                   Text('${pkg.credits} Credits${pkg.includes != null ? ' · ${pkg.includes}' : ''}',
-                      style: GoogleFonts.inter(color: AppColors.muted, fontSize: 12)),
+                      style: GoogleFonts.inter(color: AppColors.muted, fontSize: 11)),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            Text('CHF ${pkg.price.toStringAsFixed(0)}',
-                style: GoogleFonts.inter(
-                    color: AppColors.primary, fontSize: 16, fontWeight: FontWeight.w800)),
+            // Selection indicator
+            Icon(selected ? Icons.check_circle_rounded : Icons.circle_outlined,
+                color: selected ? AppColors.primary : AppColors.border, size: 20),
           ],
         ),
       ),
