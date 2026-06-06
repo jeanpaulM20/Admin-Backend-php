@@ -7,6 +7,7 @@ import '../providers/auth_provider.dart';
 import '../providers/training_plan_provider.dart';
 import 'training_plan_detail_screen.dart';
 import 'coaching_paywall_screen.dart';
+import 'credits_screen.dart';
 
 /// Client "Training" tab — lists the trainer-published plans. Locked plans
 /// open the paywall; unlocked plans open the read-only detail view.
@@ -84,12 +85,20 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
     );
   }
 
+  void _openCoachingCredits() {
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => const CreditsScreen(),
+    ));
+  }
+
   Widget _subscriptionBanner(TrainingPlanProvider prov) {
     final sub = prov.subscription;
     final active = sub.active;
     // Inactive: amber/gold accent — creates desire, not blockade
     final accentColor = active ? AppColors.primary : const Color(0xFFD97706);
-    return Container(
+    return GestureDetector(
+      onTap: active ? null : _openCoachingCredits,
+      child: Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
@@ -133,7 +142,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
           Icon(Icons.chevron_right, color: accentColor.withAlpha(180), size: 20),
         ],
       ),
-    );
+    ));
   }
 
   Widget _planCard(ClientTrainingPlan plan) {
