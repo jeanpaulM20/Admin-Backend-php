@@ -1,5 +1,4 @@
-﻿import 'dart:async';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../config/app_colors.dart';
@@ -50,10 +49,8 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
   String? _error;
   ClientTrainingPlan? _plan;
 
-  // Per-section row data (results + expanded state)
-  final Map<String, List<List<TextEditingController>>> _resultCtrls = {};
+  // Expanded state per exercise tile
   final Set<String> _expanded = {};
-  Timer? _autoSaveTimer;
 
   // Client likes: exerciseKey → 'like'|'dislike'
   Map<String, String> _likes = {};
@@ -92,13 +89,9 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
 
   @override
   void dispose() {
-    _autoSaveTimer?.cancel();
     _realtime?.dispose();
     _timer.dispose();
     _tabCtrl.dispose();
-    for (final sectionList in _resultCtrls.values) {
-      for (final row in sectionList) for (final c in row) c.dispose();
-    }
     super.dispose();
   }
 
@@ -124,7 +117,6 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
     try {
       final plan = await _service.getPlan(widget.planId);
       if (!mounted) return;
-      _buildResultCtrls(plan);
       _likes = Map<String, String>.from(plan.clientLikes ?? {});
       await _loadCommentCounts();
       setState(() { _plan = plan; _loading = false; });
@@ -134,32 +126,6 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
     } catch (_) {
       if (!mounted) return;
       setState(() { _error = 'Plan konnte nicht geladen werden'; _loading = false; });
-    }
-  }
-
-  void _buildResultCtrls(ClientTrainingPlan plan) {
-    if (plan.values == null) return;
-    final v = plan.values!;
-    for (final meta in _sections) {
-      final rows = _sectionRows(v, meta.key);
-      // Preserve existing controllers (user may be typing)
-      final existing = _resultCtrls[meta.key];
-      final built = <List<TextEditingController>>[];
-      for (var i = 0; i < rows.length; i++) {
-        final dates = rows[i].dates;
-        if (existing != null && i < existing.length) {
-          // Keep existing (don't stomp user input)
-          built.add(existing[i]);
-        } else {
-          final ctrls = List.generate(8, (j) {
-            final c = TextEditingController(text: j < dates.length ? dates[j] : '');
-            c.addListener(() => _scheduleAutoSave());
-            return c;
-          });
-          built.add(ctrls);
-        }
-      }
-      _resultCtrls[meta.key] = built;
     }
   }
 
@@ -181,62 +147,6 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
         _commentCounts = data.map((k, v) => MapEntry(k.toString(), (v as num).toInt()));
       }
     } catch (_) {}
-  }
-
-  // ─── Auto-save results ────────────────────────────────────────────────────
-
-  void _scheduleAutoSave() {
-    _autoSaveTimer?.cancel();
-    _autoSaveTimer = Timer(const Duration(milliseconds: 1200), _saveResults);
-  }
-
-  Future<void> _saveResults() async {
-    final plan = _plan;
-    if (plan?.id == null || plan?.values == null) return;
-    final v = plan!.values!;
-    final updated = _buildUpdatedValues(v);
-    try {
-      await apiClient.post(
-        'api/training-plan/${plan.id}/results',
-        body: {'values': updated},
-      );
-    } catch (_) {
-      // Show a subtle indicator so the user knows results weren't saved.
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Ergebnisse konnten nicht gespeichert werden — bitte erneut versuchen'),
-          backgroundColor: AppColors.red,
-          duration: Duration(seconds: 3),
-        ));
-      }
-    }
-  }
-
-  Map<String, dynamic> _buildUpdatedValues(TrainingPlanValues v) {
-    Map<String, dynamic> sectionData(List<TrainingPlanRow> rows, String key) {
-      final ctrls = _resultCtrls[key] ?? [];
-      return {
-        for (var i = 0; i < rows.length; i++)
-          i.toString(): {
-            'dates': List.generate(8, (j) =>
-              i < ctrls.length && j < ctrls[i].length ? ctrls[i][j].text : ''),
-          }
-      };
-    }
-    return {
-      'sonsomo': _rowListToJson(v.sonsomo, 'sonsomo'),
-      'main':    _rowListToJson(v.main,    'main'),
-      'core':    _rowListToJson(v.core,    'core'),
-      'mobility':_rowListToJson(v.mobility,'mobility'),
-    };
-  }
-
-  List<Map<String, dynamic>> _rowListToJson(List<TrainingPlanRow> rows, String key) {
-    final ctrls = _resultCtrls[key] ?? [];
-    return List.generate(rows.length, (i) => {
-      'dates': List.generate(8, (j) =>
-        i < ctrls.length && j < ctrls[i].length ? ctrls[i][j].text : ''),
-    });
   }
 
   // ─── Like / Dislike ───────────────────────────────────────────────────────
@@ -616,18 +526,6 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
         style: GoogleFonts.inter(color: AppColors.muted, fontSize: 11));
   }
 
-  Widget _readOnlyRow(String left, String right) {
-    if (left.isEmpty && right.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(children: [
-        if (left.isNotEmpty) Expanded(child: _infoChip(left)),
-        if (left.isNotEmpty && right.isNotEmpty) const SizedBox(width: 8),
-        if (right.isNotEmpty) Expanded(child: _infoChip(right)),
-      ]),
-    );
-  }
-
   Widget _infoChip(String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -639,66 +537,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
     );
   }
 
-  // ─── ERGEBNISSE ───────────────────────────────────────────────────────────
-
-  Widget _buildErgebnisse(String sectionKey, int rowIdx, TrainingPlanRow row) {
-    final ctrls = _resultCtrls[sectionKey];
-    if (ctrls == null || rowIdx >= ctrls.length) return const SizedBox.shrink();
-    final rowCtrls = ctrls[rowIdx];
-    final dates = _plan?.values?.dates ?? List.filled(8, '');
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('ERGEBNISSE',
-            style: GoogleFonts.inter(
-                color: AppColors.muted, fontSize: 9,
-                fontWeight: FontWeight.w600, letterSpacing: 1.5)),
-        const SizedBox(height: 6),
-        Wrap(
-          spacing: 6, runSpacing: 6,
-          children: List.generate(8, (j) {
-            final label = j < dates.length && dates[j].isNotEmpty ? dates[j] : '${j + 1}';
-            return SizedBox(
-              width: 60,
-              child: Column(
-                children: [
-                  Text(label,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
-                          color: AppColors.muted, fontSize: 9)),
-                  const SizedBox(height: 2),
-                  Container(
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: AppColors.surface2,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: TextField(
-                      controller: rowCtrls[j],
-                      textAlign: TextAlign.center,
-                      keyboardType: TextInputType.text,
-                      style: GoogleFonts.inter(
-                          color: AppColors.text, fontSize: 12,
-                          fontWeight: FontWeight.w700),
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(vertical: 8),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
-        ),
-      ],
-    );
-  }
-
-  // ─── Timer chips (use only) ───────────────────────────────────────────────
+  // ─── Timer chips ─────────────────────────────────────────────────────────
 
   Widget _buildTimerChips(_SectionMeta meta, int i, TrainingPlanRow row) {
     // Use trainer-defined timers if available; otherwise show common presets
