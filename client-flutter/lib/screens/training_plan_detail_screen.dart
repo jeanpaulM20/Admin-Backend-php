@@ -389,71 +389,56 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
 
   Widget _buildTimerWidget() {
     final t = _timer;
-    final isGlowing = t.isRunning;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isGlowing ? AppColors.primary.withAlpha(180) : AppColors.border,
-          width: isGlowing ? 1.5 : 1,
-        ),
-      ),
-      child: Row(children: [
-        // Play/Pause
-        GestureDetector(
-          onTap: t.toggle,
-          child: Container(
-            width: 44, height: 44,
-            decoration: BoxDecoration(
-              color: t.isRunning ? AppColors.primary : AppColors.surface2,
-              shape: BoxShape.circle,
+    final timeColor = (t.isCountdown && t.countdownRemaining == 0 && !t.isRunning)
+        ? AppColors.red
+        : t.isRunning ? AppColors.primary : AppColors.text;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: GestureDetector(
+        onTap: t.toggle,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          width: 100, height: 100,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: t.isRunning ? AppColors.primary.withAlpha(180) : AppColors.border,
+              width: t.isRunning ? 1.5 : 1,
             ),
-            child: Icon(t.isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                color: t.isRunning ? Colors.white : AppColors.primary, size: 24),
           ),
-        ),
-        const SizedBox(width: 16),
-        // Time display
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
+          child: Stack(
             children: [
-              Text(t.display,
-                  style: GoogleFonts.inter(
-                      color: (t.isCountdown && t.countdownRemaining == 0 && !t.isRunning)
-                          ? AppColors.red : AppColors.text,
-                      fontSize: 36, fontWeight: FontWeight.w700, letterSpacing: 2)),
-              Text(
-                t.isCountdown ? 'Countdown · ${t.activeName}' : 'Stoppuhr',
-                style: GoogleFonts.inter(color: AppColors.muted, fontSize: 11),
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(t.display,
+                        style: GoogleFonts.inter(
+                            color: timeColor,
+                            fontSize: 19, fontWeight: FontWeight.w700, letterSpacing: 1)),
+                    const SizedBox(height: 3),
+                    Text(t.isCountdown ? 'Countdown' : 'Stoppuhr',
+                        style: GoogleFonts.inter(color: AppColors.muted, fontSize: 9)),
+                    const SizedBox(height: 6),
+                    Icon(t.isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                        color: t.isRunning ? AppColors.primary : AppColors.muted, size: 18),
+                  ],
+                ),
+              ),
+              // Reset — bottom-right corner
+              Positioned(
+                bottom: 6, right: 6,
+                child: GestureDetector(
+                  onTap: t.reset,
+                  behavior: HitTestBehavior.opaque,
+                  child: const Icon(Icons.replay_rounded, size: 14, color: AppColors.muted),
+                ),
               ),
             ],
           ),
         ),
-        const SizedBox(width: 12),
-        // Reset + switch
-        Column(children: [
-          IconButton(
-            icon: const Icon(Icons.replay_rounded, size: 20),
-            color: AppColors.muted,
-            onPressed: t.reset,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-          ),
-          if (t.isCountdown)
-            IconButton(
-              icon: const Icon(Icons.timer_outlined, size: 18),
-              color: AppColors.muted,
-              onPressed: t.switchToStopwatch,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 36, minHeight: 30),
-            ),
-        ]),
-      ]),
+      ),
     );
   }
 
@@ -548,25 +533,28 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
           if (isExpanded) ...[
             const Divider(color: AppColors.border, height: 1, indent: 14, endIndent: 14),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Device + Position (READ-ONLY)
-                  if (row.device.isNotEmpty || row.position.isNotEmpty)
-                    _readOnlyRow(row.device, row.position),
-                  if (row.sets.isNotEmpty || row.weight.isNotEmpty)
-                    _readOnlyRow(row.sets, row.weight),
+                  // Metadata chips — compact Wrap
+                  if (row.device.isNotEmpty || row.position.isNotEmpty ||
+                      row.sets.isNotEmpty || row.weight.isNotEmpty)
+                    Wrap(
+                      spacing: 8, runSpacing: 6,
+                      children: [
+                        if (row.device.isNotEmpty)   _infoChip(row.device),
+                        if (row.sets.isNotEmpty)      _infoChip(row.sets),
+                        if (row.weight.isNotEmpty)    _infoChip(row.weight),
+                        if (row.position.isNotEmpty)  _infoChip(row.position),
+                      ],
+                    ),
                   const SizedBox(height: 10),
 
-                  // ERGEBNISSE — writable
-                  _buildErgebnisse(meta.key, i, row),
-                  const SizedBox(height: 12),
-
-                  // Timer chips — always visible; fallback presets when trainer set none
+                  // Timer chips
                   _buildTimerChips(meta, i, row),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   // Action buttons
                   _buildActionRow(key, meta, i, row, isLiked, isDisliked, commentCount),
                 ],
