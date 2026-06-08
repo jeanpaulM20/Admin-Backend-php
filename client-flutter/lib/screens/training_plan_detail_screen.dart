@@ -274,6 +274,14 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        elevation: 0,
+        title: Text(widget.planName ?? 'Trainingsplan',
+            style: GoogleFonts.inter(
+                color: AppColors.text, fontSize: 17, fontWeight: FontWeight.w700)),
+        iconTheme: const IconThemeData(color: AppColors.text),
+      ),
       body: _buildBody(),
     );
   }
@@ -293,7 +301,6 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
     }
 
     return Column(children: [
-      _buildHeader(plan),
       _buildSectionTabs(),
       _buildTimerWidget(),
       Expanded(child: TabBarView(
@@ -510,7 +517,6 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(row.exercise.isEmpty ? 'Übung ${i + 1}' : row.exercise,
-                          maxLines: 1, overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.inter(
                               color: AppColors.text, fontSize: 14,
                               fontWeight: FontWeight.w600)),
@@ -575,26 +581,20 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
   Widget _buildExerciseBadge(int i, String name, Color color, bool liked, bool disliked, bool isExpanded) {
     final activeColor = liked ? AppColors.green : disliked ? AppColors.red : color;
     final exerciseId = _exerciseIdMap[name];
-    final size = isExpanded ? 100.0 : 56.0;
-    final radius = isExpanded ? 12.0 : 8.0;
+    const double size = 100.0;
+    const double radius = 12.0;
 
     if (exerciseId != null) {
-      return AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeInOut,
-        width: size,
-        height: size,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(radius),
-          child: Image.network(
-            '${ApiConfig.baseUrl}api/exercise/$exerciseId/icon.png',
-            width: size, height: size,
-            fit: BoxFit.cover,
-            headers: apiClient.token != null
-                ? {ApiConfig.authHeader: apiClient.token!}
-                : {},
-            errorBuilder: (_, __, ___) => _numberBadge(i, activeColor, size),
-          ),
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: Image.network(
+          '${ApiConfig.baseUrl}api/exercise/$exerciseId/icon.png',
+          width: size, height: size,
+          fit: BoxFit.cover,
+          headers: apiClient.token != null
+              ? {ApiConfig.authHeader: apiClient.token!}
+              : {},
+          errorBuilder: (_, __, ___) => _numberBadge(i, activeColor, size),
         ),
       );
     }
