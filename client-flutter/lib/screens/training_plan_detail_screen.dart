@@ -286,8 +286,8 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          // Time — dominant 100pt typography, FittedBox für responsive scaling
+          const SizedBox(width: 16),
+          // Time — dominant typography, FittedBox für responsive scaling
           Expanded(
             child: FittedBox(
               fit: BoxFit.scaleDown,
@@ -304,7 +304,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
           // Reset
           IconButton(
             icon: const Icon(Icons.replay_rounded, size: 20),
@@ -410,15 +410,15 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
           if (isExpanded) ...[
             const Divider(color: AppColors.border, height: 1, indent: 14, endIndent: 14),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Metadata chips — compact Wrap
+                  // Metadata chips — compact Wrap (nur wenn vorhanden)
                   if (row.device.isNotEmpty || row.position.isNotEmpty ||
-                      row.sets.isNotEmpty || row.weight.isNotEmpty)
+                      row.sets.isNotEmpty || row.weight.isNotEmpty) ...[
                     Wrap(
-                      spacing: 8, runSpacing: 6,
+                      spacing: 8, runSpacing: 8,
                       children: [
                         if (row.device.isNotEmpty)   _infoChip(row.device),
                         if (row.sets.isNotEmpty)      _infoChip(row.sets),
@@ -426,12 +426,13 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
                         if (row.position.isNotEmpty)  _infoChip(row.position),
                       ],
                     ),
-                  const SizedBox(height: 10),
+                    const SizedBox(height: 8),
+                  ],
 
                   // Timer chips
                   _buildTimerChips(meta, i, row),
 
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   // Action buttons
                   _buildActionRow(key, meta, i, row, isLiked, isDisliked, commentCount),
                 ],
@@ -466,14 +467,12 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
     return _numberBadge(i, activeColor, size);
   }
 
-  Widget _numberBadge(int i, Color color, [double size = 56]) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeInOut,
+  Widget _numberBadge(int i, Color color, double size) {
+    return Container(
       width: size, height: size,
       decoration: BoxDecoration(
         color: color.withAlpha(46),
-        borderRadius: BorderRadius.circular(size >= 80 ? 12 : 8),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Center(child: Text('${i + 1}',
           style: GoogleFonts.inter(
@@ -526,9 +525,9 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
                     letterSpacing: 0.5)),
           ],
         ]),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Wrap(
-          spacing: 6, runSpacing: 6,
+          spacing: 8, runSpacing: 8,
           children: timerValues.map((secs) {
             final isActive = _timer.isCountdown &&
                 _timer.activePrefix == meta.key &&
