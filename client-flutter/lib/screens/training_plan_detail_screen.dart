@@ -296,7 +296,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
                 t.display,
                 style: GoogleFonts.inter(
                   color: timeColor,
-                  fontSize: 100,
+                  fontSize: 90,
                   fontWeight: FontWeight.w700,
                   letterSpacing: -3,
                   height: 1,
