@@ -353,7 +353,8 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
         _timer.activePrefix == meta.key && _timer.activeIndex == i;
     if (isTimerActive) borderColor = meta.color;
 
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: AppColors.surface,
