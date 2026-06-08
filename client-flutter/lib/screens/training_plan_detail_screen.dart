@@ -464,14 +464,13 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
 
   Widget _metaSubtitle(TrainingPlanRow row) {
     final parts = <String>[
-      if (row.timers.isNotEmpty) row.timers.map(_fmtSec).join(', '),
       if (row.device.isNotEmpty) row.device,
       if (row.sets.isNotEmpty)   row.sets,
       if (row.weight.isNotEmpty) row.weight,
     ];
     if (parts.isEmpty) return const SizedBox.shrink();
     return Text(parts.join(' · '),
-        maxLines: 2, overflow: TextOverflow.ellipsis,
+        maxLines: 1, overflow: TextOverflow.ellipsis,
         style: GoogleFonts.inter(
             color: AppColors.muted, fontSize: 11,
             fontWeight: FontWeight.w300));
@@ -536,11 +535,10 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
                   ),
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  if (isActive)
-                    Icon(Icons.play_arrow_rounded, size: 14, color: meta.color)
-                  else
-                    Icon(Icons.timer_outlined, size: 14, color: AppColors.muted),
-                  const SizedBox(width: 4),
+                  if (isActive) ...[
+                    Icon(Icons.play_arrow_rounded, size: 14, color: meta.color),
+                    const SizedBox(width: 4),
+                  ],
                   Text(_fmtSec(secs),
                       style: GoogleFonts.inter(
                           color: isActive ? meta.color : AppColors.muted,
