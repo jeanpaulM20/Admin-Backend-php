@@ -406,27 +406,35 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Metadata chips — compact Wrap (nur wenn vorhanden)
-                  if (row.device.isNotEmpty || row.position.isNotEmpty ||
-                      row.sets.isNotEmpty || row.weight.isNotEmpty) ...[
+                  // Timer chips — primäre Aktion zuerst
+                  _buildTimerChips(meta, i, row),
+
+                  const SizedBox(height: 8),
+
+                  // Metadata chips (kurze Felder)
+                  if (row.device.isNotEmpty || row.sets.isNotEmpty ||
+                      row.weight.isNotEmpty ||
+                      (row.position.isNotEmpty && row.position.length <= 35)) ...[
                     Wrap(
                       spacing: 8, runSpacing: 8,
                       children: [
-                        if (row.device.isNotEmpty)   _infoChip(row.device),
-                        if (row.sets.isNotEmpty)      _infoChip(row.sets),
-                        if (row.weight.isNotEmpty)    _infoChip(row.weight),
-                        if (row.position.isNotEmpty)  _infoChip(row.position),
+                        if (row.device.isNotEmpty)                         _infoChip(row.device),
+                        if (row.sets.isNotEmpty)                            _infoChip(row.sets),
+                        if (row.weight.isNotEmpty)                          _infoChip(row.weight),
+                        if (row.position.isNotEmpty && row.position.length <= 35) _infoChip(row.position),
                       ],
                     ),
                     const SizedBox(height: 8),
                   ],
 
-                  // Timer chips
-                  _buildTimerChips(meta, i, row),
-
-                  const SizedBox(height: 8),
                   // Action buttons
                   _buildActionRow(key, meta, i, row, isLiked, isDisliked, commentCount),
+
+                  // Coaching-Notizen (langer position-Text) — sekundär, ganz unten
+                  if (row.position.isNotEmpty && row.position.length > 35) ...[
+                    const SizedBox(height: 8),
+                    _buildNoteBlock(row.position),
+                  ],
                 ],
               ),
             ),
@@ -439,8 +447,8 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
   Widget _buildExerciseBadge(int i, String name, Color color, bool liked, bool disliked) {
     final activeColor = liked ? AppColors.green : disliked ? AppColors.red : color;
     final exerciseId = _exerciseIdMap[name];
-    const double size = 100.0;
-    const double radius = 12.0;
+    const double size = 72.0;
+    const double radius = 10.0;
 
     if (exerciseId != null) {
       return ClipRRect(
@@ -495,6 +503,31 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
     );
   }
 
+  Widget _buildNoteBlock(String text) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('HINWEIS',
+            style: GoogleFonts.inter(
+                color: AppColors.muted, fontSize: 9,
+                fontWeight: FontWeight.w600, letterSpacing: 1.5)),
+        const SizedBox(height: 6),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.surface2,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(text,
+              style: GoogleFonts.inter(
+                  color: AppColors.text.withAlpha(200),
+                  fontSize: 12, height: 1.5)),
+        ),
+      ],
+    );
+  }
+
   // ─── Timer chips ─────────────────────────────────────────────────────────
 
   Widget _buildTimerChips(_SectionMeta meta, int i, TrainingPlanRow row) {
@@ -509,13 +542,6 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
               style: GoogleFonts.inter(
                   color: AppColors.muted, fontSize: 9,
                   fontWeight: FontWeight.w600, letterSpacing: 1.5)),
-          if (row.timers.isEmpty) ...[
-            const SizedBox(width: 6),
-            Text('(Vorschläge)',
-                style: GoogleFonts.inter(
-                    color: AppColors.muted.withAlpha(120), fontSize: 9,
-                    letterSpacing: 0.5)),
-          ],
         ]),
         const SizedBox(height: 8),
         Wrap(
