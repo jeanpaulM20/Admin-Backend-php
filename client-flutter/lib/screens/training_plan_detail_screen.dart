@@ -17,15 +17,14 @@ class _SectionMeta {
   final String key;
   final String label;
   final Color color;
-  final IconData icon;
-  const _SectionMeta(this.key, this.label, this.color, this.icon);
+  const _SectionMeta(this.key, this.label, this.color);
 }
 
 const _sections = [
-  _SectionMeta('sonsomo', 'Aufwärmen',    AppColors.primary, Icons.accessibility_new),
-  _SectionMeta('main',    'Haupttraining', AppColors.blue,    Icons.fitness_center),
-  _SectionMeta('core',    'Core',          AppColors.green,   Icons.self_improvement),
-  _SectionMeta('mobility','Mobilität',     AppColors.orange,  Icons.swap_calls),
+  _SectionMeta('sonsomo', 'Aufwärmen',     AppColors.primary),
+  _SectionMeta('main',    'Haupttraining', AppColors.blue),
+  _SectionMeta('core',    'Core',          AppColors.green),
+  _SectionMeta('mobility','Mobilität',     AppColors.orange),
 ];
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
@@ -237,13 +236,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
           indicatorWeight: 2.5,
           labelStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700),
           unselectedLabelStyle: GoogleFonts.inter(fontSize: 12),
-          tabs: _sections.map((m) => Tab(
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(m.icon, size: 14, color: m.color),
-              const SizedBox(width: 5),
-              Text(m.label.toUpperCase()),
-            ]),
-          )).toList(),
+          tabs: _sections.map((m) => Tab(text: m.label.toUpperCase())).toList(),
         ),
       ]),
     );
