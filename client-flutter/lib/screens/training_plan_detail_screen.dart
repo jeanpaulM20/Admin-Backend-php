@@ -220,52 +220,6 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
     ]);
   }
 
-  // ─── Header ───────────────────────────────────────────────────────────────
-
-  Widget _buildHeader(ClientTrainingPlan plan) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft, end: Alignment.bottomCenter,
-          colors: [Color(0xFF2A3010), Color(0xFF111808), AppColors.background],
-          stops: [0.0, 0.55, 1.0],
-        ),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 4, 12, 16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back_ios, color: AppColors.text, size: 20),
-                onPressed: () => Navigator.pop(context),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 4),
-                    Text(plan.name ?? 'Trainingsplan',
-                        style: GoogleFonts.inter(
-                            color: Colors.white, fontSize: 20,
-                            fontWeight: FontWeight.w800, letterSpacing: -0.5)),
-                    const SizedBox(height: 2),
-                    if (plan.totalExercises > 0)
-                      Text('${plan.totalExercises} Übungen',
-                          style: GoogleFonts.inter(color: Colors.white38, fontSize: 12)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   // ─── Section tabs ─────────────────────────────────────────────────────────
 
   Widget _buildSectionTabs() {
@@ -415,8 +369,8 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(children: [
-                // Exercise icon (56px collapsed → 100px expanded)
-                _buildExerciseBadge(i, row.exercise, meta.color, isLiked, isDisliked, isExpanded),
+                // Exercise image — fixed 100×100
+                _buildExerciseBadge(i, row.exercise, meta.color, isLiked, isDisliked),
                 const SizedBox(width: 12),
                 // Name + hints
                 Expanded(
@@ -488,7 +442,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
     );
   }
 
-  Widget _buildExerciseBadge(int i, String name, Color color, bool liked, bool disliked, bool isExpanded) {
+  Widget _buildExerciseBadge(int i, String name, Color color, bool liked, bool disliked) {
     final activeColor = liked ? AppColors.green : disliked ? AppColors.red : color;
     final exerciseId = _exerciseIdMap[name];
     const double size = 100.0;
