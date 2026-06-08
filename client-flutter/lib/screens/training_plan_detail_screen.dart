@@ -153,8 +153,6 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
   Future<void> _toggleLike(String exerciseKey, String type) async {
     final plan = _plan;
     if (plan?.id == null) return;
-
-    // Snapshot before optimistic update so we can revert precisely (no full reload)
     final prevLikes = Map<String, String>.from(_likes);
     setState(() {
       if (_likes[exerciseKey] == type) {
@@ -172,7 +170,6 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
         setState(() => _likes = Map<String, String>.from(result));
       }
     } catch (_) {
-      // Revert to snapshot — no full re-fetch that would lose user's open tiles
       if (mounted) setState(() => _likes = prevLikes);
     }
   }
@@ -366,7 +363,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
                 // Exercise image — fixed 100×100
                 _buildExerciseBadge(i, row.exercise, meta.color, isLiked, isDisliked),
                 const SizedBox(width: 12),
-                // Name + hints
+                // Name + meta subtitle
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -375,20 +372,22 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
                           style: GoogleFonts.inter(
                               color: AppColors.text, fontSize: 14,
                               fontWeight: FontWeight.w600)),
-                      if (!isExpanded)
-                        _collapsedHints(row, key, commentCount, meta.color),
+                      _metaSubtitle(row),
                     ],
                   ),
                 ),
-                // Comment badge
-                if (commentCount > 0 && !isExpanded)
-                  Row(children: [
-                    Icon(Icons.chat_bubble_outline, size: 12, color: meta.color.withAlpha(200)),
-                    const SizedBox(width: 2),
-                    Text('$commentCount',
-                        style: GoogleFonts.inter(color: meta.color, fontSize: 11)),
-                    const SizedBox(width: 6),
-                  ]),
+                // Comment badge — tappable
+                if (commentCount > 0)
+                  GestureDetector(
+                    onTap: () => _openComments(key, row.exercise),
+                    child: Row(children: [
+                      Icon(Icons.chat_bubble_outline, size: 12, color: meta.color.withAlpha(200)),
+                      const SizedBox(width: 2),
+                      Text('$commentCount',
+                          style: GoogleFonts.inter(color: meta.color, fontSize: 11)),
+                      const SizedBox(width: 6),
+                    ]),
+                  ),
                 // Chevron
                 AnimatedRotation(
                   turns: isExpanded ? 0.5 : 0,
@@ -406,31 +405,14 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Timer chips — primäre Aktion zuerst
+                  // Timer chips
                   _buildTimerChips(meta, i, row),
 
                   const SizedBox(height: 8),
-
-                  // Metadata chips (kurze Felder)
-                  if (row.device.isNotEmpty || row.sets.isNotEmpty ||
-                      row.weight.isNotEmpty ||
-                      (row.position.isNotEmpty && row.position.length <= 35)) ...[
-                    Wrap(
-                      spacing: 8, runSpacing: 8,
-                      children: [
-                        if (row.device.isNotEmpty)                         _infoChip(row.device),
-                        if (row.sets.isNotEmpty)                            _infoChip(row.sets),
-                        if (row.weight.isNotEmpty)                          _infoChip(row.weight),
-                        if (row.position.isNotEmpty && row.position.length <= 35) _infoChip(row.position),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-
-                  // Action buttons
+                  // Feedback
                   _buildActionRow(key, meta, i, row, isLiked, isDisliked, commentCount),
 
-                  // Coaching-Notizen (langer position-Text) — sekundär, ganz unten
+                  // Coaching-Notizen — sekundär, ganz unten
                   if (row.position.isNotEmpty && row.position.length > 35) ...[
                     const SizedBox(height: 8),
                     _buildNoteBlock(row.position),
@@ -480,27 +462,19 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
     );
   }
 
-  Widget _collapsedHints(TrainingPlanRow row, String key, int commentCount, Color accent) {
+  Widget _metaSubtitle(TrainingPlanRow row) {
     final parts = <String>[
       if (row.timers.isNotEmpty) row.timers.map(_fmtSec).join(', '),
       if (row.device.isNotEmpty) row.device,
       if (row.sets.isNotEmpty)   row.sets,
+      if (row.weight.isNotEmpty) row.weight,
     ];
     if (parts.isEmpty) return const SizedBox.shrink();
     return Text(parts.join(' · '),
-        maxLines: 1, overflow: TextOverflow.ellipsis,
-        style: GoogleFonts.inter(color: AppColors.muted, fontSize: 11));
-  }
-
-  Widget _infoChip(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColors.surface2,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(text, style: GoogleFonts.inter(color: AppColors.text, fontSize: 12)),
-    );
+        maxLines: 2, overflow: TextOverflow.ellipsis,
+        style: GoogleFonts.inter(
+            color: AppColors.muted, fontSize: 11,
+            fontWeight: FontWeight.w300));
   }
 
   Widget _buildNoteBlock(String text) {
