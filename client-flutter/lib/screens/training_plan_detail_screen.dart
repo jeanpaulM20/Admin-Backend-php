@@ -302,52 +302,64 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
     final timeColor = (t.isCountdown && t.countdownRemaining == 0 && !t.isRunning)
         ? AppColors.red
         : t.isRunning ? AppColors.primary : AppColors.text;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: GestureDetector(
-        onTap: t.toggle,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          width: 100, height: 100,
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: t.isRunning ? AppColors.primary.withAlpha(180) : AppColors.border,
-              width: t.isRunning ? 1.5 : 1,
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: t.isRunning ? AppColors.primary.withAlpha(180) : AppColors.border,
+          width: t.isRunning ? 1.5 : 1,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Play / Pause
+          GestureDetector(
+            onTap: t.toggle,
+            child: Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: t.isRunning ? AppColors.primary : AppColors.surface2,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                t.isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                color: t.isRunning ? Colors.white : AppColors.primary, size: 24,
+              ),
             ),
           ),
-          child: Stack(
-            children: [
-              Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(t.display,
-                        style: GoogleFonts.inter(
-                            color: timeColor,
-                            fontSize: 19, fontWeight: FontWeight.w700, letterSpacing: 1)),
-                    const SizedBox(height: 3),
-                    Text(t.isCountdown ? 'Countdown' : 'Stoppuhr',
-                        style: GoogleFonts.inter(color: AppColors.muted, fontSize: 9)),
-                    const SizedBox(height: 6),
-                    Icon(t.isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                        color: t.isRunning ? AppColors.primary : AppColors.muted, size: 18),
-                  ],
+          const SizedBox(width: 12),
+          // Time — dominant 100pt typography, FittedBox für responsive scaling
+          Expanded(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.center,
+              child: Text(
+                t.display,
+                style: GoogleFonts.inter(
+                  color: timeColor,
+                  fontSize: 100,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -3,
+                  height: 1,
                 ),
               ),
-              // Reset — bottom-right corner
-              Positioned(
-                bottom: 6, right: 6,
-                child: GestureDetector(
-                  onTap: t.reset,
-                  behavior: HitTestBehavior.opaque,
-                  child: const Icon(Icons.replay_rounded, size: 14, color: AppColors.muted),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
+          const SizedBox(width: 12),
+          // Reset
+          IconButton(
+            icon: const Icon(Icons.replay_rounded, size: 20),
+            color: AppColors.muted,
+            onPressed: t.reset,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          ),
+        ],
       ),
     );
   }
