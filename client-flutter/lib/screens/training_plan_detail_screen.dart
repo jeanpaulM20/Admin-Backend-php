@@ -482,7 +482,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
 
   Widget _collapsedHints(TrainingPlanRow row, String key, int commentCount, Color accent) {
     final parts = <String>[
-      if (row.timers.isNotEmpty) '⏱ ${row.timers.map(_fmtSec).join(', ')}',
+      if (row.timers.isNotEmpty) row.timers.map(_fmtSec).join(', '),
       if (row.device.isNotEmpty) row.device,
       if (row.sets.isNotEmpty)   row.sets,
     ];
@@ -504,27 +504,30 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
   }
 
   Widget _buildNoteBlock(String text) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('HINWEIS',
-            style: GoogleFonts.inter(
-                color: AppColors.muted, fontSize: 9,
-                fontWeight: FontWeight.w600, letterSpacing: 1.5)),
-        const SizedBox(height: 6),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.surface2,
-            borderRadius: BorderRadius.circular(8),
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(width: 2, color: AppColors.border),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Hinweis',
+                    style: GoogleFonts.inter(
+                        color: AppColors.muted, fontSize: 10,
+                        fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                Text(text,
+                    style: GoogleFonts.inter(
+                        color: AppColors.text.withAlpha(180),
+                        fontSize: 12, height: 1.5)),
+              ],
+            ),
           ),
-          child: Text(text,
-              style: GoogleFonts.inter(
-                  color: AppColors.text.withAlpha(200),
-                  fontSize: 12, height: 1.5)),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -534,17 +537,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
     // Use trainer-defined timers if available; otherwise show common presets
     final timerValues = row.timers.isNotEmpty ? row.timers : [30, 60, 90, 120];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(children: [
-          Text('TIMER',
-              style: GoogleFonts.inter(
-                  color: AppColors.muted, fontSize: 9,
-                  fontWeight: FontWeight.w600, letterSpacing: 1.5)),
-        ]),
-        const SizedBox(height: 8),
-        Wrap(
+    return Wrap(
           spacing: 8, runSpacing: 8,
           children: timerValues.map((secs) {
             final isActive = _timer.isCountdown &&
@@ -582,9 +575,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
               ),
             );
           }).toList(),
-        ),
-      ],
-    );
+        );
   }
 
   // ─── Action row (like / dislike / comment) ────────────────────────────────
@@ -633,9 +624,11 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: active ? color.withAlpha(36) : AppColors.surface2,
+          color: active ? color.withAlpha(36) : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: active ? color.withAlpha(120) : AppColors.border),
+          border: Border.all(
+            color: active ? color.withAlpha(120) : Colors.transparent,
+          ),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(icon, size: 14, color: active ? color : AppColors.muted),
