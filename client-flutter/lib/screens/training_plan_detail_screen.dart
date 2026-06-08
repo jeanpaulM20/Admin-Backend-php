@@ -401,7 +401,6 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
 
           // ── Expanded content ──────────────────────────────────────────
           if (isExpanded) ...[
-            const Divider(color: AppColors.border, height: 1, indent: 14, endIndent: 14),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: Column(
