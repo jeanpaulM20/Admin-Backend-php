@@ -1,0 +1,231 @@
+﻿{
+    "name":  "HIIT VO2max Training — 30 Min Sprint-Intervalle",
+    "sonsomo":  [
+                    {
+                        "exercise":  "Barfuß-Lauf-ABC (Skipping, Kniehebelauf)",
+                        "exerciseId":  26,
+                        "isNew":  false,
+                        "device":  "Outdoor/Laufband",
+                        "position":  "Dynamisch, Vorfuß-Fokus",
+                        "weight":  "Eigengewicht",
+                        "sets":  "2×30m",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    },
+                    {
+                        "exercise":  "Einbeinstand Augen geschlossen (30s+)",
+                        "exerciseId":  19,
+                        "isNew":  false,
+                        "device":  "Boden",
+                        "position":  "Barfuß, Augen zu, aktive Fußmuskulatur",
+                        "weight":  "Eigengewicht",
+                        "sets":  "2×20s pro Bein",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    },
+                    {
+                        "exercise":  "Barfuß-Steigerungsläufe (50m progressiv)",
+                        "exerciseId":  27,
+                        "isNew":  false,
+                        "device":  "Outdoor/Laufband",
+                        "position":  "Progressiv 50-70-90% Intensität",
+                        "weight":  "Eigengewicht",
+                        "sets":  "3×50m",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    }
+                ],
+    "main":  [
+                 {
+                     "exercise":  "Aufwärmen",
+                     "isNew":  false,
+                     "device":  "Outdoor/Laufband",
+                     "position":  "RPE 3-4 / Locker-flüssig",
+                     "weight":  "6.0-7.0 km/h oder Dauerlauf-Tempo",
+                     "sets":  "5-8 min progressives Einlaufen",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "VO2max Intervalle (400m Repeats)",
+                     "isNew":  false,
+                     "device":  "Outdoor/Laufband",
+                     "position":  "RPE 9-10 / Maximal",
+                     "weight":  "90-95% Maximalgeschwindigkeit",
+                     "sets":  "6×400m mit 90s Pause",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Tabata Sprints (20s on / 10s off)",
+                     "isNew":  false,
+                     "device":  "Outdoor/Laufband",
+                     "position":  "RPE 10 / Absolutes Maximum",
+                     "weight":  "100% Sprintgeschwindigkeit",
+                     "sets":  "8 Runden (4 Min total)",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Cool-down",
+                     "isNew":  false,
+                     "device":  "Outdoor/Laufband",
+                     "position":  "RPE 2-3 / Sehr locker",
+                     "weight":  "5.0-6.0 km/h oder Spazier-Tempo",
+                     "sets":  "5-8 min sehr lockeres Auslaufen",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 }
+             ],
+    "core":  [
+                 {
+                     "exercise":  "Toe-to-Bar (Körperspannung + Kraft)",
+                     "exerciseId":  113,
+                     "isNew":  false,
+                     "device":  "Klimmzugstange",
+                     "position":  "Hang, Spannung, kontrolliert",
+                     "weight":  "Eigengewicht",
+                     "sets":  "3×5-8",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "TRX Body Saw (Schlingentrainer)",
+                     "exerciseId":  52,
+                     "isNew":  false,
+                     "device":  "TRX/Suspension",
+                     "position":  "Plank-Position, Anti-Rotation",
+                     "weight":  "Eigengewicht",
+                     "sets":  "3×12",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 }
+             ],
+    "mobility":  [
+                     {
+                         "exercise":  "Hip CARs (Hüft-Kreisbewegungen)",
+                         "exerciseId":  133,
+                         "isNew":  false,
+                         "device":  "Boden",
+                         "position":  "90/90 Position, langsam, volle ROM",
+                         "weight":  "Eigengewicht",
+                         "sets":  "2×8 pro Seite",
+                         "dates":  [
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       ""
+                                   ]
+                     },
+                     {
+                         "exercise":  "Ankle CARs (Sprunggelenk-Kreise)",
+                         "exerciseId":  136,
+                         "isNew":  false,
+                         "device":  "Boden",
+                         "position":  "Sitz, aktive Kreisbewegungen",
+                         "weight":  "Eigengewicht",
+                         "sets":  "2×10 pro Fuß",
+                         "dates":  [
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       ""
+                                   ]
+                     }
+                 ],
+    "ai_reasoning":  "Pascal Böhler ist ein männlicher Klient ohne dokumentierte Verletzungen oder chronische Erkrankungen. Da KEINE Leistungstests durchgeführt wurden (alle Parameter als \u0027notTested\u0027 markiert), gibt es keine spezifischen Schwächen zu adressieren — der Plan konzentriert sich rein auf die HIIT-Anforderung: maximale VO2max-Entwicklung in 30 Minuten. Der Plan kombiniert zwei hochintensive Phasen (6×400m Repeats für VO2max + 8×Tabata Sprints für anaerobe Kapazität) mit vollständiger Erholung dazwischen. Die Sonsomo-Phase aktiviert propriozeptive Strukturen durch Barfuß-Lauf-ABC und Einbeinstand-Balance-Work, was die neuronale Bereitschaft für Hochgeschwindigkeitsläufe optimiert. Core und Mobility adressieren Rumpfstabilität (wichtig für effiziente Sprint-Biomechanik) und Hüft-/Sprunggelenk-Mobilität zur Verletzungsprävention. RPE-Skala statt HR verwendet, da HFmax-Daten fehlen. Gesamtdauer: ~5 min Aufwärmen + ~15 min Hauptteil (6×400m ~12 min + 4 min Tabata) + ~5 min Cool-down = 29-30 min. Plan ist für gut trainierte Kunden konzipiert; bei Bedarf können Intervalle reduziert werden (z.B. 4×400m statt 6).",
+    "weaknesses":  [
+
+                   ],
+    "basedOnTestId":  265,
+    "basedOnTestDate":  "2026-04-19T13:48:26.000Z",
+    "contraindications":  [
+
+                          ],
+    "request":  {
+                    "trainingType":  "ausdauer",
+                    "duration":  30,
+                    "equipment":  null,
+                    "ausdauerIntensity":  "hiit"
+                }
+}

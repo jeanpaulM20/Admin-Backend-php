@@ -1,0 +1,332 @@
+﻿{
+    "name":  "Athletik Explosivkraft \u0026 Reaktivschnelligkeit Phase 1",
+    "sonsomo":  [
+                    {
+                        "exercise":  "Barfuß-Lauf-ABC (Skipping, Kniehebelauf)",
+                        "exerciseId":  26,
+                        "isNew":  false,
+                        "device":  "keine",
+                        "position":  "auf ebener Fläche, dynamisch, Fokus auf Vorfußlandung und Kniehub",
+                        "weight":  "Körpergewicht",
+                        "sets":  "3×20m",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    },
+                    {
+                        "exercise":  "Einbeinstand auf instabilem Untergrund",
+                        "exerciseId":  17,
+                        "isNew":  false,
+                        "device":  "Balance Board",
+                        "position":  "30 Sekunden pro Bein, stabiler Stand, Blick fokussiert",
+                        "weight":  "Körpergewicht",
+                        "sets":  "2×30s",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    },
+                    {
+                        "exercise":  "Short Foot Exercise (Kurzfuß nach Janda)",
+                        "exerciseId":  9,
+                        "isNew":  false,
+                        "device":  "keine",
+                        "position":  "sitzend oder stehend, Fußgewölbe aktiv hochziehen ohne Zehen zu krümmen",
+                        "weight":  "Körpergewicht",
+                        "sets":  "3×15",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    },
+                    {
+                        "exercise":  "Seilspringen (Double Unders)",
+                        "exerciseId":  36,
+                        "isNew":  false,
+                        "device":  "Springseil",
+                        "position":  "stehend, aufrechte Körperhaltung, schnelle Handbewegungen",
+                        "weight":  "Körpergewicht",
+                        "sets":  "3×20",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    }
+                ],
+    "main":  [
+                 {
+                     "exercise":  "Box Jump (beidbeinig)",
+                     "exerciseId":  151,
+                     "isNew":  false,
+                     "device":  "keine",
+                     "position":  "Hüfte-breiter Stand, explosive Aufwärtsbewegung, kontrollierte Landung",
+                     "weight":  "Körpergewicht",
+                     "sets":  "4×5",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Kettlebell Swing (Russian)",
+                     "exerciseId":  56,
+                     "isNew":  false,
+                     "device":  "Kettlebell",
+                     "position":  "Hüftbreiter Stand, explosiver Hüftdrive, Kettlebell bis Augenhöhe",
+                     "weight":  "16kg",
+                     "sets":  "4×8",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Bounding (Wechselsprünge)",
+                     "exerciseId":  159,
+                     "isNew":  false,
+                     "device":  "keine",
+                     "position":  "dynamische Wechselsprünge über 30-40m, maximale Distanz pro Sprung",
+                     "weight":  "Körpergewicht",
+                     "sets":  "3×40m",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Kettlebell Snatch",
+                     "exerciseId":  57,
+                     "isNew":  false,
+                     "device":  "Kettlebell",
+                     "position":  "Einbein-Hüft-Antrieb, explosiv hochziehen bis Überkopf, kontrolliert senken",
+                     "weight":  "12kg",
+                     "sets":  "4×5",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Pro Agility Shuttle (5-10-5)",
+                     "exerciseId":  172,
+                     "isNew":  false,
+                     "device":  "keine",
+                     "position":  "schnelle Richtungswechsel, Sprint-Start und Stop, präzise Footwork",
+                     "weight":  "Körpergewicht",
+                     "sets":  "4×1",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Medizinball-Stoß vorwärts (Power Throw)",
+                     "exerciseId":  161,
+                     "isNew":  false,
+                     "device":  "keine",
+                     "position":  "schulterbreit, explosives Drücken gegen Wand oder zu Partner, maximale Schnellkraft",
+                     "weight":  "3kg Medizinball",
+                     "sets":  "4×6",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 }
+             ],
+    "core":  [
+                 {
+                     "exercise":  "Kettlebell Windmill",
+                     "exerciseId":  63,
+                     "isNew":  false,
+                     "device":  "Kettlebell",
+                     "position":  "einbeiniger Stand, Kettlebell über dem Kopf, seitliche Rotation, kontrolliert",
+                     "weight":  "8kg",
+                     "sets":  "3×5",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Toe-to-Bar (Körperspannung + Kraft)",
+                     "exerciseId":  113,
+                     "isNew":  false,
+                     "device":  "keine",
+                     "position":  "Hang, Körperspannung, explosiv Zehen zur Stange, kontrolliert senken",
+                     "weight":  "Körpergewicht",
+                     "sets":  "3×6",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Perturbationstraining (Partner-Stöße)",
+                     "exerciseId":  123,
+                     "isNew":  false,
+                     "device":  "keine",
+                     "position":  "Einbeinstand oder stabiler Stand, Partner stößt unprediktiv gegen Schultern, Stabilität behalten",
+                     "weight":  "Körpergewicht",
+                     "sets":  "3×20s",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 }
+             ],
+    "mobility":  [
+                     {
+                         "exercise":  "Ankle CARs (Sprunggelenk-Kreise)",
+                         "exerciseId":  136,
+                         "isNew":  false,
+                         "device":  "keine",
+                         "position":  "sitzend oder stehend, kontrolierte Kreisbewegungen im Sprunggelenk, große ROM",
+                         "weight":  "Körpergewicht",
+                         "sets":  "2×8",
+                         "dates":  [
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       ""
+                                   ]
+                     },
+                     {
+                         "exercise":  "Hip CARs (Hüft-Kreisbewegungen)",
+                         "exerciseId":  133,
+                         "isNew":  false,
+                         "device":  "keine",
+                         "position":  "Vierfüßlerstand, Bein angehoben, große Hüft-Rotation, volle ROM",
+                         "weight":  "Körpergewicht",
+                         "sets":  "2×8",
+                         "dates":  [
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       ""
+                                   ]
+                     },
+                     {
+                         "exercise":  "Thoracic Spine Rotation (Open Book)",
+                         "exerciseId":  149,
+                         "isNew":  false,
+                         "device":  "keine",
+                         "position":  "seitwärts liegend, Knöchel zusammen, obere Hand zur Gegenseite drehen, ROM maximieren",
+                         "weight":  "Körpergewicht",
+                         "sets":  "2×10",
+                         "dates":  [
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       ""
+                                   ]
+                     }
+                 ],
+    "ai_reasoning":  "Dieser Athletik-Plan adressiert die limitierten Testdaten (nur Hamstrings 40/100 und Wadenkraft 100/100 getestet). Die Schwäche in der Hamstring-Kraft wird durch explosive Hüft-Hinten-Bewegungen (Kettlebell Swings, Bounding, Box Jumps) gezielt trainiert, während die starke Wadenkraft erhalten bleibt durch plyometrische und dynamische Sprunggelenk-Aktivierungen. Der Plan folgt dem Athletik-Paradigma mit frühen Power-Übungen (Box Jump, Snatch → frische ZNS) und betont Explosivkraft, Reaktivschnelligkeit und Agilität. Die Sonsomo-Phase kombiniert propriozeptives Training (Balance Board, Einbeinstand), Fußmuskulatur-Aktivierung (Short Foot, barfuß) und koordinative Herausforderungen (Seilspringen, Lauf-ABC) zur ZNS-Aktivierung. Kettlebell und Springseil sind intensiv integriert (Swings, Snatches, Double Unders). Der Ruhepuls von 66 bpm und Blutdruck (110/49) sind optimal für hochintensive Athletik. Hamstring-Antagonisten (Quadriceps) werden durch Box Jumps und Agility-Drills trainiert; Agonisten-Antagonist-Balance ist gegeben (Hip Extensoren durch Kettlebell-Hinge-Pattern, Sprint-Support). Keine dokumentierten Verletzungen, daher volle Bewegungsfreiheit. Die variierte Trainingshistorie (1-80min Sessions, HR 112-135 bpm) zeigt moderate bis hohe Intensität — dieser Plan pusht gezielt höher mit maximalen Wiederholungen und vollständiger Erholung (120-180s Pausen). Nicht getestete Parameter (Stabilitätspunkte, Adduktoren, Sensomotorik, Zugkraft, Druckkraft, etc.) werden präventiv adressiert: Sensomotorik-Übungen im Sonsomo, Schulter-Stabilität durch Kettlebell-Overhead-Work, Core-Balance durch Windmill + Perturbation.",
+    "weaknesses":  [
+
+                   ],
+    "basedOnTestId":  82,
+    "basedOnTestDate":  "2013-11-01T11:56:14.000Z",
+    "contraindications":  [
+
+                          ],
+    "request":  {
+                    "trainingType":  "athletik",
+                    "duration":  60,
+                    "equipment":  [
+                                      "kettlebell",
+                                      "springseil"
+                                  ]
+                }
+}

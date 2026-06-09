@@ -1,0 +1,345 @@
+﻿{
+    "name":  "Schwellentraining Phase 1 - Ausdauer \u0026 Laufspezifische Core-Stabilität",
+    "sonsomo":  [
+                    {
+                        "exercise":  "Barfuß-Lauf-ABC (Skipping, Kniehebelauf)",
+                        "exerciseId":  26,
+                        "isNew":  false,
+                        "device":  "Outdoor/Laufband",
+                        "position":  "Dynamisches Aufwärmen, kontrollierte Technik",
+                        "weight":  "Eigengewicht",
+                        "sets":  "2×30m",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    },
+                    {
+                        "exercise":  "Einbeinstand Augen geschlossen (30s+)",
+                        "exerciseId":  19,
+                        "isNew":  false,
+                        "device":  "Freier Raum",
+                        "position":  "Barfuß, stabile Position",
+                        "weight":  "Eigengewicht",
+                        "sets":  "2×30s pro Bein",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    },
+                    {
+                        "exercise":  "Short Foot Exercise (Kurzfuß nach Janda)",
+                        "exerciseId":  9,
+                        "isNew":  false,
+                        "device":  "Barfuß",
+                        "position":  "Sitzend oder stehend, Fußgewölbe aktiv",
+                        "weight":  "Eigengewicht",
+                        "sets":  "2×15",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    }
+                ],
+    "main":  [
+                 {
+                     "exercise":  "Aufwärmen",
+                     "isNew":  false,
+                     "device":  "Laufband oder Outdoor",
+                     "position":  "RPE 2-3 / Locker",
+                     "weight":  "6.5-7.0 km/h",
+                     "sets":  "5 min",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Steigerungen (Progression)",
+                     "isNew":  false,
+                     "device":  "Laufband oder Outdoor",
+                     "position":  "RPE 3-4 / Moderat",
+                     "weight":  "7.5-9.5 km/h progressiv",
+                     "sets":  "3×90s",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Schwellen-Intervall 1",
+                     "isNew":  false,
+                     "device":  "Laufband oder Outdoor",
+                     "position":  "RPE 4-5 / Sehr anstrengend — Sprechen nur noch in einzelnen Wörtern",
+                     "weight":  "10.0-10.5 km/h",
+                     "sets":  "4 min",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Aktive Pause 1",
+                     "isNew":  false,
+                     "device":  "Laufband oder Outdoor",
+                     "position":  "RPE 2-3 / Locker joggen",
+                     "weight":  "7.0-7.5 km/h",
+                     "sets":  "3 min",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Schwellen-Intervall 2",
+                     "isNew":  false,
+                     "device":  "Laufband oder Outdoor",
+                     "position":  "RPE 4-5 / Sehr anstrengend",
+                     "weight":  "10.0-10.5 km/h",
+                     "sets":  "4 min",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Aktive Pause 2",
+                     "isNew":  false,
+                     "device":  "Laufband oder Outdoor",
+                     "position":  "RPE 2-3 / Locker joggen",
+                     "weight":  "7.0-7.5 km/h",
+                     "sets":  "3 min",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Schwellen-Intervall 3",
+                     "isNew":  false,
+                     "device":  "Laufband oder Outdoor",
+                     "position":  "RPE 4-5 / Sehr anstrengend",
+                     "weight":  "10.0-10.5 km/h",
+                     "sets":  "4 min",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Aktive Pause 3",
+                     "isNew":  false,
+                     "device":  "Laufband oder Outdoor",
+                     "position":  "RPE 2-3 / Locker joggen",
+                     "weight":  "7.0-7.5 km/h",
+                     "sets":  "3 min",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Schwellen-Intervall 4",
+                     "isNew":  false,
+                     "device":  "Laufband oder Outdoor",
+                     "position":  "RPE 4-5 / Sehr anstrengend",
+                     "weight":  "10.0-10.5 km/h",
+                     "sets":  "4 min",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Cool-Down",
+                     "isNew":  false,
+                     "device":  "Laufband oder Outdoor",
+                     "position":  "RPE 2 / Sehr locker",
+                     "weight":  "6.5-7.0 km/h",
+                     "sets":  "5 min",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 }
+             ],
+    "core":  [
+                 {
+                     "exercise":  "TRX Body Saw (Schlingentrainer)",
+                     "exerciseId":  52,
+                     "isNew":  false,
+                     "device":  "TRX/Suspension Trainer oder Rings",
+                     "position":  "Plank-Position, Schulterhöhe, Core angespannt",
+                     "weight":  "Eigengewicht",
+                     "sets":  "3×12",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Pallof Press (Anti-Rotations-Stabilität)",
+                     "isNew":  true,
+                     "device":  "Kabelmaschine oder Widerstandsband",
+                     "position":  "Seitlich zur Maschine, Core aktiv, keine Rotation",
+                     "weight":  "10-15 kg oder Gummiband-Widerstand",
+                     "sets":  "3×10 pro Seite",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 }
+             ],
+    "mobility":  [
+                     {
+                         "exercise":  "Hip CARs (Hüft-Kreisbewegungen)",
+                         "exerciseId":  133,
+                         "isNew":  false,
+                         "device":  "Freier Raum",
+                         "position":  "Stehend oder liegend, volle ROM durch alle Bewegungsebenen",
+                         "weight":  "Eigengewicht",
+                         "sets":  "2×8 pro Bein",
+                         "dates":  [
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       ""
+                                   ]
+                     },
+                     {
+                         "exercise":  "Ankle CARs (Sprunggelenk-Kreise)",
+                         "exerciseId":  136,
+                         "isNew":  false,
+                         "device":  "Freier Raum",
+                         "position":  "Sitzend, Fuß frei beweglich",
+                         "weight":  "Eigengewicht",
+                         "sets":  "2×10 pro Fuß",
+                         "dates":  [
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       ""
+                                   ]
+                     }
+                 ],
+    "ai_reasoning":  "Dieser Plan adressiert das identifizierte Core-Defizit (Unterarmstütz 30s vs. Benchmark 60s) mit gezielter Rumpfstabilisierung durch TRX Body Saw und Pallof Press, die dynamische und anti-rotatorische Stabilität trainieren. Das Schwellentraining nach norwegischem 4×4-Minuten-Modell verschieb die anaerobe Schwelle und steigert die aerobe Leistungsfähigkeit — ideal für einen Kunden ohne chronische Verletzungen. Die Sonsomo-Phase nutzt propriozeptives Training (Einbeinstand, Barfuß-ABC, Short Foot) zur Aktivierung des zentralen Nervensystems und der Fußmuskulatur, essentiell für Laufeffizienz. Die Mobility-Phase (Hip CARs, Ankle CARs) erhält volle ROM und bereitet den Kunden auf wiederholte Laufzyklen vor. Die Test-Ergebnisse (5 Klimmzüge, 33 Push-ups, 129cm Wall Squat) deuten auf ein solides Grundtraining hin, daher sind die Schwellen-Intensität (RPE 4-5) und die Intervall-Struktur angemessen. Mit maximalem Ruhepuls von 60 bpm und Maximalfrequenz von 187 bpm liegt das Schwellen-Tempo bei ~170-175 bpm, entsprechend ~10.0-10.5 km/h. Die fehlende medizinische Anamnese und Trainingshistorie sowie nicht getestete Parameter (Hamstring-Flexibilität, Stabilitätspunkte, Sensomotorik) werden durch konservative Progression und Core-Fokus kompensiert.",
+    "weaknesses":  [
+                       {
+                           "field":  "forearm_support",
+                           "label":  "Unterarmstütz (Sek.)",
+                           "value":  30,
+                           "benchmark":  60,
+                           "deficit":  50,
+                           "category":  "core"
+                       }
+                   ],
+    "basedOnTestId":  9,
+    "basedOnTestDate":  "2013-02-20T17:58:44.000Z",
+    "contraindications":  [
+
+                          ],
+    "request":  {
+                    "trainingType":  "ausdauer",
+                    "duration":  45,
+                    "equipment":  null,
+                    "ausdauerIntensity":  "schwelle"
+                }
+}

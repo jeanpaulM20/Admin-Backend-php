@@ -1,0 +1,329 @@
+﻿{
+    "name":  "Mental Health \u0026 Flow - Achtsamkeit \u0026 Propriozeption",
+    "sonsomo":  [
+                    {
+                        "exercise":  "Short Foot Exercise (Kurzfuß nach Janda)",
+                        "exerciseId":  9,
+                        "isNew":  false,
+                        "device":  "Yogamatte / Boden",
+                        "position":  "Sitzend oder stehend, barfuß, bewusste Aktivierung des Fußgewölbes",
+                        "weight":  "Eigengewicht",
+                        "sets":  "2×20",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    },
+                    {
+                        "exercise":  "Einbeinstand auf instabilem Untergrund",
+                        "exerciseId":  17,
+                        "isNew":  false,
+                        "device":  "Balance Board oder Therapiekreisel",
+                        "position":  "Stehend einbeinig, Augen offen, langsame Kopfbewegung zur vestibulären Aktivierung",
+                        "weight":  "Eigengewicht",
+                        "sets":  "3×30s",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    },
+                    {
+                        "exercise":  "Slackline Walking (vorwärts/rückwärts)",
+                        "exerciseId":  115,
+                        "isNew":  false,
+                        "device":  "Slackline in niedriger Höhe (ca. 30cm)",
+                        "position":  "Achtsames, langsames Gehen auf der Slackline mit Fokus auf Körperwahrnehmung",
+                        "weight":  "Eigengewicht",
+                        "sets":  "3×20m",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    },
+                    {
+                        "exercise":  "Toe Yoga (Großzeh heben / Kleinzehen heben)",
+                        "exerciseId":  15,
+                        "isNew":  false,
+                        "device":  "Yogamatte / Boden",
+                        "position":  "Sitzend oder stehend, barfuß, isolierte Zehenkontrolle mit Achtsamkeit",
+                        "weight":  "Eigengewicht",
+                        "sets":  "2×15",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    }
+                ],
+    "main":  [
+                 {
+                     "exercise":  "Animal Flow (Beast-Crab-Scorpion)",
+                     "exerciseId":  150,
+                     "isNew":  false,
+                     "device":  "Yogamatte",
+                     "position":  "Fließende Ganzkörper-Bewegungen am Boden mit Fokus auf Bewegungsqualität und Flow-Erlebnis",
+                     "weight":  "Eigengewicht",
+                     "sets":  "3×45s",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Slackline Yoga Poses (Tree, Warrior)",
+                     "exerciseId":  116,
+                     "isNew":  false,
+                     "device":  "Slackline",
+                     "position":  "Yoga-Positionen auf der Slackline: Tree Pose einbeinig, Warrior-Varianten mit Achtsamkeit",
+                     "weight":  "Eigengewicht",
+                     "sets":  "3×30s",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Shoulder CARs (Schulter-Kreisbewegungen)",
+                     "exerciseId":  134,
+                     "isNew":  false,
+                     "device":  "Yogamatte / Freiraum",
+                     "position":  "Stehend, kontrollierte Schulter-Rotationen durch volles Bewegungsausmaß mit Atemkontrolle",
+                     "weight":  "Eigengewicht",
+                     "sets":  "2×8",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Hip CARs (Hüft-Kreisbewegungen)",
+                     "exerciseId":  133,
+                     "isNew":  false,
+                     "device":  "Yogamatte / Freiraum",
+                     "position":  "Stehend einbeinig, kontrollierte Hüft-Kreisbewegungen mit Achtsamkeit",
+                     "weight":  "Eigengewicht",
+                     "sets":  "2×8",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Deep Squat Mobilisation (Goblet Hold)",
+                     "exerciseId":  147,
+                     "isNew":  false,
+                     "device":  "Kettlebell oder Medizinball",
+                     "position":  "Tiefe Kniebeuge mit Gewicht in der Hand, 60-90s halten mit ruhigem Atem",
+                     "weight":  "8kg Kettlebell",
+                     "sets":  "2×60s",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Thoracic Spine Rotation (Open Book)",
+                     "exerciseId":  149,
+                     "isNew":  false,
+                     "device":  "Yogamatte",
+                     "position":  "Seitenlage, kontrollierte BWS-Rotation mit Atemfokus zur Achtsamskeitsförderung",
+                     "weight":  "Eigengewicht",
+                     "sets":  "2×8",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 }
+             ],
+    "core":  [
+                 {
+                     "exercise":  "Scapula Push-Up (Protraktion/Retraktion)",
+                     "exerciseId":  109,
+                     "isNew":  false,
+                     "device":  "Yogamatte",
+                     "position":  "Plank-Position, Schulterblatt-Bewegung ohne Arm-Beugung, langsam und kontrolliert",
+                     "weight":  "Eigengewicht",
+                     "sets":  "2×12",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Spine CARs (Wirbelsäulen-Segmentierung)",
+                     "exerciseId":  135,
+                     "isNew":  false,
+                     "device":  "Yogamatte",
+                     "position":  "Vierfüßlerstand oder Sitz, segmentale Wirbelsäulen-Rotation mit Atemkontrolle",
+                     "weight":  "Eigengewicht",
+                     "sets":  "2×8",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Aktive Brustwirbelsäulen-Extension (Foam Roller)",
+                     "exerciseId":  146,
+                     "isNew":  false,
+                     "device":  "Faszienrolle",
+                     "position":  "Rückenlage über Foam Roller, aktive Extension mit bewusster Atmung und Thorax-Öffnung",
+                     "weight":  "Eigengewicht",
+                     "sets":  "2×60s",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 }
+             ],
+    "mobility":  [
+                     {
+                         "exercise":  "World\u0027s Greatest Stretch",
+                         "exerciseId":  148,
+                         "isNew":  false,
+                         "device":  "Yogamatte",
+                         "position":  "Dynamische Multi-Ebenen-Dehnung mit Atemfluss, langsam und achtsam ausgeführt",
+                         "weight":  "Eigengewicht",
+                         "sets":  "2×5",
+                         "dates":  [
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       ""
+                                   ]
+                     },
+                     {
+                         "exercise":  "Aktive Hüftbeuger-Dehnung mit Kontraktion",
+                         "exerciseId":  145,
+                         "isNew":  false,
+                         "device":  "Yogamatte oder Klimmzugstange",
+                         "position":  "Half-Kneeling oder Low-Lunge, isometrische Kontraktion mit progressiver Dehnung, Atemfokus",
+                         "weight":  "Eigengewicht",
+                         "sets":  "2×45s",
+                         "dates":  [
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       ""
+                                   ]
+                     },
+                     {
+                         "exercise":  "Ankle CARs (Sprunggelenk-Kreise)",
+                         "exerciseId":  136,
+                         "isNew":  false,
+                         "device":  "Yogamatte / Stuhl",
+                         "position":  "Sitzend oder stehend, kontrolierte Sprunggelenk-Rotation mit Achtsamkeit auf Fußmuskulatur",
+                         "weight":  "Eigengewicht",
+                         "sets":  "2×8",
+                         "dates":  [
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       ""
+                                   ]
+                     }
+                 ],
+    "ai_reasoning":  "Der Trainingsplan wurde für Mental-Health-Fokus mit starkem Schwerpunkt auf Propriozeption, Achtsamkeit und Flow-Erlebnis gestaltet. Da keine spezifischen Leistungstests durchgeführt wurden, konzentriert sich der Plan auf neuronale Stimulation, Körperwahrnehmung und Parasympathikus-Aktivierung — zentral für psychische Gesundheit. Die Sonsomo-Phase aktiviert die intrinsische Fußmuskulatur und propriozeptive Systeme (Short Foot, instabiler Untergrund, Slackline) zur Verbesserung der Bodenwahrnehmung und Achtsamkeit. Die Main-Phase nutzt fließende Ganzkörper-Bewegungen (Animal Flow) und Slackline-Yoga für Flow-Erlebnis, kombiniert mit CARs für aktive Beweglichkeit und neuronale Aktivierung. Die Core-Phase fokussiert auf Scapula-Stabilität und Wirbelsäulen-Segmentierung mit Atemkontrolle. Die Mobility-Phase schließt mit aktiven Dehnungen und CARs ab. Das Intensitätsniveau ist moderat (RPE 4-6/10), mit Fokus auf Bewegungsqualität statt Leistung. Die verfügbare Ausrüstung (Slackline, Balance Board, Faszienrolle, Kettlebell) unterstützt optimal die Therapieziele. Keine Kontraindikationen berücksichtigt, da keine medizinische Anamnese oder Verletzungen vorliegen.",
+    "weaknesses":  [
+
+                   ],
+    "basedOnTestId":  265,
+    "basedOnTestDate":  "2026-04-19T13:48:26.000Z",
+    "contraindications":  [
+
+                          ],
+    "request":  {
+                    "trainingType":  "mental_health",
+                    "duration":  60,
+                    "equipment":  null
+                }
+}

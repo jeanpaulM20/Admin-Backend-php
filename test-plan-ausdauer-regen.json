@@ -1,0 +1,193 @@
+﻿{
+    "name":  "Regeneratives Ausdauertraining GA1 - 45 Minuten",
+    "sonsomo":  [
+                    {
+                        "exercise":  "Short Foot Exercise (Kurzfuß nach Janda)",
+                        "exerciseId":  9,
+                        "isNew":  false,
+                        "device":  "Barfuß",
+                        "position":  "Sitzend oder stehend, Fokus auf Fußgewölbe-Aktivierung",
+                        "weight":  "Eigengewicht",
+                        "sets":  "2×15",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    },
+                    {
+                        "exercise":  "Einbeinstand auf instabilem Untergrund",
+                        "exerciseId":  17,
+                        "isNew":  false,
+                        "device":  "Balance Board oder weiches Kissen",
+                        "position":  "Aufrechter Stand, Arme zur Balance ausgestreckt",
+                        "weight":  "Eigengewicht",
+                        "sets":  "2×30s pro Bein",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    },
+                    {
+                        "exercise":  "Barfuß-Lauf-ABC (Skipping, Kniehebelauf)",
+                        "exerciseId":  26,
+                        "isNew":  false,
+                        "device":  "Freifläche oder Laufband",
+                        "position":  "Lockerer Tempo-Fokus auf Lauftechnik",
+                        "weight":  "Eigengewicht",
+                        "sets":  "2×50m",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    }
+                ],
+    "main":  [
+                 {
+                     "exercise":  "Aufwärmen",
+                     "isNew":  false,
+                     "device":  "Laufband oder Outdoor",
+                     "position":  "RPE 3-4 / Sehr locker — Konversationstempo",
+                     "weight":  "5.5 km/h",
+                     "sets":  "5 min",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "GA1 Dauerlauf (regenerativ)",
+                     "isNew":  false,
+                     "device":  "Laufband oder Outdoor",
+                     "position":  "RPE 4-5 / Locker — leichte Unterhaltung möglich",
+                     "weight":  "5.5-6.0 km/h",
+                     "sets":  "30 min",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Cool-down / Auslaufen",
+                     "isNew":  false,
+                     "device":  "Laufband oder Outdoor",
+                     "position":  "RPE 3 / Sehr locker — ruhiges Gehen oder Walken",
+                     "weight":  "4.5 km/h",
+                     "sets":  "5 min",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 }
+             ],
+    "core":  [
+                 {
+                     "exercise":  "Plank Hold (statische Rumpfstabilität)",
+                     "isNew":  true,
+                     "device":  "Gymnastikmatte",
+                     "position":  "Unterarmstütz, neutrale Wirbelsäule, Core aktiviert",
+                     "weight":  "Eigengewicht",
+                     "sets":  "2×20-30s",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 }
+             ],
+    "mobility":  [
+                     {
+                         "exercise":  "Hip CARs (Hüft-Kreisbewegungen)",
+                         "exerciseId":  133,
+                         "isNew":  false,
+                         "device":  "Freiraum",
+                         "position":  "Stehend auf einem Bein, kontrollierte Kreisbewegungen",
+                         "weight":  "Eigengewicht",
+                         "sets":  "2×8 pro Bein",
+                         "dates":  [
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       ""
+                                   ]
+                     },
+                     {
+                         "exercise":  "Ankle CARs (Sprunggelenk-Kreise)",
+                         "exerciseId":  136,
+                         "isNew":  false,
+                         "device":  "Sitzend oder stehend",
+                         "position":  "Aktive Bewegungsumfang durch volles ROM",
+                         "weight":  "Eigengewicht",
+                         "sets":  "2×8 pro Fuß",
+                         "dates":  [
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       ""
+                                   ]
+                     }
+                 ],
+    "ai_reasoning":  "Pascal Böhler hat keine dokumentierten Verletzungen, Erkrankungen oder medizinischen Kontraindikationen. Der Leistungstest wurde nicht durchgeführt (alle Parameter als \u0027notTested\u0027 markiert), daher gibt es keine spezifischen Schwächen zu adressieren. Das regenerative Ausdauertraining (GA1) mit 45 Minuten wurde gemäß Trainings-Vorgaben strukturiert: (1) Sonsomo-Phase fokussiert auf propriozeptive Aktivierung und laufspezifische Vorbereitung (Kurzfuß, Balance, Lauf-ABC); (2) Main-Phase besteht aus klassischem GA1-Dauerlauf bei RPE 4-5 mit 30 Minuten kontinuierlicher, lockerer Belastung — dieser Intensitätsbereich ist kardiovaskulär effektiv und regenerativ, perfekt für Ausdauer-Basistraining; (3) Core-Bereich mit minimalem Plank-Hold zur Rumpfstabilisierung; (4) Mobility-Phase mit aktiven Bewegungsmustern (Hip/Ankle CARs) zur Erhaltung der Gelenksmobilität nach dem Lauftraining. Keine spezifischen Schwächen identifiziert, daher liegt der Fokus auf bewegungspräventiven Maßnahmen und lauftechnischer Vorbereitung. Antagonist-Balance ist für Dauerlauf natürlich gegeben — untere Extremität wird gleichmäßig belastet.",
+    "weaknesses":  [
+
+                   ],
+    "basedOnTestId":  265,
+    "basedOnTestDate":  "2026-04-19T13:48:26.000Z",
+    "contraindications":  [
+
+                          ],
+    "request":  {
+                    "trainingType":  "ausdauer",
+                    "duration":  45,
+                    "equipment":  null,
+                    "ausdauerIntensity":  "regenerativ"
+                }
+}

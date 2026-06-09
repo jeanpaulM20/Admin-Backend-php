@@ -13,5 +13,11 @@
       "runtimeArgs": ["run", "--rm", "-p", "80:80", "admin-backend-php"],
       "port": 80
     }
+  ,{
+      "name": "client-app",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["serve_client.js"],
+      "port": 8083
+    }
   ]
 }

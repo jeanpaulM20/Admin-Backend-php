@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../config/app_colors.dart';
 import '../providers/auth_provider.dart';
 import '../providers/appointment_provider.dart';
+import '../providers/daily_quote_provider.dart';
 import '../models/appointment.dart';
 import '../widgets/loading_indicator.dart';
 import '../widgets/error_view.dart';
@@ -28,11 +30,14 @@ class _StartScreenState extends State<StartScreen> {
     if (auth.clientId != null) {
       await context.read<AppointmentProvider>().fetchStart(auth.clientId!);
     }
+    // Quote loads independently — non-blocking, cached per day
+    context.read<DailyQuoteProvider>().load();
   }
 
   @override
   Widget build(BuildContext context) {
-    final appt = context.watch<AppointmentProvider>();
+    final appt  = context.watch<AppointmentProvider>();
+    final quote = context.watch<DailyQuoteProvider>();
     final firstName = appt.startData?.firstName ?? '';
     final totalCredits = appt.startData?.totalCredits ?? 0;
 
@@ -90,7 +95,10 @@ class _StartScreenState extends State<StartScreen> {
                                     fontWeight: FontWeight.w800,
                                   ),
                                 ),
-                                const SizedBox(height: 24),
+                                const SizedBox(height: 16),
+
+                                // ── Daily Quote ──
+                                _DailyQuoteWidget(isLoading: quote.isLoading, quote: quote.quote),
 
                                 // Two summary cards side by side
                                 Row(
@@ -169,6 +177,125 @@ class _StartScreenState extends State<StartScreen> {
     );
   }
 }
+
+// ─── Daily Quote ──────────────────────────────────────────────────────────────
+
+class _DailyQuoteWidget extends StatelessWidget {
+  final bool isLoading;
+  final dynamic quote; // DailyQuote?
+
+  const _DailyQuoteWidget({required this.isLoading, required this.quote});
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) return const _QuoteShimmer();
+    if (quote == null) return const SizedBox(height: 8);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '„${quote.text}“',
+            style: GoogleFonts.inter(
+              color: AppColors.text.withAlpha(140),
+              fontSize: 13,
+              fontWeight: FontWeight.w400,
+              fontStyle: FontStyle.italic,
+              height: 1.55,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '— ${quote.author}',
+            style: GoogleFonts.inter(
+              color: AppColors.muted,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuoteShimmer extends StatefulWidget {
+  const _QuoteShimmer();
+  @override
+  State<_QuoteShimmer> createState() => _QuoteShimmerState();
+}
+
+class _QuoteShimmerState extends State<_QuoteShimmer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _anim = Tween<double>(begin: 0.25, end: 0.55).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (_, __) => Opacity(
+        opacity: _anim.value,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                height: 12,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: AppColors.surface2,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                height: 12,
+                width: 220,
+                decoration: BoxDecoration(
+                  color: AppColors.surface2,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                height: 10,
+                width: 120,
+                decoration: BoxDecoration(
+                  color: AppColors.surface2,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Summary Card ─────────────────────────────────────────────────────────────
 
 class _SummaryCard extends StatelessWidget {
   final IconData icon;

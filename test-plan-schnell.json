@@ -1,0 +1,234 @@
+﻿{
+    "name":  "Sprint \u0026 Schnelligkeit - Basis",
+    "sonsomo":  [
+                    {
+                        "exercise":  "Short Foot Exercise (Kurzfuß nach Janda)",
+                        "exerciseId":  9,
+                        "isNew":  false,
+                        "device":  "barfuß",
+                        "position":  "Sitzend oder stehend, Füße flach auf dem Boden",
+                        "weight":  "Eigengewicht",
+                        "sets":  "2×20",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    },
+                    {
+                        "exercise":  "Barfuß-Lauf-ABC (Skipping, Kniehebelauf)",
+                        "exerciseId":  26,
+                        "isNew":  false,
+                        "device":  "barfuß",
+                        "position":  "Freie Fläche, progressiv: Skipping → Kniehebelauf → Anfersen",
+                        "weight":  "Eigengewicht",
+                        "sets":  "3×30m",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    },
+                    {
+                        "exercise":  "Einbeinstand Augen geschlossen (30s+)",
+                        "exerciseId":  19,
+                        "isNew":  false,
+                        "device":  "barfuß",
+                        "position":  "Stehend auf einem Bein, Augen geschlossen",
+                        "weight":  "Eigengewicht",
+                        "sets":  "3×30s",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    }
+                ],
+    "main":  [
+                 {
+                     "exercise":  "Seilspringen (Double Unders)",
+                     "exerciseId":  36,
+                     "isNew":  false,
+                     "device":  "springseil",
+                     "position":  "Freie Fläche, Double-Under-Technik (2x pro Umdrehung)",
+                     "weight":  "Eigengewicht",
+                     "sets":  "5×20s",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Barfuß-Steigerungsläufe (50m progressiv)",
+                     "exerciseId":  27,
+                     "isNew":  false,
+                     "device":  "barfuß",
+                     "position":  "Freie Fläche oder Rasen, von 50-100% Maximalgeschwindigkeit",
+                     "weight":  "Eigengewicht",
+                     "sets":  "4×50m",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Pogo Hops (Sprunggelenk-Reaktivkraft)",
+                     "exerciseId":  165,
+                     "isNew":  false,
+                     "device":  "barfuß",
+                     "position":  "Stehend, schnelle Sprünge auf den Fußballen, minimale Bodenzeit",
+                     "weight":  "Eigengewicht",
+                     "sets":  "4×15",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Flying Sprint (Überschnelligkeit 10-30m)",
+                     "exerciseId":  180,
+                     "isNew":  false,
+                     "device":  "barfuß",
+                     "position":  "Freie Fläche, 20m Anlauf + 20m maximale Sprintgeschwindigkeit",
+                     "weight":  "Eigengewicht",
+                     "sets":  "5×20m",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 }
+             ],
+    "core":  [
+                 {
+                     "exercise":  "Pallof Press dynamisch (Anti-Rotation)",
+                     "isNew":  true,
+                     "device":  "widerstandsband",
+                     "position":  "Seitenstand mit Widerstandsband, explosives Ausstrecken und kontrolliertes Zurückziehen",
+                     "weight":  "leicht bis mittel",
+                     "sets":  "3×12",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Dead Bug schnell (Schnellkraft)",
+                     "isNew":  true,
+                     "device":  "eigengewicht",
+                     "position":  "Rückenlage, kontralaterales Armheben/Beinheben in schnellem Tempo",
+                     "weight":  "Eigengewicht",
+                     "sets":  "3×16",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 }
+             ],
+    "mobility":  [
+                     {
+                         "exercise":  "Hip CARs (Hüft-Kreisbewegungen)",
+                         "exerciseId":  133,
+                         "isNew":  false,
+                         "device":  "eigengewicht",
+                         "position":  "Liegend oder sitzend, große kontrollierte Kreisbewegungen der Hüfte",
+                         "weight":  "Eigengewicht",
+                         "sets":  "2×8",
+                         "dates":  [
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       ""
+                                   ]
+                     },
+                     {
+                         "exercise":  "Ankle CARs (Sprunggelenk-Kreise)",
+                         "exerciseId":  136,
+                         "isNew":  false,
+                         "device":  "eigengewicht",
+                         "position":  "Sitzend, Fuß in voller ROM kreisen lassen",
+                         "weight":  "Eigengewicht",
+                         "sets":  "2×8",
+                         "dates":  [
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       ""
+                                   ]
+                     }
+                 ],
+    "ai_reasoning":  "Dieser Plan ist spezialisiert auf Schnelligkeit mit Fokus auf neuromuskuläre Aktivierung und Sprintfähigkeit. Da alle Performance-Tests fehlen und der Kunde keine bisherigen Trainingseinheiten hat, wird ein breites, fundamental-orientiertes Programm gewählt. Die Sonsomo-Phase priorisiert barfuß-basiertes propriozeptives Training (Kurzfuß, Lauf-ABC, Balance auf instabilem Untergrund), um die neuromuskuläre Kontrolle und Fußmuskulatur zu stärken — essentiell für Sprintperformance. Main adressiert Sprint-spezifische Schnellkraft durch Seilspringen (Frequenztraining), Steigerungsläufe (Technik + Beschleunigung), Pogo Hops (Reaktivkraft Sprunggelenk) und Flying Sprints (maximale Geschwindigkeit im erholten Zustand). Core-Übungen sind explosiv und anti-rotativ (essentiell für Sprintstabilität). Mobility fokussiert auf Hüft- und Sprunggelenk-ROM, da diese Gelenke für optimale Sprintmechanik zentral sind. Keine Kontraindikationen erkannt (keine Verletzungen, Krankheiten oder medikamentöse Einnahmen). Das Springseil wird aktiv integriert für Frequenztraining. Alle barfuß-Übungen unterstützen den Trainingstyp-Fokus und die Fußmuskulatur-Entwicklung. Ruhezeiten zwischen Maximalsprints (3-5 Minuten) sind impliziert.",
+    "weaknesses":  [
+
+                   ],
+    "basedOnTestId":  265,
+    "basedOnTestDate":  "2026-04-19T13:48:26.000Z",
+    "contraindications":  [
+
+                          ],
+    "request":  {
+                    "trainingType":  "schnelligkeit",
+                    "duration":  45,
+                    "equipment":  [
+                                      "springseil"
+                                  ]
+                }
+}

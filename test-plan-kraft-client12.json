@@ -1,0 +1,328 @@
+﻿{
+    "name":  "Knie-Rehabilitation \u0026 Sensomotorik Aufbau Phase 1",
+    "sonsomo":  [
+                    {
+                        "exercise":  "Short Foot Exercise (Kurzfuß nach Janda)",
+                        "exerciseId":  9,
+                        "isNew":  false,
+                        "device":  "Eigengewicht, Barfuß",
+                        "position":  "Sitz oder Stand, Fokus auf intrinsische Fußmuskulatur aktivieren",
+                        "weight":  "Eigengewicht",
+                        "sets":  "3×15",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    },
+                    {
+                        "exercise":  "Einbeinstand auf instabilem Untergrund",
+                        "exerciseId":  17,
+                        "isNew":  false,
+                        "device":  "Balance Board oder Kissen",
+                        "position":  "Barfuß, wechselseitig, 30-45s pro Seite",
+                        "weight":  "Eigengewicht",
+                        "sets":  "3×30s",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    },
+                    {
+                        "exercise":  "MFT Board einbeinig (Standstabilität)",
+                        "exerciseId":  119,
+                        "isNew":  false,
+                        "device":  "MFT Balance Board",
+                        "position":  "Barfuß, wechselseitig, langsame Kreiselbewegungen",
+                        "weight":  "Eigengewicht",
+                        "sets":  "3×45s",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    },
+                    {
+                        "exercise":  "Propriozeptiver Einbeinstand (Therapiekreisel)",
+                        "exerciseId":  126,
+                        "isNew":  false,
+                        "device":  "Therapiekreisel / Balance Pad",
+                        "position":  "Barfuß, Augen offen, kontrollierte Gewichtsverlagerung",
+                        "weight":  "Eigengewicht",
+                        "sets":  "3×40s",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    }
+                ],
+    "main":  [
+                 {
+                     "exercise":  "Exzentrische Spanish Squats (Patellasehne)",
+                     "exerciseId":  72,
+                     "isNew":  false,
+                     "device":  "TRX oder Schlingentrainer",
+                     "position":  "Kniebeuge mit Armeinsatz zur Unterstützung, 4-5s exzentrische Phase",
+                     "weight":  "Eigengewicht",
+                     "sets":  "4×6",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Exzentrische Step-Downs (3s negativ)",
+                     "exerciseId":  79,
+                     "isNew":  false,
+                     "device":  "Stufe/Box (20-30cm)",
+                     "position":  "Kontrollierter Abstieg, 3s pro Wiederholung, gleichmäßige Belastung",
+                     "weight":  "Eigengewicht",
+                     "sets":  "3×8",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Isometric-Eccentric Combo Wandsitzen",
+                     "exerciseId":  74,
+                     "isNew":  false,
+                     "device":  "Wand",
+                     "position":  "Rücken an Wand, Knie 90°, 30s halten",
+                     "weight":  "Eigengewicht",
+                     "sets":  "3×30s",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Exzentrische Nordic Hamstring Curls",
+                     "exerciseId":  76,
+                     "isNew":  false,
+                     "device":  "Partner oder Ankerung",
+                     "position":  "Knie am Boden, exzentrisch absenkend, Hamstring-Fokus",
+                     "weight":  "Eigengewicht",
+                     "sets":  "3×6",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Thoracic Spine Rotation (Open Book)",
+                     "exerciseId":  149,
+                     "isNew":  false,
+                     "device":  "Matte / Boden",
+                     "position":  "Seitlage, Rotation der Brustwirbelsäule, 8-10 WH pro Seite",
+                     "weight":  "Eigengewicht",
+                     "sets":  "3×8",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Band Pull-Apart (Schulterblatt-Stabilität)",
+                     "exerciseId":  110,
+                     "isNew":  false,
+                     "device":  "Widerstandsband (leicht)",
+                     "position":  "Stand, Schulterblatt-Retraktion, hintere Schulter, 12-15 WH",
+                     "weight":  "Leichtes Band",
+                     "sets":  "3×12",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 }
+             ],
+    "core":  [
+                 {
+                     "exercise":  "Pallof Press (Anti-Rotation)",
+                     "isNew":  true,
+                     "device":  "Kabelzug oder Widerstandsband",
+                     "position":  "Stand, seitlich zum Band, Rotation verhindern, 10 WH pro Seite",
+                     "weight":  "10-15kg (Band mittel)",
+                     "sets":  "3×10",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Farmer\u0027s Walk (schwerer Griffkraft-Carry)",
+                     "exerciseId":  106,
+                     "isNew":  false,
+                     "device":  "Hanteln oder Kettlebells",
+                     "position":  "Stand, symmetrisches Tragen, 40m Walk",
+                     "weight":  "2×12kg",
+                     "sets":  "3×40m",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "TRX Body Saw (Schlingentrainer)",
+                     "exerciseId":  52,
+                     "isNew":  false,
+                     "device":  "TRX / Suspension Trainer",
+                     "position":  "Plank-Position, langsame vor/zurück Bewegung, Core-Stabilisation",
+                     "weight":  "Eigengewicht",
+                     "sets":  "3×10",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 }
+             ],
+    "mobility":  [
+                     {
+                         "exercise":  "Hip CARs (Hüft-Kreisbewegungen)",
+                         "exerciseId":  133,
+                         "isNew":  false,
+                         "device":  "Matte / Boden",
+                         "position":  "Sitz oder Vierfüßlerstand, kontrollierte Hüftkreise, 6-8 pro Richtung",
+                         "weight":  "Eigengewicht",
+                         "sets":  "2×8",
+                         "dates":  [
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       ""
+                                   ]
+                     },
+                     {
+                         "exercise":  "Spine CARs (Wirbelsäulen-Segmentierung)",
+                         "exerciseId":  135,
+                         "isNew":  false,
+                         "device":  "Matte / Boden",
+                         "position":  "Vierfüßlerstand, thorakale Rotation und Extension, 6-8 pro Seite",
+                         "weight":  "Eigengewicht",
+                         "sets":  "2×8",
+                         "dates":  [
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       ""
+                                   ]
+                     },
+                     {
+                         "exercise":  "Aktive Brustwirbelsäulen-Extension (Foam Roller)",
+                         "exerciseId":  146,
+                         "isNew":  false,
+                         "device":  "Foam Roller",
+                         "position":  "Rücken auf Roller (BWS-Höhe), kontrollierte Extension, 10-12 WH",
+                         "weight":  "Eigengewicht",
+                         "sets":  "2×12",
+                         "dates":  [
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       ""
+                                   ]
+                     }
+                 ],
+    "ai_reasoning":  "Charyl befindet sich im Aufbau-Training nach einer Knie-Operation mit zusätzlichen Rückenschmerzen im Brustwirbel-Bereich. Der Plan fokussiert auf (1) Sensomotorisches Training (propriozeptive Fundamente mit Einbeinstünden, Balance Board, intrinsischer Fußmuskulatur) zur Wiederherstellung der Gelenkstabilität nach Knie-OP. (2) Exzentrische Kniestrecker-Rehabilitation (Spanish Squats, Step-Downs, Wandsitzen) ohne Sprünge oder tiefe Kniebeugen — STRIKTE Vermeidung von plyometrischen oder hochbelastenden Quadriceps-Übungen, um die Patellasehne zu schonen. (3) Hamstring-Stärkung (Nordic Curls) als Antagonist zur Quad-Dominanz und zur Kniestabilisation. (4) Thorakale Mobilisation und BWS-Extension für die Rückenschmerzen (Open Book, Thoracic CARs, Extension auf Foam Roller). (5) Scapula-Stabilisation (Band Pull-Apart) zur Unterstützung der thorakalen Aufrichtung. (6) Core-Stabilität ohne Rückenlage (Pallof Press, Farmer\u0027s Carry, TRX Body Saw). Der Plan hat ein moderates Tempo, da kein erhöhter Blutdruck/Puls vorliegt (Werte nicht gemessen). Die Körperzusammensetzung (18,5% KF, BCM 32,2kg) deutet auf normales Trainingspotential hin. Muskuläre Balance: Quad-Hamstring Antagonisten gezielt trainiert, hintere Schulter/Rücken für BWS-Kyphose-Korrektur priorisiert. Gesamtdauer ~55-60min optimal.",
+    "weaknesses":  [
+
+                   ],
+    "basedOnTestId":  null,
+    "basedOnTestDate":  null,
+    "contraindications":  [
+                              "Knie-OP (aus Kommentaren)"
+                          ],
+    "request":  {
+                    "trainingType":  "kraft",
+                    "duration":  60,
+                    "equipment":  null
+                }
+}

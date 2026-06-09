@@ -177,7 +177,11 @@
       "Bash(curl -s -w \"\\\\nHTTP: %{http_code}\" \"https://admin-backend-php-production.up.railway.app/api/client/files/1\")",
       "Bash(curl -s -w \"\\\\nHTTP: %{http_code}\" \"https://admin-backend-php-production.up.railway.app/api/client/reviews/1\")",
       "Bash(curl -s -w \"\\\\nHTTP: %{http_code}\" \"https://admin-backend-php-production.up.railway.app/api/client/polar/status/1\")",
-      "Bash(curl -s \"https://admin-backend-php-production.up.railway.app/api/client/debug/1\")"
+      "Bash(curl -s \"https://admin-backend-php-production.up.railway.app/api/client/debug/1\")",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(flutter build *)",
+      "Bash(C:\\\\Users\\\\User\\\\flutter\\\\flutter\\\\bin\\\\flutter.bat build *)",
+      "Bash(git fetch *)"
     ]
   }
 }

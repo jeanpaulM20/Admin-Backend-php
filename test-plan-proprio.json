@@ -1,0 +1,331 @@
+﻿{
+    "name":  "Propriozeptiv Bootcamp: Balance \u0026 Koordination",
+    "sonsomo":  [
+                    {
+                        "exercise":  "Short Foot Exercise (Kurzfuß nach Janda)",
+                        "exerciseId":  9,
+                        "isNew":  false,
+                        "device":  "barfuß",
+                        "position":  "Sitzend oder stehend, Zehen spreizen und Fußgewölbe aktiv anheben",
+                        "weight":  "Eigengewicht",
+                        "sets":  "3×15",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    },
+                    {
+                        "exercise":  "Einbeinstand auf instabilem Untergrund",
+                        "exerciseId":  17,
+                        "isNew":  false,
+                        "device":  "mft",
+                        "position":  "Auf MFT Board einbeinig stehen, Arme ausbalanciert, 30-45s pro Seite",
+                        "weight":  "Eigengewicht",
+                        "sets":  "3×30s",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    },
+                    {
+                        "exercise":  "Slackline Grundposition (Einbeinstand)",
+                        "exerciseId":  114,
+                        "isNew":  false,
+                        "device":  "slackline",
+                        "position":  "Auf Slackline einbeinig stehen, Blick fixieren, aktive Fußmuskulatur",
+                        "weight":  "Eigengewicht",
+                        "sets":  "3×20-30s",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    },
+                    {
+                        "exercise":  "Einbeinstand Augen geschlossen (30s+)",
+                        "exerciseId":  19,
+                        "isNew":  false,
+                        "device":  "barfuß",
+                        "position":  "Auf weichem Untergrund (Rasen/Matte) einbeinig, Augen zu, propriozeptive Challenge",
+                        "weight":  "Eigengewicht",
+                        "sets":  "3×20-30s",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    }
+                ],
+    "main":  [
+                 {
+                     "exercise":  "Zehenklavier (isolierte Zehenkontrolle)",
+                     "exerciseId":  10,
+                     "isNew":  false,
+                     "device":  "barfuß",
+                     "position":  "Sitzend barfuß, einzelne Zehen heben und senken, Koordination trainieren",
+                     "weight":  "Eigengewicht",
+                     "sets":  "3×12",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "MFT Board einbeinig (Standstabilität)",
+                     "exerciseId":  119,
+                     "isNew":  false,
+                     "device":  "mft",
+                     "position":  "Auf MFT Board einbeinig stehen, aktive Stabilisierung durch Fußmuskulatur \u0026 Gluteus medius",
+                     "weight":  "Eigengewicht",
+                     "sets":  "4×30s",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Slackline Walking (vorwärts/rückwärts)",
+                     "exerciseId":  115,
+                     "isNew":  false,
+                     "device":  "slackline",
+                     "position":  "Auf Slackline langsam gehen, Arme ausbalanciert, rückwärts wiederholen",
+                     "weight":  "Eigengewicht",
+                     "sets":  "3×10m",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Balance Board Squat",
+                     "exerciseId":  120,
+                     "isNew":  false,
+                     "device":  "mft",
+                     "position":  "Auf MFT Board beidbeinig Kniebeugen, tiefe Fußmuskulatur-Aktivierung, langsam kontrolliert",
+                     "weight":  "Eigengewicht",
+                     "sets":  "3×12",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Reaktiver Einbeinstand mit Ballwurf",
+                     "exerciseId":  124,
+                     "isNew":  false,
+                     "device":  "mft",
+                     "position":  "Auf MFT Board einbeinig stehen, Ball werfen/fangen, kognitive Doppelaufgabe",
+                     "weight":  "Leichter Ball (1kg)",
+                     "sets":  "3×10",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Star Excursion Balance Test (SEBT)",
+                     "exerciseId":  125,
+                     "isNew":  false,
+                     "device":  "barfuß",
+                     "position":  "Einbeinstand, mit anderer Beinen in 8 Richtungen greifen, Rumpfstabilität \u0026 Gluteus medius",
+                     "weight":  "Eigengewicht",
+                     "sets":  "3×8 Richtungen",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 }
+             ],
+    "core":  [
+                 {
+                     "exercise":  "Wackelbrett Kniebeuge mit Rotation",
+                     "exerciseId":  131,
+                     "isNew":  false,
+                     "device":  "mft",
+                     "position":  "Auf Wackelbrett in Kniebeuge, Oberkörper mit Rotation, seitliche Core-Stabilisierung",
+                     "weight":  "Eigengewicht",
+                     "sets":  "3×10",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Pallof Press Variante (Antirotation auf MFT)",
+                     "isNew":  true,
+                     "device":  "mft",
+                     "position":  "Auf MFT Board stehend mit Widerstandsband: Press nach vorne gegen Rotationskräfte, Core-Stabilität",
+                     "weight":  "Leichtes Widerstandsband",
+                     "sets":  "3×10",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Sensomotorischer Parcours (multi-surface)",
+                     "exerciseId":  128,
+                     "isNew":  false,
+                     "device":  "mft",
+                     "position":  "MFT Board + barfuß gehen, instabile Oberflächen kombinieren, propriozeptive Integration",
+                     "weight":  "Eigengewicht",
+                     "sets":  "3×1 Durchgang",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 }
+             ],
+    "mobility":  [
+                     {
+                         "exercise":  "Ankle CARs (Sprunggelenk-Kreise)",
+                         "exerciseId":  136,
+                         "isNew":  false,
+                         "device":  "barfuß",
+                         "position":  "Sitzend oder stehend, Sprunggelenk kontrolliert in alle Richtungen kreisen, volle ROM",
+                         "weight":  "Eigengewicht",
+                         "sets":  "2×8 pro Richtung",
+                         "dates":  [
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       ""
+                                   ]
+                     },
+                     {
+                         "exercise":  "Hip CARs (Hüft-Kreisbewegungen)",
+                         "exerciseId":  133,
+                         "isNew":  false,
+                         "device":  "barfuß",
+                         "position":  "Stehend einbeinig, Oberschenkel kreisen, Hüftrotatoren \u0026 Gluteus mobilisieren",
+                         "weight":  "Eigengewicht",
+                         "sets":  "2×8 pro Seite",
+                         "dates":  [
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       ""
+                                   ]
+                     },
+                     {
+                         "exercise":  "Deep Squat Mobilisation (Goblet Hold)",
+                         "exerciseId":  147,
+                         "isNew":  false,
+                         "device":  "barfuß",
+                         "position":  "Tiefe Kniebeuge ohne Gewicht oder mit leichtem Objekt, Hüftbeuger \u0026 Sprunggelenk dehnen",
+                         "weight":  "Eigengewicht",
+                         "sets":  "3×30s",
+                         "dates":  [
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       ""
+                                   ]
+                     }
+                 ],
+    "ai_reasoning":  "Dieser propriozeptive 60-Minuten-Plan fokussiert auf Balance, Koordination und sensorische Integration mit MFT Board und Slackline als Kerngeräte. Der Kunde hat ALLE Tests als \u0027notTested\u0027 markiert, weshalb keine spezifischen Schwächen adressiert werden können — der Plan folgt daher der klassischen propriozeptiven Trainingsstruktur mit Progression von Fußmuskulatur-Aktivierung (Short Foot, Zehenklavier) über instabile Untergrund-Übungen (MFT Board einbeinig, Slackline Walking) bis zu kognitiven Doppelaufgaben (Reaktiver Einbeinstand mit Ballwurf, SEBT). Die Sonsomo-Phase ist erweitert auf 4 Übungen und integriert vollständig barfuß-Training und propriozeptive Geräte zur Aktivierung des Nervensystems. Die Main-Sektion adressiert tiefe Fußmuskulatur, unilaterale Stabilität und koordinative Herausforderungen. Die Core-Übungen betonen Anti-Rotation auf instabilem Untergrund, um die neuronale Ansteuerung zu verbessern. Keine Verletzungen oder Kontraindikationen vorhanden. Die Agonist/Antagonist-Balance ist durch die unilateralen Übungen (einbeinige Hüft- und Sprunggelenk-Arbeit) gewährleistet. Körperzusammensetzungsdaten und detaillierte Trainingsziele sind nicht vorhanden, daher liegt der Fokus rein auf propriozeptiver Qualität und neurologischer Adaptation.",
+    "weaknesses":  [
+
+                   ],
+    "basedOnTestId":  265,
+    "basedOnTestDate":  "2026-04-19T13:48:26.000Z",
+    "contraindications":  [
+
+                          ],
+    "request":  {
+                    "trainingType":  "propriozeptiv",
+                    "duration":  60,
+                    "equipment":  [
+                                      "mft",
+                                      "slackline"
+                                  ]
+                }
+}

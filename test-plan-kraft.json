@@ -1,0 +1,256 @@
+﻿{
+    "name":  "Kraft \u0026 Stabilität - Grundaufbau Kettlebell \u0026 Ringe",
+    "sonsomo":  [
+                    {
+                        "exercise":  "Short Foot Exercise (Kurzfuß nach Janda)",
+                        "exerciseId":  9,
+                        "isNew":  false,
+                        "device":  "Barfuß",
+                        "position":  "Sitzend oder stehend, Zehen entspannt, Fußgewölbe aktiv anspannen ohne Zehen zu krümmen",
+                        "weight":  "Körpergewicht",
+                        "sets":  "3×20",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    },
+                    {
+                        "exercise":  "Einbeinstand auf instabilem Untergrund",
+                        "exerciseId":  17,
+                        "isNew":  false,
+                        "device":  "Balance Board / Wackelbrett",
+                        "position":  "Auf einem Bein stehen, Augen offen, Arme zur Balance ausgestreckt",
+                        "weight":  "Körpergewicht",
+                        "sets":  "3×30s pro Seite",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    },
+                    {
+                        "exercise":  "Seilspringen (Double Unders)",
+                        "exerciseId":  36,
+                        "isNew":  false,
+                        "device":  "Springseil",
+                        "position":  "Aufrechte Position, konstantes Tempo, Fokus auf Vorfuß-Landen",
+                        "weight":  "Körpergewicht",
+                        "sets":  "3×20",
+                        "dates":  [
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      ""
+                                  ]
+                    }
+                ],
+    "main":  [
+                 {
+                     "exercise":  "Kettlebell Swing (Russian)",
+                     "exerciseId":  56,
+                     "isNew":  false,
+                     "device":  "Kettlebell",
+                     "position":  "Hüftbreiter Stand, Kettlebell vor Körper, Hüftenstreckung als Antrieb, Schultern neutral",
+                     "weight":  "20kg",
+                     "sets":  "4×8",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Ring Rows (Rudern an Ringen)",
+                     "exerciseId":  43,
+                     "isNew":  false,
+                     "device":  "Ringe",
+                     "position":  "Körper schräg, Griff schulterbreit, Ellenbogen nah am Körper, volle Körperspannung",
+                     "weight":  "Körpergewicht",
+                     "sets":  "4×8",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Ring Push-Ups (Liegestütz an Ringen)",
+                     "exerciseId":  44,
+                     "isNew":  false,
+                     "device":  "Ringe",
+                     "position":  "Ringe auf Schulterhöhe, Körper gerade, Ellenbogen nah am Körper, kontrollierter Bewegungsablauf",
+                     "weight":  "Körpergewicht",
+                     "sets":  "4×8",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Kettlebell Goblet Squat",
+                     "exerciseId":  62,
+                     "isNew":  false,
+                     "device":  "Kettlebell",
+                     "position":  "Kettlebell vor Brust halten, Schulterbreiter Stand, tiefe Kniebeuge mit geraden Rücken",
+                     "weight":  "16kg",
+                     "sets":  "3×10",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "Ring Support Hold (Stütz-Halten)",
+                     "exerciseId":  42,
+                     "isNew":  false,
+                     "device":  "Ringe",
+                     "position":  "Arme gestreckt, Körper isometrisch angespannt, Schulterblätter nach unten-hinten gezogen",
+                     "weight":  "Körpergewicht",
+                     "sets":  "3×20-30s",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 }
+             ],
+    "core":  [
+                 {
+                     "exercise":  "Kettlebell Windmill",
+                     "exerciseId":  63,
+                     "isNew":  false,
+                     "device":  "Kettlebell",
+                     "position":  "Kettlebell über Kopf fixiert, Körper rotiert nach vorne, Blick auf Kettlebell, kontrollierte Bewegung",
+                     "weight":  "12kg",
+                     "sets":  "3×6 pro Seite",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 },
+                 {
+                     "exercise":  "TRX Body Saw (Schlingentrainer)",
+                     "exerciseId":  52,
+                     "isNew":  false,
+                     "device":  "Ringe / Suspension Trainer",
+                     "position":  "Frontplank-Position, Arme in Ringen, Körper vor-zurück bewegen, Core maximal angespannt",
+                     "weight":  "Körpergewicht",
+                     "sets":  "3×12",
+                     "dates":  [
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   "",
+                                   ""
+                               ]
+                 }
+             ],
+    "mobility":  [
+                     {
+                         "exercise":  "Hip CARs (Hüft-Kreisbewegungen)",
+                         "exerciseId":  133,
+                         "isNew":  false,
+                         "device":  "Körpergewicht",
+                         "position":  "Seitlage oder Vierfüßlerstand, Hüfte in großen Kreisen bewegen, voller Bewegungsumfang nutzen",
+                         "weight":  "Körpergewicht",
+                         "sets":  "2×8 pro Seite",
+                         "dates":  [
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       ""
+                                   ]
+                     },
+                     {
+                         "exercise":  "Thoracic Spine Rotation (Open Book)",
+                         "exerciseId":  149,
+                         "isNew":  false,
+                         "device":  "Körpergewicht",
+                         "position":  "Seitlage, Hüfte/Knie gebeugt, obere Hand öffnet Brustkorb nach hinten, Rotation aus BWS",
+                         "weight":  "Körpergewicht",
+                         "sets":  "2×10 pro Seite",
+                         "dates":  [
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       ""
+                                   ]
+                     }
+                 ],
+    "ai_reasoning":  "Pascal Böhler ist ein männlicher Klient ohne dokumentierte Verletzungen oder Erkrankungen. Alle Tests wurden als \u0027notTested\u0027 markiert, daher kann keine spezifische Schwäche identifiziert werden. Der Plan wurde daher als allgemeiner Kraftaufbau mit Fokus auf fundamentale Bewegungsmuster konzipiert. Sonsomo-Phase betont propriozeptives Training (Short Foot für Fußstabilität, Einbeinstand auf instabilen Untergrund für Balance und Gluteus medius Aktivierung, Seilspringen für Koordination und neuromuskuläre Aktivierung). Main-Training nutzt die verfügbaren Geräte Kettlebell und Ringe optimal: Kettlebell Swings trainieren Hüften-Streckung und Hamstrings (Hinge-Pattern), Ring Rows und Ring Push-Ups bilden Push/Pull-Balance ab mit hoher Instabilität (Ringe). Kettlebell Goblet Squat deckt das Squat-Pattern ab, Ring Support Hold trainiert statische Schulterstabilität. Core-Phase mit Kettlebell Windmill (Anti-Rotation, seitliche Bauchmuskulatur) und TRX Body Saw (Anti-Extension) adressiert rumpfstabilisierende Muskeln unter Last. Mobility-Phase mit Hip CARs und Thoracic Spine Rotation erhält Gelenkbeweglichkeit und adressiert typische Mobilität-Defizite (eingeschränkte BWS-Rotation bei sitzenden Tätigkeiten). Die Trainingszeit von 45 Min wird optimal genutzt mit kompakten, hocheffizienten Übungen. Agonist/Antagonist-Balance: Rücken (Ring Rows) vs. Brust (Ring Push-Ups), Hüftstrecker (Swings/Squats) vs. keine direkten Antis (sinnvoll für Anfänger), Schulter-Stabilisatoren (Ringe) trainiert. Keine Kontraindikationen zu beachten.",
+    "weaknesses":  [
+
+                   ],
+    "basedOnTestId":  265,
+    "basedOnTestDate":  "2026-04-19T13:48:26.000Z",
+    "contraindications":  [
+
+                          ],
+    "request":  {
+                    "trainingType":  "kraft",
+                    "duration":  45,
+                    "equipment":  [
+                                      "kettlebell",
+                                      "ringe"
+                                  ]
+                }
+}
