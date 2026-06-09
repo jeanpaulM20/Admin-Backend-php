@@ -198,7 +198,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(plan.name ?? 'Trainingsplan',
-                                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                                    maxLines: 2, overflow: TextOverflow.ellipsis,
                                     style: GoogleFonts.inter(
                                         color: AppColors.text,
                                         fontSize: 15,
@@ -206,7 +206,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                                 if (phaseText.isNotEmpty) ...[
                                   const SizedBox(height: 4),
                                   Text(phaseText,
-                                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                                      maxLines: 2, overflow: TextOverflow.ellipsis,
                                       style: GoogleFonts.inter(
                                           color: AppColors.muted,
                                           fontSize: 11,
@@ -245,8 +245,8 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
   }
 
   Widget _coverImage(ClientTrainingPlan plan, bool locked) {
-    const double size = 56.0;
-    const double radius = 8.0;
+    const double size = 72.0;
+    const double radius = 10.0;
     final exerciseId = plan.coverExerciseName != null
         ? _exerciseIdMap[plan.coverExerciseName!]
         : null;
@@ -272,7 +272,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
       width: size, height: size,
       decoration: BoxDecoration(
         color: (locked ? AppColors.muted : AppColors.primary).withAlpha(38),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Icon(locked ? Icons.lock_outline : Icons.fitness_center,
           color: locked ? AppColors.muted : AppColors.primary, size: 22),
