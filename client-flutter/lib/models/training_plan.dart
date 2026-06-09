@@ -120,6 +120,9 @@ class ClientTrainingPlan {
   /// Client's like/dislike per exercise key (from server, included in full plan).
   final Map<String, String>? clientLikes;
 
+  /// First exercise name — used as cover image key for the plan list card.
+  final String? coverExerciseName;
+
   ClientTrainingPlan({
     this.id,
     this.clientId,
@@ -132,6 +135,7 @@ class ClientTrainingPlan {
     Map<String, int>? sections,
     this.values,
     this.clientLikes,
+    this.coverExerciseName,
   }) : sections = sections ?? {};
 
   int get totalExercises =>
@@ -182,6 +186,7 @@ class ClientTrainingPlan {
           ? Map<String, String>.from(
               (json['clientLikes'] as Map).map((k, v) => MapEntry(k.toString(), v.toString())))
           : null,
+      coverExerciseName: json['coverExerciseName']?.toString(),
     );
   }
 }

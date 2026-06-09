@@ -1,10 +1,12 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../config/app_colors.dart';
+import '../config/api_config.dart';
 import '../models/training_plan.dart';
 import '../providers/auth_provider.dart';
 import '../providers/training_plan_provider.dart';
+import '../services/api_client.dart';
 import 'training_plan_detail_screen.dart';
 import 'coaching_paywall_screen.dart';
 import 'credits_screen.dart';
@@ -21,15 +23,23 @@ class TrainingPlanListScreen extends StatefulWidget {
 class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
   static const _sectionLabels = {
     'sonsomo': 'Aufwärmen',
-    'main': 'Haupt',
-    'core': 'Core',
-    'mobility': 'Mobilität',
+    'main':    'Haupttraining',
+    'core':    'Core',
+    'mobility':'Mobilität',
   };
+
+  static const _sectionOrder = ['sonsomo', 'main', 'core', 'mobility'];
+
+  // Exercise name → id map for cover image display
+  Map<String, int> _exerciseIdMap = {};
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _load();
+      _loadExerciseIds();
+    });
   }
 
   Future<void> _load() async {
@@ -37,6 +47,20 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
     if (auth.clientId != null) {
       await context.read<TrainingPlanProvider>().fetch(auth.clientId!);
     }
+  }
+
+  Future<void> _loadExerciseIds() async {
+    try {
+      final data = await apiClient.get('api/exercise');
+      if (data is List && mounted) {
+        setState(() {
+          _exerciseIdMap = {
+            for (final ex in data)
+              if (ex['name'] != null) ex['name'].toString(): ex['id'] as int,
+          };
+        });
+      }
+    } catch (_) {}
   }
 
   void _openPlan(ClientTrainingPlan plan) {
@@ -94,7 +118,6 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
   Widget _subscriptionBanner(TrainingPlanProvider prov) {
     final sub = prov.subscription;
     final active = sub.active;
-    // Inactive: amber/gold accent — creates desire, not blockade
     final accentColor = active ? AppColors.primary : const Color(0xFFD97706);
     return GestureDetector(
       onTap: active ? null : _openCoachingCredits,
@@ -140,6 +163,13 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
   Widget _planCard(ClientTrainingPlan plan) {
     final locked = plan.locked;
     final borderColor = locked ? AppColors.muted : AppColors.primary;
+
+    // All phases with exercises as plain-text subtitle
+    final phaseText = _sectionOrder
+        .where((key) => (plan.sections[key] ?? 0) > 0)
+        .map((key) => '${_sectionLabels[key]} ${plan.sections[key]}')
+        .join(' · ');
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: ClipRRect(
@@ -161,15 +191,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                       padding: const EdgeInsets.all(16),
                       child: Row(
                         children: [
-                          Container(
-                            width: 40, height: 40,
-                            decoration: BoxDecoration(
-                              color: (locked ? AppColors.muted : AppColors.primary).withAlpha(38),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(locked ? Icons.lock_outline : Icons.fitness_center,
-                                color: locked ? AppColors.muted : AppColors.primary, size: 20),
-                          ),
+                          _coverImage(plan, locked),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -178,13 +200,18 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                                 Text(plan.name ?? 'Trainingsplan',
                                     maxLines: 1, overflow: TextOverflow.ellipsis,
                                     style: GoogleFonts.inter(
-                                        color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
-                                const SizedBox(height: 6),
-                                Wrap(spacing: 6, runSpacing: 4, children: [
-                                  _countChip('${plan.totalExercises} Übungen', AppColors.primary),
-                                  ...plan.sections.entries.take(2).map((e) =>
-                                      _countChip('${_sectionLabels[e.key] ?? e.key} ${e.value}', AppColors.muted)),
-                                ]),
+                                        color: AppColors.text,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700)),
+                                if (phaseText.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(phaseText,
+                                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.inter(
+                                          color: AppColors.muted,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w400)),
+                                ],
                               ],
                             ),
                           ),
@@ -198,7 +225,9 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                               ),
                               child: Text('Abo',
                                   style: GoogleFonts.inter(
-                                      color: AppColors.orange, fontSize: 10, fontWeight: FontWeight.w700)),
+                                      color: AppColors.orange,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700)),
                             )
                           else
                             const Icon(Icons.chevron_right, color: AppColors.muted, size: 20),
@@ -215,15 +244,38 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
     );
   }
 
-  Widget _countChip(String label, Color color) {
+  Widget _coverImage(ClientTrainingPlan plan, bool locked) {
+    const double size = 56.0;
+    const double radius = 8.0;
+    final exerciseId = plan.coverExerciseName != null
+        ? _exerciseIdMap[plan.coverExerciseName!]
+        : null;
+    if (exerciseId != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: Image.network(
+          '${ApiConfig.baseUrl}api/exercise/$exerciseId/icon.png',
+          width: size, height: size,
+          fit: BoxFit.cover,
+          headers: apiClient.token != null
+              ? {ApiConfig.authHeader: apiClient.token!}
+              : {},
+          errorBuilder: (_, __, ___) => _fallbackIcon(locked, size),
+        ),
+      );
+    }
+    return _fallbackIcon(locked, size);
+  }
+
+  Widget _fallbackIcon(bool locked, double size) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      width: size, height: size,
       decoration: BoxDecoration(
-        color: color.withAlpha(28),
+        color: (locked ? AppColors.muted : AppColors.primary).withAlpha(38),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(label,
-          style: GoogleFonts.inter(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+      child: Icon(locked ? Icons.lock_outline : Icons.fitness_center,
+          color: locked ? AppColors.muted : AppColors.primary, size: 22),
     );
   }
 

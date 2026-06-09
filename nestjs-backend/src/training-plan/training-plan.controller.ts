@@ -38,10 +38,16 @@ export class TrainingPlanController {
    */
   private toTeaser(plan: TrainingPlan) {
     const sections: Record<string, number> = {};
+    let coverExerciseName: string | undefined;
     try {
       const v = typeof plan.values === 'string' ? JSON.parse(plan.values) : (plan.values ?? {});
       for (const key of ['sonsomo', 'main', 'core', 'mobility']) {
-        if (Array.isArray(v?.[key])) sections[key] = v[key].length;
+        if (Array.isArray(v?.[key])) {
+          sections[key] = v[key].length;
+          if (!coverExerciseName && v[key].length > 0 && v[key][0]?.exercise) {
+            coverExerciseName = v[key][0].exercise;
+          }
+        }
       }
     } catch {
       /* malformed values → empty section map */
@@ -56,6 +62,7 @@ export class TrainingPlanController {
       locked: true,
       requiresSubscription: true,
       sections,
+      ...(coverExerciseName ? { coverExerciseName } : {}),
     };
   }
 
