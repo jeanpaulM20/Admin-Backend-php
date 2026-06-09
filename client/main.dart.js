@@ -98222,22 +98222,22 @@ A.bB(r,!1).fh(s)},
 ajj(a){var s,r,q=null,p=a.r,o=p?B.r:B.e,n=new A.dU(new A.as(B.a49,new A.aE1(a),t.Hd),new A.aE2(a),t.lJ).bP(0," \xb7 "),m=A.a2(8),l=A.S(20,B.e.gj(0)>>>16&255,B.e.gj(0)>>>8&255,B.e.gj(0)&255),k=A.S(10,B.e.gj(0)>>>16&255,B.e.gj(0)>>>8&255,B.e.gj(0)&255),j=A.a6(q,q,B.i,o,q,q,q,q,q,q,q,q,q,3),i=this.a9C(a,p),h=a.c
 if(h==null)h="Trainingsplan"
 s=t.p
-h=A.a([A.H(h,1,B.aE,q,q,A.bA().$3$color$fontSize$fontWeight(B.H,15,B.G),q,q)],s)
-if(n.length!==0)B.b.L(h,A.a([B.bO,A.H(n,1,B.aE,q,q,A.bA().$3$color$fontSize$fontWeight(B.r,11,B.D),q,q)],s))
+h=A.a([A.H(h,2,B.aE,q,q,A.bA().$3$color$fontSize$fontWeight(B.H,15,B.G),q,q)],s)
+if(n.length!==0)B.b.L(h,A.a([B.bO,A.H(n,2,B.aE,q,q,A.bA().$3$color$fontSize$fontWeight(B.r,11,B.D),q,q)],s))
 i=A.a([i,B.bB,A.b9(A.aR(h,B.J,B.h,B.k),1),B.bm],s)
 if(p){h=A.S(36,B.aV.gj(0)>>>16&255,B.aV.gj(0)>>>8&255,B.aV.gj(0)&255)
 r=A.a2(4)
 i.push(A.a6(q,A.H("Abo",q,q,q,q,A.bA().$3$color$fontSize$fontWeight(B.aV,10,B.G),q,q),B.i,q,q,new A.a1(h,q,q,r,q,q,B.o),q,q,q,q,B.hu,q,q,q))}else i.push(B.VA)
 return new A.av(B.dL,A.NI(m,A.fJ(B.V,q,A.fG(!1,q,!0,new A.CZ(A.aI(A.a([j,A.b9(new A.av(B.bK,A.aI(i,B.m,B.h,B.k),q),1)],s),B.m,B.h,B.k),q),q,!0,q,q,k,q,q,q,q,q,q,new A.aE3(this,a),q,l,q,q),B.i,B.y,0,q,q,q,q,q,B.c7),B.bT),q)},
 a9C(a,b){var s,r,q=a.Q,p=q!=null?this.d.h(0,q):null
-if(p!=null){q=A.a2(8)
+if(p!=null){q=A.a2(10)
 s=$.bE().a
 r=t.N
 s=s!=null?A.ax(["X-Auth-Token",s],r,r):A.J(r,r)
-return A.NI(q,A.aNg(u.t+A.k(p)+"/icon.png",new A.aDW(this,b),B.qs,s,56,56),B.bT)}return this.Q7(b,56)},
+return A.NI(q,A.aNg(u.t+A.k(p)+"/icon.png",new A.aDW(this,b),B.qs,s,72,72),B.bT)}return this.Q7(b,72)},
 Q7(a,b){var s,r,q=null,p=a?B.r:B.e
 p=A.S(38,p.gj(0)>>>16&255,p.gj(0)>>>8&255,p.gj(0)&255)
-s=A.a2(8)
+s=A.a2(10)
 r=a?B.nm:B.dj
 return A.a6(q,A.d2(r,a?B.r:B.e,q,22),B.i,q,q,new A.a1(p,q,q,s,q,q,B.o),q,b,q,q,q,q,q,b)},
 amW(a){var s
@@ -98283,7 +98283,7 @@ A.aE3.prototype={
 $0(){return this.a.air(this.b)},
 $S:0}
 A.aDW.prototype={
-$3(a,b,c){return this.a.Q7(this.b,56)},
+$3(a,b,c){return this.a.Q7(this.b,72)},
 $S:254}
 A.yc.prototype={
 V3(a){return""+A.db(a)+". "+B.v9[A.bs(a)-1]+" "+A.bX(a)},
