@@ -225,24 +225,13 @@ class _EmptyState extends StatelessWidget {
     return Center(
       child: Column(
         children: [
-          const SizedBox(height: 40),
-          Opacity(
-            opacity: 0.4,
-            child: Container(
-              width: 64,
-              height: 64,
-              decoration: const BoxDecoration(
-                color: AppColors.surface2,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.calendar_today_rounded,
-                color: AppColors.muted,
-                size: 28,
-              ),
-            ),
+          const SizedBox(height: 32),
+          const Icon(
+            Icons.calendar_today_rounded,
+            color: AppColors.muted,
+            size: 32,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           const Text(
             'Dein nächstes Training wartet',
             style: TextStyle(
@@ -262,16 +251,15 @@ class _EmptyState extends StatelessWidget {
           ),
           if (onBookNow != null) ...[
             const SizedBox(height: 24),
-            OutlinedButton.icon(
+            OutlinedButton(
               onPressed: onBookNow,
-              icon: const Icon(Icons.calendar_month_rounded, size: 18),
-              label: const Text('Termin buchen'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.primary,
                 side: const BorderSide(color: AppColors.primary),
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
+              child: const Text('Termin buchen'),
             ),
           ],
         ],
@@ -303,7 +291,7 @@ class _AppointmentCard extends StatelessWidget {
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.15),
+              color: AppColors.primary.withAlpha(38),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Column(
@@ -344,35 +332,21 @@ class _AppointmentCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.access_time_rounded,
-                        size: 14, color: AppColors.muted),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$timeStr - ${appointment.duration} Min.',
-                      style: const TextStyle(
-                        color: AppColors.muted,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
+                Text(
+                  '$timeStr · ${appointment.duration} Min.',
+                  style: const TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 12,
+                  ),
                 ),
                 if (appointment.trainerName.isNotEmpty) ...[
                   const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      const Icon(Icons.person_outline_rounded,
-                          size: 14, color: AppColors.muted),
-                      const SizedBox(width: 4),
-                      Text(
-                        appointment.trainerName,
-                        style: const TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    appointment.trainerName,
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ],
@@ -381,7 +355,7 @@ class _AppointmentCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: AppColors.green.withOpacity(0.12),
+              color: AppColors.green.withAlpha(30),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
