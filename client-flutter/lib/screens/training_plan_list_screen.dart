@@ -290,7 +290,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
                 style: GoogleFonts.inter(
                     color: AppColors.text, fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
-            Text('Dein Trainer gibt dir hier deinen Plan frei, sobald er bereit ist.',
+            Text('Du erhältst nach dem Onboarding deinen personalisierten Trainingsplan.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(color: AppColors.muted, fontSize: 13)),
           ],
