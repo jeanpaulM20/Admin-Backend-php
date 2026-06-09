@@ -57,6 +57,32 @@ export class EntitlementService {
   }
 
   /**
+   * Manually activate coaching for a client (trainer-only, no payment required).
+   * Useful for manual/admin activation, trials, or developer testing.
+   */
+  async activateCoaching(
+    clientId: number,
+    months = 1,
+    tier = 'monthly',
+  ): Promise<CoachingSubscription> {
+    const today = this.swissToday();
+    const validToDate = new Date(today);
+    validToDate.setMonth(validToDate.getMonth() + months);
+    const validTo = validToDate.toLocaleDateString('en-CA', {
+      timeZone: EntitlementService.TZ,
+    });
+
+    const sub = this.subRepo.create({
+      clientId,
+      tier,
+      status: 'active',
+      validFrom: today,
+      validTo,
+    });
+    return this.subRepo.save(sub);
+  }
+
+  /**
    * Whether a client may see the FULL plan content: inside the free window
    * (cheap, no query) OR holding an active subscription.
    */
