@@ -118,9 +118,13 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
   Widget _subscriptionBanner(TrainingPlanProvider prov) {
     final sub = prov.subscription;
     final active = sub.active;
-    final accentColor = active ? AppColors.primary : const Color(0xFFD97706);
+
+    // Banner is an upsell — only show when subscription is inactive/expired.
+    if (active) return const SizedBox.shrink();
+
+    const accentColor = Color(0xFFD97706);
     return GestureDetector(
-      onTap: active ? null : _openCoachingCredits,
+      onTap: _openCoachingCredits,
       child: Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -136,25 +140,19 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  active
-                      ? '${sub.tierLabel} aktiv'
-                      : 'Trainingsplan · HR-Analyse · Chat-Feedback',
+                  'Trainingsplan · HR-Analyse · Chat-Feedback',
                   style: GoogleFonts.inter(
                       color: AppColors.text, fontSize: 14, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  active
-                      ? 'Gültig bis ${_fmtDate(sub.validTo)}'
-                      : 'Online Coaching starten',
-                  style: GoogleFonts.inter(
-                      color: active ? AppColors.muted : accentColor, fontSize: 12),
+                  'Online Coaching starten',
+                  style: GoogleFonts.inter(color: accentColor, fontSize: 12),
                 ),
               ],
             ),
           ),
-          if (!active)
-            Icon(Icons.chevron_right, color: accentColor.withAlpha(200), size: 20),
+          Icon(Icons.chevron_right, color: accentColor.withAlpha(200), size: 20),
         ],
       ),
     ));
