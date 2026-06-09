@@ -98304,7 +98304,7 @@ r=A.a([new A.jw(this.am9(m),n)],s)
 q=m.c
 if(q!=null){p=A.S(28,B.x.gj(0)>>>16&255,B.x.gj(0)>>>8&255,B.x.gj(0)&255)
 o=A.a2(10)
-r.push(new A.jw(A.a6(n,A.aK(A.a([B.ub,B.bl,A.b9(A.H(q,n,n,n,n,A.by().$2$color$fontSize(B.x,13),n,n),1)],s),B.n,B.h,B.k),B.i,n,n,new A.a1(p,n,n,o,n,n,B.o),n,n,n,B.f5,B.df,n,n,n),n))}if(J.e_(m.d)&&!m.b)r.push(new A.Th(A.c7(new A.at(B.SC,A.aQ(A.a([B.Vg,B.aY,A.H("Noch keine Trainingspl\xe4ne",n,n,n,n,A.by().$3$color$fontSize$fontWeight(B.E,16,B.H),n,n),B.b7,A.H("Dein Trainer gibt dir hier deinen Plan frei, sobald er bereit ist.",n,n,n,n,A.by().$2$color$fontSize(B.r,13),B.av,n)],s),B.n,B.h,B.a0),n),n,n),!1,n))
+r.push(new A.jw(A.a6(n,A.aK(A.a([B.ub,B.bl,A.b9(A.H(q,n,n,n,n,A.by().$2$color$fontSize(B.x,13),n,n),1)],s),B.n,B.h,B.k),B.i,n,n,new A.a1(p,n,n,o,n,n,B.o),n,n,n,B.f5,B.df,n,n,n),n))}if(J.e_(m.d)&&!m.b)r.push(new A.Th(A.c7(new A.at(B.SC,A.aQ(A.a([B.Vg,B.aY,A.H("Noch keine Trainingspl\xe4ne",n,n,n,n,A.by().$3$color$fontSize$fontWeight(B.E,16,B.H),n,n),B.b7,A.H("Du erh\xe4ltst nach dem Onboarding deinen personalisierten Trainingsplan.",n,n,n,n,A.by().$2$color$fontSize(B.r,13),B.av,n)],s),B.n,B.h,B.a0),n),n,n),!1,n))
 else r.push(new A.nj(B.Sp,A.aJi(new A.u0(new A.aEd(this,m),J.bQ(m.d),!0,!0,!0,A.aGY(),n)),n))
 s=A.a7X(B.cL,r)}return A.xm(B.y,s,B.e,this.gan_())},
 ail(){var s,r=this.c
