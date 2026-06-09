@@ -116,6 +116,9 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
   }
 
   Widget _subscriptionBanner(TrainingPlanProvider prov) {
+    // Don't flash the banner while loading — subscription status is unknown.
+    if (prov.isLoading) return const SizedBox.shrink();
+
     final sub = prov.subscription;
     final active = sub.active;
 
@@ -131,7 +134,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: active ? AppColors.primary.withAlpha(100) : AppColors.border),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -316,10 +319,4 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
     );
   }
 
-  String _fmtDate(String? iso) {
-    if (iso == null || iso.isEmpty) return '–';
-    final d = DateTime.tryParse(iso);
-    if (d == null) return iso;
-    return '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
-  }
 }

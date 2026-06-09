@@ -58,17 +58,38 @@ export class EntitlementService {
 
   /**
    * Manually activate coaching for a client (trainer-only, no payment required).
-   * Useful for manual/admin activation, trials, or developer testing.
+   * Deactivates any existing active subscription first to avoid duplicate rows.
+   * Uses day-clamped month arithmetic to avoid JS Date overflow (e.g. Jan 31 + 1).
    */
   async activateCoaching(
     clientId: number,
     months = 1,
     tier = 'monthly',
   ): Promise<CoachingSubscription> {
+    // Deactivate any existing active subscription for this client
+    await this.subRepo.update(
+      { clientId, status: 'active' },
+      { status: 'cancelled' },
+    );
+
     const today = this.swissToday();
-    const validToDate = new Date(today);
-    validToDate.setMonth(validToDate.getMonth() + months);
-    const validTo = validToDate.toLocaleDateString('en-CA', {
+
+    // Month-end safe arithmetic: compute validTo by working directly with
+    // the current Date in Swiss time (not by re-parsing the YYYY-MM-DD string,
+    // which would anchor to UTC midnight and may land on the wrong calendar day).
+    const now = new Date();
+    const startDay = parseInt(today.split('-')[2], 10);
+    const targetDate = new Date(now);
+    targetDate.setDate(1); // step to 1st to avoid overflow during month addition
+    targetDate.setMonth(targetDate.getMonth() + months);
+    // Clamp to last day of target month if start day exceeds it
+    const lastDayOfTarget = new Date(
+      targetDate.getFullYear(),
+      targetDate.getMonth() + 1,
+      0,
+    ).getDate();
+    targetDate.setDate(Math.min(startDay, lastDayOfTarget));
+    const validTo = targetDate.toLocaleDateString('en-CA', {
       timeZone: EntitlementService.TZ,
     });
 
