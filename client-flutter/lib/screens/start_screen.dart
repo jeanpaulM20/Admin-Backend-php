@@ -360,16 +360,7 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           const Text(
-            'Dein nächstes Training wartet',
-            style: TextStyle(
-              color: AppColors.text,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Buche jetzt einen Termin mit deinem Trainer.',
+            'Suche Dir einen passenden Termin aus.',
             style: TextStyle(
               color: AppColors.muted,
               fontSize: 14,
