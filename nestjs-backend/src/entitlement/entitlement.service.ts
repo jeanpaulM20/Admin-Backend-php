@@ -170,6 +170,18 @@ export class EntitlementService {
     return this.activateCoaching(clientId, 1, 'trial');
   }
 
+  /**
+   * Cancel all active subscriptions for a client (trainer/admin tooling —
+   * refunds, mistakes, resetting a test account). Returns rows affected.
+   */
+  async deactivateCoaching(clientId: number): Promise<number> {
+    const res = await this.subRepo.update(
+      { clientId, status: 'active' },
+      { status: 'cancelled' },
+    );
+    return res.affected ?? 0;
+  }
+
   /** Whether a client may see FULL plan content — only with an active subscription. */
   async canAccessPlanFully(clientId: number): Promise<boolean> {
     return this.hasActiveSubscription(clientId);

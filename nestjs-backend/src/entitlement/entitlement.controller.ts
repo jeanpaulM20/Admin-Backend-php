@@ -48,6 +48,27 @@ export class EntitlementController {
     return { success: true, sub };
   }
 
+  /**
+   * POST /api/entitlement/deactivate
+   * Cancel all active subscriptions for a client (admin tooling).
+   * Body: { clientId: number }
+   */
+  @Post('deactivate')
+  async deactivate(
+    @CurrentTrainer() trainer: Trainer,
+    @Body() body: { clientId: number },
+  ) {
+    if (!trainer) {
+      throw new ForbiddenException('Nur Trainer können Coaching deaktivieren');
+    }
+    const clientId = parseInt(String(body.clientId), 10);
+    if (!clientId || clientId <= 0) {
+      throw new BadRequestException('Ungültige clientId');
+    }
+    const cancelled = await this.entitlementService.deactivateCoaching(clientId);
+    return { success: true, cancelled };
+  }
+
   /** POST /api/entitlement/reminders/run — manually dispatch due reminders. */
   @Post('reminders/run')
   async runReminders(@CurrentTrainer() trainer: Trainer) {
