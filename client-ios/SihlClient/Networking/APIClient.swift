@@ -1,0 +1,104 @@
+import Foundation
+
+/// Fehler-Typ analog zur Flutter `ApiException`.
+struct APIError: LocalizedError {
+    let statusCode: Int
+    let message: String
+
+    var errorDescription: String? { message }
+}
+
+/// HTTP-Client auf Basis von URLSession + async/await.
+/// Pendant zur Flutter `ApiClient` (singleton `apiClient`).
+///
+/// Token wird im Arbeitsspeicher gehalten; persistente Speicherung
+/// übernimmt der `AuthViewModel` via `KeychainStore`.
+actor APIClient {
+    static let shared = APIClient()
+
+    private var token: String?
+
+    func setToken(_ token: String?) {
+        self.token = token
+    }
+
+    // MARK: - Öffentliche Verben
+
+    func get(_ path: String) async throws -> Data {
+        try await send(path: path, method: "GET", body: nil)
+    }
+
+    func post(_ path: String, body: [String: Any]? = nil) async throws -> Data {
+        try await send(path: path, method: "POST", body: body)
+    }
+
+    func put(_ path: String, body: [String: Any]? = nil) async throws -> Data {
+        try await send(path: path, method: "PUT", body: body)
+    }
+
+    func delete(_ path: String) async throws -> Data {
+        try await send(path: path, method: "DELETE", body: nil)
+    }
+
+    // MARK: - Typed-Convenience
+
+    /// GET + JSON-Decoding in einem Schritt.
+    func get<T: Decodable>(_ path: String, as type: T.Type) async throws -> T {
+        let data = try await get(path)
+        return try decode(data)
+    }
+
+    func post<T: Decodable>(_ path: String, body: [String: Any]? = nil, as type: T.Type) async throws -> T {
+        let data = try await post(path, body: body)
+        return try decode(data)
+    }
+
+    // MARK: - Intern
+
+    private func send(path: String, method: String, body: [String: Any]?) async throws -> Data {
+        var request = URLRequest(url: buildURL(path))
+        request.httpMethod = method
+        request.timeoutInterval = APIConfig.timeout
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let token, !token.isEmpty {
+            request.setValue(token, forHTTPHeaderField: APIConfig.authHeader)
+        }
+        if let body {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        }
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw APIError(statusCode: -1, message: "Ungültige Serverantwort")
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            throw decodeError(statusCode: http.statusCode, data: data)
+        }
+        return data
+    }
+
+    private func buildURL(_ path: String) -> URL {
+        let clean = path.hasPrefix("/") ? String(path.dropFirst()) : path
+        return URL(string: clean, relativeTo: APIConfig.baseURL) ?? APIConfig.baseURL
+    }
+
+    private func decode<T: Decodable>(_ data: Data) throws -> T {
+        do {
+            return try JSONDecoder().decode(T.self, from: data)
+        } catch {
+            throw APIError(statusCode: -2, message: "Antwort konnte nicht gelesen werden")
+        }
+    }
+
+    private func decodeError(statusCode: Int, data: Data) -> APIError {
+        var message = statusCode == 401
+            ? "E-Mail oder Passwort falsch"
+            : "Serverfehler (\(statusCode))"
+        if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let serverMsg = obj["message"] as? String {
+            message = serverMsg
+        }
+        return APIError(statusCode: statusCode, message: message)
+    }
+}
