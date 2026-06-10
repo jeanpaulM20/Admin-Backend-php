@@ -158,13 +158,37 @@ class _CoachingPaywallScreenState extends State<CoachingPaywallScreen> {
                     child: _purchasing
                         ? const SizedBox(width: 22, height: 22,
                             child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : Text('Online Coaching freischalten',
+                        : Text('Jetzt freischalten',
                             style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700)),
                   ),
                 ),
               ],
             ),
     );
+  }
+
+  /// Plain-text plan summary: "5 Übungen · Aufwärmen 1 · Haupttraining 3 · Core 1".
+  String _teaserMeta(plan) {
+    final sections = plan.sections.entries
+        .where((e) => (e.value as int) > 0)
+        .map((e) => '${_sectionLabels[e.key] ?? e.key} ${e.value}')
+        .join(' · ');
+    final exercises = '${plan.totalExercises} Übungen';
+    return sections.isEmpty ? exercises : '$exercises · $sections';
+  }
+
+  /// Reference price-per-month = the most expensive monthly tier, used to
+  /// anchor the savings shown on longer-duration tiers. Null if no monthly tier.
+  double? _refPerMonth() {
+    double? ref;
+    for (final p in _packages) {
+      final dm = p.durationMonths ?? 1;
+      if (dm == 1) {
+        final pm = p.price;
+        if (ref == null || pm > ref) ref = pm;
+      }
+    }
+    return ref;
   }
 
   Widget _teaserCard() {
@@ -182,22 +206,11 @@ class _CoachingPaywallScreenState extends State<CoachingPaywallScreen> {
           Text(plan.name ?? 'Trainingsplan',
               style: GoogleFonts.inter(
                   color: AppColors.text, fontSize: 16, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 12),
-          Text('${plan.totalExercises} Übungen in diesem Plan',
-              style: GoogleFonts.inter(color: AppColors.muted, fontSize: 13)),
           const SizedBox(height: 8),
-          Wrap(spacing: 6, runSpacing: 6, children: [
-            ...plan.sections.entries.map((e) => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withAlpha(28),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text('${_sectionLabels[e.key] ?? e.key}: ${e.value}',
-                      style: GoogleFonts.inter(
-                          color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w600)),
-                )),
-          ]),
+          Text(_teaserMeta(plan),
+              maxLines: 2, overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                  color: AppColors.muted, fontSize: 13, fontWeight: FontWeight.w300)),
         ],
       ),
     );
@@ -205,13 +218,27 @@ class _CoachingPaywallScreenState extends State<CoachingPaywallScreen> {
 
   Widget _tierCard(CreditPackage pkg) {
     final selected = pkg.id == _selectedId;
+    final dm = pkg.durationMonths ?? 1;
+    final isYear = dm >= 12;
+    final shortName = isYear ? 'Jahr' : 'Monat';
+
+    // Dynamic value anchor for multi-month tiers: per-month price + saving %.
+    final perMonth = dm > 0 ? pkg.price / dm : pkg.price;
+    final ref = _refPerMonth();
+    final showValue = dm > 1 && ref != null && perMonth < ref;
+    final savingPct = showValue ? ((1 - perMonth / ref) * 100).round() : 0;
+
+    final valueLine = showValue
+        ? '= CHF ${perMonth.round()} / Mt.  ·  −$savingPct %  ·  ${pkg.credits} Credits'
+        : '${pkg.credits} Credits';
+
     return GestureDetector(
       onTap: () => setState(() => _selectedId = pkg.id),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: selected ? AppColors.primary.withAlpha(20) : AppColors.surface,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: selected ? AppColors.primary : AppColors.border,
@@ -221,36 +248,40 @@ class _CoachingPaywallScreenState extends State<CoachingPaywallScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Dominant price — the single primary value
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('CHF ${pkg.price.toStringAsFixed(0)}',
-                    style: GoogleFonts.inter(
-                        color: selected ? AppColors.primary : AppColors.text,
-                        fontSize: 24, fontWeight: FontWeight.w800)),
-                Text(pkg.durationMonths != null
-                    ? '/ ${pkg.durationMonths == 1 ? 'Monat' : 'Jahr'}'
-                    : '',
-                    style: GoogleFonts.inter(color: AppColors.muted, fontSize: 11)),
-              ],
-            ),
-            const SizedBox(width: 16),
-            // Name + metadata
-            Expanded(
+            // Price — fixed-width column so every tier's name starts on one axis.
+            SizedBox(
+              width: 104,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(pkg.name,
+                  Text('CHF ${pkg.price.toStringAsFixed(0)}',
+                      maxLines: 1,
                       style: GoogleFonts.inter(
-                          color: AppColors.text, fontSize: 14, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 2),
-                  Text('${pkg.credits} Credits${pkg.includes != null ? ' · ${pkg.includes}' : ''}',
+                          color: AppColors.text,
+                          fontSize: 19, fontWeight: FontWeight.w800)),
+                  Text('/ $shortName',
                       style: GoogleFonts.inter(color: AppColors.muted, fontSize: 11)),
                 ],
               ),
             ),
-            // Selection indicator
+            const SizedBox(width: 16),
+            // Name + value
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(shortName,
+                      style: GoogleFonts.inter(
+                          color: AppColors.text, fontSize: 14, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 3),
+                  Text(valueLine,
+                      maxLines: 2, overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(color: AppColors.muted, fontSize: 11, height: 1.35)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Selection indicator — the single, sufficient state signal.
             Icon(selected ? Icons.check_circle_rounded : Icons.circle_outlined,
                 color: selected ? AppColors.primary : AppColors.border, size: 20),
           ],
