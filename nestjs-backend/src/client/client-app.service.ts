@@ -283,12 +283,10 @@ export class ClientAppService {
       const durationMonths = pkg.duration_months;
       const packageName = pkg.name;
 
-      // 3. Calculate dates
-      const now = new Date();
-      const startDate = now.toISOString().split('T')[0];
-      const expiresDate = new Date(now);
-      expiresDate.setMonth(expiresDate.getMonth() + (durationMonths ?? 1));
-      const expiresStr = expiresDate.toISOString().split('T')[0];
+      // 3. Calculate dates — Swiss-time, month-end safe (shared with the manual
+      //    activation path so both produce identical, correct validTo dates).
+      const { validFrom: startDate, validTo: expiresStr } =
+        this.entitlementService.computePeriod(durationMonths ?? 1);
 
       // 4. Transaction: create credits + invoice atomically
       const queryRunner = this.dataSource.createQueryRunner();

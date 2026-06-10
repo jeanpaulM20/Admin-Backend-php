@@ -1,6 +1,6 @@
 import { Injectable, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, EntityManager } from 'typeorm';
 import { CoachingSubscription } from '../entities/coaching-subscription.entity';
 
 /**
@@ -77,8 +77,11 @@ export class EntitlementService {
    * Returns everything the frontend needs — no date math on the client.
    */
   async getStatus(clientId: number): Promise<SubscriptionState> {
-    const sub = await this.getActiveSubscription(clientId);
-    const trialUsed = await this.hasUsedTrial(clientId);
+    // Independent reads — run in parallel (one round-trip instead of two).
+    const [sub, trialUsed] = await Promise.all([
+      this.getActiveSubscription(clientId),
+      this.hasUsedTrial(clientId),
+    ]);
 
     if (!sub) {
       return {
@@ -109,65 +112,87 @@ export class EntitlementService {
   }
 
   /**
+   * Compute a subscription period [validFrom, validTo] in Swiss calendar time.
+   * Month-end safe (Jan 31 + 1 month → Feb 28/29) and timezone-safe: all
+   * arithmetic is done on the Swiss Y-M-D components via UTC Date (no server-TZ
+   * leakage). Single source used by both the manual and the purchase path.
+   */
+  computePeriod(months: number): { validFrom: string; validTo: string } {
+    const validFrom = this.swissToday(); // 'YYYY-MM-DD' in Europe/Zurich
+    const [y, m, d] = validFrom.split('-').map(Number);
+    // Month arithmetic via Date.UTC handles year rollover; day=1 avoids overflow.
+    const target = new Date(Date.UTC(y, m - 1 + months, 1));
+    const ty = target.getUTCFullYear();
+    const tm = target.getUTCMonth(); // 0-based
+    const lastDay = new Date(Date.UTC(ty, tm + 1, 0)).getUTCDate();
+    const day = Math.min(d, lastDay); // clamp to month end
+    const validTo =
+      `${ty}-${String(tm + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return { validFrom, validTo };
+  }
+
+  /**
+   * Atomically cancel any existing active subscription and create a new one.
+   * Runs inside the caller's transaction (EntityManager) so cancel + insert
+   * never leave the client without an active row on partial failure.
+   */
+  private async writeSubscription(
+    mgr: EntityManager,
+    clientId: number,
+    months: number,
+    tier: string,
+  ): Promise<CoachingSubscription> {
+    await mgr.update(
+      CoachingSubscription,
+      { clientId, status: 'active' },
+      { status: 'cancelled' },
+    );
+    const { validFrom, validTo } = this.computePeriod(months);
+    const sub = mgr.create(CoachingSubscription, {
+      clientId,
+      tier,
+      status: 'active',
+      validFrom,
+      validTo,
+    });
+    return mgr.save(sub);
+  }
+
+  /**
    * Manually activate coaching for a client (trainer-only, no payment required).
-   * Deactivates any existing active subscription first to avoid duplicate rows.
-   * Uses day-clamped month arithmetic to avoid JS Date overflow (e.g. Jan 31 + 1).
+   * Cancel + insert are atomic (single transaction).
    */
   async activateCoaching(
     clientId: number,
     months = 1,
     tier = 'monthly',
   ): Promise<CoachingSubscription> {
-    // Deactivate any existing active subscription for this client
-    await this.subRepo.update(
-      { clientId, status: 'active' },
-      { status: 'cancelled' },
+    return this.subRepo.manager.transaction((mgr) =>
+      this.writeSubscription(mgr, clientId, months, tier),
     );
-
-    const today = this.swissToday();
-
-    // Month-end safe arithmetic: compute validTo by working directly with
-    // the current Date in Swiss time (not by re-parsing the YYYY-MM-DD string,
-    // which would anchor to UTC midnight and may land on the wrong calendar day).
-    const now = new Date();
-    const startDay = parseInt(today.split('-')[2], 10);
-    const targetDate = new Date(now);
-    targetDate.setDate(1); // step to 1st to avoid overflow during month addition
-    targetDate.setMonth(targetDate.getMonth() + months);
-    // Clamp to last day of target month if start day exceeds it
-    const lastDayOfTarget = new Date(
-      targetDate.getFullYear(),
-      targetDate.getMonth() + 1,
-      0,
-    ).getDate();
-    targetDate.setDate(Math.min(startDay, lastDayOfTarget));
-    const validTo = targetDate.toLocaleDateString('en-CA', {
-      timeZone: EntitlementService.TZ,
-    });
-
-    const sub = this.subRepo.create({
-      clientId,
-      tier,
-      status: 'active',
-      validFrom: today,
-      validTo,
-    });
-    return this.subRepo.save(sub);
   }
 
   /**
-   * Activate the one-time free trial (1 month, no payment).
-   * Self-service from the client app — guarded so it can only be used once
-   * and not while another subscription is already active.
+   * Activate the one-time free trial (1 month, no payment). Self-service.
+   * Guards (trial-once + no active sub) and the write run in ONE transaction
+   * with a locking read on the client's rows, so concurrent double-taps can't
+   * create two trials/active rows for a client that already has any sub row.
    */
   async activateTrial(clientId: number): Promise<CoachingSubscription> {
-    if (await this.hasUsedTrial(clientId)) {
-      throw new ConflictException('Test-Abo wurde bereits genutzt');
-    }
-    if (await this.hasActiveSubscription(clientId)) {
-      throw new ConflictException('Es besteht bereits ein aktives Abo');
-    }
-    return this.activateCoaching(clientId, 1, 'trial');
+    return this.subRepo.manager.transaction(async (mgr) => {
+      const rows = await mgr.find(CoachingSubscription, {
+        where: { clientId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      const today = this.swissToday();
+      if (rows.some((r) => r.tier === 'trial')) {
+        throw new ConflictException('Test-Abo wurde bereits genutzt');
+      }
+      if (rows.some((r) => r.status === 'active' && String(r.validTo).slice(0, 10) >= today)) {
+        throw new ConflictException('Es besteht bereits ein aktives Abo');
+      }
+      return this.writeSubscription(mgr, clientId, 1, 'trial');
+    });
   }
 
   /**

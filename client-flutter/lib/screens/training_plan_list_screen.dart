@@ -34,6 +34,9 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
   // Exercise name → id map for cover image display
   Map<String, int> _exerciseIdMap = {};
 
+  // Guards the expiry reminder dialog against concurrent _load() invocations.
+  bool _expiryPopupShowing = false;
+
   @override
   void initState() {
     super.initState();
@@ -257,6 +260,9 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
   // ── Expiry reminder popup (uniform for trial / monthly / yearly) ─────────
 
   Future<void> _maybeShowExpiryPopup() async {
+    // Guard against concurrent _load() calls stacking two dialogs.
+    if (_expiryPopupShowing) return;
+
     final sub = context.read<TrainingPlanProvider>().subscription;
     if (!sub.active || !sub.expiringSoon || sub.validTo == null) return;
 
@@ -265,11 +271,14 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
     final today = DateTime.now().toIso8601String().substring(0, 10);
     final key = 'expiry_popup_${sub.validTo}';
     if (prefs.getString(key) == today) return;
-    await prefs.setString(key, today);
-    if (!mounted) return;
+    if (!mounted || _expiryPopupShowing) return;
 
     final d = sub.daysLeft ?? 0;
     final whenStr = d <= 0 ? 'heute' : 'in $d ${d == 1 ? 'Tag' : 'Tagen'}';
+
+    // Only mark as shown once we're actually about to display it.
+    _expiryPopupShowing = true;
+    await prefs.setString(key, today);
 
     showDialog(
       context: context,
@@ -298,7 +307,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
           ),
         ],
       ),
-    );
+    ).whenComplete(() => _expiryPopupShowing = false);
   }
 
   Widget _planCard(ClientTrainingPlan plan) {
