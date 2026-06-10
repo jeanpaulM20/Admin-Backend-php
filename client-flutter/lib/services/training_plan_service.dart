@@ -35,6 +35,16 @@ class TrainingPlanService {
     return SubscriptionStatus();
   }
 
+  /// Activate the one-time free 1-month trial (self-service, no payment).
+  /// Throws ApiException(409) if already used or an active sub exists.
+  Future<SubscriptionStatus> activateTrial(String clientId) async {
+    final data = await apiClient.post('api/client/coaching/trial/$clientId');
+    if (data is Map<String, dynamic>) {
+      return SubscriptionStatus.fromJson(data);
+    }
+    return SubscriptionStatus();
+  }
+
   /// Coaching subscription tiers (public pricing).
   Future<List<CreditPackage>> listCoachingPackages() async {
     final data = await apiClient.get('api/client/packages?kind=coaching');

@@ -84,6 +84,16 @@ export class ClientAppController {
     return this.appService.getSubscriptionStatus(clientId);
   }
 
+  /**
+   * Activate the one-time free 1-month trial (self-service, no payment).
+   * 409 if the trial was already used or an active subscription exists.
+   */
+  @Post('coaching/trial/:clientId')
+  activateTrial(@Req() req: Request, @Param('clientId', ParseIntPipe) clientId: number) {
+    this.assertClientAccess(req, clientId);
+    return this.appService.activateTrial(clientId);
+  }
+
   /** Purchase a credit package (creates credits + invoice) */
   @Post('purchase/:clientId')
   purchase(

@@ -243,16 +243,18 @@ export class ClientAppService {
     }
   }
 
-  /** Online-coaching subscription status for the paywall gate. */
+  /** Online-coaching subscription status — single source for the client state machine. */
   async getSubscriptionStatus(clientId: number) {
-    const sub = await this.entitlementService.getActiveSubscription(clientId);
-    if (!sub) return { active: false };
-    return {
-      active: true,
-      tier: sub.tier,
-      validFrom: sub.validFrom,
-      validTo: sub.validTo,
-    };
+    return this.entitlementService.getStatus(clientId);
+  }
+
+  /**
+   * Activate the one-time free 1-month trial (self-service, no payment).
+   * Returns the fresh status so the client app can update immediately.
+   */
+  async activateTrial(clientId: number) {
+    await this.entitlementService.activateTrial(clientId);
+    return this.entitlementService.getStatus(clientId);
   }
 
   /**
@@ -313,6 +315,13 @@ export class ClientAppService {
         // 4c. Coaching package → also create the subscription entitlement period
         if (pkg.kind === 'coaching') {
           const tier = (durationMonths ?? 1) >= 12 ? 'yearly' : 'monthly';
+          // Cancel any existing active subscription first (trial or paid) so a
+          // purchase/renewal never leaves two overlapping active rows.
+          await queryRunner.query(
+            `UPDATE coaching_subscription SET status = 'cancelled'
+             WHERE client_id = ? AND status = 'active'`,
+            [clientId],
+          );
           logger.log(`Creating coaching subscription: tier=${tier}, valid ${startDate}..${expiresStr}`);
           await queryRunner.query(
             `INSERT INTO coaching_subscription

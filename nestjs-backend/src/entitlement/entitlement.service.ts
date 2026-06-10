@@ -1,7 +1,23 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CoachingSubscription } from '../entities/coaching-subscription.entity';
+
+/**
+ * Enriched subscription state — single source for the client-app state machine.
+ * The frontend derives all UI (banner / popup / lock) from this, no date math.
+ */
+export interface SubscriptionState {
+  active: boolean;
+  tier: string | null;          // 'trial' | 'monthly' | 'yearly' | null
+  validFrom: string | null;
+  validTo: string | null;
+  daysLeft: number | null;
+  isTrial: boolean;
+  trialUsed: boolean;           // has ever used the one-time free trial
+  canStartTrial: boolean;       // !active && !trialUsed
+  expiringSoon: boolean;        // active && daysLeft <= EXPIRY_WARNING_DAYS
+}
 
 /**
  * Single source of truth for online-coaching entitlement.
@@ -10,11 +26,8 @@ import { CoachingSubscription } from '../entities/coaching-subscription.entity';
  */
 @Injectable()
 export class EntitlementService {
-  /**
-   * Free plan-access window before a subscription is required.
-   * 7 = "erste Woche gratis"; switch to 30 for "erster Monat gratis".
-   */
-  static readonly FREE_PLAN_ACCESS_DAYS = 7;
+  /** Show the "expires soon" warning when this many days remain. */
+  static readonly EXPIRY_WARNING_DAYS = 7;
 
   private static readonly TZ = 'Europe/Zurich';
 
@@ -44,16 +57,55 @@ export class EntitlementService {
     return (await this.getActiveSubscription(clientId)) !== null;
   }
 
+  /** Whether the client has ever used the one-time free trial. */
+  async hasUsedTrial(clientId: number): Promise<boolean> {
+    const count = await this.subRepo.count({ where: { clientId, tier: 'trial' } });
+    return count > 0;
+  }
+
+  /** Whole days from Swiss "today" until a YYYY-MM-DD date (UTC-anchored, DST-safe). */
+  private daysUntil(dateStr: string): number {
+    const target = String(dateStr).slice(0, 10);
+    const a = Date.parse(this.swissToday() + 'T00:00:00Z');
+    const b = Date.parse(target + 'T00:00:00Z');
+    if (Number.isNaN(b)) return 0;
+    return Math.round((b - a) / 86_400_000);
+  }
+
   /**
-   * Pure date check — is now inside the free window for a plan?
-   * now < publishedAt + FREE_PLAN_ACCESS_DAYS. No DB access, so it can be
-   * mapped over a whole plan list cheaply (pair with one hasActiveSubscription).
+   * Single source of truth for the client-app subscription state machine.
+   * Returns everything the frontend needs — no date math on the client.
    */
-  isWithinFreeWindow(publishedAt?: Date | string | null): boolean {
-    if (!publishedAt) return false;
-    const freeUntil = new Date(publishedAt);
-    freeUntil.setDate(freeUntil.getDate() + EntitlementService.FREE_PLAN_ACCESS_DAYS);
-    return new Date() < freeUntil;
+  async getStatus(clientId: number): Promise<SubscriptionState> {
+    const sub = await this.getActiveSubscription(clientId);
+    const trialUsed = await this.hasUsedTrial(clientId);
+
+    if (!sub) {
+      return {
+        active: false,
+        tier: null,
+        validFrom: null,
+        validTo: null,
+        daysLeft: null,
+        isTrial: false,
+        trialUsed,
+        canStartTrial: !trialUsed,
+        expiringSoon: false,
+      };
+    }
+
+    const daysLeft = this.daysUntil(sub.validTo);
+    return {
+      active: true,
+      tier: sub.tier,
+      validFrom: sub.validFrom,
+      validTo: sub.validTo,
+      daysLeft,
+      isTrial: sub.tier === 'trial',
+      trialUsed,
+      canStartTrial: false,
+      expiringSoon: daysLeft <= EntitlementService.EXPIRY_WARNING_DAYS,
+    };
   }
 
   /**
@@ -104,14 +156,22 @@ export class EntitlementService {
   }
 
   /**
-   * Whether a client may see the FULL plan content: inside the free window
-   * (cheap, no query) OR holding an active subscription.
+   * Activate the one-time free trial (1 month, no payment).
+   * Self-service from the client app — guarded so it can only be used once
+   * and not while another subscription is already active.
    */
-  async canAccessPlanFully(
-    clientId: number,
-    publishedAt?: Date | string | null,
-  ): Promise<boolean> {
-    if (this.isWithinFreeWindow(publishedAt)) return true;
+  async activateTrial(clientId: number): Promise<CoachingSubscription> {
+    if (await this.hasUsedTrial(clientId)) {
+      throw new ConflictException('Test-Abo wurde bereits genutzt');
+    }
+    if (await this.hasActiveSubscription(clientId)) {
+      throw new ConflictException('Es besteht bereits ein aktives Abo');
+    }
+    return this.activateCoaching(clientId, 1, 'trial');
+  }
+
+  /** Whether a client may see FULL plan content — only with an active subscription. */
+  async canAccessPlanFully(clientId: number): Promise<boolean> {
     return this.hasActiveSubscription(clientId);
   }
 }

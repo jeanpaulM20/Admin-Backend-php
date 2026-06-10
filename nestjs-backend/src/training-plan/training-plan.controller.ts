@@ -87,12 +87,11 @@ export class TrainingPlanController {
     }
 
     // Client: only own + published plans, as teasers with per-plan lock state.
-    // One subscription lookup; the free-window check per plan is pure date math.
+    // Plans unlock only with an active subscription (incl. the 1-month trial).
     const plans = await this.service.findAll(client.id, true);
     const hasSub = await this.entitlement.hasActiveSubscription(client.id);
     return plans.map((p) => {
-      const unlocked = hasSub || this.entitlement.isWithinFreeWindow(p.publishedAt);
-      return { ...this.toTeaser(p), locked: !unlocked, requiresSubscription: !unlocked };
+      return { ...this.toTeaser(p), locked: !hasSub, requiresSubscription: !hasSub };
     });
   }
 
@@ -167,7 +166,7 @@ export class TrainingPlanController {
     if ((plan as any).status !== 'published') {
       throw new ForbiddenException('Dieser Plan ist noch nicht freigegeben');
     }
-    const full = await this.entitlement.canAccessPlanFully(client.id, (plan as any).publishedAt);
+    const full = await this.entitlement.canAccessPlanFully(client.id);
     return full ? plan : this.toTeaser(plan as any);
   }
 

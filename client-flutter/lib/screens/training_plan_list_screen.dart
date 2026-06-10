@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_colors.dart';
 import '../config/api_config.dart';
 import '../models/training_plan.dart';
@@ -47,6 +48,7 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
     if (auth.clientId != null) {
       await context.read<TrainingPlanProvider>().fetch(auth.clientId!);
     }
+    if (mounted) _maybeShowExpiryPopup();
   }
 
   Future<void> _loadExerciseIds() async {
@@ -120,45 +122,183 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
     if (prov.isLoading) return const SizedBox.shrink();
 
     final sub = prov.subscription;
-    final active = sub.active;
 
-    // Banner is an upsell — only show when subscription is inactive/expired.
-    if (active) return const SizedBox.shrink();
+    // Active subscriber → no banner (renewal is handled by the expiry popup).
+    if (sub.active) return const SizedBox.shrink();
 
+    // Never used the trial → offer the free month.
+    if (sub.canStartTrial) {
+      return _banner(
+        title: '1 Monat gratis testen',
+        subtitle: 'Trainingsplan · HR-Analyse · Chat-Feedback',
+        onTap: _startTrial,
+      );
+    }
+
+    // Trial used / expired without conversion → paid upsell.
+    return _banner(
+      title: 'Trainingsplan · HR-Analyse · Chat-Feedback',
+      subtitle: 'Online Coaching starten',
+      onTap: _openCoachingCredits,
+    );
+  }
+
+  Widget _banner({
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
     const accentColor = Color(0xFFD97706);
     return GestureDetector(
-      onTap: _openCoachingCredits,
+      onTap: onTap,
       child: Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Trainingsplan · HR-Analyse · Chat-Feedback',
-                  style: GoogleFonts.inter(
-                      color: AppColors.text, fontSize: 14, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Online Coaching starten',
-                  style: GoogleFonts.inter(color: accentColor, fontSize: 12),
-                ),
-              ],
+        margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: GoogleFonts.inter(
+                          color: AppColors.text, fontSize: 14, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
+                  Text(subtitle,
+                      style: GoogleFonts.inter(color: accentColor, fontSize: 12)),
+                ],
+              ),
             ),
+            Icon(Icons.chevron_right, color: accentColor.withAlpha(200), size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Trial activation ────────────────────────────────────────────────────
+
+  Future<void> _startTrial() async {
+    final confirmed = await _showTrialSheet();
+    if (confirmed != true || !mounted) return;
+
+    final auth = context.read<AuthProvider>();
+    final clientId = auth.clientId;
+    if (clientId == null) return;
+
+    final err = await context.read<TrainingPlanProvider>().activateTrial(clientId);
+    if (!mounted) return;
+
+    if (err != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(err), backgroundColor: AppColors.red));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Test-Abo aktiviert — viel Erfolg!'),
+        backgroundColor: AppColors.primary));
+      _load(); // plans are now unlocked
+    }
+  }
+
+  Future<bool?> _showTrialSheet() {
+    return showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('1 Monat gratis testen',
+                style: GoogleFonts.inter(
+                    color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+            Text('Voller Zugriff: alle Trainingspläne · HR-Analyse · Chat-Feedback.\n'
+                'Keine Zahlung. Endet automatisch nach 30 Tagen.',
+                style: GoogleFonts.inter(
+                    color: AppColors.muted, fontSize: 13, height: 1.5)),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: Text('Test-Abo aktivieren',
+                    style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700)),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Später', style: TextStyle(color: AppColors.muted)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Expiry reminder popup (uniform for trial / monthly / yearly) ─────────
+
+  Future<void> _maybeShowExpiryPopup() async {
+    final sub = context.read<TrainingPlanProvider>().subscription;
+    if (!sub.active || !sub.expiringSoon || sub.validTo == null) return;
+
+    // Throttle: show at most once per day per subscription period.
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final key = 'expiry_popup_${sub.validTo}';
+    if (prefs.getString(key) == today) return;
+    await prefs.setString(key, today);
+    if (!mounted) return;
+
+    final d = sub.daysLeft ?? 0;
+    final whenStr = d <= 0 ? 'heute' : 'in $d ${d == 1 ? 'Tag' : 'Tagen'}';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Abo läuft bald ab',
+            style: GoogleFonts.inter(color: AppColors.text, fontWeight: FontWeight.w700)),
+        content: Text(
+          'Dein Abo läuft $whenStr ab. Verlängere jetzt, um nahtlos weiterzutrainieren.',
+          style: GoogleFonts.inter(color: AppColors.muted, fontSize: 13, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Später', style: TextStyle(color: AppColors.muted)),
           ),
-          Icon(Icons.chevron_right, color: accentColor.withAlpha(200), size: 20),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _openCoachingCredits();
+            },
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+            child: const Text('Verlängern'),
+          ),
         ],
       ),
-    ));
+    );
   }
 
   Widget _planCard(ClientTrainingPlan plan) {

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../models/training_plan.dart';
 import '../models/subscription.dart';
 import '../services/training_plan_service.dart';
+import '../services/api_client.dart';
 
 class TrainingPlanProvider extends ChangeNotifier {
   final TrainingPlanService _service = TrainingPlanService();
@@ -36,6 +37,21 @@ class TrainingPlanProvider extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  /// Activates the one-time free trial and refreshes subscription state.
+  /// Returns null on success, or a user-facing error message on failure.
+  Future<String?> activateTrial(String clientId) async {
+    if (_isMock) return null;
+    try {
+      _subscription = await _service.activateTrial(clientId);
+      notifyListeners();
+      return null;
+    } on ApiException catch (e) {
+      return e.message;
+    } catch (e) {
+      return e.toString().replaceFirst('Exception: ', '');
     }
   }
 
