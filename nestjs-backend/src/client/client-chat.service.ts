@@ -41,12 +41,12 @@ export class ClientChatService {
 
       try {
         const tRows = await this.feedbackRepo.query(
-          `SELECT firstname, lastname, picture FROM trainer WHERE id = ? LIMIT 1`,
+          `SELECT \`name\`, surname, foto FROM trainer WHERE id = ? LIMIT 1`,
           [row.trainer_id],
         );
         if (tRows?.[0]) {
-          trainerName = `${tRows[0].firstname ?? ''} ${tRows[0].lastname ?? ''}`.trim() || 'Trainer';
-          trainerPicture = tRows[0].picture ?? null;
+          trainerName = `${tRows[0].name ?? ''} ${tRows[0].surname ?? ''}`.trim() || 'Trainer';
+          trainerPicture = tRows[0].foto ?? null;
         }
       } catch (_) {}
 
