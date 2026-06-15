@@ -25,6 +25,9 @@ struct MainTabView: View {
                         .tabItem { Label(tab.title, systemImage: tab.icon) }
                         .tag(index)
                 }
+                GlucoseView()
+                    .tabItem { Label("Blutzucker", systemImage: "waveform.path.ecg") }
+                    .tag(tabs.count)
             }
             .toolbarBackground(AppColor.surface, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)

@@ -6,12 +6,14 @@ import SwiftUI
 /// (Appointment, Profile, Credits, ...) hier ergänzen, sobald übersetzt.
 @main
 struct SihlClientApp: App {
-    @State private var auth = AuthViewModel()
+    @State private var auth  = AuthViewModel()
+    @State private var libre = LibreViewModel()
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environment(auth)
+                .environment(libre)
                 .preferredColorScheme(.dark)
                 .tint(AppColor.primary)
         }
