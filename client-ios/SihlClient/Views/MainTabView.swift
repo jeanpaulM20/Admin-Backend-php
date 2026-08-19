@@ -1,37 +1,52 @@
 import SwiftUI
 
 /// Pendant zu Flutter `main_screen.dart` — Tab-Shell mit 5 Tabs + Profil-Avatar.
-/// Die einzelnen Tab-Inhalte sind aktuell Platzhalter; sie werden Screen für
-/// Screen aus dem Flutter-Code übersetzt (siehe TRANSLATION-GUIDE.md).
+/// Übersetzte Screens ersetzen schrittweise die PlaceholderScreen-Einträge.
 struct MainTabView: View {
     @Environment(AuthViewModel.self) private var auth
     @State private var selection = 0
     @State private var showProfile = false
 
-    private struct Tab { let title: String; let icon: String }
-    private let tabs = [
-        Tab(title: "Start",     icon: "house.fill"),
-        Tab(title: "Training",  icon: "dumbbell.fill"),
-        Tab(title: "Kalender",  icon: "calendar"),
-        Tab(title: "Chat",      icon: "bubble.left"),
-        Tab(title: "Analytics", icon: "chart.line.uptrend.xyaxis"),
-    ]
+    // Tab-Metadaten für Titel und Icons
+    private enum TabIndex: Int { case start, training, kalender, chat, analytics, blutzucker }
 
     var body: some View {
         NavigationStack {
             TabView(selection: $selection) {
-                ForEach(Array(tabs.enumerated()), id: \.offset) { index, tab in
-                    PlaceholderScreen(title: tab.title)
-                        .tabItem { Label(tab.title, systemImage: tab.icon) }
-                        .tag(index)
-                }
+
+                // ── Tab 0: Start ─────────────────────────────────────────────
+                StartView(onGoToCalendar: { selection = TabIndex.kalender.rawValue })
+                    .tabItem { Label("Start", systemImage: "house.fill") }
+                    .tag(TabIndex.start.rawValue)
+
+                // ── Tab 1: Training (Platzhalter) ────────────────────────────
+                PlaceholderScreen(title: "Training")
+                    .tabItem { Label("Training", systemImage: "dumbbell.fill") }
+                    .tag(TabIndex.training.rawValue)
+
+                // ── Tab 2: Kalender (Platzhalter) ────────────────────────────
+                PlaceholderScreen(title: "Kalender")
+                    .tabItem { Label("Kalender", systemImage: "calendar") }
+                    .tag(TabIndex.kalender.rawValue)
+
+                // ── Tab 3: Chat (Platzhalter) ────────────────────────────────
+                PlaceholderScreen(title: "Chat")
+                    .tabItem { Label("Chat", systemImage: "bubble.left") }
+                    .tag(TabIndex.chat.rawValue)
+
+                // ── Tab 4: Analytics (Platzhalter) ───────────────────────────
+                PlaceholderScreen(title: "Analytics")
+                    .tabItem { Label("Analytics", systemImage: "chart.line.uptrend.xyaxis") }
+                    .tag(TabIndex.analytics.rawValue)
+
+                // ── Tab 5: Blutzucker (CGM) ──────────────────────────────────
                 GlucoseView()
                     .tabItem { Label("Blutzucker", systemImage: "waveform.path.ecg") }
-                    .tag(tabs.count)
+                    .tag(TabIndex.blutzucker.rawValue)
             }
             .toolbarBackground(AppColor.surface, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
-            .navigationTitle(tabs[selection].title)
+            .navigationTitle(tabTitle(for: selection))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -46,6 +61,18 @@ struct MainTabView: View {
             .navigationDestination(isPresented: $showProfile) {
                 PlaceholderScreen(title: "Profil")
             }
+        }
+    }
+
+    private func tabTitle(for index: Int) -> String {
+        switch TabIndex(rawValue: index) {
+        case .start:       return "Start"
+        case .training:    return "Training"
+        case .kalender:    return "Kalender"
+        case .chat:        return "Chat"
+        case .analytics:   return "Analytics"
+        case .blutzucker:  return "Blutzucker"
+        case .none:        return ""
         }
     }
 }

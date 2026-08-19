@@ -5,7 +5,7 @@ Gleicher Funktionsumfang, gleiches Backend (Railway NestJS), gleiches dunkles Br
 
 ## Aktueller Stand
 
-✅ **Fundament fertig** (dieses Commit):
+✅ **Fertig (Fundament + Start-Screen):**
 
 | Bereich | Datei | Flutter-Quelle |
 |---|---|---|
@@ -20,8 +20,15 @@ Gleicher Funktionsumfang, gleiches Backend (Railway NestJS), gleiches dunkles Br
 | Auth-Gate | `App/RootView.swift` | `main.dart` (Consumer) |
 | Login | `Views/LoginView.swift` | `screens/login_screen.dart` |
 | Tab-Shell | `Views/MainTabView.swift` | `screens/main_screen.dart` |
+| Appointment-Model | `Models/Appointment.swift` | `models/appointment.dart` |
+| DailyQuote-Model | `Models/DailyQuote.swift` | `models/daily_quote.dart` |
+| AppointmentService | `Services/AppointmentService.swift` | `services/appointment_service.dart` |
+| DailyQuoteService | `Services/DailyQuoteService.swift` | `services/daily_quote_service.dart` |
+| StartViewModel | `ViewModels/StartViewModel.swift` | `providers/appointment_provider.dart` + `daily_quote_provider.dart` |
+| Start-Screen | `Views/Start/StartView.swift` | `screens/start_screen.dart` |
+| LoadingView / ErrorStateView | `Views/Start/StartView.swift` | `widgets/loading_indicator.dart` + `widgets/error_view.dart` |
 
-⏳ **Rest:** Alle weiteren Screens/Models/Provider — siehe [`TRANSLATION-GUIDE.md`](TRANSLATION-GUIDE.md).
+⏳ **Noch zu übersetzen:** Profil & Abo → Kalender → Training → Chat → Analytics
 
 ## Setup auf dem Mac (einmalig)
 
