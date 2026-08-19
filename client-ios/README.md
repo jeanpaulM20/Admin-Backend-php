@@ -5,7 +5,7 @@ Gleicher Funktionsumfang, gleiches Backend (Railway NestJS), gleiches dunkles Br
 
 ## Aktueller Stand
 
-✅ **Fertig (Fundament + Start-Screen):**
+✅ **Fertig:**
 
 | Bereich | Datei | Flutter-Quelle |
 |---|---|---|
@@ -26,9 +26,26 @@ Gleicher Funktionsumfang, gleiches Backend (Railway NestJS), gleiches dunkles Br
 | DailyQuoteService | `Services/DailyQuoteService.swift` | `services/daily_quote_service.dart` |
 | StartViewModel | `ViewModels/StartViewModel.swift` | `providers/appointment_provider.dart` + `daily_quote_provider.dart` |
 | Start-Screen | `Views/Start/StartView.swift` | `screens/start_screen.dart` |
-| LoadingView / ErrorStateView | `Views/Start/StartView.swift` | `widgets/loading_indicator.dart` + `widgets/error_view.dart` |
+| LoadingView / ErrorStateView | `Views/Start/StartView.swift` | `widgets/loading_indicator.dart` |
+| CreditPack-Model | `Models/CreditPack.swift` | `models/credit_pack.dart` |
+| Invoice-Model | `Models/Invoice.swift` | `models/invoice.dart` |
+| ClientFile-Model | `Models/ClientFile.swift` | `models/client_file.dart` |
+| ProfileData-Model | `Models/ProfileData.swift` | `models/profile_data.dart` |
+| ProfileService | `Services/ProfileService.swift` | `services/profile_service.dart` |
+| InvoiceService | `Services/InvoiceService.swift` | `services/invoice_service.dart` |
+| ProfileViewModel | `ViewModels/ProfileViewModel.swift` | `providers/profile_provider.dart` |
+| Profil-Screen | `Views/Profile/ProfileView.swift` | `screens/profile_screen.dart` |
+| Rechnung-Detail | `Views/Profile/InvoiceDetailSheet.swift` | `widgets/invoice_detail_sheet.dart` |
+| Trainer-Model | `Models/Trainer.swift` | `models/trainer.dart` |
+| TrainingType-Model | `Models/TrainingType.swift` | `models/training_type.dart` |
+| CalendarData-Model | `Models/CalendarData.swift` | `models/calendar_data.dart` |
+| PreferenceService | `Services/PreferenceService.swift` | `services/preference_service.dart` |
+| CalendarViewModel | `ViewModels/CalendarViewModel.swift` | `providers/appointment_provider.dart` (Kalender-Teil) |
+| Kalender-Screen | `Views/Calendar/CalendarView.swift` | `screens/calendar_screen.dart` |
+| Buchungs-Sheet | `Views/Calendar/BookingSheet.swift` | `_showBookingSheet` in calendar_screen.dart |
+| Termin-Detail | `Views/Calendar/AppointmentDetailSheet.swift` | `_showAppointmentDetail` in calendar_screen.dart |
 
-⏳ **Noch zu übersetzen:** Profil & Abo → Kalender → Training → Chat → Analytics
+⏳ **Noch zu übersetzen:** Training → Chat → Analytics
 
 ## Setup auf dem Mac (einmalig)
 

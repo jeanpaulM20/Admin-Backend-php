@@ -4,6 +4,14 @@ import Foundation
 /// Alle Methoden sind stateless; Instanz bei Bedarf wegwerfen oder wiederverwenden.
 struct AppointmentService {
 
+    func getCalendarData(clientId: String) async throws -> CalendarData {
+        let data = try await APIClient.shared.get("api/client/calendar/\(clientId)")
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw APIError(statusCode: 500, message: "Ungültige Kalenderdaten")
+        }
+        return CalendarData(json: json)
+    }
+
     func getStartData(clientId: String) async throws -> StartData {
         let data = try await APIClient.shared.get("api/client/start/\(clientId)")
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {

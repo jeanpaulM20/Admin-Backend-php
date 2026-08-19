@@ -24,8 +24,8 @@ struct MainTabView: View {
                     .tabItem { Label("Training", systemImage: "dumbbell.fill") }
                     .tag(TabIndex.training.rawValue)
 
-                // ── Tab 2: Kalender (Platzhalter) ────────────────────────────
-                PlaceholderScreen(title: "Kalender")
+                // ── Tab 2: Kalender ──────────────────────────────────────────
+                CalendarView()
                     .tabItem { Label("Kalender", systemImage: "calendar") }
                     .tag(TabIndex.kalender.rawValue)
 
