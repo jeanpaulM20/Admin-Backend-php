@@ -29,8 +29,8 @@ struct MainTabView: View {
                     .tabItem { Label("Kalender", systemImage: "calendar") }
                     .tag(TabIndex.kalender.rawValue)
 
-                // ── Tab 3: Chat (Platzhalter) ────────────────────────────────
-                PlaceholderScreen(title: "Chat")
+                // ── Tab 3: Chat ──────────────────────────────────────────────
+                ChatView()
                     .tabItem { Label("Chat", systemImage: "bubble.left") }
                     .tag(TabIndex.chat.rawValue)
 

@@ -55,7 +55,14 @@ Gleicher Funktionsumfang, gleiches Backend (Railway NestJS), gleiches dunkles Br
 | Plan-Detail | `Views/Training/TrainingPlanDetailView.swift` | `screens/training_plan_detail_screen.dart` |
 | Kommentar-Sheet | `Views/Training/CommentsSheet.swift` | `_CommentsSheet` in detail screen |
 
-⏳ **Noch zu übersetzen:** Chat → Analytics
+| ChatMessage-Model | `Models/ChatMessage.swift` | `models/chat_message.dart` |
+| ChatService | `Services/ChatService.swift` | `services/chat_service.dart` |
+| SSEClient | `Services/SSEClient.swift` | `services/realtime_service.dart` (iOS URLSession statt dart:html EventSource) |
+| ChatViewModel | `ViewModels/ChatViewModel.swift` | `providers/chat_provider.dart` |
+| Chat-Screen | `Views/Chat/ChatView.swift` | `screens/chat_screen.dart` (Konversationsliste) |
+| Chat-Thread | `Views/Chat/ChatThreadView.swift` | `screens/chat_screen.dart` (_ChatThread, Bubbles, DataCards, CircleGroups) |
+
+⏳ **Noch zu übersetzen:** Analytics
 
 ## Setup auf dem Mac (einmalig)
 
