@@ -78,8 +78,9 @@ Gleicher Funktionsumfang, gleiches Backend (Railway NestJS), gleiches dunkles Br
 | AppDelegate | `App/AppDelegate.swift` | — (APNs-Callbacks, benötigt `@UIApplicationDelegateAdaptor`) |
 | PushNotificationService | `Services/PushNotificationService.swift` | `services/push_notification_service.dart` (iOS APNs statt VAPID Web Push) |
 | Benachrichtigungs-Toggle | `Views/Profile/ProfileView.swift` (PushNotificationCard) | `_PushNotificationCard` in `profile_screen.dart` |
+| Blutzucker-Screen | `Views/Glucose/GlucoseView.swift` | `screens/glucose_screen.dart` (CGM-Daten, Login-View, Verlauf) |
 
-✅ **Alle Haupt-Screens + Push Notifications fertig**
+✅ **Alle Screens fertig** (6 Tabs + Profil + Coaching-Paywall + Push Notifications)
 
 ## APNs-Konfiguration (einmalig auf Mac / Railway)
 

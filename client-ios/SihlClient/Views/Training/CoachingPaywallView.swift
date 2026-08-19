@@ -101,7 +101,7 @@ struct CoachingPaywallView: View {
                     .foregroundStyle(AppColor.primary)
                 Text("Gesperrter Plan")
                     .font(.caption)
-                    .foregroundStyle(AppColor.textSecondary)
+                    .foregroundStyle(AppColor.muted)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
                     .background(AppColor.surface)
@@ -110,11 +110,11 @@ struct CoachingPaywallView: View {
 
             Text(plan.name ?? "Trainingsplan")
                 .font(.title2.bold())
-                .foregroundStyle(AppColor.textPrimary)
+                .foregroundStyle(AppColor.text)
 
             Text("\(plan.totalExercises) Übungen · \(sectionSummary)")
                 .font(.subheadline)
-                .foregroundStyle(AppColor.textSecondary)
+                .foregroundStyle(AppColor.muted)
 
             Divider().overlay(AppColor.border)
 
@@ -124,7 +124,7 @@ struct CoachingPaywallView: View {
                     .font(.footnote)
                 Text("Dieser Plan ist nur für Coaching-Mitglieder verfügbar. Wähle ein Abo, um sofort Zugang zu erhalten.")
                     .font(.footnote)
-                    .foregroundStyle(AppColor.textSecondary)
+                    .foregroundStyle(AppColor.muted)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -142,7 +142,7 @@ struct CoachingPaywallView: View {
         VStack(spacing: 12) {
             Text("Coaching-Abo wählen")
                 .font(.headline)
-                .foregroundStyle(AppColor.textPrimary)
+                .foregroundStyle(AppColor.text)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 16)
 
@@ -283,13 +283,13 @@ private struct TierCard: View {
                 // Radio
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
-                    .foregroundStyle(isSelected ? AppColor.primary : AppColor.textSecondary)
+                    .foregroundStyle(isSelected ? AppColor.primary : AppColor.muted)
 
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
                         Text(package.name)
                             .font(.subheadline.bold())
-                            .foregroundStyle(AppColor.textPrimary)
+                            .foregroundStyle(AppColor.text)
                         if let pct = savingsPercent {
                             Text("-\(pct)%")
                                 .font(.caption2.bold())
@@ -303,7 +303,7 @@ private struct TierCard: View {
 
                     Text(priceLabel)
                         .font(.title3.bold())
-                        .foregroundStyle(AppColor.textPrimary)
+                        .foregroundStyle(AppColor.text)
 
                     if let line = savingsLine {
                         Text(line)
@@ -314,14 +314,14 @@ private struct TierCard: View {
                     if let desc = package.description, !desc.isEmpty {
                         Text(desc)
                             .font(.caption)
-                            .foregroundStyle(AppColor.textSecondary)
+                            .foregroundStyle(AppColor.muted)
                             .padding(.top, 2)
                     }
 
                     if let inc = package.includes, !inc.isEmpty {
                         Text(inc)
                             .font(.caption)
-                            .foregroundStyle(AppColor.textSecondary)
+                            .foregroundStyle(AppColor.muted)
                     }
                 }
 
