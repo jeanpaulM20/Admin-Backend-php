@@ -40,4 +40,24 @@ export class PushController {
   ) {
     return this.pushService.unsubscribe(clientId, body.endpoint);
   }
+
+  // ─── iOS APNs ────────────────────────────────────────────────────────────
+
+  /** POST /api/client/push/:clientId/subscribe-ios — register APNs device token */
+  @Post(':clientId/subscribe-ios')
+  subscribeIOS(
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Body() body: { token: string },
+  ) {
+    return this.pushService.subscribeIOS(clientId, body.token);
+  }
+
+  /** POST /api/client/push/:clientId/unsubscribe-ios — remove APNs device token */
+  @Post(':clientId/unsubscribe-ios')
+  unsubscribeIOS(
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Body() body: { token: string },
+  ) {
+    return this.pushService.unsubscribeIOS(clientId, body.token);
+  }
 }

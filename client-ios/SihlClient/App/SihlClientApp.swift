@@ -6,6 +6,9 @@ import SwiftUI
 /// (Appointment, Profile, Credits, ...) hier ergänzen, sobald übersetzt.
 @main
 struct SihlClientApp: App {
+    // APNs-Callbacks kommen über UIApplicationDelegate
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
     @State private var auth      = AuthViewModel()
     @State private var libre     = LibreViewModel()
     @State private var start     = StartViewModel()
@@ -30,6 +33,12 @@ struct SihlClientApp: App {
                 .environment(creditsVM)
                 .preferredColorScheme(.dark)
                 .tint(AppColor.primary)
+                .onChange(of: auth.clientId) { _, newId in
+                    // APNs-Service mit clientId konfigurieren sobald eingeloggt
+                    if let id = newId {
+                        Task { await PushNotificationService.shared.configure(clientId: id) }
+                    }
+                }
         }
     }
 }

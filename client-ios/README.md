@@ -75,8 +75,29 @@ Gleicher Funktionsumfang, gleiches Backend (Railway NestJS), gleiches dunkles Br
 | CreditsViewModel | `ViewModels/CreditsViewModel.swift` | `providers/credits_provider.dart` |
 | Credits-Screen | `Views/Credits/CreditsView.swift` | `screens/credits_screen.dart` (Summary, Pakete, AGB-Sheet, Zahlungsart, Saferpay-Polling) |
 | Coaching-Paywall | `Views/Training/CoachingPaywallView.swift` | `screens/coaching_paywall_screen.dart` (Teaser, Tier-Auswahl, Saferpay-Alert) |
+| AppDelegate | `App/AppDelegate.swift` | — (APNs-Callbacks, benötigt `@UIApplicationDelegateAdaptor`) |
+| PushNotificationService | `Services/PushNotificationService.swift` | `services/push_notification_service.dart` (iOS APNs statt VAPID Web Push) |
+| Benachrichtigungs-Toggle | `Views/Profile/ProfileView.swift` (PushNotificationCard) | `_PushNotificationCard` in `profile_screen.dart` |
 
-✅ **Alle Haupt-Screens fertig** (Start + Training + Kalender + Chat + Analytics + Credits + Coaching-Paywall)
+✅ **Alle Haupt-Screens + Push Notifications fertig**
+
+## APNs-Konfiguration (einmalig auf Mac / Railway)
+
+### Xcode (iOS-Seite)
+In Xcode → Target → *Signing & Capabilities* → **+ Capability** → **Push Notifications** hinzufügen.
+Außerdem **Background Modes** → *Remote notifications* aktivieren.
+
+### Backend (NestJS auf Railway)
+1. Apple Developer → *Certificates, Identifiers & Profiles* → **Keys** → neuen Key mit *Apple Push Notifications service (APNs)* erstellen → `.p8`-Datei herunterladen
+2. Railway Env-Vars setzen:
+   ```
+   APNS_KEY       = <.p8-Inhalt als Base64>
+   APNS_KEY_ID    = <10-char Key-ID>
+   APNS_TEAM_ID   = <10-char Team-ID>
+   APNS_BUNDLE_ID = ch.sihltraining.app   # dein Bundle-ID
+   ```
+3. `npm install apn` im `nestjs-backend/`-Ordner
+4. In `push.service.ts` das `sendToClientIOS`-Stub durch echte `apn.Provider`-Aufrufe ersetzen (Anleitung im Kommentar)
 
 ## Setup auf dem Mac (einmalig)
 

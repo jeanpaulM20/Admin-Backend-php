@@ -12,6 +12,11 @@ struct ProfileView: View {
     @State private var showPolarDisconnectAlert = false
     @State private var polarToast: String?
 
+    // Push Notifications
+    @State private var pushEnabled  = false
+    @State private var pushLoading  = false
+    @State private var pushDenied   = false   // true = User muss in Einstellungen aktivieren
+
     var body: some View {
         ZStack {
             AppColor.background.ignoresSafeArea()
@@ -32,6 +37,7 @@ struct ProfileView: View {
             if vm.data == nil, let id = auth.clientId {
                 await vm.load(clientId: id)
             }
+            await refreshPushStatus()
         }
         .refreshable {
             if let id = auth.clientId { await vm.load(clientId: id) }
@@ -89,6 +95,7 @@ struct ProfileView: View {
                 invoicesSection
                 filesSection
                 connectionsSection
+                notificationsSection
 
                 Spacer(minLength: 24)
                 logoutButton
@@ -251,6 +258,53 @@ struct ProfileView: View {
                 onDisconnect: { showPolarDisconnectAlert = true }
             )
         }
+    }
+
+    // MARK: - Notifications
+
+    private var notificationsSection: some View {
+        SectionDisclosure(
+            icon: "bell.fill",
+            title: "Benachrichtigungen",
+            subtitle: pushEnabled ? "Aktiviert" : "Deaktiviert"
+        ) {
+            PushNotificationCard(
+                enabled:   pushEnabled,
+                loading:   pushLoading,
+                denied:    pushDenied,
+                onToggle: { enable in
+                    Task { await togglePush(enable: enable) }
+                }
+            )
+        }
+    }
+
+    private func refreshPushStatus() async {
+        let status = await PushNotificationService.shared.authorizationStatus()
+        pushDenied  = (status == .denied)
+        pushEnabled = await PushNotificationService.shared.isEnabled
+    }
+
+    private func togglePush(enable: Bool) async {
+        guard let id = auth.clientId else { return }
+        pushLoading = true
+        if enable {
+            if pushDenied {
+                // User muss selbst in Einstellungen gehen
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    await UIApplication.shared.open(url)
+                }
+            } else {
+                let ok = await PushNotificationService.shared.requestAndRegister(clientId: id)
+                pushEnabled = ok
+                await refreshPushStatus()
+            }
+        } else {
+            await PushNotificationService.shared.disable(clientId: id)
+            pushEnabled = false
+            await refreshPushStatus()
+        }
+        pushLoading = false
     }
 
     // MARK: - Logout
@@ -579,6 +633,76 @@ struct EmptyHint: View {
             .background(AppColor.surface)
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppColor.border, lineWidth: 1))
+    }
+}
+
+// MARK: - PushNotificationCard
+
+/// Pendant zu `_PushNotificationCard` in `profile_screen.dart`.
+private struct PushNotificationCard: View {
+    let enabled:  Bool
+    let loading:  Bool
+    let denied:   Bool
+    let onToggle: (Bool) -> Void
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(AppColor.primary.opacity(0.12))
+                    .frame(width: 42, height: 42)
+                Image(systemName: enabled ? "bell.badge.fill" : "bell.slash.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(AppColor.primary)
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Push-Benachrichtigungen")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(AppColor.text)
+                Group {
+                    if denied {
+                        Text("Deaktiviert – in iOS-Einstellungen aktivieren")
+                    } else if enabled {
+                        Text("Aktiv – du erhältst Benachrichtigungen")
+                    } else {
+                        Text("Deaktiviert")
+                    }
+                }
+                .font(.system(size: 12))
+                .foregroundStyle(AppColor.muted)
+            }
+
+            Spacer()
+
+            if loading {
+                ProgressView().tint(AppColor.primary)
+            } else if denied {
+                // Statt Toggle: Button der in Einstellungen führt
+                Button {
+                    onToggle(true)
+                } label: {
+                    Text("Einstellungen")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(AppColor.primary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(AppColor.primary.opacity(0.12))
+                        .clipShape(Capsule())
+                }
+            } else {
+                Toggle("", isOn: Binding(
+                    get: { enabled },
+                    set: { onToggle($0) }
+                ))
+                .tint(AppColor.primary)
+                .labelsHidden()
+            }
+        }
+        .padding(14)
+        .background(AppColor.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppColor.border, lineWidth: 1))
     }
 }
 
