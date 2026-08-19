@@ -45,7 +45,17 @@ Gleicher Funktionsumfang, gleiches Backend (Railway NestJS), gleiches dunkles Br
 | Buchungs-Sheet | `Views/Calendar/BookingSheet.swift` | `_showBookingSheet` in calendar_screen.dart |
 | Termin-Detail | `Views/Calendar/AppointmentDetailSheet.swift` | `_showAppointmentDetail` in calendar_screen.dart |
 
-⏳ **Noch zu übersetzen:** Training → Chat → Analytics
+| SubscriptionStatus-Model | `Models/TrainingPlan.swift` | `models/subscription.dart` |
+| TrainingPlan-Models | `Models/TrainingPlan.swift` | `models/training_plan.dart` |
+| TrainingPlanService | `Services/TrainingPlanService.swift` | `services/training_plan_service.dart` |
+| ExerciseTimer | `ViewModels/ExerciseTimer.swift` | `providers/exercise_timer.dart` |
+| TrainingViewModel | `ViewModels/TrainingViewModel.swift` | `providers/training_plan_provider.dart` |
+| Shared-Komponenten | `Views/Shared/SharedComponents.swift` | — (ToastView, TokenImage, ExerciseBadge) |
+| Training-Screen | `Views/Training/TrainingView.swift` | `screens/training_plan_list_screen.dart` |
+| Plan-Detail | `Views/Training/TrainingPlanDetailView.swift` | `screens/training_plan_detail_screen.dart` |
+| Kommentar-Sheet | `Views/Training/CommentsSheet.swift` | `_CommentsSheet` in detail screen |
+
+⏳ **Noch zu übersetzen:** Chat → Analytics
 
 ## Setup auf dem Mac (einmalig)
 

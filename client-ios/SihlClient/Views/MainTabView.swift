@@ -19,8 +19,8 @@ struct MainTabView: View {
                     .tabItem { Label("Start", systemImage: "house.fill") }
                     .tag(TabIndex.start.rawValue)
 
-                // ── Tab 1: Training (Platzhalter) ────────────────────────────
-                PlaceholderScreen(title: "Training")
+                // ── Tab 1: Training ──────────────────────────────────────────
+                TrainingView()
                     .tabItem { Label("Training", systemImage: "dumbbell.fill") }
                     .tag(TabIndex.training.rawValue)
 

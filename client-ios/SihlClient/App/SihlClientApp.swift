@@ -6,11 +6,12 @@ import SwiftUI
 /// (Appointment, Profile, Credits, ...) hier ergänzen, sobald übersetzt.
 @main
 struct SihlClientApp: App {
-    @State private var auth     = AuthViewModel()
-    @State private var libre    = LibreViewModel()
-    @State private var start    = StartViewModel()
-    @State private var profile  = ProfileViewModel()
-    @State private var calendar = CalendarViewModel()
+    @State private var auth      = AuthViewModel()
+    @State private var libre     = LibreViewModel()
+    @State private var start     = StartViewModel()
+    @State private var profile   = ProfileViewModel()
+    @State private var calendar  = CalendarViewModel()
+    @State private var training  = TrainingViewModel()
 
     var body: some Scene {
         WindowGroup {
@@ -20,6 +21,7 @@ struct SihlClientApp: App {
                 .environment(start)
                 .environment(profile)
                 .environment(calendar)
+                .environment(training)
                 .preferredColorScheme(.dark)
                 .tint(AppColor.primary)
         }
