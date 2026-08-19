@@ -59,7 +59,7 @@ struct MainTabView: View {
                 }
             }
             .navigationDestination(isPresented: $showProfile) {
-                PlaceholderScreen(title: "Profil")
+                ProfileView()
             }
         }
     }
