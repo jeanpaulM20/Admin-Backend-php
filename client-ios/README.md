@@ -70,7 +70,12 @@ Gleicher Funktionsumfang, gleiches Backend (Railway NestJS), gleiches dunkles Br
 | Training-Review-Detail | `Views/Analytics/TrainingReviewDetailView.swift` | `screens/training_review_screen.dart` (HR-Chart + Edwards TRIMP) |
 | Training-Vergleich | `Views/Analytics/TrainingCompareView.swift` | `screens/training_compare_screen.dart` (überlagerte HR-Charts) |
 
-✅ **Alle 5 Screens fertig** (Start, Training, Kalender, Chat, Analytics)
+| CreditModels | `Models/CreditModels.swift` | `models/buyable_credit.dart` (CreditPackage, ClientCredit, PaymentInitResult) |
+| CreditsService | `Services/CreditsService.swift` | `services/credits_service.dart` + `payment_service.dart` |
+| CreditsViewModel | `ViewModels/CreditsViewModel.swift` | `providers/credits_provider.dart` |
+| Credits-Screen | `Views/Credits/CreditsView.swift` | `screens/credits_screen.dart` (Summary, Pakete, AGB-Sheet, Zahlungsart, Saferpay-Polling) |
+
+✅ **Alle Haupt-Screens fertig** (Start + Training + Kalender + Chat + Analytics + Credits)
 
 ## Setup auf dem Mac (einmalig)
 

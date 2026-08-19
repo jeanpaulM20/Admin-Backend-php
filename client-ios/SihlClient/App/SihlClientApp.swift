@@ -14,6 +14,7 @@ struct SihlClientApp: App {
     @State private var training  = TrainingViewModel()
     @State private var chatVM    = ChatViewModel()
     @State private var analytics = AnalyticsViewModel()
+    @State private var creditsVM = CreditsViewModel()
 
     var body: some Scene {
         WindowGroup {
@@ -26,6 +27,7 @@ struct SihlClientApp: App {
                 .environment(training)
                 .environment(chatVM)
                 .environment(analytics)
+                .environment(creditsVM)
                 .preferredColorScheme(.dark)
                 .tint(AppColor.primary)
         }

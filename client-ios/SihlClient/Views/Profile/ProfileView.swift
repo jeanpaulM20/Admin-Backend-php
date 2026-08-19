@@ -156,8 +156,7 @@ struct ProfileView: View {
     // MARK: - Credits kaufen Row
 
     private var creditsBuyRow: some View {
-        // Navigiert später zu CreditsScreen (noch zu übersetzen)
-        NavigationLink(destination: PlaceholderScreen(title: "Credits kaufen")) {
+        NavigationLink(destination: CreditsView()) {
             HStack(spacing: 12) {
                 RoundedRectangle(cornerRadius: 9)
                     .fill(AppColor.primary.opacity(0.12))
