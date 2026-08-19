@@ -98,7 +98,10 @@ struct TrainingView: View {
             }
         }
         .navigationDestination(for: ClientTrainingPlan.self) { plan in
-            if let id = plan.id {
+            if plan.locked {
+                // Gesperrter Plan → Coaching-Paywall (wie Flutter CoachingPaywallScreen)
+                CoachingPaywallView(plan: plan)
+            } else if let id = plan.id {
                 TrainingPlanDetailView(
                     planId: id,
                     planName: plan.name,

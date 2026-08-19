@@ -22,6 +22,12 @@ struct CreditsService {
         return combined.map { CreditPackage(json: $0) }
     }
 
+    /// `GET /api/client/packages?kind=coaching` — nur Coaching-Abos (für Paywall)
+    func listCoachingPackages() async throws -> [CreditPackage] {
+        let json = try await APIClient.shared.get("/api/client/packages?kind=coaching")
+        return (json as? [[String: Any]] ?? []).map { CreditPackage(json: $0) }
+    }
+
     /// `POST /api/client/purchase/{clientId}` — Banküberweisung / QR-Rechnung
     func purchasePackage(clientId: String, packageId: String) async throws -> (success: Bool, message: String) {
         let body: [String: Any] = ["packageId": Int(packageId) ?? 0]

@@ -74,8 +74,9 @@ Gleicher Funktionsumfang, gleiches Backend (Railway NestJS), gleiches dunkles Br
 | CreditsService | `Services/CreditsService.swift` | `services/credits_service.dart` + `payment_service.dart` |
 | CreditsViewModel | `ViewModels/CreditsViewModel.swift` | `providers/credits_provider.dart` |
 | Credits-Screen | `Views/Credits/CreditsView.swift` | `screens/credits_screen.dart` (Summary, Pakete, AGB-Sheet, Zahlungsart, Saferpay-Polling) |
+| Coaching-Paywall | `Views/Training/CoachingPaywallView.swift` | `screens/coaching_paywall_screen.dart` (Teaser, Tier-Auswahl, Saferpay-Alert) |
 
-✅ **Alle Haupt-Screens fertig** (Start + Training + Kalender + Chat + Analytics + Credits)
+✅ **Alle Haupt-Screens fertig** (Start + Training + Kalender + Chat + Analytics + Credits + Coaching-Paywall)
 
 ## Setup auf dem Mac (einmalig)
 
