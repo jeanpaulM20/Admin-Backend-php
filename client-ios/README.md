@@ -62,7 +62,15 @@ Gleicher Funktionsumfang, gleiches Backend (Railway NestJS), gleiches dunkles Br
 | Chat-Screen | `Views/Chat/ChatView.swift` | `screens/chat_screen.dart` (Konversationsliste) |
 | Chat-Thread | `Views/Chat/ChatThreadView.swift` | `screens/chat_screen.dart` (_ChatThread, Bubbles, DataCards, CircleGroups) |
 
-⏳ **Noch zu übersetzen:** Analytics
+| PerformanceModels | `Models/PerformanceModels.swift` | `models/performance_section.dart` + `training_review.dart` + `metric_history.dart` |
+| PerformanceService | `Services/PerformanceService.swift` | `services/performance_service.dart` |
+| AnalyticsViewModel | `ViewModels/AnalyticsViewModel.swift` | `providers/performance_provider.dart` |
+| Analytics-Screen | `Views/Analytics/AnalyticsView.swift` | `screens/performance_screen.dart` (klappbare Sektionen + Vergleichsmodus) |
+| Metriken-Detail | `Views/Analytics/PerformanceDetailView.swift` | `screens/performance_detail_screen.dart` (Swift Charts Line-Chart) |
+| Training-Review-Detail | `Views/Analytics/TrainingReviewDetailView.swift` | `screens/training_review_screen.dart` (HR-Chart + Edwards TRIMP) |
+| Training-Vergleich | `Views/Analytics/TrainingCompareView.swift` | `screens/training_compare_screen.dart` (überlagerte HR-Charts) |
+
+✅ **Alle 5 Screens fertig** (Start, Training, Kalender, Chat, Analytics)
 
 ## Setup auf dem Mac (einmalig)
 

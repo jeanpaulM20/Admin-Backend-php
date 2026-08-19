@@ -34,8 +34,8 @@ struct MainTabView: View {
                     .tabItem { Label("Chat", systemImage: "bubble.left") }
                     .tag(TabIndex.chat.rawValue)
 
-                // ── Tab 4: Analytics (Platzhalter) ───────────────────────────
-                PlaceholderScreen(title: "Analytics")
+                // ── Tab 4: Analytics ─────────────────────────────────────────
+                AnalyticsView()
                     .tabItem { Label("Analytics", systemImage: "chart.line.uptrend.xyaxis") }
                     .tag(TabIndex.analytics.rawValue)
 
