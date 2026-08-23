@@ -1,0 +1,707 @@
+import SwiftUI
+import UIKit
+
+/// Pendant zu `screens/profile_screen.dart`.
+/// Geöffnet als NavigationDestination vom Profil-Avatar in MainTabView.
+struct ProfileView: View {
+    @Environment(AuthViewModel.self)    private var auth
+    @Environment(ProfileViewModel.self) private var vm
+
+    @State private var selectedInvoice: Invoice?
+    @State private var showLogoutAlert   = false
+    @State private var showPolarDisconnectAlert = false
+    @State private var polarToast: String?
+
+    // Push Notifications
+    @State private var pushEnabled  = false
+    @State private var pushLoading  = false
+    @State private var pushDenied   = false   // true = User muss in Einstellungen aktivieren
+
+    var body: some View {
+        ZStack {
+            AppColor.background.ignoresSafeArea()
+
+            if vm.isLoading {
+                LoadingView(message: "Lade Profil…")
+            } else if let err = vm.error {
+                ErrorStateView(message: err) {
+                    Task { await vm.load(clientId: auth.clientId ?? "") }
+                }
+            } else {
+                content
+            }
+        }
+        .navigationTitle("Profil")
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            if vm.data == nil, let id = auth.clientId {
+                await vm.load(clientId: id)
+            }
+            await refreshPushStatus()
+        }
+        .refreshable {
+            if let id = auth.clientId { await vm.load(clientId: id) }
+        }
+        .sheet(item: $selectedInvoice) { invoice in
+            InvoiceDetailSheet(invoice: invoice)
+        }
+        .alert("Abmelden", isPresented: $showLogoutAlert) {
+            Button("Abbrechen", role: .cancel) {}
+            Button("Abmelden", role: .destructive) {
+                Task { await auth.logout() }
+            }
+        } message: {
+            Text("Möchtest du dich wirklich abmelden?")
+        }
+        .alert("Polar trennen", isPresented: $showPolarDisconnectAlert) {
+            Button("Abbrechen", role: .cancel) {}
+            Button("Trennen", role: .destructive) {
+                Task {
+                    guard let id = auth.clientId else { return }
+                    do {
+                        try await vm.disconnectPolar(clientId: id)
+                    } catch {
+                        polarToast = "Polar-Trennung fehlgeschlagen"
+                    }
+                }
+            }
+        } message: {
+            Text("Polar-Verbindung wirklich trennen?")
+        }
+        .overlay(alignment: .bottom) {
+            if let msg = polarToast {
+                ToastView(message: msg)
+                    .padding(.bottom, 32)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .onAppear {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                            withAnimation { polarToast = nil }
+                        }
+                    }
+            }
+        }
+    }
+
+    // MARK: - Content
+
+    private var content: some View {
+        ScrollView {
+            VStack(spacing: 10) {
+                avatarHeader
+                    .padding(.bottom, 18)
+
+                creditsSection
+                creditsBuyRow
+                invoicesSection
+                filesSection
+                connectionsSection
+                notificationsSection
+
+                Spacer(minLength: 24)
+                logoutButton
+                    .padding(.bottom, 8)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 24)
+            .padding(.bottom, 24)
+        }
+    }
+
+    // MARK: - Avatar
+
+    private var avatarHeader: some View {
+        VStack(spacing: 16) {
+            Circle()
+                .fill(AppColor.primary)
+                .frame(width: 90, height: 90)
+                .overlay(
+                    Text(vm.data?.initials ?? "?")
+                        .font(.system(size: 32, weight: .heavy))
+                        .foregroundStyle(AppColor.white)
+                )
+            VStack(spacing: 4) {
+                Text(vm.data?.fullName ?? "")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(AppColor.text)
+                Text("Mitglied")
+                    .font(.system(size: 14))
+                    .foregroundStyle(AppColor.muted)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Credits Section
+
+    private var creditsSection: some View {
+        SectionDisclosure(
+            icon: "creditcard.fill",
+            title: "Meine Credits",
+            subtitle: vm.creditsSubtitle
+        ) {
+            if vm.activePacks.isEmpty {
+                EmptyHint(text: "Keine aktiven Credit-Pakete")
+            } else {
+                ForEach(vm.activePacks) { pack in
+                    CreditPackCard(pack: pack).padding(.bottom, 12)
+                }
+            }
+            if !vm.expiredPacks.isEmpty {
+                SectionDisclosure(
+                    icon: "archivebox",
+                    title: "Archiv",
+                    subtitle: "\(vm.expiredPacks.count) abgelaufene Pakete"
+                ) {
+                    ForEach(vm.expiredPacks) { pack in
+                        CreditPackCard(pack: pack).padding(.bottom, 12)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Credits kaufen Row
+
+    private var creditsBuyRow: some View {
+        NavigationLink(destination: CreditsView()) {
+            HStack(spacing: 12) {
+                RoundedRectangle(cornerRadius: 9)
+                    .fill(AppColor.primary.opacity(0.12))
+                    .frame(width: 36, height: 36)
+                    .overlay(Image(systemName: "cart")
+                        .font(.system(size: 16))
+                        .foregroundStyle(AppColor.primary))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Credits kaufen")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(AppColor.text)
+                    Text("Abos & Pakete ansehen")
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppColor.muted)
+                }
+
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14))
+                    .foregroundStyle(AppColor.muted)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(AppColor.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppColor.border, lineWidth: 1))
+        }
+    }
+
+    // MARK: - Invoices Section
+
+    private var invoicesSection: some View {
+        SectionDisclosure(
+            icon: "doc.text.fill",
+            title: "Rechnungen",
+            subtitle: vm.countLabel(vm.invoices.count, "Rechnung", "Rechnungen")
+        ) {
+            if vm.invoices.isEmpty {
+                EmptyHint(text: "Keine Rechnungen vorhanden")
+            } else {
+                ForEach(vm.invoices) { inv in
+                    InvoiceRow(invoice: inv)
+                        .onTapGesture { selectedInvoice = inv }
+                        .padding(.bottom, 10)
+                }
+            }
+        }
+    }
+
+    // MARK: - Files Section
+
+    private var filesSection: some View {
+        SectionDisclosure(
+            icon: "folder.fill",
+            title: "Files",
+            subtitle: vm.countLabel(vm.files.count, "Datei", "Dateien")
+        ) {
+            if vm.files.isEmpty {
+                EmptyHint(text: "Keine Dateien vorhanden")
+            } else {
+                ForEach(vm.files) { file in
+                    FileRow(file: file, token: auth.token)
+                        .padding(.bottom, 8)
+                }
+            }
+        }
+    }
+
+    // MARK: - Verbindungen (Polar)
+
+    private var connectionsSection: some View {
+        SectionDisclosure(
+            icon: "link",
+            title: "Verbindungen",
+            subtitle: vm.polarConnected ? "Polar verbunden" : "Keine Verbindung"
+        ) {
+            PolarCard(
+                connected: vm.polarConnected,
+                loading: vm.polarLoading,
+                onSync: {
+                    Task {
+                        guard let id = auth.clientId else { return }
+                        do {
+                            try await vm.syncPolar(clientId: id)
+                            withAnimation { polarToast = "Polar-Trainings synchronisiert!" }
+                        } catch {
+                            withAnimation { polarToast = "Polar-Sync fehlgeschlagen" }
+                        }
+                    }
+                },
+                onDisconnect: { showPolarDisconnectAlert = true }
+            )
+        }
+    }
+
+    // MARK: - Notifications
+
+    private var notificationsSection: some View {
+        SectionDisclosure(
+            icon: "bell.fill",
+            title: "Benachrichtigungen",
+            subtitle: pushEnabled ? "Aktiviert" : "Deaktiviert"
+        ) {
+            PushNotificationCard(
+                enabled:   pushEnabled,
+                loading:   pushLoading,
+                denied:    pushDenied,
+                onToggle: { enable in
+                    Task { await togglePush(enable: enable) }
+                }
+            )
+        }
+    }
+
+    private func refreshPushStatus() async {
+        let status = await PushNotificationService.shared.authorizationStatus()
+        pushDenied  = (status == .denied)
+        pushEnabled = await PushNotificationService.shared.isEnabled
+    }
+
+    private func togglePush(enable: Bool) async {
+        guard let id = auth.clientId else { return }
+        pushLoading = true
+        if enable {
+            if pushDenied {
+                // User muss selbst in Einstellungen gehen
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    await UIApplication.shared.open(url)
+                }
+            } else {
+                let ok = await PushNotificationService.shared.requestAndRegister(clientId: id)
+                pushEnabled = ok
+                await refreshPushStatus()
+            }
+        } else {
+            await PushNotificationService.shared.disable(clientId: id)
+            pushEnabled = false
+            await refreshPushStatus()
+        }
+        pushLoading = false
+    }
+
+    // MARK: - Logout
+
+    private var logoutButton: some View {
+        Button {
+            showLogoutAlert = true
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "rectangle.portrait.and.arrow.right")
+                    .font(.system(size: 16))
+                Text("Abmelden")
+                    .font(.system(size: 15, weight: .semibold))
+            }
+            .foregroundStyle(AppColor.red)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(AppColor.red.opacity(0.47), lineWidth: 1)
+            )
+        }
+    }
+}
+
+// MARK: - Collapsible Section
+
+/// Wiederverwendbare aufklappbare Sektion — Pendant zu Flutter `_SectionTile` (ExpansionTile).
+struct SectionDisclosure<Content: View>: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+    @ViewBuilder let content: () -> Content
+
+    @State private var expanded = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header / Tap-Target
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() }
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: icon)
+                        .font(.system(size: 18))
+                        .foregroundStyle(AppColor.primary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(title)
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(AppColor.text)
+                        Text(subtitle)
+                            .font(.system(size: 12))
+                            .foregroundStyle(AppColor.muted)
+                    }
+                    Spacer()
+                    Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 13))
+                        .foregroundStyle(AppColor.muted)
+                }
+                .padding(16)
+            }
+            .buttonStyle(.plain)
+
+            // Body
+            if expanded {
+                Divider().background(AppColor.border)
+                VStack(spacing: 0) {
+                    content()
+                }
+                .padding(.horizontal, 12)
+                .padding(.top, 10)
+                .padding(.bottom, 12)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .background(AppColor.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppColor.border, lineWidth: 1))
+    }
+}
+
+// MARK: - Credit Pack Card
+
+private struct CreditPackCard: View {
+    let pack: CreditPack
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 10) {
+                Image(systemName: "creditcard")
+                    .font(.system(size: 16))
+                    .foregroundStyle(AppColor.primary)
+                Text(pack.title)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(AppColor.text)
+                Spacer()
+                Text("\(pack.remainingCredits) / \(pack.prepaidCredits)")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(AppColor.primary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(AppColor.primary.opacity(0.15))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+
+            // Progress Bar
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(AppColor.surface)
+                        .frame(height: 6)
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(AppColor.primary)
+                        .frame(width: geo.size.width * pack.fraction, height: 6)
+                }
+            }
+            .frame(height: 6)
+        }
+        .padding(16)
+        .background(AppColor.surface2)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppColor.border, lineWidth: 1))
+    }
+}
+
+// MARK: - Invoice Row
+
+private struct InvoiceRow: View {
+    let invoice: Invoice
+
+    private static let dateFmt: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "dd.MM.yyyy"; return f
+    }()
+
+    var body: some View {
+        let isPaid = invoice.isPaid
+        let color: Color = isPaid ? AppColor.green : AppColor.primary
+
+        HStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: 10)
+                .fill(AppColor.primary.opacity(0.12))
+                .frame(width: 40, height: 40)
+                .overlay(Image(systemName: "receipt")
+                    .font(.system(size: 18))
+                    .foregroundStyle(AppColor.primary))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Rechnung \(invoice.invoiceNumber)")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(AppColor.text)
+                if let d = invoice.transactionDate {
+                    Text(Self.dateFmt.string(from: d))
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppColor.muted)
+                }
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("\(invoice.currency) \(String(format: "%.2f", invoice.amount))")
+                    .font(.system(size: 16, weight: .heavy))
+                    .foregroundStyle(AppColor.text)
+                Text(isPaid ? "Bezahlt" : "Offen")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(color)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(color.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 14))
+                .foregroundStyle(AppColor.muted)
+        }
+        .padding(16)
+        .background(AppColor.surface2)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppColor.border, lineWidth: 1))
+    }
+}
+
+// MARK: - File Row
+
+private struct FileRow: View {
+    let file: ClientFile
+    let token: String?
+
+    private static let dateFmt: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "dd.MM.yyyy"; return f
+    }()
+
+    var body: some View {
+        Button {
+            openFile()
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "doc.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(AppColor.primary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(file.name)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(AppColor.text)
+                    Text(file.date.map { Self.dateFmt.string(from: $0) } ?? "-")
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppColor.muted)
+                }
+                Spacer()
+                if file.hasUrl {
+                    Image(systemName: "arrow.up.right.square")
+                        .font(.system(size: 16))
+                        .foregroundStyle(AppColor.primary)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(AppColor.surface2)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(AppColor.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .disabled(!file.hasUrl)
+    }
+
+    private func openFile() {
+        guard let rawUrl = file.url, !rawUrl.isEmpty else { return }
+        let fullUrl: String
+        if rawUrl.hasPrefix("/api/") {
+            let base = APIConfig.baseURL.absoluteString
+                .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            let sep = rawUrl.contains("?") ? "&" : "?"
+            let tokenSuffix = token.map { "\(sep)token=\($0)" } ?? ""
+            fullUrl = "\(base)\(rawUrl)\(tokenSuffix)"
+        } else {
+            fullUrl = rawUrl
+        }
+        guard let url = URL(string: fullUrl) else { return }
+        UIApplication.shared.open(url)
+    }
+}
+
+// MARK: - Polar Card
+
+private struct PolarCard: View {
+    let connected: Bool
+    let loading: Bool
+    let onSync: () -> Void
+    let onDisconnect: () -> Void
+
+    private let polarRed = Color(hex: 0xD4002A)
+
+    var body: some View {
+        HStack(spacing: 14) {
+            // Polar "P" Logo
+            RoundedRectangle(cornerRadius: 12)
+                .fill(polarRed.opacity(0.12))
+                .frame(width: 44, height: 44)
+                .overlay(
+                    Text("P")
+                        .font(.system(size: 22, weight: .black))
+                        .foregroundStyle(polarRed)
+                )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Polar")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(AppColor.text)
+                Text(connected ? "Verbunden" : "Nicht verbunden")
+                    .font(.system(size: 12))
+                    .foregroundStyle(connected ? AppColor.green : AppColor.muted)
+            }
+
+            Spacer()
+
+            if loading {
+                ProgressView().tint(AppColor.primary).frame(width: 20, height: 20)
+            } else if connected {
+                HStack(spacing: 8) {
+                    Button(action: onSync) {
+                        Label("Sync", systemImage: "arrow.clockwise")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(AppColor.primary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(AppColor.primary.opacity(0.15))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    .buttonStyle(.plain)
+
+                    Button(action: onDisconnect) {
+                        Label("Trennen", systemImage: "link.badge.minus")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(AppColor.red)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(AppColor.red.opacity(0.12))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    .buttonStyle(.plain)
+                }
+            } else {
+                Text("Nicht konfiguriert")
+                    .font(.system(size: 12))
+                    .foregroundStyle(AppColor.muted)
+            }
+        }
+        .padding(16)
+        .background(AppColor.surface2)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(AppColor.border, lineWidth: 1))
+    }
+}
+
+// MARK: - Empty Hint
+
+struct EmptyHint: View {
+    let text: String
+    var body: some View {
+        Text(text)
+            .font(.system(size: 14))
+            .foregroundStyle(AppColor.muted)
+            .frame(maxWidth: .infinity)
+            .padding(20)
+            .background(AppColor.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppColor.border, lineWidth: 1))
+    }
+}
+
+// MARK: - PushNotificationCard
+
+/// Pendant zu `_PushNotificationCard` in `profile_screen.dart`.
+private struct PushNotificationCard: View {
+    let enabled:  Bool
+    let loading:  Bool
+    let denied:   Bool
+    let onToggle: (Bool) -> Void
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(AppColor.primary.opacity(0.12))
+                    .frame(width: 42, height: 42)
+                Image(systemName: enabled ? "bell.badge.fill" : "bell.slash.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(AppColor.primary)
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Push-Benachrichtigungen")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(AppColor.text)
+                Group {
+                    if denied {
+                        Text("Deaktiviert – in iOS-Einstellungen aktivieren")
+                    } else if enabled {
+                        Text("Aktiv – du erhältst Benachrichtigungen")
+                    } else {
+                        Text("Deaktiviert")
+                    }
+                }
+                .font(.system(size: 12))
+                .foregroundStyle(AppColor.muted)
+            }
+
+            Spacer()
+
+            if loading {
+                ProgressView().tint(AppColor.primary)
+            } else if denied {
+                // Statt Toggle: Button der in Einstellungen führt
+                Button {
+                    onToggle(true)
+                } label: {
+                    Text("Einstellungen")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(AppColor.primary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(AppColor.primary.opacity(0.12))
+                        .clipShape(Capsule())
+                }
+            } else {
+                Toggle("", isOn: Binding(
+                    get: { enabled },
+                    set: { onToggle($0) }
+                ))
+                .tint(AppColor.primary)
+                .labelsHidden()
+            }
+        }
+        .padding(14)
+        .background(AppColor.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppColor.border, lineWidth: 1))
+    }
+}

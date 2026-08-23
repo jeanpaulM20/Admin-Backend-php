@@ -23,3 +23,10 @@ nestjs-backend/dev.sqlite
 *.tmp
 .DS_Store
 Thumbs.db
+
+# Xcode
+DerivedData/
+xcuserdata/
+*.xcuserstate
+client-ios/SihlClient.xcodeproj/
+client-ios/build/

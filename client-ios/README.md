@@ -5,7 +5,7 @@ Gleicher Funktionsumfang, gleiches Backend (Railway NestJS), gleiches dunkles Br
 
 ## Aktueller Stand
 
-✅ **Fundament fertig** (dieses Commit):
+✅ **Fertig:**
 
 | Bereich | Datei | Flutter-Quelle |
 |---|---|---|
@@ -20,10 +20,102 @@ Gleicher Funktionsumfang, gleiches Backend (Railway NestJS), gleiches dunkles Br
 | Auth-Gate | `App/RootView.swift` | `main.dart` (Consumer) |
 | Login | `Views/LoginView.swift` | `screens/login_screen.dart` |
 | Tab-Shell | `Views/MainTabView.swift` | `screens/main_screen.dart` |
+| Appointment-Model | `Models/Appointment.swift` | `models/appointment.dart` |
+| DailyQuote-Model | `Models/DailyQuote.swift` | `models/daily_quote.dart` |
+| AppointmentService | `Services/AppointmentService.swift` | `services/appointment_service.dart` |
+| DailyQuoteService | `Services/DailyQuoteService.swift` | `services/daily_quote_service.dart` |
+| StartViewModel | `ViewModels/StartViewModel.swift` | `providers/appointment_provider.dart` + `daily_quote_provider.dart` |
+| Start-Screen | `Views/Start/StartView.swift` | `screens/start_screen.dart` |
+| LoadingView / ErrorStateView | `Views/Start/StartView.swift` | `widgets/loading_indicator.dart` |
+| CreditPack-Model | `Models/CreditPack.swift` | `models/credit_pack.dart` |
+| Invoice-Model | `Models/Invoice.swift` | `models/invoice.dart` |
+| ClientFile-Model | `Models/ClientFile.swift` | `models/client_file.dart` |
+| ProfileData-Model | `Models/ProfileData.swift` | `models/profile_data.dart` |
+| ProfileService | `Services/ProfileService.swift` | `services/profile_service.dart` |
+| InvoiceService | `Services/InvoiceService.swift` | `services/invoice_service.dart` |
+| ProfileViewModel | `ViewModels/ProfileViewModel.swift` | `providers/profile_provider.dart` |
+| Profil-Screen | `Views/Profile/ProfileView.swift` | `screens/profile_screen.dart` |
+| Rechnung-Detail | `Views/Profile/InvoiceDetailSheet.swift` | `widgets/invoice_detail_sheet.dart` |
+| Trainer-Model | `Models/Trainer.swift` | `models/trainer.dart` |
+| TrainingType-Model | `Models/TrainingType.swift` | `models/training_type.dart` |
+| CalendarData-Model | `Models/CalendarData.swift` | `models/calendar_data.dart` |
+| PreferenceService | `Services/PreferenceService.swift` | `services/preference_service.dart` |
+| CalendarViewModel | `ViewModels/CalendarViewModel.swift` | `providers/appointment_provider.dart` (Kalender-Teil) |
+| Kalender-Screen | `Views/Calendar/CalendarView.swift` | `screens/calendar_screen.dart` |
+| Buchungs-Sheet | `Views/Calendar/BookingSheet.swift` | `_showBookingSheet` in calendar_screen.dart |
+| Termin-Detail | `Views/Calendar/AppointmentDetailSheet.swift` | `_showAppointmentDetail` in calendar_screen.dart |
 
-⏳ **Rest:** Alle weiteren Screens/Models/Provider — siehe [`TRANSLATION-GUIDE.md`](TRANSLATION-GUIDE.md).
+| SubscriptionStatus-Model | `Models/TrainingPlan.swift` | `models/subscription.dart` |
+| TrainingPlan-Models | `Models/TrainingPlan.swift` | `models/training_plan.dart` |
+| TrainingPlanService | `Services/TrainingPlanService.swift` | `services/training_plan_service.dart` |
+| ExerciseTimer | `ViewModels/ExerciseTimer.swift` | `providers/exercise_timer.dart` |
+| TrainingViewModel | `ViewModels/TrainingViewModel.swift` | `providers/training_plan_provider.dart` |
+| Shared-Komponenten | `Views/Shared/SharedComponents.swift` | — (ToastView, TokenImage, ExerciseBadge) |
+| Training-Screen | `Views/Training/TrainingView.swift` | `screens/training_plan_list_screen.dart` |
+| Plan-Detail | `Views/Training/TrainingPlanDetailView.swift` | `screens/training_plan_detail_screen.dart` |
+| Kommentar-Sheet | `Views/Training/CommentsSheet.swift` | `_CommentsSheet` in detail screen |
+
+| ChatMessage-Model | `Models/ChatMessage.swift` | `models/chat_message.dart` |
+| ChatService | `Services/ChatService.swift` | `services/chat_service.dart` |
+| SSEClient | `Services/SSEClient.swift` | `services/realtime_service.dart` (iOS URLSession statt dart:html EventSource) |
+| ChatViewModel | `ViewModels/ChatViewModel.swift` | `providers/chat_provider.dart` |
+| Chat-Screen | `Views/Chat/ChatView.swift` | `screens/chat_screen.dart` (Konversationsliste) |
+| Chat-Thread | `Views/Chat/ChatThreadView.swift` | `screens/chat_screen.dart` (_ChatThread, Bubbles, DataCards, CircleGroups) |
+
+| PerformanceModels | `Models/PerformanceModels.swift` | `models/performance_section.dart` + `training_review.dart` + `metric_history.dart` |
+| PerformanceService | `Services/PerformanceService.swift` | `services/performance_service.dart` |
+| AnalyticsViewModel | `ViewModels/AnalyticsViewModel.swift` | `providers/performance_provider.dart` |
+| Analytics-Screen | `Views/Analytics/AnalyticsView.swift` | `screens/performance_screen.dart` (klappbare Sektionen + Vergleichsmodus) |
+| Metriken-Detail | `Views/Analytics/PerformanceDetailView.swift` | `screens/performance_detail_screen.dart` (Swift Charts Line-Chart) |
+| Training-Review-Detail | `Views/Analytics/TrainingReviewDetailView.swift` | `screens/training_review_screen.dart` (HR-Chart + Edwards TRIMP) |
+| Training-Vergleich | `Views/Analytics/TrainingCompareView.swift` | `screens/training_compare_screen.dart` (überlagerte HR-Charts) |
+
+| CreditModels | `Models/CreditModels.swift` | `models/buyable_credit.dart` (CreditPackage, ClientCredit, PaymentInitResult) |
+| CreditsService | `Services/CreditsService.swift` | `services/credits_service.dart` + `payment_service.dart` |
+| CreditsViewModel | `ViewModels/CreditsViewModel.swift` | `providers/credits_provider.dart` |
+| Credits-Screen | `Views/Credits/CreditsView.swift` | `screens/credits_screen.dart` (Summary, Pakete, AGB-Sheet, Zahlungsart, Saferpay-Polling) |
+| Coaching-Paywall | `Views/Training/CoachingPaywallView.swift` | `screens/coaching_paywall_screen.dart` (Teaser, Tier-Auswahl, Saferpay-Alert) |
+| AppDelegate | `App/AppDelegate.swift` | — (APNs-Callbacks, benötigt `@UIApplicationDelegateAdaptor`) |
+| PushNotificationService | `Services/PushNotificationService.swift` | `services/push_notification_service.dart` (iOS APNs statt VAPID Web Push) |
+| Benachrichtigungs-Toggle | `Views/Profile/ProfileView.swift` (PushNotificationCard) | `_PushNotificationCard` in `profile_screen.dart` |
+| Blutzucker-Screen | `Views/Glucose/GlucoseView.swift` | `screens/glucose_screen.dart` (CGM-Daten, Login-View, Verlauf) |
+
+✅ **Alle Screens fertig** (6 Tabs + Profil + Coaching-Paywall + Push Notifications)
+
+## APNs-Konfiguration (einmalig auf Mac / Railway)
+
+### Xcode (iOS-Seite)
+In Xcode → Target → *Signing & Capabilities* → **+ Capability** → **Push Notifications** hinzufügen.
+Außerdem **Background Modes** → *Remote notifications* aktivieren.
+
+### Backend (NestJS auf Railway)
+1. Apple Developer → *Certificates, Identifiers & Profiles* → **Keys** → neuen Key mit *Apple Push Notifications service (APNs)* erstellen → `.p8`-Datei herunterladen
+2. Railway Env-Vars setzen:
+   ```
+   APNS_KEY       = <.p8-Inhalt als Base64>
+   APNS_KEY_ID    = <10-char Key-ID>
+   APNS_TEAM_ID   = <10-char Team-ID>
+   APNS_BUNDLE_ID = ch.sihltraining.app   # dein Bundle-ID
+   ```
+3. `npm install apn` im `nestjs-backend/`-Ordner
+4. In `push.service.ts` das `sendToClientIOS`-Stub durch echte `apn.Provider`-Aufrufe ersetzen (Anleitung im Kommentar)
 
 ## Setup auf dem Mac (einmalig)
+
+**Schnellweg mit xcodegen** (empfohlen — das Projekt wird aus `project.yml` generiert):
+
+```bash
+cd Admin-Backend-php/client-ios
+brew install xcodegen   # falls noch nicht installiert
+xcodegen generate
+open SihlClient.xcodeproj
+```
+
+Danach nur noch Signing-Team wählen (Schritt 4) und ⌘R. Die generierte
+`.xcodeproj` ist gitignored — nach Änderungen an `project.yml` einfach
+`xcodegen generate` erneut ausführen.
+
+**Alternativ manuell:**
 
 1. **Repo pullen:**
    ```bash

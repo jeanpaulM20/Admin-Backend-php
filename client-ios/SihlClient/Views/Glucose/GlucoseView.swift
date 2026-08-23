@@ -1,0 +1,466 @@
+import SwiftUI
+
+// MARK: - GlucoseView
+// Pendant zu `screens/glucose_screen.dart`.
+// Tab 5 — FreeStyle Libre CGM-Daten (Blutzucker-Verlauf).
+
+struct GlucoseView: View {
+    @Environment(LibreViewModel.self) private var libre
+
+    var body: some View {
+        ZStack {
+            AppColor.background.ignoresSafeArea()
+
+            if !libre.isLoggedIn {
+                LibreLoginView()
+            } else {
+                glucoseContent
+            }
+        }
+    }
+
+    // MARK: - Hauptinhalt (eingeloggt)
+
+    private var glucoseContent: some View {
+        ScrollView {
+            LazyVStack(spacing: 16) {
+                // Fehler-Banner
+                if let err = libre.error {
+                    ErrorBanner(message: err)
+                }
+
+                // Aktuelle Messung
+                if let reading = libre.latestReading {
+                    CurrentValueCard(reading: reading)
+                } else if libre.isLoading {
+                    ProgressView()
+                        .tint(AppColor.primary)
+                        .padding(.top, 40)
+                } else {
+                    NoDataCard()
+                }
+
+                // Sync-Info
+                if let sync = libre.lastSync {
+                    SyncInfoRow(lastSync: sync, fromCache: libre.fromCache)
+                }
+
+                // Verlauf
+                if !libre.readings.isEmpty {
+                    ReadingsHistoryCard(readings: libre.readings)
+                }
+
+                // Abmelden
+                logoutButton
+                    .padding(.top, 8)
+            }
+            .padding(16)
+            .padding(.bottom, 40)
+        }
+        .refreshable {
+            await libre.loadReadings(forceRefresh: true)
+        }
+        .task {
+            if libre.readings.isEmpty {
+                await libre.loadReadings()
+            }
+        }
+    }
+
+    // MARK: - Logout
+
+    private var logoutButton: some View {
+        Button {
+            Task { await libre.logout() }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "rectangle.portrait.and.arrow.right")
+                Text("LibreView trennen")
+                    .font(.system(size: 14, weight: .semibold))
+            }
+            .foregroundStyle(AppColor.red)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(AppColor.red.opacity(0.4), lineWidth: 1)
+            )
+        }
+    }
+}
+
+// MARK: - CurrentValueCard
+
+private struct CurrentValueCard: View {
+    let reading: GlucoseReading
+
+    private var valueColor: Color {
+        if reading.isHigh { return AppColor.orange }
+        if reading.isLow  { return AppColor.red }
+        return AppColor.green
+    }
+
+    private var statusLabel: String {
+        if reading.isHigh { return "Zu hoch" }
+        if reading.isLow  { return "Zu tief" }
+        return "Im Bereich"
+    }
+
+    var body: some View {
+        VStack(spacing: 6) {
+            // Großer Zahlenwert
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(String(format: "%.1f", reading.valueMmol))
+                    .font(.system(size: 64, weight: .heavy, design: .rounded))
+                    .foregroundStyle(valueColor)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("mmol/L")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(AppColor.muted)
+                    Text(reading.trendIcon)
+                        .font(.system(size: 28))
+                        .foregroundStyle(valueColor)
+                }
+            }
+
+            // mg/dL Zusatz
+            Text("\(reading.valueMgDl) mg/dL")
+                .font(.system(size: 14))
+                .foregroundStyle(AppColor.muted)
+
+            // Status-Chip
+            Text(statusLabel)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(valueColor)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 5)
+                .background(valueColor.opacity(0.15))
+                .clipShape(Capsule())
+                .padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 28)
+        .padding(.horizontal, 20)
+        .background(AppColor.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(AppColor.border, lineWidth: 1))
+    }
+}
+
+// MARK: - SyncInfoRow
+
+private struct SyncInfoRow: View {
+    let lastSync: Date
+    let fromCache: Bool
+
+    private var label: String {
+        let diff = Int(Date().timeIntervalSince(lastSync) / 60)
+        return diff < 1 ? "Gerade synchronisiert" : "Vor \(diff) Min. synchronisiert"
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: fromCache ? "arrow.clockwise.circle" : "checkmark.circle")
+                .font(.system(size: 12))
+                .foregroundStyle(AppColor.muted)
+            Text(label)
+                .font(.system(size: 11))
+                .foregroundStyle(AppColor.muted)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// MARK: - ReadingsHistoryCard
+
+private struct ReadingsHistoryCard: View {
+    let readings: [GlucoseReading]
+
+    private var recent: [GlucoseReading] {
+        Array(readings.reversed().prefix(20))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Verlauf (letzte \(recent.count) Messungen)")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(AppColor.muted)
+
+            VStack(spacing: 0) {
+                ForEach(Array(recent.enumerated()), id: \.element.id) { idx, reading in
+                    ReadingRow(reading: reading)
+                    if idx < recent.count - 1 {
+                        Divider()
+                            .background(AppColor.border)
+                            .padding(.leading, 4)
+                    }
+                }
+            }
+            .background(AppColor.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppColor.border, lineWidth: 1))
+        }
+    }
+}
+
+// MARK: - ReadingRow
+
+private struct ReadingRow: View {
+    let reading: GlucoseReading
+
+    private var valueColor: Color {
+        if reading.isHigh { return AppColor.orange }
+        if reading.isLow  { return AppColor.red }
+        return AppColor.text
+    }
+
+    private var timeLabel: String {
+        let cal = Calendar.current
+        let h = cal.component(.hour,   from: reading.timestamp)
+        let m = cal.component(.minute, from: reading.timestamp)
+        return String(format: "%02d:%02d", h, m)
+    }
+
+    var body: some View {
+        HStack {
+            Text(timeLabel)
+                .font(.system(size: 13, design: .monospaced))
+                .foregroundStyle(AppColor.muted)
+                .frame(width: 48, alignment: .leading)
+
+            Text(reading.displayValue)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(valueColor)
+
+            Text(reading.trendIcon)
+                .font(.system(size: 14))
+                .foregroundStyle(AppColor.muted)
+
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+}
+
+// MARK: - NoDataCard
+
+private struct NoDataCard: View {
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "waveform.path.ecg")
+                .font(.system(size: 36))
+                .foregroundStyle(AppColor.muted)
+            Text("Keine Messung verfügbar")
+                .font(.headline)
+                .foregroundStyle(AppColor.text)
+            Text("Sensor prüfen oder manuell aktualisieren.")
+                .font(.caption)
+                .foregroundStyle(AppColor.muted)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+        .padding(.horizontal, 24)
+        .background(AppColor.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(AppColor.border, lineWidth: 1))
+    }
+}
+
+// MARK: - ErrorBanner
+
+private struct ErrorBanner: View {
+    let message: String
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(AppColor.red)
+            Text(message)
+                .font(.system(size: 13))
+                .foregroundStyle(AppColor.red)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(AppColor.red.opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(AppColor.red.opacity(0.3), lineWidth: 1))
+    }
+}
+
+// MARK: - LibreLoginView
+
+/// Wird angezeigt, solange `libre.isLoggedIn == false`.
+/// Pendant zu `_LoginView` in `glucose_screen.dart`.
+struct LibreLoginView: View {
+    @Environment(LibreViewModel.self) private var libre
+
+    @State private var email    = ""
+    @State private var password = ""
+    @State private var region   = LibreRegion.eu
+    @State private var showError: String?
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                Spacer(minLength: 60)
+
+                // Header
+                VStack(spacing: 8) {
+                    Image(systemName: "waveform.path.ecg.rectangle.fill")
+                        .font(.system(size: 48))
+                        .foregroundStyle(AppColor.primary)
+                    Text("FreeStyle Libre Login")
+                        .font(.title2.bold())
+                        .foregroundStyle(AppColor.text)
+                    Text("LibreView-Zugangsdaten eingeben")
+                        .font(.subheadline)
+                        .foregroundStyle(AppColor.muted)
+                }
+                .padding(.bottom, 36)
+
+                // Form
+                VStack(spacing: 14) {
+                    // E-Mail
+                    LibreField(
+                        value:       $email,
+                        label:       "E-Mail",
+                        icon:        "envelope",
+                        keyboardType: .emailAddress
+                    )
+
+                    // Passwort
+                    LibreSecureField(value: $password, label: "Passwort")
+
+                    // Region
+                    HStack(spacing: 12) {
+                        Image(systemName: "globe")
+                            .font(.system(size: 16))
+                            .foregroundStyle(AppColor.muted)
+                            .frame(width: 20)
+                        Picker("Region", selection: $region) {
+                            ForEach(LibreRegion.allCases, id: \.self) { r in
+                                Text(r.displayName).tag(r)
+                            }
+                        }
+                        .tint(AppColor.text)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+                    .background(AppColor.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppColor.border, lineWidth: 1))
+
+                    // Fehler
+                    if let err = showError ?? libre.error {
+                        Text(err)
+                            .font(.caption)
+                            .foregroundStyle(AppColor.red)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 4)
+                    }
+
+                    // Login-Button
+                    Button {
+                        Task { await doLogin() }
+                    } label: {
+                        Group {
+                            if libre.isLoading {
+                                ProgressView().tint(.white)
+                            } else {
+                                Text("Verbinden")
+                                    .font(.headline)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 50)
+                        .background(AppColor.primary)
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
+                    .disabled(libre.isLoading || email.isEmpty || password.isEmpty)
+                    .padding(.top, 4)
+                }
+                .padding(.horizontal, 24)
+
+                Spacer(minLength: 40)
+            }
+        }
+        .background(AppColor.background)
+        .scrollBounceBehavior(.basedOnSize)
+    }
+
+    private func doLogin() async {
+        showError = nil
+        let ok = await libre.login(email: email, password: password, region: region)
+        if !ok {
+            showError = libre.error ?? "Login fehlgeschlagen"
+        }
+    }
+}
+
+// MARK: - LibreField / LibreSecureField
+
+private struct LibreField: View {
+    @Binding var value: String
+    let label: String
+    let icon:  String
+    var keyboardType: UIKeyboardType = .default
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 16))
+                .foregroundStyle(AppColor.muted)
+                .frame(width: 20)
+            TextField(label, text: $value)
+                .keyboardType(keyboardType)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .foregroundStyle(AppColor.text)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(AppColor.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppColor.border, lineWidth: 1))
+    }
+}
+
+private struct LibreSecureField: View {
+    @Binding var value: String
+    let label: String
+    @State private var visible = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "lock")
+                .font(.system(size: 16))
+                .foregroundStyle(AppColor.muted)
+                .frame(width: 20)
+            if visible {
+                TextField(label, text: $value)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                    .foregroundStyle(AppColor.text)
+            } else {
+                SecureField(label, text: $value)
+                    .foregroundStyle(AppColor.text)
+            }
+            Button {
+                visible.toggle()
+            } label: {
+                Image(systemName: visible ? "eye.slash" : "eye")
+                    .font(.system(size: 14))
+                    .foregroundStyle(AppColor.muted)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(AppColor.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppColor.border, lineWidth: 1))
+    }
+}
