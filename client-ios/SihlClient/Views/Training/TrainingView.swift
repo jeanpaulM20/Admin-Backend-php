@@ -6,9 +6,10 @@ struct TrainingView: View {
     @Environment(AuthViewModel.self)      private var auth
     @Environment(TrainingViewModel.self)  private var vm
 
-    @State private var showTrialSheet  = false
-    @State private var showExpiryAlert = false
-    @State private var expiryGuard     = false
+    @State private var showTrialSheet   = false
+    @State private var showExpiryAlert  = false
+    @State private var expiryGuard      = false
+    @State private var showCreditsSheet = false
 
     var body: some View {
         ZStack {
@@ -46,9 +47,14 @@ struct TrainingView: View {
                 }
             } onCancel: { showTrialSheet = false }
         }
+        // Credits & Abos (Coaching-Sektion) — wie Flutter `_openCoachingCredits()`
+        .sheet(isPresented: $showCreditsSheet, onDismiss: { reload() }) {
+            NavigationStack { CreditsView() }
+        }
         // Ablauf-Warnung
         .alert("Abo läuft bald ab", isPresented: $showExpiryAlert) {
             Button("Später", role: .cancel) {}
+            Button("Verlängern") { showCreditsSheet = true }
         } message: {
             let d = vm.subscription.daysLeft ?? 0
             let when = d <= 0 ? "heute" : "in \(d) \(d == 1 ? "Tag" : "Tagen")"
@@ -101,6 +107,7 @@ struct TrainingView: View {
             if plan.locked {
                 // Gesperrter Plan → Coaching-Paywall (wie Flutter CoachingPaywallScreen)
                 CoachingPaywallView(plan: plan)
+                    .onDisappear { reload() }
             } else if let id = plan.id {
                 TrainingPlanDetailView(
                     planId: id,
@@ -126,7 +133,7 @@ struct TrainingView: View {
                 SubBanner(
                     title: "Trainingsplan · HR-Analyse · Chat-Feedback",
                     subtitle: "Online Coaching starten",
-                    onTap: {}  // TODO: Coaching-Paywall
+                    onTap: { showCreditsSheet = true }
                 )
             }
         }
@@ -146,6 +153,17 @@ struct TrainingView: View {
         }
         .padding(40)
         .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Reload
+
+    /// Pendant zu Flutter `.then((_) => _load())` nach Paywall/Credits-Rückkehr.
+    private func reload() {
+        Task {
+            guard let id = auth.clientId else { return }
+            await vm.fetch(clientId: id)
+            maybeShowExpiryAlert()
+        }
     }
 
     // MARK: - Expiry Popup
@@ -228,7 +246,8 @@ private struct PlanCard: View {
                     index:         nil,
                     liked:         false,
                     disliked:      false,
-                    size:          72
+                    size:          72,
+                    fallbackIcon:  plan.locked ? "lock" : "dumbbell.fill"
                 )
 
                 VStack(alignment: .leading, spacing: 4) {

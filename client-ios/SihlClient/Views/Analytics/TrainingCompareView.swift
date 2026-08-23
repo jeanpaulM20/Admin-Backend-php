@@ -33,13 +33,7 @@ struct TrainingCompareView: View {
                             legendView
 
                             // Überlagerter Chart
-                            overlayChart
-                                .frame(height: 260)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 16)
-                                .background(AppColor.surface, in: RoundedRectangle(cornerRadius: 16))
-                                .overlay(RoundedRectangle(cornerRadius: 16)
-                                    .stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
+                            chartCard
 
                             // Stat-Tabelle
                             statTable
@@ -81,6 +75,13 @@ struct TrainingCompareView: View {
                     Text(review.formattedDate())
                         .font(.caption)
                         .foregroundStyle(AppColor.muted)
+                    Spacer()
+                    // Max-HF in bpm (wie Flutter training_compare_screen.dart:111-115)
+                    if let hrMax = review.hrMax {
+                        Text("\(hrMax) bpm")
+                            .font(.caption.bold())
+                            .foregroundStyle(color)
+                    }
                 }
             }
         }
@@ -92,26 +93,68 @@ struct TrainingCompareView: View {
 
     // MARK: - Überlagerter Chart
 
+    /// Chart-Karte mit Titel + X-Achsen-Hinweis (wie Flutter training_compare_screen.dart:136-149).
+    private var chartCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Herzfrequenz-Verlauf (bpm)")
+                .font(.callout.bold())
+                .foregroundStyle(AppColor.text)
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+
+            Text("X-Achse: Trainingsverlauf in %")
+                .font(.system(size: 10))
+                .foregroundStyle(AppColor.muted)
+                .padding(.horizontal, 16)
+                .padding(.top, 4)
+                .padding(.bottom, 14)
+
+            overlayChart
+                .frame(height: 260)
+                .padding(.horizontal, 8)
+                .padding(.bottom, 16)
+        }
+        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16)
+            .stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
+    }
+
     private var overlayChart: some View {
         Chart {
             ForEach(withChart.indices, id: \.self) { ri in
-                let review = withChart[ri]
-                let color  = Self.lineColors[ri % Self.lineColors.count]
+                let review  = withChart[ri]
                 let sampled = downsample(review.chart, maxPoints: 300)
+                let n       = sampled.count
                 ForEach(sampled.indices, id: \.self) { i in
+                    // X auf 0–100 % des Trainingsverlaufs normalisieren (wie Flutter :270-271)
                     LineMark(
-                        x: .value("Index", i),
-                        y: .value("BPM",   sampled[i].value)
+                        x: .value("Verlauf", n > 1 ? Double(i) / Double(n - 1) * 100 : 50.0),
+                        y: .value("BPM",     sampled[i].value)
                     )
-                    .foregroundStyle(color)
                     .interpolationMethod(.catmullRom)
                     .lineStyle(StrokeStyle(lineWidth: 2))
                     .foregroundStyle(by: .value("Training", "\(ri)"))
                 }
             }
         }
+        // Feste Farbzuordnung statt automatischer Palette (lineColors wie Flutter)
+        .chartForegroundStyleScale(
+            domain: withChart.indices.map { "\($0)" },
+            range:  withChart.indices.map { Self.lineColors[$0 % Self.lineColors.count] }
+        )
         .chartLegend(.hidden)
-        .chartXAxis(.hidden)
+        .chartXScale(domain: 0...100)
+        .chartXAxis {
+            AxisMarks(values: [0.0, 50.0, 100.0]) { value in
+                AxisValueLabel {
+                    if let v = value.as(Double.self) {
+                        Text("\(Int(v))%")
+                            .font(.system(size: 9))
+                            .foregroundStyle(AppColor.muted)
+                    }
+                }
+            }
+        }
         .chartYAxis {
             AxisMarks(position: .leading) {
                 AxisValueLabel().foregroundStyle(AppColor.muted)
@@ -132,13 +175,13 @@ struct TrainingCompareView: View {
                 Text("Training")
                     .font(.caption).foregroundStyle(AppColor.muted)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                Text("Max")
+                Text("Max HF")
                     .font(.caption).foregroundStyle(AppColor.muted)
                     .frame(width: 60, alignment: .trailing)
-                Text("Avg")
+                Text("Avg HF")
                     .font(.caption).foregroundStyle(AppColor.muted)
                     .frame(width: 60, alignment: .trailing)
-                Text("Load")
+                Text("HRR")
                     .font(.caption).foregroundStyle(AppColor.muted)
                     .frame(width: 60, alignment: .trailing)
             }
@@ -147,7 +190,6 @@ struct TrainingCompareView: View {
             ForEach(withChart.indices, id: \.self) { i in
                 let review = withChart[i]
                 let color  = Self.lineColors[i % Self.lineColors.count]
-                let trimp  = review.edwardsTrimp
 
                 HStack {
                     HStack(spacing: 6) {
@@ -161,15 +203,15 @@ struct TrainingCompareView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
 
+                    // Werte-Spalten wie Flutter training_compare_screen.dart:203-208
                     Text(review.hrMax.map { "\($0)" } ?? "-")
-                        .font(.caption.bold()).foregroundStyle(.red)
+                        .font(.caption.bold()).foregroundStyle(color)
                         .frame(width: 60, alignment: .trailing)
                     Text(review.hrAvg.map { "\($0)" } ?? "-")
-                        .font(.caption.bold()).foregroundStyle(AppColor.primary)
+                        .font(.caption.bold()).foregroundStyle(AppColor.text)
                         .frame(width: 60, alignment: .trailing)
-                    Text(trimp.map { "\(Int($0.rounded()))" } ?? "-")
-                        .font(.caption.bold())
-                        .foregroundStyle(trimp.map { TrainingReview.trimpColor($0) } ?? AppColor.muted)
+                    Text(review.hrr.map { "\($0)" } ?? "-")
+                        .font(.caption.bold()).foregroundStyle(AppColor.text)
                         .frame(width: 60, alignment: .trailing)
                 }
                 .padding(.horizontal, 14).padding(.vertical, 10)

@@ -72,6 +72,7 @@ struct ExerciseBadge: View {
     let liked: Bool
     let disliked: Bool
     var size: CGFloat = 72
+    var fallbackIcon: String = "dumbbell.fill"
 
     @Environment(AuthViewModel.self) private var auth
 
@@ -104,7 +105,7 @@ struct ExerciseBadge: View {
                             .font(.system(size: 13, weight: .heavy))
                             .foregroundStyle(accentColor)
                     } else {
-                        Image(systemName: "dumbbell.fill")
+                        Image(systemName: fallbackIcon)
                             .font(.system(size: 20))
                             .foregroundStyle(accentColor)
                     }

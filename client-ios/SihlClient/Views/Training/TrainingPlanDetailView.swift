@@ -76,11 +76,14 @@ struct TrainingPlanDetailView: View {
     let planName:     String?
     let exerciseIdMap: [String: Int]
 
+    @Environment(AuthViewModel.self) private var auth
+
     @State private var vm: PlanDetailViewModel
     @State private var timer = ExerciseTimer()
     @State private var selectedSection = "sonsomo"
     @State private var expanded = Set<String>()
     @State private var commentsTarget: CommentsSheetItem?
+    @State private var sse = SSEClient()
 
     init(planId: Int, planName: String?, exerciseIdMap: [String: Int]) {
         self.planId        = planId
@@ -99,7 +102,7 @@ struct TrainingPlanDetailView: View {
                     ErrorStateView(message: err) { Task { await vm.load() } }
                 } else if let plan = vm.plan {
                     if plan.locked || plan.values == nil {
-                        lockedView
+                        lockedView(plan: plan)
                     } else {
                         planContent(plan: plan)
                     }
@@ -108,7 +111,13 @@ struct TrainingPlanDetailView: View {
         }
         .navigationTitle(planName ?? "Trainingsplan")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await vm.load() }
+        .task {
+            await vm.load()
+            await subscribeRealtime()
+        }
+        .onDisappear {
+            Task { await sse.disconnect() }
+        }
         .sheet(item: $commentsTarget) { item in
             CommentsSheet(
                 planId:       item.planId,
@@ -116,6 +125,22 @@ struct TrainingPlanDetailView: View {
                 exerciseName: item.exerciseName
             ) {
                 Task { await vm.loadCommentCounts() }
+            }
+        }
+    }
+
+    // MARK: - Realtime
+
+    /// Pendant zu Flutter `_subscribeRealtime()` — lädt den Plan bei
+    /// `plan_updated` / `plan_comment` Events auf `client_<clientId>` neu.
+    private func subscribeRealtime() async {
+        guard let clientId = auth.clientId,
+              let token = auth.token, !token.isEmpty else { return }
+        await sse.connect(channel: "client_\(clientId)", token: token) {
+            [self] eventType in
+            guard eventType == "plan_updated" || eventType == "plan_comment" else { return }
+            Task { @MainActor in
+                await self.vm.load()
             }
         }
     }
@@ -193,8 +218,10 @@ struct TrainingPlanDetailView: View {
             // Zeit
             Spacer()
             Text(timer.display)
-                .font(.system(size: 52, weight: .bold, design: .monospaced))
+                .font(.system(size: 90, weight: .bold, design: .monospaced))
                 .foregroundStyle(timeColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.3)
                 .contentTransition(.numericText(countsDown: timer.isCountdown))
                 .animation(.linear(duration: 0.5), value: timer.display)
             Spacer()
@@ -272,7 +299,7 @@ struct TrainingPlanDetailView: View {
 
     // MARK: - Locked View
 
-    private var lockedView: some View {
+    private func lockedView(plan: ClientTrainingPlan) -> some View {
         VStack(spacing: 16) {
             Image(systemName: "lock.fill")
                 .font(.system(size: 44)).foregroundStyle(AppColor.orange)
@@ -281,6 +308,17 @@ struct TrainingPlanDetailView: View {
             Text("Schalte Online Coaching frei, um den Plan zu sehen.")
                 .font(.system(size: 13)).foregroundStyle(AppColor.muted)
                 .multilineTextAlignment(.center)
+            NavigationLink(destination: CoachingPaywallView(plan: plan)) {
+                Text("Freischalten")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(AppColor.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(AppColor.primary)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 4)
         }
         .padding(40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -8,6 +8,10 @@ struct ChatView: View {
     @Environment(AuthViewModel.self)  private var auth
     @Environment(ChatViewModel.self)  private var chat
 
+    // Automatisches Öffnen bei genau EINER Konversation (Flutter `_loadConversations`)
+    @State private var autoOpenConversation: ChatConversation? = nil
+    @State private var didAutoOpen = false
+
     var body: some View {
         ZStack {
             AppColor.background.ignoresSafeArea()
@@ -24,15 +28,34 @@ struct ChatView: View {
                 conversationList
             }
         }
+        .navigationDestination(for: ChatConversation.self) { conv in
+            thread(for: conv)
+        }
+        .navigationDestination(item: $autoOpenConversation) { conv in
+            thread(for: conv)
+        }
         .task {
             // Beim ersten Erscheinen laden; beim Tab-Wechsel wird .task nicht erneut ausgelöst
             if chat.conversations.isEmpty {
                 await chat.fetchConversations(clientId: auth.clientId ?? "")
             }
+            // Bei genau einer Konversation direkt den Thread öffnen (wie Flutter)
+            if !didAutoOpen, chat.conversations.count == 1, let only = chat.conversations.first {
+                didAutoOpen = true
+                autoOpenConversation = only
+            }
         }
         .refreshable {
             await chat.fetchConversations(clientId: auth.clientId ?? "")
         }
+    }
+
+    private func thread(for conv: ChatConversation) -> some View {
+        ChatThreadView(
+            trainerId:   conv.trainerId,
+            trainerName: conv.trainerName,
+            trainerPicture: conv.trainerPicture
+        )
     }
 
     // MARK: - Conversation list
@@ -64,13 +87,6 @@ struct ChatView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .navigationDestination(for: ChatConversation.self) { conv in
-            ChatThreadView(
-                trainerId:   conv.trainerId,
-                trainerName: conv.trainerName,
-                trainerPicture: conv.trainerPicture
-            )
-        }
     }
 
     // MARK: - Empty

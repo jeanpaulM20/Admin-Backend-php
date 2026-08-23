@@ -2,8 +2,9 @@ import Foundation
 
 /// Kombiniert `appointment_provider.dart` (Start-Teil) + `daily_quote_provider.dart`.
 ///
-/// Gleichzeitiger Ladepfad: Start-Daten und Quote werden parallel geladen;
-/// ein Quote-Fehler ist nicht fatal (silent fail wie in Flutter).
+/// Termin-Daten laden blockierend (`isLoading`); das Tageszitat lädt wie in
+/// Flutter (start_screen.dart:34 / daily_quote_provider.dart) NON-BLOCKING
+/// parallel dazu mit eigenem `quoteLoading`-Flag (→ QuoteShimmer in StartView).
 @MainActor @Observable
 final class StartViewModel {
 
@@ -22,21 +23,31 @@ final class StartViewModel {
         isLoading = true
         error     = nil
 
-        // Beide Requests gleichzeitig starten (analog zu Flutter: fetchStart + quote.load())
-        async let startTask = service.getStartData(clientId: clientId)
-        async let quoteTask = DailyQuoteService.shared.fetch()
+        // Zitat unabhängig & non-blocking starten (analog zu Flutter: quote.load())
+        loadQuote()
 
         do {
-            startData = try await startTask
+            startData = try await service.getStartData(clientId: clientId)
         } catch {
             self.error = error.localizedDescription
         }
 
-        // Quote-Fehler ist nicht kritisch — still ignorieren
-        if let q = try? await quoteTask {
-            quote = q
-        }
-
         isLoading = false
+    }
+
+    // MARK: - Daily Quote
+
+    /// Idempotent — überspringt, wenn bereits geladen oder gerade am Laden
+    /// (Pendant zu `DailyQuoteProvider.load()`).
+    private func loadQuote() {
+        guard !quoteLoading, quote == nil else { return }
+        quoteLoading = true
+        Task {
+            // Quote-Fehler ist nicht kritisch — still ignorieren (silent fail)
+            if let q = try? await DailyQuoteService.shared.fetch() {
+                quote = q
+            }
+            quoteLoading = false
+        }
     }
 }

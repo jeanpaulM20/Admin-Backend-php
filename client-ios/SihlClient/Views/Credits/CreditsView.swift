@@ -12,6 +12,7 @@ struct CreditsView: View {
     @State private var purchasing    = false               // double-tap Guard
     @State private var agbTarget:    CreditPackage?        // welches Paket → AGB-Sheet
     @State private var methodTarget: CreditPackage?        // welches Paket → Zahlungsart-Sheet
+    @State private var confirmTarget: CreditPackage?       // welches Paket → Bestätigungsdialog (Bank)
     @State private var pendingPayment: PendingPayment?     // für Polling-Sheet
     @State private var toast: (msg: String, ok: Bool)? = nil
 
@@ -65,9 +66,24 @@ struct CreditsView: View {
                 if method == "online" {
                     Task { await startOnlinePayment(pkg) }
                 } else {
-                    Task { await startBankTransfer(pkg) }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        confirmTarget = pkg
+                    }
                 }
             }
+        }
+        // Bestätigungsdialog vor Banküberweisung (wie Flutter `_showConfirmDialog`)
+        .alert("Kauf bestätigen", isPresented: Binding(
+            get: { confirmTarget != nil },
+            set: { if !$0 { confirmTarget = nil } }
+        ), presenting: confirmTarget) { pkg in
+            Button("Abbrechen", role: .cancel) { confirmTarget = nil }
+            Button("Kauf bestätigen") {
+                confirmTarget = nil
+                Task { await startBankTransfer(pkg) }
+            }
+        } message: { pkg in
+            Text(confirmMessage(for: pkg))
         }
         // Online-Zahlung Polling
         .sheet(item: $pendingPayment) { pending in
@@ -131,6 +147,25 @@ struct CreditsView: View {
 
     // MARK: - Purchase flows
 
+    /// Text des Bestätigungsdialogs: Lektionen / Gültigkeit / Preis + Zahlungsfrist-Hinweis.
+    private func confirmMessage(for pkg: CreditPackage) -> String {
+        let f = NumberFormatter()
+        f.numberStyle           = .decimal
+        f.minimumFractionDigits = 2
+        f.maximumFractionDigits = 2
+        f.locale = Locale(identifier: "de_CH")
+        let price = f.string(from: NSNumber(value: pkg.price)) ?? "\(pkg.price)"
+
+        var lines = [pkg.name, "", "Lektionen: \(pkg.credits)"]
+        if let months = pkg.durationMonths {
+            lines.append("Gültigkeit: \(months) Monate")
+        }
+        lines.append("Preis: CHF \(price)")
+        lines.append("")
+        lines.append("Die Rechnung wird per E-Mail zugestellt und ist innert 7 Tagen zahlbar.")
+        return lines.joined(separator: "\n")
+    }
+
     /// Banküberweisung: Bestätigung → API-Call
     private func startBankTransfer(_ pkg: CreditPackage) async {
         purchasing = true
@@ -148,11 +183,13 @@ struct CreditsView: View {
     /// Online-Zahlung (Saferpay): URL in Safari öffnen, dann Polling-Sheet anzeigen.
     private func startOnlinePayment(_ pkg: CreditPackage) async {
         purchasing = true
+        showToast("Zahlung wird vorbereitet…", ok: true)
         do {
             let result = try await CreditsService.shared.initializePayment(
                 clientId: auth.clientId ?? "",
                 packageId: Int(pkg.id) ?? 0
             )
+            withAnimation { toast = nil }
             // Safari öffnen
             if let url = URL(string: result.redirectUrl) {
                 await UIApplication.shared.open(url)
@@ -160,6 +197,7 @@ struct CreditsView: View {
             // Polling-Sheet anzeigen
             pendingPayment = PendingPayment(id: result.invoiceNumber)
         } catch {
+            withAnimation { toast = nil }
             showToast("Fehler: \(error.localizedDescription)", ok: false)
         }
         purchasing = false
@@ -450,6 +488,7 @@ private struct PaymentMethodSheet: View {
     let package:   CreditPackage
     let onSelect:  (String?) -> Void
     @Environment(\.dismiss) private var dismiss
+    @State private var didSelect = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -473,6 +512,7 @@ private struct PaymentMethodSheet: View {
                 title: "Online bezahlen",
                 subtitle: "Kreditkarte, TWINT, PostFinance, Apple Pay"
             ) {
+                didSelect = true
                 dismiss(); onSelect("online")
             }
             .padding(.horizontal, 20)
@@ -485,6 +525,7 @@ private struct PaymentMethodSheet: View {
                 title: "Banküberweisung",
                 subtitle: "Rechnung per E-Mail mit QR-Einzahlungsschein"
             ) {
+                didSelect = true
                 dismiss(); onSelect("bank")
             }
             .padding(.horizontal, 20)
@@ -493,7 +534,7 @@ private struct PaymentMethodSheet: View {
         }
         .background(AppColor.surface)
         .presentationDetents([.height(340)])
-        .onDisappear { onSelect(nil) }
+        .onDisappear { if !didSelect { onSelect(nil) } }
     }
 }
 

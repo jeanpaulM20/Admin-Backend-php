@@ -33,6 +33,19 @@ struct TrainingReviewDetailView: View {
         }
         .navigationTitle(review.trainingType)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            // Titel + Datum als Untertitel (wie Flutter AppBar, training_review_screen.dart:62-70)
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 1) {
+                    Text(review.trainingType)
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(AppColor.text)
+                    Text(review.formattedDate())
+                        .font(.system(size: 11))
+                        .foregroundStyle(AppColor.muted)
+                }
+            }
+        }
         .sheet(isPresented: $showFullscreen) {
             FullscreenHrChart(review: review)
         }
@@ -152,10 +165,13 @@ private struct TrainingLoadCard: View {
 /// Zeichnet eine HR-Kurve mit Swift Charts.
 /// Downsampling auf maximal 500 Punkte für Performance.
 struct HrLineChart: View {
-    let chart:     [HrPoint]
-    var lineWidth: Double = 2
-    var color:     Color  = .red
-    var showXAxis: Bool   = true
+    let chart:       [HrPoint]
+    var lineWidth:   Double = 2
+    var color:       Color  = AppColor.red
+    var showXAxis:   Bool   = true
+    var showTooltip: Bool   = false
+
+    @State private var selection: (index: Int, point: HrPoint)?
 
     // Downsampled version
     private var sampled: [(index: Int, point: HrPoint)] {
@@ -175,6 +191,14 @@ struct HrLineChart: View {
     private var maxY: Double {
         let vals = sampled.map(\.point.value)
         return (vals.max() ?? 180) + 5
+    }
+
+    /// Uhrzeit-Labels bei 0 / 25 / 50 / 75 / 100 % der Kurve
+    /// (wie Flutter training_review_screen.dart:208-217).
+    private var xLabelIndices: [Int] {
+        let n = chart.count
+        guard n >= 2 else { return [] }
+        return Array(Set([0, n / 4, n / 2, (n * 3) / 4, n - 1])).sorted()
     }
 
     var body: some View {
@@ -199,15 +223,81 @@ struct HrLineChart: View {
                 )
                 .interpolationMethod(.catmullRom)
             }
+
+            // Tooltip-Indikator: gestrichelte Linie + Punkt (wie Flutter :196-200)
+            if showTooltip, let sel = selection {
+                RuleMark(x: .value("Index", sel.index))
+                    .foregroundStyle(color.opacity(0.4))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+
+                PointMark(
+                    x: .value("Index", sel.index),
+                    y: .value("BPM",   sel.point.value)
+                )
+                .symbolSize(90)
+                .foregroundStyle(color)
+                .annotation(position: .top, spacing: 6,
+                            overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
+                    tooltipLabel(sel.point)
+                }
+            }
         }
         .chartYScale(domain: minY...maxY)
-        .chartXAxis(showXAxis ? .automatic : .hidden)
+        .chartXAxis {
+            AxisMarks(values: showXAxis ? xLabelIndices : []) { value in
+                AxisValueLabel {
+                    if let idx = value.as(Int.self), idx < chart.count {
+                        Text(chart[idx].time ?? "")
+                            .font(.system(size: 9))
+                            .foregroundStyle(AppColor.muted)
+                    }
+                }
+            }
+        }
         .chartYAxis {
             AxisMarks(position: .leading) {
                 AxisValueLabel().foregroundStyle(AppColor.muted)
                 AxisGridLine().foregroundStyle(AppColor.muted.opacity(0.15))
             }
         }
+        .chartOverlay { proxy in
+            if showTooltip {
+                GeometryReader { geo in
+                    Rectangle()
+                        .fill(Color.clear)
+                        .contentShape(Rectangle())
+                        .gesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { drag in
+                                    guard let plotFrame = proxy.plotFrame else { return }
+                                    let x = drag.location.x - geo[plotFrame].origin.x
+                                    guard let raw: Double = proxy.value(atX: x) else { return }
+                                    // Nächstgelegenen (gesampelten) Punkt suchen
+                                    selection = sampled.min {
+                                        abs(Double($0.index) - raw) < abs(Double($1.index) - raw)
+                                    }
+                                }
+                                .onEnded { _ in selection = nil }
+                        )
+                }
+            }
+        }
+    }
+
+    /// Tooltip-Inhalt: bpm + Uhrzeit (wie Flutter :187-194).
+    private func tooltipLabel(_ p: HrPoint) -> some View {
+        VStack(spacing: 2) {
+            Text("\(Int(p.value)) bpm")
+            if let t = p.time, !t.isEmpty {
+                Text(t)
+            }
+        }
+        .font(.system(size: 12, weight: .semibold))
+        .foregroundStyle(color)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(AppColor.border, lineWidth: 1))
     }
 }
 
@@ -234,7 +324,7 @@ private struct FullscreenHrChart: View {
                             chipStat("Dauer", dur, AppColor.muted)
                         }
                     }
-                    HrLineChart(chart: review.chart, lineWidth: 1.5)
+                    HrLineChart(chart: review.chart, lineWidth: 1.5, showTooltip: true)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .padding(.horizontal, 8)
                 }

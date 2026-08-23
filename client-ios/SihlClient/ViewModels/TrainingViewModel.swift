@@ -26,8 +26,14 @@ final class TrainingViewModel {
         } catch {
             self.error = error.localizedDescription
         }
-        if let sub = try? await subTask { subscription = sub }
-        if let ex  = try? await exTask  { exerciseIdMap = ex }
+        do {
+            subscription = try await subTask
+        } catch let err as APIError {
+            self.error = err.message
+        } catch {
+            self.error = error.localizedDescription
+        }
+        if let ex = try? await exTask { exerciseIdMap = ex }
         isLoading = false
     }
 

@@ -3,7 +3,9 @@ import SwiftUI
 /// Pendant zu Flutter `main_screen.dart` — Tab-Shell mit 5 Tabs + Profil-Avatar.
 /// Übersetzte Screens ersetzen schrittweise die PlaceholderScreen-Einträge.
 struct MainTabView: View {
-    @Environment(AuthViewModel.self) private var auth
+    @Environment(AuthViewModel.self)  private var auth
+    @Environment(ChatViewModel.self)  private var chat
+    @Environment(StartViewModel.self) private var start
     @State private var selection = 0
     @State private var showProfile = false
 
@@ -29,9 +31,10 @@ struct MainTabView: View {
                     .tabItem { Label("Kalender", systemImage: "calendar") }
                     .tag(TabIndex.kalender.rawValue)
 
-                // ── Tab 3: Chat ──────────────────────────────────────────────
+                // ── Tab 3: Chat (mit Unread-Badge wie Flutter `_buildNavIcon`) ─
                 ChatView()
                     .tabItem { Label("Chat", systemImage: "bubble.left") }
+                    .badge(chat.totalUnreadCount)
                     .tag(TabIndex.chat.rawValue)
 
                 // ── Tab 4: Analytics ─────────────────────────────────────────
@@ -54,7 +57,18 @@ struct MainTabView: View {
                         Circle()
                             .fill(AppColor.primary)
                             .frame(width: 36, height: 36)
-                            .overlay(Image(systemName: "person.fill").foregroundStyle(AppColor.white))
+                            .overlay {
+                                // Initialen aus Vor-/Nachname (Flutter `_buildInitials`),
+                                // Fallback: person-Icon solange keine Start-Daten geladen sind
+                                if avatarInitials.isEmpty {
+                                    Image(systemName: "person.fill")
+                                        .foregroundStyle(AppColor.white)
+                                } else {
+                                    Text(avatarInitials)
+                                        .font(.system(size: 13, weight: .bold))
+                                        .foregroundStyle(AppColor.white)
+                                }
+                            }
                     }
                 }
             }
@@ -62,6 +76,15 @@ struct MainTabView: View {
                 ProfileView()
             }
         }
+    }
+
+    /// Pendant zu Flutter `_buildInitials`: erste Buchstaben von Vor- und Nachname.
+    private var avatarInitials: String {
+        let f = start.startData?.firstName.trimmingCharacters(in: .whitespaces) ?? ""
+        let l = start.startData?.lastName.trimmingCharacters(in: .whitespaces) ?? ""
+        let fi = f.first.map(String.init) ?? ""
+        let li = l.first.map(String.init) ?? ""
+        return (fi + li).uppercased()
     }
 
     private func tabTitle(for index: Int) -> String {

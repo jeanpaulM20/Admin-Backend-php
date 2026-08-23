@@ -16,6 +16,7 @@ struct CoachingPaywallView: View {
     @State private var errorMsg:  String?           = nil
     @State private var pendingInvoice: String?      = nil   // einfacher Alert (kein Polling)
 
+    @Environment(AuthViewModel.self) private var auth
     @Environment(\.dismiss) private var dismiss
 
     // MARK: - Computed
@@ -28,21 +29,24 @@ struct CoachingPaywallView: View {
         "mobility": "Mobilität"
     ]
 
-    private var sectionSummary: String {
+    /// "5 Übungen · Aufwärmen 1 · Haupttraining 3 · Core 1"
+    private var teaserMeta: String {
         let order = ["sonsomo", "main", "core", "mobility"]
-        return order
+        let sections = order
             .compactMap { key -> String? in
                 guard let count = plan.sections[key], count > 0 else { return nil }
                 let label = Self.sectionLabels[key] ?? key
                 return "\(label) \(count)"
             }
             .joined(separator: " · ")
+        let exercises = "\(plan.totalExercises) Übungen"
+        return sections.isEmpty ? exercises : "\(exercises) · \(sections)"
     }
 
     /// Teuerster Einmonats-Plan → Referenzpreis für Ersparnis-Berechnung
     private var referenceMonthlyPrice: Double? {
         packages
-            .filter { $0.durationMonths == 1 }
+            .filter { ($0.durationMonths ?? 1) == 1 }
             .max(by: { $0.price < $1.price })
             .map { $0.price }
     }
@@ -54,28 +58,53 @@ struct CoachingPaywallView: View {
     // MARK: - Body
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                headerCard
-                if isLoading {
-                    ProgressView()
-                        .tint(AppColor.primary)
-                        .padding(.top, 40)
-                } else if let err = errorMsg {
-                    Text(err)
-                        .foregroundStyle(AppColor.red)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
-                } else {
-                    tierCards
-                    unlockButton
+        Group {
+            if isLoading {
+                ProgressView()
+                    .tint(AppColor.primary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        teaserCard
+                            .padding(.bottom, 20)
+
+                        Text("Trainingsplan · Chat-Feedback · Analysen")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(AppColor.text)
+                        Text("Wähle dein Abo und schalte alle Pläne frei.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(AppColor.muted)
+                            .padding(.top, 4)
+                            .padding(.bottom, 14)
+
+                        if let err = errorMsg {
+                            errorBox(err)
+                                .padding(.bottom, 12)
+                        }
+
+                        ForEach(packages) { pkg in
+                            TierCard(
+                                package:          pkg,
+                                isSelected:       selectedId == pkg.id,
+                                referenceMonthly: referenceMonthlyPrice
+                            ) {
+                                selectedId = pkg.id
+                            }
+                            .padding(.bottom, 12)
+                        }
+
+                        unlockButton
+                            .padding(.top, 8)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 16)
+                    .padding(.bottom, 32)
                 }
             }
-            .padding(.vertical, 20)
-            .padding(.bottom, 80)
         }
         .background(AppColor.background)
-        .navigationTitle("Coaching freischalten")
+        .navigationTitle("Online Coaching")
         .navigationBarTitleDisplayMode(.inline)
         .task { await loadPackages() }
         .alert("Zahlung läuft", isPresented: Binding(
@@ -86,76 +115,28 @@ struct CoachingPaywallView: View {
             Button("Fertig")  { pendingInvoice = nil; dismiss() }
         } message: {
             if let inv = pendingInvoice {
-                Text("Schließe die Zahlung im Browser ab.\nRechnung: \(inv)")
+                Text("Schließe die Zahlung im Browser ab (Rechnung \(inv)). Danach ist dein Online Coaching freigeschaltet.")
             }
         }
     }
 
     // MARK: - Teaser Card
 
-    private var headerCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                Image(systemName: "lock.fill")
-                    .font(.title3)
-                    .foregroundStyle(AppColor.primary)
-                Text("Gesperrter Plan")
-                    .font(.caption)
-                    .foregroundStyle(AppColor.muted)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(AppColor.surface)
-                    .clipShape(Capsule())
-            }
-
+    private var teaserCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
             Text(plan.name ?? "Trainingsplan")
-                .font(.title2.bold())
+                .font(.system(size: 16, weight: .bold))
                 .foregroundStyle(AppColor.text)
-
-            Text("\(plan.totalExercises) Übungen · \(sectionSummary)")
-                .font(.subheadline)
+            Text(teaserMeta)
+                .font(.system(size: 13, weight: .light))
                 .foregroundStyle(AppColor.muted)
-
-            Divider().overlay(AppColor.border)
-
-            HStack(spacing: 8) {
-                Image(systemName: "info.circle")
-                    .foregroundStyle(AppColor.primary)
-                    .font(.footnote)
-                Text("Dieser Plan ist nur für Coaching-Mitglieder verfügbar. Wähle ein Abo, um sofort Zugang zu erhalten.")
-                    .font(.footnote)
-                    .foregroundStyle(AppColor.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+                .lineLimit(2)
         }
-        .padding(20)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(AppColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .padding(.horizontal, 16)
-    }
-
-    // MARK: - Tier Cards
-
-    @ViewBuilder
-    private var tierCards: some View {
-        VStack(spacing: 12) {
-            Text("Coaching-Abo wählen")
-                .font(.headline)
-                .foregroundStyle(AppColor.text)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 16)
-
-            ForEach(packages) { pkg in
-                TierCard(
-                    package:           pkg,
-                    isSelected:        selectedId == pkg.id,
-                    referenceMonthly:  referenceMonthlyPrice
-                ) {
-                    selectedId = pkg.id
-                }
-            }
-        }
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(AppColor.border, lineWidth: 1))
     }
 
     // MARK: - Unlock Button
@@ -168,17 +149,32 @@ struct CoachingPaywallView: View {
                 if isPaying {
                     ProgressView().tint(.white)
                 } else {
-                    Label("Jetzt freischalten", systemImage: "lock.open.fill")
-                        .font(.headline)
+                    Text("Jetzt freischalten")
+                        .font(.system(size: 15, weight: .bold))
                 }
             }
             .frame(maxWidth: .infinity, minHeight: 50)
-            .background(selectedId != nil ? AppColor.primary : AppColor.border)
+            .background(AppColor.primaryDark)
             .foregroundStyle(.white)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .disabled(selectedId == nil || isPaying)
-        .padding(.horizontal, 16)
+        .opacity((selectedId == nil || isPaying) ? 0.6 : 1)
+    }
+
+    // MARK: - Error Box
+
+    private func errorBox(_ msg: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.circle")
+                .font(.system(size: 16)).foregroundStyle(AppColor.red)
+            Text(msg)
+                .font(.system(size: 13)).foregroundStyle(AppColor.red)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(12)
+        .background(AppColor.red.opacity(0.11))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     // MARK: - Actions
@@ -192,19 +188,13 @@ struct CoachingPaywallView: View {
                 selectedId = first.id
             }
         } catch {
-            errorMsg = "Pakete konnten nicht geladen werden: \(error.localizedDescription)"
+            errorMsg = error.localizedDescription
         }
         isLoading = false
     }
 
     private func startPayment() async {
-        guard let pkg = selectedPackage else { return }
-        // clientId aus Auth-Daten – analog CreditsView via Environment AuthViewModel.
-        // Hier aus dem TrainingPlan-Objekt ablesen (clientId ist dort gesetzt).
-        guard let clientId = plan.clientId.map({ "\($0)" }) else {
-            errorMsg = "Client-ID nicht verfügbar."
-            return
-        }
+        guard let pkg = selectedPackage, let clientId = auth.clientId else { return }
         isPaying = true
         errorMsg = nil
         do {
@@ -217,7 +207,7 @@ struct CoachingPaywallView: View {
             }
             pendingInvoice = result.invoiceNumber
         } catch {
-            errorMsg = "Zahlung konnte nicht gestartet werden: \(error.localizedDescription)"
+            errorMsg = error.localizedDescription
         }
         isPaying = false
     }
@@ -231,114 +221,73 @@ private struct TierCard: View {
     let referenceMonthly: Double?
     let onTap:            () -> Void
 
+    private var durationMonths: Int { package.durationMonths ?? 1 }
+
+    /// Tier-Name aus der Laufzeit abgeleitet (wie Flutter): "Monat" / "Jahr"
+    private var shortName: String { durationMonths >= 12 ? "Jahr" : "Monat" }
+
     /// Effektiver Monatspreis (bei Mehrmonatspaketen umgerechnet)
-    private var effectiveMonthly: Double {
-        guard let months = package.durationMonths, months > 1 else { return package.price }
-        return package.price / Double(months)
+    private var perMonth: Double {
+        durationMonths > 0 ? package.price / Double(durationMonths) : package.price
     }
 
-    /// Ersparnis-Prozent gegenüber Referenz-Monatsabo
-    private var savingsPercent: Int? {
-        guard let ref = referenceMonthly,
-              let months = package.durationMonths,
-              months > 1,
-              ref > 0
-        else { return nil }
-        let pct = (ref - effectiveMonthly) / ref * 100
-        return pct > 0 ? Int(pct.rounded()) : nil
-    }
-
-    /// Preiszeile: "CHF 89 / Monat" oder "CHF 890 / Jahr"
-    private var priceLabel: String {
-        let f = NumberFormatter()
-        f.numberStyle          = .decimal
-        f.minimumFractionDigits = 0
-        f.maximumFractionDigits = 2
-        f.locale = Locale(identifier: "de_CH")
-        let priceStr = f.string(from: NSNumber(value: package.price)) ?? "\(Int(package.price))"
-        if let months = package.durationMonths, months == 12 {
-            return "CHF \(priceStr) / Jahr"
+    /// "= CHF X / Mt.  ·  −Y %  ·  N Credits" bzw. nur "N Credits"
+    private var valueLine: String {
+        if durationMonths > 1, let ref = referenceMonthly, perMonth < ref {
+            let pct = Int(((1 - perMonth / ref) * 100).rounded())
+            return "= CHF \(Int(perMonth.rounded())) / Mt.  ·  −\(pct) %  ·  \(package.credits) Credits"
         }
-        return "CHF \(priceStr) / Monat"
-    }
-
-    /// Zusatzbeschriftung für Mehrmonats-Pakete: "= CHF X / Mt. · -Y%"
-    private var savingsLine: String? {
-        guard let months = package.durationMonths, months > 1 else { return nil }
-        let f = NumberFormatter()
-        f.numberStyle          = .decimal
-        f.minimumFractionDigits = 0
-        f.maximumFractionDigits = 2
-        f.locale = Locale(identifier: "de_CH")
-        let mStr = f.string(from: NSNumber(value: effectiveMonthly)) ?? "\(Int(effectiveMonthly))"
-        var line = "= CHF \(mStr) / Mt."
-        if let pct = savingsPercent { line += " · -\(pct)%" }
-        if package.credits > 0      { line += " · \(package.credits) Credits" }
-        return line
+        return "\(package.credits) Credits"
     }
 
     var body: some View {
         Button(action: onTap) {
-            HStack(alignment: .top, spacing: 14) {
-                // Radio
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .foregroundStyle(isSelected ? AppColor.primary : AppColor.muted)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(package.name)
-                            .font(.subheadline.bold())
-                            .foregroundStyle(AppColor.text)
-                        if let pct = savingsPercent {
-                            Text("-\(pct)%")
-                                .font(.caption2.bold())
-                                .foregroundStyle(AppColor.primary)
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 2)
-                                .background(AppColor.primary.opacity(0.15))
-                                .clipShape(Capsule())
-                        }
-                    }
-
-                    Text(priceLabel)
-                        .font(.title3.bold())
+            HStack(spacing: 0) {
+                // Preis — fixe Spalte, damit alle Tier-Namen auf einer Achse starten.
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("CHF \(Int(package.price.rounded()))")
+                        .font(.system(size: 19, weight: .heavy))
                         .foregroundStyle(AppColor.text)
-
-                    if let line = savingsLine {
-                        Text(line)
-                            .font(.caption)
-                            .foregroundStyle(AppColor.primary)
-                    }
-
-                    if let desc = package.description, !desc.isEmpty {
-                        Text(desc)
-                            .font(.caption)
-                            .foregroundStyle(AppColor.muted)
-                            .padding(.top, 2)
-                    }
-
-                    if let inc = package.includes, !inc.isEmpty {
-                        Text(inc)
-                            .font(.caption)
-                            .foregroundStyle(AppColor.muted)
-                    }
+                        .lineLimit(1)
+                    Text("/ \(shortName)")
+                        .font(.system(size: 11))
+                        .foregroundStyle(AppColor.muted)
                 }
+                .frame(width: 104, alignment: .leading)
 
-                Spacer()
+                Spacer().frame(width: 16)
+
+                // Name + Value
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(shortName)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(AppColor.text)
+                    Text(valueLine)
+                        .font(.system(size: 11))
+                        .foregroundStyle(AppColor.muted)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Spacer().frame(width: 8)
+
+                // Auswahl-Indikator — das einzige, ausreichende Zustandssignal.
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 20))
+                    .foregroundStyle(isSelected ? AppColor.primary : AppColor.border)
             }
             .padding(16)
             .background(
-                RoundedRectangle(cornerRadius: 14)
+                RoundedRectangle(cornerRadius: 8)
                     .fill(AppColor.surface)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 14)
+                        RoundedRectangle(cornerRadius: 8)
                             .stroke(isSelected ? AppColor.primary : AppColor.border,
                                     lineWidth: isSelected ? 2 : 1)
                     )
             )
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, 16)
     }
 }
