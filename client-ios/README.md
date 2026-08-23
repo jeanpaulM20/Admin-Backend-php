@@ -102,6 +102,21 @@ Außerdem **Background Modes** → *Remote notifications* aktivieren.
 
 ## Setup auf dem Mac (einmalig)
 
+**Schnellweg mit xcodegen** (empfohlen — das Projekt wird aus `project.yml` generiert):
+
+```bash
+cd Admin-Backend-php/client-ios
+brew install xcodegen   # falls noch nicht installiert
+xcodegen generate
+open SihlClient.xcodeproj
+```
+
+Danach nur noch Signing-Team wählen (Schritt 4) und ⌘R. Die generierte
+`.xcodeproj` ist gitignored — nach Änderungen an `project.yml` einfach
+`xcodegen generate` erneut ausführen.
+
+**Alternativ manuell:**
+
 1. **Repo pullen:**
    ```bash
    git pull
