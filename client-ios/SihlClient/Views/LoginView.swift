@@ -78,18 +78,13 @@ struct LoginView: View {
 
     private var loginButton: some View {
         Button(action: submit) {
-            Group {
-                if auth.isLoading {
-                    ProgressView().tint(AppColor.white)
-                } else {
-                    Text("Anmelden").font(.system(size: 16, weight: .bold))
-                }
+            if auth.isLoading {
+                ProgressView().tint(AppColor.white)
+            } else {
+                Text("Anmelden")
             }
-            .frame(maxWidth: .infinity, minHeight: 50)
         }
-        .background(AppColor.primary.opacity(auth.isLoading ? 0.5 : 1))
-        .foregroundStyle(AppColor.white)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .buttonStyle(PrimaryButtonStyle(fill: AppColor.primary.opacity(auth.isLoading ? 0.5 : 1)))
         .disabled(auth.isLoading)
     }
 
@@ -139,9 +134,9 @@ private struct InputField<Trailing: View>: View {
         .padding(.horizontal, 16)
         .frame(height: 52)
         .background(AppColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: AppRadius.card)
                 .stroke(AppColor.border, lineWidth: 1)
         )
     }

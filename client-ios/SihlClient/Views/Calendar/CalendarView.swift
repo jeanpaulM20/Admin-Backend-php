@@ -13,6 +13,7 @@ struct CalendarView: View {
     @State private var showNoCreditsAlert = false
 
     var body: some View {
+        @Bindable var vm = vm
         ZStack {
             AppColor.background.ignoresSafeArea()
 
@@ -67,10 +68,10 @@ struct CalendarView: View {
                     do {
                         let refunded = try await vm.cancel(appointment: appt, clientId: id)
                         vm.toast = refunded
-                            ? ("Termin abgesagt – Credit zurückerstattet.", true)
-                            : ("Termin abgesagt – Credit nicht zurückerstattet.", false)
+                            ? AppToast(message: "Termin abgesagt – Credit zurückerstattet.", style: .success)
+                            : AppToast(message: "Termin abgesagt – Credit nicht zurückerstattet.", style: .neutral)
                     } catch {
-                        vm.toast = ("Absage fehlgeschlagen: \(error.localizedDescription)", false)
+                        vm.toast = AppToast(message: "Absage fehlgeschlagen: \(error.localizedDescription)", style: .error)
                     }
                 }
             }
@@ -89,18 +90,7 @@ struct CalendarView: View {
             Text("Du hast keine verfügbaren Credits. Bitte kaufe neue Credits, um Termine buchen zu können.")
         }
         // Toast overlay
-        .overlay(alignment: .bottom) {
-            if let t = vm.toast {
-                ToastView(message: t.message)
-                    .padding(.bottom, 32)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .onAppear {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                            withAnimation { vm.toast = nil }
-                        }
-                    }
-            }
-        }
+        .appToast($vm.toast)
         // Booking loading overlay
         .overlay {
             if vm.isBooking || vm.isCancelling {
@@ -112,9 +102,9 @@ struct CalendarView: View {
                             .font(.system(size: 14))
                             .foregroundStyle(AppColor.text)
                     }
-                    .padding(24)
+                    .padding(AppSpacing.card)
                     .background(AppColor.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
                 }
             }
         }
@@ -171,7 +161,7 @@ struct CalendarView: View {
                         if cal.credits <= 0 { showNoCreditsAlert = true; return }
                         let opts = vm.optionsForSlot(slot, day: vm.selectedDate)
                         if opts.isEmpty {
-                            vm.toast = ("Slot nicht mehr verfügbar.", false)
+                            vm.toast = AppToast(message: "Slot nicht mehr verfügbar.", style: .error)
                             return
                         }
                         bookingSlot = slot
@@ -181,14 +171,13 @@ struct CalendarView: View {
                     .padding(.bottom, 80)
 
                 } else if avail.isEmpty {
-                    noAvailView(icon: "calendar.badge.exclamationmark",
-                                text: "Keine Verfügbarkeit an diesem Tag.",
-                                color: AppColor.muted)
+                    EmptyStateView(icon: "calendar.badge.exclamationmark",
+                                   message: "Keine Verfügbarkeit an diesem Tag.")
+                        .padding(.bottom, 80)
                 } else {
-                    noAvailView(icon: "calendar.badge.exclamationmark",
-                                text: "Keine buchbaren Termine an diesem Tag.",
-                                sub: "Bitte einen anderen Tag wählen.",
-                                color: AppColor.orange)
+                    EmptyStateView(icon: "calendar.badge.exclamationmark",
+                                   message: "Keine buchbaren Termine an diesem Tag. Bitte einen anderen Tag wählen.")
+                        .padding(.bottom, 80)
                 }
             }
         }
@@ -216,30 +205,11 @@ struct CalendarView: View {
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
                 .background(AppColor.green.opacity(0.08))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
             }
         }
     }
 
-    // MARK: - No Availability View
-
-    private func noAvailView(icon: String, text: String, sub: String? = nil, color: Color) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon).font(.system(size: 28)).foregroundStyle(color)
-            Text(text).font(.system(size: 14)).foregroundStyle(color).multilineTextAlignment(.center)
-            if let s = sub {
-                Text(s).font(.system(size: 12)).foregroundStyle(AppColor.muted)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(20)
-        .background(AppColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppColor.border, lineWidth: 1))
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
-        .padding(.bottom, 80)
-    }
 }
 
 // MARK: - Month Calendar View
@@ -330,8 +300,8 @@ private struct MonthCalendarView: View {
             .padding(.bottom, 8)
         }
         .background(AppColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppColor.border, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
     }
 }
 
@@ -442,8 +412,8 @@ private struct SlotGridView: View {
             .padding(.horizontal, 14).padding(.bottom, 10)
         }
         .background(AppColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppColor.border, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
     }
 }
 
@@ -464,8 +434,8 @@ private struct SlotChip: View {
             .frame(width: 80)
             .padding(.vertical, 8)
             .background(AppColor.green.opacity(0.06))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10)
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
                 .stroke(AppColor.green.opacity(0.24), lineWidth: 1))
         }
         .buttonStyle(.plain)
@@ -484,19 +454,28 @@ struct CalEventCard: View {
 
     var body: some View {
         let statusLower = appointment.status.lowercased()
+        let isCancelled = statusLower == "cancelled"
+        let isMissed    = statusLower == "missed"
+        // Abgesagt: neutraler Akzent — Zustand signalisieren nur Badge + Opacity.
         let accent: Color = {
             switch statusLower {
-            case "cancelled": return AppColor.red
+            case "cancelled": return AppColor.muted
             case "attended":  return AppColor.green
             case "missed":    return AppColor.orange
             default:          return AppColor.primary
             }
         }()
-        let isCancelled = statusLower == "cancelled"
-        let isMissed    = statusLower == "missed"
-        let endTime     = appointment.startDate.addingTimeInterval(TimeInterval(appointment.duration * 60))
+        let endTime = appointment.startDate.addingTimeInterval(TimeInterval(appointment.duration * 60))
 
-        Button(action: onTap) {
+        // Punktgetrennte Meta-Zeile (Muster wie StartView-Terminkarte)
+        var metaParts: [String] = [
+            "\(Self.timeFmt.string(from: appointment.startDate))–\(Self.timeFmt.string(from: endTime))",
+            "\(appointment.duration) Min.",
+        ]
+        if !appointment.trainerName.isEmpty  { metaParts.append(appointment.trainerName) }
+        if !appointment.locationName.isEmpty { metaParts.append(appointment.locationName) }
+
+        return Button(action: onTap) {
             HStack(spacing: 0) {
                 // Accent bar
                 RoundedRectangle(cornerRadius: 2)
@@ -506,37 +485,19 @@ struct CalEventCard: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(appointment.trainingTypeName.isEmpty ? "Training" : appointment.trainingTypeName)
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(isCancelled ? AppColor.muted : AppColor.text)
-                        .strikethrough(isCancelled)
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(AppColor.text)
 
-                    HStack(spacing: 8) {
-                        HStack(spacing: 3) {
-                            Image(systemName: "clock").font(.system(size: 11)).foregroundStyle(AppColor.muted)
-                            Text("\(Self.timeFmt.string(from: appointment.startDate)) – \(Self.timeFmt.string(from: endTime)) (\(appointment.duration) Min.)")
-                                .font(.system(size: 12)).foregroundStyle(AppColor.muted)
-                        }
-                        if !appointment.trainerName.isEmpty {
-                            HStack(spacing: 3) {
-                                Image(systemName: "person").font(.system(size: 11)).foregroundStyle(AppColor.muted)
-                                Text(appointment.trainerName)
-                                    .font(.system(size: 12)).foregroundStyle(AppColor.muted)
-                                    .lineLimit(1)
-                            }
-                        }
-                    }
+                    Text(metaParts.joined(separator: " · "))
+                        .font(.caption)
+                        .foregroundStyle(AppColor.muted)
+                        .lineLimit(1)
 
                     if let plan = appointment.trainingPlanName, !plan.isEmpty {
-                        HStack(spacing: 3) {
-                            Image(systemName: "dumbbell").font(.system(size: 11)).foregroundStyle(accent)
-                            Text(plan).font(.system(size: 12, weight: .semibold)).foregroundStyle(accent).lineLimit(1)
-                        }
-                    }
-                    if !appointment.locationName.isEmpty {
-                        HStack(spacing: 3) {
-                            Image(systemName: "mappin").font(.system(size: 11)).foregroundStyle(AppColor.muted)
-                            Text(appointment.locationName).font(.system(size: 12)).foregroundStyle(AppColor.muted)
-                        }
+                        Text(plan)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(accent)
+                            .lineLimit(1)
                     }
                 }
 
@@ -546,19 +507,19 @@ struct CalEventCard: View {
                 if isCancelled {
                     Text("Abgesagt").font(.system(size: 11)).foregroundStyle(AppColor.red)
                         .padding(.horizontal, 8).padding(.vertical, 3)
-                        .background(AppColor.red.opacity(0.1)).clipShape(RoundedRectangle(cornerRadius: 8))
+                        .background(AppColor.red.opacity(0.1)).clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
                 } else if isMissed {
                     Text("Verpasst").font(.system(size: 11)).foregroundStyle(AppColor.orange)
                         .padding(.horizontal, 8).padding(.vertical, 3)
-                        .background(AppColor.orange.opacity(0.1)).clipShape(RoundedRectangle(cornerRadius: 8))
+                        .background(AppColor.orange.opacity(0.1)).clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
                 } else {
                     Image(systemName: "chevron.right").font(.system(size: 14)).foregroundStyle(AppColor.muted)
                 }
             }
-            .padding(16)
+            .padding(AppSpacing.card)
             .background(accent.opacity(0.04))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(accent.opacity(0.16), lineWidth: 1))
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(accent.opacity(0.16), lineWidth: 1))
         }
         .buttonStyle(.plain)
     }

@@ -26,7 +26,7 @@ struct GlucoseView: View {
             LazyVStack(spacing: 16) {
                 // Fehler-Banner
                 if let err = libre.error {
-                    ErrorBanner(message: err)
+                    InlineErrorBanner(message: err)
                 }
 
                 // Aktuelle Messung
@@ -37,7 +37,10 @@ struct GlucoseView: View {
                         .tint(AppColor.primary)
                         .padding(.top, 40)
                 } else {
-                    NoDataCard()
+                    EmptyStateView(
+                        icon:    "waveform.path.ecg",
+                        message: "Keine Messung verfügbar. Sensor prüfen oder manuell aktualisieren."
+                    )
                 }
 
                 // Sync-Info
@@ -54,8 +57,8 @@ struct GlucoseView: View {
                 logoutButton
                     .padding(.top, 8)
             }
-            .padding(16)
-            .padding(.bottom, 40)
+            .padding(AppSpacing.screen)
+            .padding(.bottom, AppSpacing.bottomInset)
         }
         .refreshable {
             await libre.loadReadings(forceRefresh: true)
@@ -82,7 +85,7 @@ struct GlucoseView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
             .overlay(
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: AppRadius.control)
                     .stroke(AppColor.red.opacity(0.4), lineWidth: 1)
             )
         }
@@ -140,11 +143,10 @@ private struct CurrentValueCard: View {
                 .padding(.top, 4)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 28)
-        .padding(.horizontal, 20)
+        .padding(AppSpacing.hero)
         .background(AppColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .overlay(RoundedRectangle(cornerRadius: 20).stroke(AppColor.border, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.hero))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.hero).stroke(AppColor.border, lineWidth: 1))
     }
 }
 
@@ -198,8 +200,8 @@ private struct ReadingsHistoryCard: View {
                 }
             }
             .background(AppColor.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppColor.border, lineWidth: 1))
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
         }
     }
 }
@@ -241,52 +243,6 @@ private struct ReadingRow: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-    }
-}
-
-// MARK: - NoDataCard
-
-private struct NoDataCard: View {
-    var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "waveform.path.ecg")
-                .font(.system(size: 36))
-                .foregroundStyle(AppColor.muted)
-            Text("Keine Messung verfügbar")
-                .font(.headline)
-                .foregroundStyle(AppColor.text)
-            Text("Sensor prüfen oder manuell aktualisieren.")
-                .font(.caption)
-                .foregroundStyle(AppColor.muted)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
-        .padding(.horizontal, 24)
-        .background(AppColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .overlay(RoundedRectangle(cornerRadius: 20).stroke(AppColor.border, lineWidth: 1))
-    }
-}
-
-// MARK: - ErrorBanner
-
-private struct ErrorBanner: View {
-    let message: String
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(AppColor.red)
-            Text(message)
-                .font(.system(size: 13))
-                .foregroundStyle(AppColor.red)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(AppColor.red.opacity(0.10))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(AppColor.red.opacity(0.3), lineWidth: 1))
     }
 }
 
@@ -348,11 +304,11 @@ struct LibreLoginView: View {
                         .tint(AppColor.text)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, AppSpacing.card)
                     .padding(.vertical, 14)
                     .background(AppColor.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppColor.border, lineWidth: 1))
+                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+                    .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
 
                     // Fehler
                     if let err = showError ?? libre.error {
@@ -367,19 +323,13 @@ struct LibreLoginView: View {
                     Button {
                         Task { await doLogin() }
                     } label: {
-                        Group {
-                            if libre.isLoading {
-                                ProgressView().tint(.white)
-                            } else {
-                                Text("Verbinden")
-                                    .font(.headline)
-                            }
+                        if libre.isLoading {
+                            ProgressView().tint(.white)
+                        } else {
+                            Text("Verbinden")
                         }
-                        .frame(maxWidth: .infinity, minHeight: 50)
-                        .background(AppColor.primary)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
                     }
+                    .buttonStyle(PrimaryButtonStyle())
                     .disabled(libre.isLoading || email.isEmpty || password.isEmpty)
                     .padding(.top, 4)
                 }
@@ -421,11 +371,11 @@ private struct LibreField: View {
                 .textInputAutocapitalization(.never)
                 .foregroundStyle(AppColor.text)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, AppSpacing.card)
         .padding(.vertical, 14)
         .background(AppColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppColor.border, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
     }
 }
 
@@ -457,10 +407,10 @@ private struct LibreSecureField: View {
                     .foregroundStyle(AppColor.muted)
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, AppSpacing.card)
         .padding(.vertical, 14)
         .background(AppColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppColor.border, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
     }
 }

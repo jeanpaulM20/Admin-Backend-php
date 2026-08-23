@@ -19,11 +19,14 @@ struct ChatView: View {
             if chat.isLoading && chat.conversations.isEmpty {
                 ProgressView().tint(AppColor.primary)
             } else if let e = chat.error {
-                ChatErrorView(message: e) {
+                ErrorStateView(message: e) {
                     Task { await chat.fetchConversations(clientId: auth.clientId ?? "") }
                 }
             } else if chat.conversations.isEmpty {
-                emptyChatView
+                EmptyStateView(
+                    icon:    "bubble.left.and.bubble.right",
+                    message: "Sobald dein Trainer eine Nachricht sendet, erscheint sie hier."
+                )
             } else {
                 conversationList
             }
@@ -62,20 +65,6 @@ struct ChatView: View {
 
     private var conversationList: some View {
         List {
-            // Ungelesene Nachrichten-Header (wie Flutter's unread badge section)
-            if chat.totalUnreadCount > 0 {
-                HStack(spacing: 6) {
-                    Image(systemName: "message.fill")
-                        .font(.caption)
-                        .foregroundStyle(AppColor.primary)
-                    Text("\(chat.totalUnreadCount) ungelesene Nachricht\(chat.totalUnreadCount == 1 ? "" : "en")")
-                        .font(.caption)
-                        .foregroundStyle(AppColor.muted)
-                }
-                .listRowBackground(AppColor.surface)
-                .listRowSeparator(.hidden)
-            }
-
             ForEach(chat.conversations) { conv in
                 NavigationLink(value: conv) {
                     ConversationTile(conversation: conv)
@@ -87,24 +76,6 @@ struct ChatView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-    }
-
-    // MARK: - Empty
-
-    private var emptyChatView: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "bubble.left.and.bubble.right")
-                .font(.system(size: 48))
-                .foregroundStyle(AppColor.muted)
-            Text("Noch keine Chats")
-                .font(.headline)
-                .foregroundStyle(AppColor.text)
-            Text("Sobald dein Trainer eine Nachricht sendet, erscheint sie hier.")
-                .font(.caption)
-                .foregroundStyle(AppColor.muted)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-        }
     }
 }
 
@@ -155,20 +126,5 @@ private struct ConversationTile: View {
             }
         }
         .padding(.vertical, 4)
-    }
-}
-
-// MARK: - Error
-
-private struct ChatErrorView: View {
-    let message: String
-    let retry: () -> Void
-    var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "exclamationmark.triangle").font(.title).foregroundStyle(.orange)
-            Text(message).font(.caption).foregroundStyle(AppColor.muted).multilineTextAlignment(.center)
-            Button("Erneut laden", action: retry)
-                .buttonStyle(.bordered).tint(AppColor.primary)
-        }.padding()
     }
 }

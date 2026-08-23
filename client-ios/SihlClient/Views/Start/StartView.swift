@@ -40,22 +40,19 @@ struct StartView: View {
 
     private var contentScroll: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: AppSpacing.stack) {
                 greeting
-                    .padding(.bottom, 16)
 
                 DailyQuoteView(isLoading: vm.quoteLoading, quote: vm.quote)
 
                 summaryRow
-                    .padding(.bottom, 28)
 
                 sectionHeader
-                    .padding(.bottom, 16)
 
                 appointmentList
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 24)
+            .padding(.horizontal, AppSpacing.screen)
+            .padding(.vertical, AppSpacing.bottomInset)
         }
     }
 
@@ -80,31 +77,11 @@ struct StartView: View {
 
     // MARK: - Summary
 
+    /// Einzige Kennzahl — das nächste Termindatum steht bereits in der Liste darunter.
     private var summaryRow: some View {
-        let upcoming = upcomingAppointments
-        let next     = upcoming.first
-
-        let nextLabel: String = {
-            guard let appt = next else { return "–" }
-            let df = DateFormatter()
-            df.locale = Locale(identifier: "de_DE")
-            df.dateFormat = "dd.MM.  HH:mm"
-            return df.string(from: appt.startDate)
-        }()
-
-        return HStack(spacing: 12) {
-            SummaryCard(icon: "calendar",
-                        value: nextLabel,
-                        label: "Nächster Termin")
-                .frame(maxWidth: .infinity)
-                .layoutPriority(3)
-
-            SummaryCard(icon: "circle.grid.2x2",
-                        value: "\(vm.startData?.totalCredits ?? 0)",
-                        label: "Credits")
-                .frame(maxWidth: .infinity)
-                .layoutPriority(2)
-        }
+        SummaryCard(icon: "circle.grid.2x2",
+                    value: "\(vm.startData?.totalCredits ?? 0)",
+                    label: "Credits")
     }
 
     // MARK: - Section Header
@@ -133,7 +110,12 @@ struct StartView: View {
         let upcoming = upcomingAppointments
         return Group {
             if upcoming.isEmpty {
-                EmptyAppointmentsView(onBookNow: onGoToCalendar)
+                EmptyStateView(
+                    icon: "calendar",
+                    message: "Suche Dir einen passenden Termin aus.",
+                    actionTitle: onGoToCalendar != nil ? "Termin buchen" : nil,
+                    action: onGoToCalendar
+                )
             } else {
                 VStack(spacing: 10) {
                     ForEach(upcoming) { appt in
@@ -174,7 +156,6 @@ private struct DailyQuoteView: View {
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(AppColor.muted)
             }
-            .padding(.bottom, 16)
         }
         // nil + not loading → invisible (SizedBox equivalent)
     }
@@ -196,7 +177,6 @@ private struct QuoteShimmer: View {
                 .frame(width: 120, height: 10)
         }
         .opacity(opacity)
-        .padding(.bottom, 24)
         .onAppear {
             withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
                 opacity = 0.55
@@ -227,13 +207,13 @@ private struct SummaryCard: View {
                 .padding(.bottom, 4)
 
             Text(label)
-                .font(.system(size: 12))
+                .font(.caption)
                 .foregroundStyle(AppColor.muted)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
+        .padding(AppSpacing.card)
         .background(AppColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
     }
 }
 
@@ -300,94 +280,10 @@ private struct AppointmentCard: View {
                 .background(AppColor.green.opacity(0.12))
                 .clipShape(RoundedRectangle(cornerRadius: 4))
         }
-        .padding(16)
+        .padding(AppSpacing.card)
         .background(AppColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
     }
 }
 
-// MARK: - Empty State
-
-private struct EmptyAppointmentsView: View {
-    let onBookNow: (() -> Void)?
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Spacer(minLength: 32)
-
-            Image(systemName: "calendar")
-                .font(.system(size: 32))
-                .foregroundStyle(AppColor.muted)
-
-            Text("Suche Dir einen passenden Termin aus.")
-                .font(.system(size: 14))
-                .foregroundStyle(AppColor.muted)
-                .multilineTextAlignment(.center)
-
-            if let onBookNow {
-                Button(action: onBookNow) {
-                    Text("Termin buchen")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(AppColor.primary)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(AppColor.primary, lineWidth: 1)
-                        )
-                }
-                .padding(.top, 8)
-            }
-        }
-        .frame(maxWidth: .infinity)
-    }
-}
-
-// MARK: - Shared Helper Views (wiederverwendbar in anderen Screens)
-
-/// Einfache Ladeanimation — Pendant zu `widgets/loading_indicator.dart`.
-struct LoadingView: View {
-    var message: String = "Laden…"
-    var body: some View {
-        VStack(spacing: 16) {
-            ProgressView()
-                .tint(AppColor.primary)
-                .scaleEffect(1.3)
-            Text(message)
-                .font(.system(size: 14))
-                .foregroundStyle(AppColor.muted)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-/// Fehler-Anzeige mit Retry — Pendant zu `widgets/error_view.dart`.
-struct ErrorStateView: View {
-    let message: String
-    let onRetry: () -> Void
-
-    var body: some View {
-        VStack(spacing: 24) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 40))
-                .foregroundStyle(AppColor.muted)
-            Text(message)
-                .font(.system(size: 14))
-                .foregroundStyle(AppColor.muted)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-            Button(action: onRetry) {
-                Text("Erneut versuchen")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(AppColor.primary)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(AppColor.primary, lineWidth: 1)
-                    )
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
+// `LoadingView`, `ErrorStateView` und `EmptyStateView` leben in `Views/Shared/SharedComponents.swift`.

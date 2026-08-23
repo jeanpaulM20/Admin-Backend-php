@@ -39,7 +39,7 @@ struct InvoiceDetailSheet: View {
                         qrBillSection
                     }
                 }
-                .padding(.horizontal, 24)
+                .padding(.horizontal, AppSpacing.screen)
                 .padding(.vertical, 20)
             }
             .background(AppColor.background.ignoresSafeArea())
@@ -59,7 +59,7 @@ struct InvoiceDetailSheet: View {
     private var header: some View {
         HStack(spacing: 14) {
             // Icon
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: AppRadius.control)
                 .fill(AppColor.primary.opacity(0.12))
                 .frame(width: 48, height: 48)
                 .overlay(Image(systemName: "receipt")
@@ -129,8 +129,8 @@ struct InvoiceDetailSheet: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(AppColor.primary.opacity(0.06))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10)
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
             .stroke(AppColor.primary.opacity(0.15), lineWidth: 1))
     }
 
@@ -148,7 +148,7 @@ struct InvoiceDetailSheet: View {
                         .foregroundStyle(AppColor.primary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
-                        .overlay(RoundedRectangle(cornerRadius: 10)
+                        .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
                             .stroke(AppColor.primary.opacity(0.4), lineWidth: 1))
                 }
             }
@@ -178,8 +178,8 @@ struct InvoiceDetailSheet: View {
                     .scaledToFit()
                     .frame(maxWidth: .infinity)
                     .background(Color.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .overlay(RoundedRectangle(cornerRadius: 10)
+                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
+                    .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
                         .stroke(AppColor.border, lineWidth: 1))
             }
         }

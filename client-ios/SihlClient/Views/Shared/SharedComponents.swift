@@ -2,20 +2,194 @@ import SwiftUI
 
 /// Gemeinsam genutzte kleine View-Bausteine, die in mehreren Screens vorkommen.
 
-// MARK: - ToastView
+// MARK: - Toast
 
-/// Kurze Status-Meldung unten am Bildschirm, auto-dismiss nach 3 s.
+/// Zustand einer Toast-Meldung; `id` erzwingt einen frischen Auto-Dismiss-Timer
+/// auch bei identischem Text.
+struct AppToast: Equatable {
+    enum Style { case neutral, success, error }
+    let message: String
+    var style: Style = .neutral
+    private let id = UUID()
+}
+
+/// Kurze Status-Meldung unten am Bildschirm.
+/// Präsentation + Auto-Dismiss übernimmt der `.appToast(_:)`-Modifier.
 struct ToastView: View {
     let message: String
+    var style: AppToast.Style = .neutral
+
     var body: some View {
-        Text(message)
-            .font(.system(size: 13, weight: .medium))
-            .foregroundStyle(AppColor.text)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(AppColor.surface2)
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-            .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 2)
+        HStack(spacing: 8) {
+            switch style {
+            case .success:
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(AppColor.green)
+            case .error:
+                Image(systemName: "exclamationmark.circle.fill").foregroundStyle(AppColor.red)
+            case .neutral:
+                EmptyView()
+            }
+            Text(message)
+                .foregroundStyle(AppColor.text)
+        }
+        .font(.footnote.weight(.medium))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(AppColor.surface2)
+        .clipShape(Capsule())
+    }
+}
+
+extension View {
+    /// Einheitliche Toast-Präsentation: Overlay unten, Auto-Dismiss nach 3 s.
+    /// Pro Toast ein eigener, automatisch gecancelter Timer (`.task(id:)`).
+    func appToast(_ toast: Binding<AppToast?>, bottomPadding: CGFloat = AppSpacing.toastBottom) -> some View {
+        overlay(alignment: .bottom) {
+            if let t = toast.wrappedValue {
+                ToastView(message: t.message, style: t.style)
+                    .padding(.bottom, bottomPadding)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .task(id: t) {
+                        try? await Task.sleep(nanoseconds: 3_000_000_000)
+                        withAnimation { toast.wrappedValue = nil }
+                    }
+            }
+        }
+    }
+}
+
+// MARK: - Button-Styles
+
+/// Primär-CTA: volle Breite, 50 pt Höhe, Dynamic-Type-fähig.
+struct PrimaryButtonStyle: ButtonStyle {
+    var fill: Color = AppColor.primary
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline)
+            .foregroundStyle(AppColor.white)
+            .frame(maxWidth: .infinity, minHeight: 50)
+            .background(fill.opacity(configuration.isPressed ? 0.8 : 1))
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
+    }
+}
+
+/// Sekundär-Aktion als Outline (Empty-/Error-States, "Erneut versuchen").
+struct OutlineButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(AppColor.primary.opacity(configuration.isPressed ? 0.6 : 1))
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .overlay(
+                RoundedRectangle(cornerRadius: AppRadius.control)
+                    .stroke(AppColor.primary, lineWidth: 1)
+            )
+    }
+}
+
+// MARK: - Zustands-Views (Gute-Form-Kanon: schlichtes Icon, EINE Muted-Zeile)
+
+/// Leerzustand — kein Container, keine Überschrift, keine Statusfarbe.
+struct EmptyStateView: View {
+    let icon: String
+    let message: String
+    var actionTitle: String? = nil
+    var action: (() -> Void)? = nil
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: icon)
+                .font(.system(size: 32))
+                .foregroundStyle(AppColor.muted)
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(AppColor.muted)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            if let actionTitle, let action {
+                Button(actionTitle, action: action)
+                    .buttonStyle(OutlineButtonStyle())
+                    .padding(.top, 8)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 32)
+    }
+}
+
+/// Fehler-Anzeige mit Retry — Pendant zu `widgets/error_view.dart`.
+struct ErrorStateView: View {
+    let message: String
+    let onRetry: () -> Void
+
+    var body: some View {
+        VStack(spacing: 24) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 40))
+                .foregroundStyle(AppColor.muted)
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(AppColor.muted)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            Button("Erneut versuchen", action: onRetry)
+                .buttonStyle(OutlineButtonStyle())
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// Einfache Ladeanimation — Pendant zu `widgets/loading_indicator.dart`.
+struct LoadingView: View {
+    var message: String = "Laden…"
+    var body: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .tint(AppColor.primary)
+                .scaleEffect(1.3)
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(AppColor.muted)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// Inline-Fehlerbanner innerhalb eines Screens (nicht blockierend).
+struct InlineErrorBanner: View {
+    let message: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.footnote)
+                .foregroundStyle(AppColor.red)
+            Text(message)
+                .font(.footnote)
+                .foregroundStyle(AppColor.red)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(12)
+        .background(AppColor.red.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppRadius.control)
+                .stroke(AppColor.red.opacity(0.3), lineWidth: 1)
+        )
+    }
+}
+
+/// Overline-Sektionsheader für Listenabschnitte (Versalien, muted).
+struct OverlineHeader: View {
+    let title: String
+    var body: some View {
+        Text(title.uppercased())
+            .font(.caption.bold())
+            .foregroundStyle(AppColor.muted)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 8)
     }
 }
 

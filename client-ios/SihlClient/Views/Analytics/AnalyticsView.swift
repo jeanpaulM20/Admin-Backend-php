@@ -20,11 +20,14 @@ struct AnalyticsView: View {
             if analytics.isLoading && analytics.sections.isEmpty {
                 ProgressView("Lade Leistungsdaten…").tint(AppColor.primary)
             } else if let e = analytics.error {
-                AnalyticsErrorView(message: e) {
+                ErrorStateView(message: e) {
                     Task { await analytics.fetch(clientId: auth.clientId ?? "") }
                 }
             } else if analytics.sections.isEmpty && analytics.reviews.isEmpty {
-                emptyView
+                EmptyStateView(
+                    icon:    "chart.line.uptrend.xyaxis",
+                    message: "Noch keine Leistungstests erfasst."
+                )
             } else {
                 contentList
             }
@@ -74,22 +77,8 @@ struct AnalyticsView: View {
 
                 Spacer(minLength: 24)
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, AppSpacing.screen)
             .padding(.top, 16)
-        }
-    }
-
-    // MARK: - Empty
-
-    private var emptyView: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "chart.line.uptrend.xyaxis")
-                .font(.system(size: 48))
-                .foregroundStyle(AppColor.muted)
-            Text("Keine Leistungsdaten")
-                .font(.headline).foregroundStyle(AppColor.text)
-            Text("Noch keine Leistungstests erfasst.")
-                .font(.caption).foregroundStyle(AppColor.muted)
         }
     }
 }
@@ -109,7 +98,7 @@ private struct PerformanceSectionCard: View {
             } label: {
                 HStack(spacing: 12) {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 10)
+                        RoundedRectangle(cornerRadius: AppRadius.control)
                             .fill(AppColor.primary.opacity(0.15))
                             .frame(width: 36, height: 36)
                         Image(systemName: "chart.bar.fill")
@@ -141,7 +130,6 @@ private struct PerformanceSectionCard: View {
                     NavigationLink(value: PerformanceNavTarget(sectionTitle: section.title, item: item)) {
                         PerformanceItemRow(
                             item:   item,
-                            isEven: idx.isMultiple(of: 2),
                             isLast: idx == section.items.count - 1
                         )
                     }
@@ -149,8 +137,8 @@ private struct PerformanceSectionCard: View {
                 }
             }
         }
-        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
+        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
     }
 }
 
@@ -159,7 +147,6 @@ private struct PerformanceSectionCard: View {
 /// Eine Zeile in der aufgeklappten Sektion: Name | Aktuell | Vorher | Trend.
 struct PerformanceItemRow: View {
     let item:   PerformanceItem
-    var isEven: Bool = true
     var isLast: Bool = false
 
     var body: some View {
@@ -189,7 +176,6 @@ struct PerformanceItemRow: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(isEven ? Color.clear : AppColor.surface.opacity(0.6))
         .overlay(alignment: .bottom) {
             if !isLast {
                 Rectangle().fill(AppColor.muted.opacity(0.1)).frame(height: 1)
@@ -229,12 +215,12 @@ private struct TrainingReviewSectionCard: View {
             // Header
             HStack(spacing: 12) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.red.opacity(0.15))
+                    RoundedRectangle(cornerRadius: AppRadius.control)
+                        .fill(AppColor.red.opacity(0.15))
                         .frame(width: 36, height: 36)
                     Image(systemName: "waveform.path.ecg")
                         .font(.system(size: 18))
-                        .foregroundStyle(.red)
+                        .foregroundStyle(AppColor.red)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Training")
@@ -259,8 +245,8 @@ private struct TrainingReviewSectionCard: View {
                     .padding(.vertical, 6)
                     .background(compareMode ? AppColor.primary : AppColor.surface)
                     .foregroundStyle(compareMode ? AppColor.white : AppColor.text)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(
+                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
+                    .overlay(RoundedRectangle(cornerRadius: AppRadius.control).stroke(
                         compareMode ? AppColor.primary : AppColor.muted.opacity(0.3), lineWidth: 1))
                 }
 
@@ -293,7 +279,7 @@ private struct TrainingReviewSectionCard: View {
                                 .padding(.horizontal, 14).padding(.vertical, 6)
                                 .background(AppColor.primary)
                                 .foregroundStyle(AppColor.white)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
                         }
                     }
                     .padding(.horizontal, 16)
@@ -311,7 +297,6 @@ private struct TrainingReviewSectionCard: View {
                     ReviewRowView(
                         review:     review,
                         isLast:     isLast,
-                        isEven:     idx.isMultiple(of: 2),
                         compareMode: compareMode,
                         isSelected: isSelected,
                         isDisabled: isDisabled
@@ -337,9 +322,9 @@ private struct TrainingReviewSectionCard: View {
                 }
             }
         }
-        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(
-            compareMode ? AppColor.primary : AppColor.muted.opacity(0.15), lineWidth: 1))
+        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(
+            AppColor.muted.opacity(0.15), lineWidth: 1))
     }
 }
 
@@ -348,7 +333,6 @@ private struct TrainingReviewSectionCard: View {
 private struct ReviewRowView: View {
     let review:      TrainingReview
     let isLast:      Bool
-    let isEven:      Bool
     let compareMode: Bool
     let isSelected:  Bool
     let isDisabled:  Bool
@@ -381,7 +365,7 @@ private struct ReviewRowView: View {
             if let max = review.hrMax {
                 Text("\(max) bpm")
                     .font(.callout.bold())
-                    .foregroundStyle(.red)
+                    .foregroundStyle(AppColor.red)
             }
             if !compareMode {
                 Image(systemName: "chevron.right")
@@ -390,9 +374,7 @@ private struct ReviewRowView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(isSelected
-                    ? AppColor.primary.opacity(0.1)
-                    : isEven ? Color.clear : AppColor.surface.opacity(0.6))
+        .background(isSelected ? AppColor.primary.opacity(0.1) : Color.clear)
         .opacity(isDisabled ? 0.4 : 1)
         .overlay(alignment: .bottom) {
             if !isLast {
@@ -402,18 +384,6 @@ private struct ReviewRowView: View {
     }
 }
 
-// MARK: - Error
-
-private struct AnalyticsErrorView: View {
-    let message: String; let retry: () -> Void
-    var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "exclamationmark.triangle").font(.title).foregroundStyle(.orange)
-            Text(message).font(.caption).foregroundStyle(AppColor.muted).multilineTextAlignment(.center)
-            Button("Erneut laden", action: retry).buttonStyle(.bordered).tint(AppColor.primary)
-        }.padding()
-    }
-}
 
 // MARK: - CompareSelection (sheet item wrapper)
 

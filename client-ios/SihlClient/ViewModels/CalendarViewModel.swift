@@ -44,7 +44,7 @@ final class CalendarViewModel {
     // Action flags
     var isBooking    = false
     var isCancelling = false
-    var toast: (message: String, success: Bool)?
+    var toast: AppToast?
 
     // Calendar navigation state
     var selectedDate:  Date = Date()
@@ -151,9 +151,9 @@ final class CalendarViewModel {
             prefLocationId = selection.locationId
             // Refresh calendar
             await load(clientId: clientId)
-            toast = ("Termin erfolgreich gebucht!", true)
+            toast = AppToast(message: "Termin erfolgreich gebucht!", style: .success)
         } catch {
-            toast = (error.localizedDescription, false)
+            toast = AppToast(message: error.localizedDescription, style: .error)
         }
         isBooking = false
     }

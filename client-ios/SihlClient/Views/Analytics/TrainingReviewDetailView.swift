@@ -85,7 +85,7 @@ struct TrainingReviewDetailView: View {
                     }
                 }
             }
-            .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 12)
+            .padding(.horizontal, AppSpacing.card).padding(.top, AppSpacing.card).padding(.bottom, 12)
 
             if review.hasChartData {
                 HrLineChart(chart: review.chart, lineWidth: 2)
@@ -98,8 +98,8 @@ struct TrainingReviewDetailView: View {
                     .padding(24)
             }
         }
-        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
+        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
     }
 }
 
@@ -123,8 +123,8 @@ struct StatCard: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 14)
-        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
+        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
     }
 }
 
@@ -155,8 +155,8 @@ private struct TrainingLoadCard: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 14)
-        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
+        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
     }
 }
 

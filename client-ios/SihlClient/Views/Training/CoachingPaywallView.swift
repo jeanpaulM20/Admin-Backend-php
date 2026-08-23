@@ -79,7 +79,7 @@ struct CoachingPaywallView: View {
                             .padding(.bottom, 14)
 
                         if let err = errorMsg {
-                            errorBox(err)
+                            InlineErrorBanner(message: err)
                                 .padding(.bottom, 12)
                         }
 
@@ -132,11 +132,11 @@ struct CoachingPaywallView: View {
                 .foregroundStyle(AppColor.muted)
                 .lineLimit(2)
         }
-        .padding(16)
+        .padding(AppSpacing.card)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(AppColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(AppColor.border, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
     }
 
     // MARK: - Unlock Button
@@ -145,36 +145,15 @@ struct CoachingPaywallView: View {
         Button {
             Task { await startPayment() }
         } label: {
-            Group {
-                if isPaying {
-                    ProgressView().tint(.white)
-                } else {
-                    Text("Jetzt freischalten")
-                        .font(.system(size: 15, weight: .bold))
-                }
+            if isPaying {
+                ProgressView().tint(.white)
+            } else {
+                Text("Jetzt freischalten")
             }
-            .frame(maxWidth: .infinity, minHeight: 50)
-            .background(AppColor.primaryDark)
-            .foregroundStyle(.white)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
+        .buttonStyle(PrimaryButtonStyle(fill: AppColor.primaryDark))
         .disabled(selectedId == nil || isPaying)
         .opacity((selectedId == nil || isPaying) ? 0.6 : 1)
-    }
-
-    // MARK: - Error Box
-
-    private func errorBox(_ msg: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.circle")
-                .font(.system(size: 16)).foregroundStyle(AppColor.red)
-            Text(msg)
-                .font(.system(size: 13)).foregroundStyle(AppColor.red)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(12)
-        .background(AppColor.red.opacity(0.11))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     // MARK: - Actions
@@ -277,12 +256,12 @@ private struct TierCard: View {
                     .font(.system(size: 20))
                     .foregroundStyle(isSelected ? AppColor.primary : AppColor.border)
             }
-            .padding(16)
+            .padding(AppSpacing.card)
             .background(
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: AppRadius.card)
                     .fill(AppColor.surface)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 8)
+                        RoundedRectangle(cornerRadius: AppRadius.card)
                             .stroke(isSelected ? AppColor.primary : AppColor.border,
                                     lineWidth: isSelected ? 2 : 1)
                     )

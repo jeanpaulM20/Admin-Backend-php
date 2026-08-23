@@ -20,8 +20,7 @@ struct ChatThreadView: View {
     @State private var isSending     = false
     @State private var showAttach    = false
     @State private var dataDetail:   DataDetailItem? = nil
-    @State private var toast:        String? = nil
-    @State private var toastNonce    = 0
+    @State private var toast:        AppToast? = nil
     @State private var sse           = SSEClient()
 
     var body: some View {
@@ -64,19 +63,7 @@ struct ChatThreadView: View {
                 .accessibilityLabel("Aktualisieren")
             }
         }
-        .overlay(alignment: .bottom) {
-            if let t = toast {
-                ToastView(message: t)
-                    .padding(.bottom, 72)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .task(id: toastNonce) {
-                        // Pro Toast ein eigener, automatisch gecancelter Timer —
-                        // ein alter Timer kann so keinen neueren Toast abräumen.
-                        try? await Task.sleep(nanoseconds: 3_000_000_000)
-                        withAnimation { toast = nil }
-                    }
-            }
-        }
+        .appToast($toast, bottomPadding: 72)
         .sheet(item: $dataDetail) { item in
             DataDetailRouterView(item: item)
         }
@@ -229,8 +216,7 @@ struct ChatThreadView: View {
         } catch {
             // Text wiederherstellen, damit erneut gesendet werden kann
             messageText = savedText
-            toastNonce += 1
-            withAnimation { toast = "Nachricht konnte nicht gesendet werden" }
+            withAnimation { toast = AppToast(message: "Nachricht konnte nicht gesendet werden", style: .error) }
         }
         isSending = false
     }
@@ -826,7 +812,7 @@ private struct ReviewDetailSheet: View {
                 // Header
                 HStack(spacing: 14) {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 12)
+                        RoundedRectangle(cornerRadius: AppRadius.control)
                             .fill(AppColor.red.opacity(0.1))
                             .frame(width: 48, height: 48)
                         Image(systemName: "waveform.path.ecg")
@@ -884,7 +870,7 @@ private struct ReviewDetailSheet: View {
         }
         .frame(maxWidth: .infinity)
         .padding(12)
-        .background(AppColor.background, in: RoundedRectangle(cornerRadius: 12))
+        .background(AppColor.background, in: RoundedRectangle(cornerRadius: AppRadius.card))
     }
 }
 
@@ -1033,7 +1019,7 @@ private struct PerformanceDetailSheet: View {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(spacing: 14) {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 12)
+                        RoundedRectangle(cornerRadius: AppRadius.control)
                             .fill(AppColor.green.opacity(0.1))
                             .frame(width: 48, height: 48)
                         Image(systemName: "chart.line.uptrend.xyaxis")
@@ -1067,7 +1053,7 @@ private struct PerformanceDetailSheet: View {
                         }
                         .padding(.horizontal, 14)
                         .padding(.vertical, 12)
-                        .background(AppColor.background, in: RoundedRectangle(cornerRadius: 10))
+                        .background(AppColor.background, in: RoundedRectangle(cornerRadius: AppRadius.control))
                     }
                 }
             }
@@ -1106,7 +1092,7 @@ private struct MetricDetailSheet: View {
                 Text("Nicht gefunden").font(.callout).foregroundStyle(AppColor.muted)
             }
         }
-        .presentationDetents([.fraction(0.65), .large])
+        .presentationDetents([.fraction(0.7), .large])
         .presentationDragIndicator(.visible)
         .task { await load() }
     }
@@ -1135,7 +1121,7 @@ private struct MetricDetailSheet: View {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(spacing: 14) {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 12)
+                        RoundedRectangle(cornerRadius: AppRadius.control)
                             .fill(AppColor.blue.opacity(0.1))
                             .frame(width: 48, height: 48)
                         Image(systemName: "scalemass")
@@ -1170,7 +1156,7 @@ private struct MetricDetailSheet: View {
                             }
                             .padding(.horizontal, 14)
                             .padding(.vertical, 12)
-                            .background(AppColor.background, in: RoundedRectangle(cornerRadius: 10))
+                            .background(AppColor.background, in: RoundedRectangle(cornerRadius: AppRadius.control))
                         }
                     }
                 }

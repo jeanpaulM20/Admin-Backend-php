@@ -62,9 +62,9 @@ struct PerformanceDetailView: View {
                     .padding(.leading, 16)
             }
         }
-        .padding(20)
-        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
+        .padding(AppSpacing.card)
+        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
     }
 
     // MARK: - Verlauf Chart (Swift Charts)
@@ -115,9 +115,9 @@ struct PerformanceDetailView: View {
                 }
             }
             .frame(height: 200)
-            .padding(16)
-            .background(AppColor.surface, in: RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
+            .padding(AppSpacing.card)
+            .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
         }
     }
 
@@ -137,8 +137,8 @@ struct PerformanceDetailView: View {
                         .font(.callout.bold()).foregroundStyle(AppColor.text)
                 }
                 .padding(.horizontal, 14).padding(.vertical, 10)
-                .background(AppColor.surface, in: RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(AppColor.muted.opacity(0.1), lineWidth: 1))
+                .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.control))
+                .overlay(RoundedRectangle(cornerRadius: AppRadius.control).stroke(AppColor.muted.opacity(0.1), lineWidth: 1))
             }
         }
     }
@@ -147,9 +147,9 @@ struct PerformanceDetailView: View {
         Text("Kein Verlauf vorhanden")
             .font(.callout).foregroundStyle(AppColor.muted)
             .frame(maxWidth: .infinity)
-            .padding(24)
-            .background(AppColor.surface, in: RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppColor.muted.opacity(0.1), lineWidth: 1))
+            .padding(AppSpacing.card)
+            .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.muted.opacity(0.1), lineWidth: 1))
     }
 
     // MARK: - Chart helpers

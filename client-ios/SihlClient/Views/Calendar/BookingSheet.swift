@@ -212,10 +212,9 @@ struct BookingSheet: View {
         HStack(spacing: 10) {
             Button("Abbrechen") { dismiss() }
                 .foregroundStyle(AppColor.muted)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
+                .frame(maxWidth: .infinity, minHeight: 50)
                 .background(AppColor.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
 
             Button("Jetzt buchen") {
                 guard let tid = selTrainerId, let lid = selLocationId else { return }
@@ -223,13 +222,9 @@ struct BookingSheet: View {
                 onConfirm(SlotSelection(trainerId: tid, locationId: lid, trainingTypeId: typeId))
                 dismiss()
             }
-            .font(.system(size: 15, weight: .bold))
-            .foregroundStyle(canConfirm ? AppColor.white : AppColor.muted)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(canConfirm ? AppColor.primary : AppColor.surface2)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .buttonStyle(PrimaryButtonStyle())
             .disabled(!canConfirm)
+            .opacity(canConfirm ? 1 : 0.5)
         }
     }
 

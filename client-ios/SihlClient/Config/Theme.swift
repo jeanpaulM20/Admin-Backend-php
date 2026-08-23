@@ -38,6 +38,32 @@ enum AppColor {
     static let zoneVeryLight = Color(hex: 0x9E9E9E)
 }
 
+/// Abstands-Raster (4er-Grid) — Designsystem-Tokens statt Literale in den Views.
+enum AppSpacing {
+    /// Horizontales Screen-Randpadding aller Haupt-Screens
+    static let screen: CGFloat = 20
+    /// Standard-Innenpadding von Cards
+    static let card: CGFloat = 16
+    /// Innenpadding von Hero-/Summary-Cards
+    static let hero: CGFloat = 20
+    /// Vertikaler Abstand zwischen Cards/Sektionen einer Liste
+    static let stack: CGFloat = 12
+    /// Abstand am Listenende (vor der TabBar)
+    static let bottomInset: CGFloat = 24
+    /// Bottom-Offset für Toasts
+    static let toastBottom: CGFloat = 32
+}
+
+/// Eckenradien — zwei Arbeitsstufen plus Hero.
+enum AppRadius {
+    /// Cards & Container
+    static let card: CGFloat = 14
+    /// Buttons, Chips, Banner, kleine Controls
+    static let control: CGFloat = 10
+    /// Hero-Cards & Sheet-Flächen
+    static let hero: CGFloat = 20
+}
+
 extension Color {
     /// Erzeugt eine Farbe aus einem 0xRRGGBB Integer (wie Flutter `Color(0xFF......)`).
     init(hex: UInt32) {

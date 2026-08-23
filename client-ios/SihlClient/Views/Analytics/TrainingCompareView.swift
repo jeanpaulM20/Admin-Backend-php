@@ -86,9 +86,9 @@ struct TrainingCompareView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
+        .padding(AppSpacing.card)
+        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
     }
 
     // MARK: - Überlagerter Chart
@@ -99,23 +99,23 @@ struct TrainingCompareView: View {
             Text("Herzfrequenz-Verlauf (bpm)")
                 .font(.callout.bold())
                 .foregroundStyle(AppColor.text)
-                .padding(.horizontal, 16)
-                .padding(.top, 16)
+                .padding(.horizontal, AppSpacing.card)
+                .padding(.top, AppSpacing.card)
 
             Text("X-Achse: Trainingsverlauf in %")
                 .font(.system(size: 10))
                 .foregroundStyle(AppColor.muted)
-                .padding(.horizontal, 16)
+                .padding(.horizontal, AppSpacing.card)
                 .padding(.top, 4)
                 .padding(.bottom, 14)
 
             overlayChart
                 .frame(height: 260)
                 .padding(.horizontal, 8)
-                .padding(.bottom, 16)
+                .padding(.bottom, AppSpacing.card)
         }
-        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16)
+        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card)
             .stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
     }
 
@@ -215,8 +215,8 @@ struct TrainingCompareView: View {
                         .frame(width: 60, alignment: .trailing)
                 }
                 .padding(.horizontal, 14).padding(.vertical, 10)
-                .background(AppColor.surface, in: RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(AppColor.muted.opacity(0.1), lineWidth: 1))
+                .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.control))
+                .overlay(RoundedRectangle(cornerRadius: AppRadius.control).stroke(AppColor.muted.opacity(0.1), lineWidth: 1))
             }
         }
     }

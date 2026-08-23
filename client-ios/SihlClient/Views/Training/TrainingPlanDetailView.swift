@@ -236,10 +236,10 @@ struct TrainingPlanDetailView: View {
         .padding(.horizontal, 16).padding(.vertical, 12)
         .background(AppColor.surface)
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: AppRadius.card)
                 .stroke(running ? AppColor.primary.opacity(0.7) : AppColor.border, lineWidth: running ? 1.5 : 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
         .padding(.horizontal, 16).padding(.top, 12)
         .animation(.easeInOut(duration: 0.25), value: running)
     }
@@ -291,7 +291,7 @@ struct TrainingPlanDetailView: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
-                    .padding(.bottom, 80)
+                    .padding(.bottom, AppSpacing.bottomInset)
                 }
             }
         }
@@ -310,14 +310,8 @@ struct TrainingPlanDetailView: View {
                 .multilineTextAlignment(.center)
             NavigationLink(destination: CoachingPaywallView(plan: plan)) {
                 Text("Freischalten")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(AppColor.white)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(AppColor.primary)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(PrimaryButtonStyle())
             .padding(.top, 4)
         }
         .padding(40)
@@ -483,9 +477,9 @@ private struct ExerciseTile: View {
             }
         }
         .background(AppColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: AppRadius.card)
                 .stroke(borderColor, lineWidth: isExpanded ? 1.5 : 1)
         )
         .animation(.easeInOut(duration: 0.2), value: isExpanded)

@@ -16,8 +16,7 @@ struct CreditsView: View {
     @State private var pendingPayment: PendingPayment?     // für Polling-Sheet
     @State private var nextAfterAgb: CreditPackage?        // AGB akzeptiert → nach Dismiss Zahlungsart öffnen
     @State private var nextConfirm: CreditPackage?         // Bank gewählt → nach Dismiss Bestätigung öffnen
-    @State private var toast: (msg: String, ok: Bool)? = nil
-    @State private var toastNonce = 0
+    @State private var toast: AppToast? = nil
 
     var body: some View {
         ZStack {
@@ -26,22 +25,14 @@ struct CreditsView: View {
             if credits.isLoading && credits.credits.isEmpty && credits.packages.isEmpty {
                 ProgressView("Lade Credits…").tint(AppColor.primary)
             } else if let e = credits.error {
-                errorView(e)
+                ErrorStateView(message: e) {
+                    Task { await credits.fetch(clientId: auth.clientId ?? "") }
+                }
             } else {
                 contentList
             }
-
-            // Toast
-            if let t = toast {
-                VStack {
-                    Spacer()
-                    ToastView(message: t.msg)
-                        .padding(.bottom, 32)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-                .animation(.spring(), value: toast != nil)
-            }
         }
+        .appToast($toast)
         .navigationTitle("Credits & Abos")
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -119,7 +110,7 @@ struct CreditsView: View {
                 // Online Coaching Abos
                 let coaching = credits.packages.filter(\.isCoaching)
                 if !coaching.isEmpty {
-                    SectionHeader(title: "ONLINE COACHING")
+                    OverlineHeader(title: "ONLINE COACHING")
                     ForEach(coaching) { pkg in
                         PackageCard(package: pkg, purchasing: purchasing) {
                             agbTarget = pkg
@@ -130,7 +121,7 @@ struct CreditsView: View {
                 // Lektionen & Pakete
                 let regular = credits.packages.filter { !$0.isCoaching }
                 if !regular.isEmpty {
-                    SectionHeader(title: "LEKTIONEN & PAKETE")
+                    OverlineHeader(title: "LEKTIONEN & PAKETE")
                     ForEach(regular) { pkg in
                         PackageCard(package: pkg, purchasing: purchasing) {
                             agbTarget = pkg
@@ -140,18 +131,9 @@ struct CreditsView: View {
 
                 Spacer(minLength: 24)
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, AppSpacing.screen)
             .padding(.top, 16)
         }
-    }
-
-    private func errorView(_ msg: String) -> some View {
-        VStack(spacing: 12) {
-            Image(systemName: "exclamationmark.triangle").font(.title).foregroundStyle(.orange)
-            Text(msg).font(.caption).foregroundStyle(AppColor.muted).multilineTextAlignment(.center)
-            Button("Erneut laden") { Task { await credits.fetch(clientId: auth.clientId ?? "") } }
-                .buttonStyle(.bordered).tint(AppColor.primary)
-        }.padding()
     }
 
     // MARK: - Purchase flows
@@ -206,17 +188,8 @@ struct CreditsView: View {
     }
 
     private func showToast(_ msg: String, ok: Bool) {
-        toastNonce += 1
-        let nonce = toastNonce
-        withAnimation { toast = (msg, ok) }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-            // Nur den eigenen Toast abräumen — sonst löscht der Timer eines
-            // früheren Toasts (z.B. "Zahlung wird vorbereitet…") eine später
-            // gesetzte Fehlermeldung vorzeitig.
-            if toastNonce == nonce {
-                withAnimation { toast = nil }
-            }
-        }
+        // Präsentation + Auto-Dismiss übernimmt der `.appToast`-Modifier.
+        withAnimation { toast = AppToast(message: msg, style: ok ? .success : .error) }
     }
 }
 
@@ -230,19 +203,19 @@ private struct SummaryCard: View {
         let has = activeCredits > 0
         HStack(spacing: 14) {
             ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill((has ? AppColor.primary : Color.orange).opacity(0.12))
+                RoundedRectangle(cornerRadius: AppRadius.control)
+                    .fill((has ? AppColor.primary : AppColor.orange).opacity(0.12))
                     .frame(width: 48, height: 48)
                 Image(systemName: has ? "checkmark.circle.fill" : "info.circle")
                     .font(.system(size: 22))
-                    .foregroundStyle(has ? AppColor.primary : .orange)
+                    .foregroundStyle(has ? AppColor.primary : AppColor.orange)
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(has
                      ? "\(activeCredits) Credit\(activeCredits == 1 ? "" : "s") verfügbar"
                      : "Keine aktiven Credits")
                     .font(.headline)
-                    .foregroundStyle(has ? AppColor.primary : .orange)
+                    .foregroundStyle(has ? AppColor.primary : AppColor.orange)
                 Text(has
                      ? "Aus \(packCount) Abo\(packCount == 1 ? "" : "s")"
                      : "Wähle ein Abo und bestelle direkt")
@@ -251,92 +224,65 @@ private struct SummaryCard: View {
             }
             Spacer()
         }
-        .padding(16)
-        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
-    }
-}
-
-// MARK: - SectionHeader
-
-private struct SectionHeader: View {
-    let title: String
-    var body: some View {
-        Text(title)
-            .font(.caption.bold())
-            .foregroundStyle(AppColor.muted)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, 4)
+        .padding(AppSpacing.card)
+        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
     }
 }
 
 // MARK: - PackageCard
 
+/// Reduziertes TierCard-Muster (wie `CoachingPaywallView`): fixe Preisspalte links,
+/// EINE punktgetrennte Muted-Wertzeile, kein Feature-Katalog pro Karte.
 private struct PackageCard: View {
     let package:    CreditPackage
     let purchasing: Bool
     let onBuy:      () -> Void
 
+    /// "N Lektionen · M Monate gültig"
+    private var valueLine: String {
+        var parts = ["\(package.credits) \(package.credits == 1 ? "Lektion" : "Lektionen")"]
+        if let months = package.durationMonths {
+            parts.append("\(months) \(months == 1 ? "Monat" : "Monate") gültig")
+        }
+        return parts.joined(separator: " · ")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            // Name + Preis
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(package.name)
-                        .font(.title3.bold())
-                        .foregroundStyle(AppColor.text)
-                    if let desc = package.description {
-                        Text(desc)
-                            .font(.callout)
-                            .foregroundStyle(AppColor.muted)
-                    }
-                }
-                Spacer(minLength: 12)
-                VStack(alignment: .trailing, spacing: 2) {
+            HStack(alignment: .top, spacing: 0) {
+                // Preis — fixe Spalte, damit alle Paketnamen auf einer Achse starten.
+                VStack(alignment: .leading, spacing: 2) {
                     Text(package.priceFormatted)
-                        .font(.system(size: 22, weight: .black))
-                        .foregroundStyle(AppColor.primary)
+                        .font(.system(size: 19, weight: .heavy))
+                        .foregroundStyle(AppColor.text)
+                        .lineLimit(1)
                     if let pps = package.perSessionFormatted {
                         Text(pps)
                             .font(.caption)
                             .foregroundStyle(AppColor.muted)
                     }
                 }
-            }
+                .frame(width: 104, alignment: .leading)
 
-            // Details
-            HStack(spacing: 16) {
-                Label(
-                    "\(package.credits) \(package.credits == 1 ? "Lektion" : "Lektionen")",
-                    systemImage: "dumbbell.fill"
-                )
-                .font(.caption)
-                .foregroundStyle(AppColor.muted)
+                Spacer().frame(width: 16)
 
-                if let months = package.durationMonths {
-                    Label(
-                        "\(months) \(months == 1 ? "Monat" : "Monate") gültig",
-                        systemImage: "clock"
-                    )
-                    .font(.caption)
-                    .foregroundStyle(AppColor.muted)
-                }
-            }
-
-            // Includes
-            if let inc = package.includes, !inc.isEmpty {
-                Divider().background(AppColor.muted.opacity(0.2))
-                VStack(alignment: .leading, spacing: 5) {
-                    ForEach(inc.components(separatedBy: ", "), id: \.self) { item in
-                        HStack(spacing: 8) {
-                            Image(systemName: "checkmark.circle")
-                                .font(.caption).foregroundStyle(.green)
-                            Text(item)
-                                .font(.callout.weight(.medium))
-                                .foregroundStyle(AppColor.text)
-                        }
+                // Name + Wertzeile
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(package.name)
+                        .font(.subheadline.bold())
+                        .foregroundStyle(AppColor.text)
+                    if let desc = package.description {
+                        Text(desc)
+                            .font(.caption)
+                            .foregroundStyle(AppColor.muted)
                     }
+                    Text(valueLine)
+                        .font(.caption)
+                        .foregroundStyle(AppColor.muted)
+                        .multilineTextAlignment(.leading)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             // Kaufen-Button
@@ -345,24 +291,17 @@ private struct PackageCard: View {
                     HStack(spacing: 8) {
                         ProgressView().tint(.white).scaleEffect(0.8)
                         Text("Wird verarbeitet…")
-                            .font(.callout.bold()).foregroundStyle(.white)
                     }
-                    .frame(maxWidth: .infinity)
                 } else {
-                    Label("Abo kaufen", systemImage: "cart.fill")
-                        .font(.callout.bold())
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
+                    Text("Abo kaufen")
                 }
             }
+            .buttonStyle(PrimaryButtonStyle(fill: purchasing ? AppColor.muted.opacity(0.3) : AppColor.primary))
             .disabled(purchasing)
-            .padding(.vertical, 13)
-            .background(purchasing ? AppColor.muted.opacity(0.3) : AppColor.primary,
-                        in: RoundedRectangle(cornerRadius: 10))
         }
-        .padding(16)
-        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
+        .padding(AppSpacing.card)
+        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
     }
 }
 
@@ -437,7 +376,7 @@ private struct AGBSheet: View {
                             .frame(maxWidth: .infinity).padding(.vertical, 14)
                     }
                     .background(accepted ? AppColor.primary : AppColor.muted.opacity(0.3),
-                                in: RoundedRectangle(cornerRadius: 10))
+                                in: RoundedRectangle(cornerRadius: AppRadius.control))
                     .disabled(!accepted)
                 }
                 .padding(.horizontal, 20)
@@ -557,7 +496,7 @@ private struct PaymentMethodTile: View {
         Button(action: onTap) {
             HStack(spacing: 14) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 10)
+                    RoundedRectangle(cornerRadius: AppRadius.control)
                         .fill(AppColor.primary.opacity(0.12))
                         .frame(width: 44, height: 44)
                     Image(systemName: icon)
@@ -574,9 +513,9 @@ private struct PaymentMethodTile: View {
                 Image(systemName: "chevron.right")
                     .font(.caption).foregroundStyle(AppColor.muted)
             }
-            .padding(16)
-            .background(AppColor.background, in: RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppColor.muted.opacity(0.2), lineWidth: 1))
+            .padding(AppSpacing.card)
+            .background(AppColor.background, in: RoundedRectangle(cornerRadius: AppRadius.card))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.muted.opacity(0.2), lineWidth: 1))
         }
         .buttonStyle(.plain)
     }

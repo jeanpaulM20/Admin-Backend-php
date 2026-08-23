@@ -10,7 +10,7 @@ struct ProfileView: View {
     @State private var selectedInvoice: Invoice?
     @State private var showLogoutAlert   = false
     @State private var showPolarDisconnectAlert = false
-    @State private var polarToast: String?
+    @State private var polarToast: AppToast?
 
     // Push Notifications
     @State private var pushEnabled  = false
@@ -61,32 +61,21 @@ struct ProfileView: View {
                     do {
                         try await vm.disconnectPolar(clientId: id)
                     } catch {
-                        polarToast = "Polar-Trennung fehlgeschlagen"
+                        polarToast = AppToast(message: "Polar-Trennung fehlgeschlagen", style: .error)
                     }
                 }
             }
         } message: {
             Text("Polar-Verbindung wirklich trennen?")
         }
-        .overlay(alignment: .bottom) {
-            if let msg = polarToast {
-                ToastView(message: msg)
-                    .padding(.bottom, 32)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .onAppear {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                            withAnimation { polarToast = nil }
-                        }
-                    }
-            }
-        }
+        .appToast($polarToast)
     }
 
     // MARK: - Content
 
     private var content: some View {
         ScrollView {
-            VStack(spacing: 10) {
+            VStack(spacing: AppSpacing.stack) {
                 avatarHeader
                     .padding(.bottom, 18)
 
@@ -101,9 +90,9 @@ struct ProfileView: View {
                 logoutButton
                     .padding(.bottom, 8)
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, AppSpacing.screen)
             .padding(.top, 24)
-            .padding(.bottom, 24)
+            .padding(.bottom, AppSpacing.bottomInset)
         }
     }
 
@@ -239,7 +228,7 @@ struct ProfileView: View {
         SectionDisclosure(
             icon: "link",
             title: "Verbindungen",
-            subtitle: vm.polarConnected ? "Polar verbunden" : "Keine Verbindung"
+            subtitle: vm.polarConnected ? "Polar verbunden" : nil
         ) {
             PolarCard(
                 connected: vm.polarConnected,
@@ -249,13 +238,16 @@ struct ProfileView: View {
                         guard let id = auth.clientId else { return }
                         do {
                             try await vm.syncPolar(clientId: id)
-                            withAnimation { polarToast = "Polar-Trainings synchronisiert!" }
+                            withAnimation { polarToast = AppToast(message: "Polar-Trainings synchronisiert!", style: .success) }
                         } catch {
-                            withAnimation { polarToast = "Polar-Sync fehlgeschlagen" }
+                            withAnimation { polarToast = AppToast(message: "Polar-Sync fehlgeschlagen", style: .error) }
                         }
                     }
                 },
-                onDisconnect: { showPolarDisconnectAlert = true }
+                onDisconnect: { showPolarDisconnectAlert = true },
+                onConnect: vm.polarConnectUrl.flatMap { URL(string: $0) }.map { url in
+                    { UIApplication.shared.open(url) }
+                }
             )
         }
     }
@@ -265,8 +257,7 @@ struct ProfileView: View {
     private var notificationsSection: some View {
         SectionDisclosure(
             icon: "bell.fill",
-            title: "Benachrichtigungen",
-            subtitle: pushEnabled ? "Aktiviert" : "Deaktiviert"
+            title: "Benachrichtigungen"
         ) {
             PushNotificationCard(
                 enabled:   pushEnabled,
@@ -336,7 +327,7 @@ struct ProfileView: View {
 struct SectionDisclosure<Content: View>: View {
     let icon: String
     let title: String
-    let subtitle: String
+    var subtitle: String? = nil
     @ViewBuilder let content: () -> Content
 
     @State private var expanded = false
@@ -355,9 +346,11 @@ struct SectionDisclosure<Content: View>: View {
                         Text(title)
                             .font(.system(size: 15, weight: .bold))
                             .foregroundStyle(AppColor.text)
-                        Text(subtitle)
-                            .font(.system(size: 12))
-                            .foregroundStyle(AppColor.muted)
+                        if let subtitle {
+                            Text(subtitle)
+                                .font(.system(size: 12))
+                                .foregroundStyle(AppColor.muted)
+                        }
                     }
                     Spacer()
                     Image(systemName: expanded ? "chevron.up" : "chevron.down")
@@ -414,7 +407,7 @@ private struct CreditPackCard: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 3)
-                        .fill(AppColor.surface)
+                        .fill(AppColor.surface2)
                         .frame(height: 6)
                     RoundedRectangle(cornerRadius: 3)
                         .fill(AppColor.primary)
@@ -423,10 +416,7 @@ private struct CreditPackCard: View {
             }
             .frame(height: 6)
         }
-        .padding(16)
-        .background(AppColor.surface2)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppColor.border, lineWidth: 1))
+        .padding(.vertical, 8)
     }
 }
 
@@ -481,10 +471,8 @@ private struct InvoiceRow: View {
                 .font(.system(size: 14))
                 .foregroundStyle(AppColor.muted)
         }
-        .padding(16)
-        .background(AppColor.surface2)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppColor.border, lineWidth: 1))
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
     }
 }
 
@@ -521,11 +509,8 @@ private struct FileRow: View {
                         .foregroundStyle(AppColor.primary)
                 }
             }
-            .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(AppColor.surface2)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(AppColor.border, lineWidth: 1))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(!file.hasUrl)
@@ -555,6 +540,7 @@ private struct PolarCard: View {
     let loading: Bool
     let onSync: () -> Void
     let onDisconnect: () -> Void
+    var onConnect: (() -> Void)? = nil
 
     private let polarRed = Color(hex: 0xD4002A)
 
@@ -592,7 +578,7 @@ private struct PolarCard: View {
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
                             .background(AppColor.primary.opacity(0.15))
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
                     }
                     .buttonStyle(.plain)
 
@@ -603,36 +589,39 @@ private struct PolarCard: View {
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
                             .background(AppColor.red.opacity(0.12))
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
                     }
                     .buttonStyle(.plain)
                 }
-            } else {
-                Text("Nicht konfiguriert")
-                    .font(.system(size: 12))
-                    .foregroundStyle(AppColor.muted)
+            } else if let onConnect {
+                // Getrennt: rechte Spalte zeigt die Aktion
+                Button(action: onConnect) {
+                    Label("Verbinden", systemImage: "link")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(AppColor.primary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(AppColor.primary.opacity(0.15))
+                        .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
+                }
+                .buttonStyle(.plain)
             }
         }
-        .padding(16)
-        .background(AppColor.surface2)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(AppColor.border, lineWidth: 1))
+        .padding(.vertical, 8)
     }
 }
 
 // MARK: - Empty Hint
 
+/// Inline-Leerzustand (EmptyStateView-Kanon ohne Icon): EINE Muted-Zeile, kein Container.
 struct EmptyHint: View {
     let text: String
     var body: some View {
         Text(text)
-            .font(.system(size: 14))
+            .font(.subheadline)
             .foregroundStyle(AppColor.muted)
             .frame(maxWidth: .infinity)
-            .padding(20)
-            .background(AppColor.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppColor.border, lineWidth: 1))
+            .padding(.vertical, 16)
     }
 }
 
@@ -650,8 +639,8 @@ private struct PushNotificationCard: View {
             ZStack {
                 Circle()
                     .fill(AppColor.primary.opacity(0.12))
-                    .frame(width: 42, height: 42)
-                Image(systemName: enabled ? "bell.badge.fill" : "bell.slash.fill")
+                    .frame(width: 44, height: 44)
+                Image(systemName: "bell.badge.fill")
                     .font(.system(size: 18))
                     .foregroundStyle(AppColor.primary)
             }
@@ -660,17 +649,12 @@ private struct PushNotificationCard: View {
                 Text("Push-Benachrichtigungen")
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(AppColor.text)
-                Group {
-                    if denied {
-                        Text("Deaktiviert – in iOS-Einstellungen aktivieren")
-                    } else if enabled {
-                        Text("Aktiv – du erhältst Benachrichtigungen")
-                    } else {
-                        Text("Deaktiviert")
-                    }
+                // Zustand signalisiert der Toggle; Fließtext nur im denied-Fall.
+                if denied {
+                    Text("In den iOS-Einstellungen aktivieren")
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppColor.muted)
                 }
-                .font(.system(size: 12))
-                .foregroundStyle(AppColor.muted)
             }
 
             Spacer()
@@ -699,9 +683,6 @@ private struct PushNotificationCard: View {
                 .labelsHidden()
             }
         }
-        .padding(14)
-        .background(AppColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppColor.border, lineWidth: 1))
+        .padding(.vertical, 8)
     }
 }

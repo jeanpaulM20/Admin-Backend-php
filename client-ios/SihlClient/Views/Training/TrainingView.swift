@@ -12,6 +12,7 @@ struct TrainingView: View {
     @State private var showCreditsSheet = false
 
     var body: some View {
+        @Bindable var vm = vm
         ZStack {
             AppColor.background.ignoresSafeArea()
             if vm.isLoading && vm.plans.isEmpty {
@@ -39,9 +40,9 @@ struct TrainingView: View {
                 Task {
                     guard let id = auth.clientId else { return }
                     if let err = await vm.activateTrial(clientId: id) {
-                        vm.toast = (err, false)
+                        vm.toast = AppToast(message: err, style: .error)
                     } else {
-                        vm.toast = ("Test-Abo aktiviert — viel Erfolg!", true)
+                        vm.toast = AppToast(message: "Test-Abo aktiviert — viel Erfolg!", style: .success)
                         await vm.fetch(clientId: id)
                     }
                 }
@@ -61,18 +62,7 @@ struct TrainingView: View {
             return Text("Dein Abo läuft \(when) ab. Verlängere jetzt, um nahtlos weiterzutrainieren.")
         }
         // Toast
-        .overlay(alignment: .bottom) {
-            if let t = vm.toast {
-                ToastView(message: t.message)
-                    .padding(.bottom, 32)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .onAppear {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                            withAnimation { vm.toast = nil }
-                        }
-                    }
-            }
-        }
+        .appToast($vm.toast)
     }
 
     // MARK: - Content
@@ -83,8 +73,8 @@ struct TrainingView: View {
                 subscriptionBanner
 
                 if let err = vm.error {
-                    TrainingErrorBanner(message: err)
-                        .padding(.horizontal, 16).padding(.top, 8)
+                    InlineErrorBanner(message: err)
+                        .padding(.horizontal, AppSpacing.screen).padding(.top, 8)
                 }
 
                 if vm.plans.isEmpty && !vm.isLoading {
@@ -95,11 +85,11 @@ struct TrainingView: View {
                             PlanCard(plan: plan, exerciseIdMap: vm.exerciseIdMap)
                         }
                         .buttonStyle(.plain)
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 12)
+                        .padding(.horizontal, AppSpacing.screen)
+                        .padding(.bottom, AppSpacing.stack)
                     }
                     .padding(.top, 4)
-                    .padding(.bottom, 80)
+                    .padding(.bottom, AppSpacing.bottomInset)
                 }
             }
         }
@@ -141,18 +131,12 @@ struct TrainingView: View {
 
     // MARK: - Empty State
 
+    /// Gute-Form-Kanon: schlichtes Icon, EINE Muted-Zeile — keine Überschrift.
     private var emptyState: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "doc.text")
-                .font(.system(size: 48)).foregroundStyle(AppColor.muted)
-            Text("Noch keine Trainingspläne")
-                .font(.system(size: 16, weight: .bold)).foregroundStyle(AppColor.text)
-            Text("Du erhältst nach dem Onboarding deinen personalisierten Trainingsplan.")
-                .font(.system(size: 13)).foregroundStyle(AppColor.muted)
-                .multilineTextAlignment(.center)
-        }
-        .padding(40)
-        .frame(maxWidth: .infinity)
+        EmptyStateView(
+            icon: "doc.text",
+            message: "Du erhältst nach dem Onboarding deinen personalisierten Trainingsplan."
+        )
     }
 
     // MARK: - Reload
@@ -200,11 +184,11 @@ private struct SubBanner: View {
                     .font(.system(size: 14))
                     .foregroundStyle(AppColor.orange.opacity(0.8))
             }
-            .padding(.horizontal, 16).padding(.vertical, 14)
+            .padding(.horizontal, AppSpacing.card).padding(.vertical, 14)
             .background(AppColor.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(AppColor.border, lineWidth: 1))
-            .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 8)
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.control).stroke(AppColor.border, lineWidth: 1))
+            .padding(.horizontal, AppSpacing.screen).padding(.top, 16).padding(.bottom, 8)
         }
         .buttonStyle(.plain)
     }
@@ -277,29 +261,15 @@ private struct PlanCard: View {
                         .font(.system(size: 14)).foregroundStyle(AppColor.muted)
                 }
             }
-            .padding(16)
+            .padding(AppSpacing.card)
         }
         .frame(minHeight: 88)
         .background(AppColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
     }
 }
 
-// MARK: - Error Banner
-
-private struct TrainingErrorBanner: View {
-    let message: String
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.circle")
-                .font(.system(size: 16)).foregroundStyle(AppColor.red)
-            Text(message).font(.system(size: 13)).foregroundStyle(AppColor.red)
-        }
-        .padding(12)
-        .background(AppColor.red.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-    }
-}
+// `InlineErrorBanner` lebt in `Views/Shared/SharedComponents.swift`.
 
 // MARK: - Trial Sheet
 
@@ -317,17 +287,12 @@ struct TrialSheet: View {
                 .font(.system(size: 13)).foregroundStyle(AppColor.muted).lineSpacing(4)
                 .padding(.bottom, 20)
             Button("Test-Abo aktivieren") { onConfirm() }
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(AppColor.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(AppColor.primary)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .buttonStyle(PrimaryButtonStyle())
             Button("Später") { onCancel() }
                 .font(.system(size: 14)).foregroundStyle(AppColor.muted)
                 .frame(maxWidth: .infinity).padding(.top, 8)
         }
-        .padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 28)
+        .padding(.horizontal, AppSpacing.screen).padding(.top, 20).padding(.bottom, 28)
         .presentationDetents([.height(260)])
         .presentationDragIndicator(.visible)
         .background(AppColor.surface.ignoresSafeArea())

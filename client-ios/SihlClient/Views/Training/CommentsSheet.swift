@@ -43,8 +43,7 @@ struct CommentsSheet: View {
                 Spacer()
             } else if comments.isEmpty {
                 Spacer()
-                Text("Noch keine Kommentare")
-                    .font(.system(size: 14)).foregroundStyle(AppColor.muted)
+                EmptyStateView(icon: "bubble.left", message: "Noch keine Kommentare")
                 Spacer()
             } else {
                 ScrollViewReader { proxy in
@@ -88,7 +87,7 @@ struct CommentsSheet: View {
             TextField("Kommentar schreiben…", text: $text, axis: .vertical)
                 .lineLimit(1...3)
                 .font(.system(size: 14)).foregroundStyle(AppColor.text)
-                .padding(.horizontal, 14).padding(.vertical, 8)
+                .padding(.horizontal, AppSpacing.card).padding(.vertical, 8)
                 .background(AppColor.surface2)
                 .clipShape(RoundedRectangle(cornerRadius: 22))
 

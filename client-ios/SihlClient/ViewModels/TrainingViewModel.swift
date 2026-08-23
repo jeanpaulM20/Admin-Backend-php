@@ -9,7 +9,7 @@ final class TrainingViewModel {
     var subscription   = SubscriptionStatus()
     var exerciseIdMap: [String: Int] = [:]
     var isActivatingTrial = false
-    var toast: (message: String, success: Bool)?
+    var toast: AppToast?
 
     private let service = TrainingPlanService()
 
