@@ -63,7 +63,7 @@ struct CoachingPaywallView: View {
                         .padding(.top, 40)
                 } else if let err = errorMsg {
                     Text(err)
-                        .foregroundStyle(AppColor.error)
+                        .foregroundStyle(AppColor.red)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 24)
                 } else {
@@ -210,7 +210,7 @@ struct CoachingPaywallView: View {
         do {
             let result = try await CreditsService.shared.initializePayment(
                 clientId: clientId,
-                packageId: pkg.id
+                packageId: Int(pkg.id) ?? 0
             )
             if let url = URL(string: result.redirectUrl) {
                 await UIApplication.shared.open(url)

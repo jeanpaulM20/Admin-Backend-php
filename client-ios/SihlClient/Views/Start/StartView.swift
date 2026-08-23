@@ -165,7 +165,7 @@ private struct DailyQuoteView: View {
             QuoteShimmer()
         } else if let q = quote {
             VStack(alignment: .leading, spacing: 4) {
-                Text("„\(q.text)"")
+                Text("„\(q.text)\u{201C}")
                     .font(.system(size: 13))
                     .italic()
                     .foregroundStyle(AppColor.text.opacity(0.55))

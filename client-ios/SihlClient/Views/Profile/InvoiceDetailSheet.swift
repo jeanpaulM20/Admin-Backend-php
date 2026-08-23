@@ -33,7 +33,7 @@ struct InvoiceDetailSheet: View {
                         .padding(.bottom, 16)
 
                     paymentInfoBox
-                        .padding(.bottom, qrSection != nil ? 16 : 0)
+                        .padding(.bottom, invoice.isPaid ? 0 : 16)
 
                     if !invoice.isPaid {
                         qrBillSection
@@ -135,8 +135,6 @@ struct InvoiceDetailSheet: View {
     }
 
     // MARK: - QR Bill
-
-    private var qrSection: some View? { nil }   // unused helper var, avoids linter warning
 
     private var qrBillSection: some View {
         VStack(spacing: 12) {

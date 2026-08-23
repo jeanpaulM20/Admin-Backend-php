@@ -42,10 +42,10 @@ struct CreditsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             if credits.credits.isEmpty && credits.packages.isEmpty {
-                await credits.fetch(clientId: auth.clientId)
+                await credits.fetch(clientId: auth.clientId ?? "")
             }
         }
-        .refreshable { await credits.fetch(clientId: auth.clientId) }
+        .refreshable { await credits.fetch(clientId: auth.clientId ?? "") }
         // AGB-Sheet → danach Zahlungsart-Sheet
         .sheet(item: $agbTarget) { pkg in
             AGBSheet(package: pkg) { accepted in
@@ -75,7 +75,7 @@ struct CreditsView: View {
                 pendingPayment = nil
                 if paid {
                     showToast("Zahlung erfolgreich! Abo aktiviert.", ok: true)
-                    Task { await credits.fetch(clientId: auth.clientId) }
+                    Task { await credits.fetch(clientId: auth.clientId ?? "") }
                 }
             }
         }
@@ -124,7 +124,7 @@ struct CreditsView: View {
         VStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle").font(.title).foregroundStyle(.orange)
             Text(msg).font(.caption).foregroundStyle(AppColor.muted).multilineTextAlignment(.center)
-            Button("Erneut laden") { Task { await credits.fetch(clientId: auth.clientId) } }
+            Button("Erneut laden") { Task { await credits.fetch(clientId: auth.clientId ?? "") } }
                 .buttonStyle(.bordered).tint(AppColor.primary)
         }.padding()
     }
@@ -136,9 +136,9 @@ struct CreditsView: View {
         purchasing = true
         do {
             let r = try await CreditsService.shared.purchasePackage(
-                clientId: auth.clientId, packageId: pkg.id)
+                clientId: auth.clientId ?? "", packageId: pkg.id)
             showToast(r.message, ok: r.success)
-            if r.success { await credits.fetch(clientId: auth.clientId) }
+            if r.success { await credits.fetch(clientId: auth.clientId ?? "") }
         } catch {
             showToast("Fehler: \(error.localizedDescription)", ok: false)
         }
@@ -150,7 +150,7 @@ struct CreditsView: View {
         purchasing = true
         do {
             let result = try await CreditsService.shared.initializePayment(
-                clientId: auth.clientId,
+                clientId: auth.clientId ?? "",
                 packageId: Int(pkg.id) ?? 0
             )
             // Safari öffnen

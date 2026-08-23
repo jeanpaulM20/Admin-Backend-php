@@ -40,7 +40,7 @@ struct ChatMessage: Identifiable {
 // MARK: - ChatConversation
 
 /// Pendant zu `ChatConversation` in `models/chat_message.dart`.
-struct ChatConversation: Identifiable {
+struct ChatConversation: Identifiable, Hashable {
     let id:            String  // = trainerId (für Identifiable)
     let trainerId:     String
     let trainerName:   String

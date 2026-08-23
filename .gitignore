@@ -28,3 +28,5 @@ Thumbs.db
 DerivedData/
 xcuserdata/
 *.xcuserstate
+client-ios/SihlClient.xcodeproj/
+client-ios/build/

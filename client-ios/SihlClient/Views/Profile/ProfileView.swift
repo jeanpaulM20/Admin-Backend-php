@@ -705,20 +705,3 @@ private struct PushNotificationCard: View {
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppColor.border, lineWidth: 1))
     }
 }
-
-// MARK: - Toast
-
-private struct ToastView: View {
-    let message: String
-    var body: some View {
-        Text(message)
-            .font(.system(size: 14, weight: .medium))
-            .foregroundStyle(AppColor.text)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(AppColor.surface2)
-            .clipShape(Capsule())
-            .overlay(Capsule().stroke(AppColor.border, lineWidth: 1))
-            .shadow(color: .black.opacity(0.3), radius: 8, y: 4)
-    }
-}

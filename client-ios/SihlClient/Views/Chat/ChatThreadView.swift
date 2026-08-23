@@ -41,7 +41,7 @@ struct ChatThreadView: View {
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $dataDetail) { item in DataDetailSheet(item: item) }
         .sheet(isPresented: $showAttach) {
-            AttachMenuSheet(clientId: auth.clientId, trainerId: trainerId, onShare: handleShare)
+            AttachMenuSheet(clientId: auth.clientId ?? "", trainerId: trainerId, onShare: handleShare)
         }
         .task {
             await loadAndSubscribe()
@@ -68,7 +68,7 @@ struct ChatThreadView: View {
                             } else {
                                 BubbleView(
                                     message: msg,
-                                    onDataTap: { dataDetail = DataDetailItem(message: msg, clientId: auth.clientId) }
+                                    onDataTap: { dataDetail = DataDetailItem(message: msg, clientId: auth.clientId ?? "") }
                                 )
                             }
                         case .circleGroup(let msgs):
@@ -127,15 +127,15 @@ struct ChatThreadView: View {
     private func loadAndSubscribe() async {
         isLoading = true
         do {
-            messages  = try await ChatService.shared.getMessages(clientId: auth.clientId, trainerId: trainerId)
+            messages  = try await ChatService.shared.getMessages(clientId: auth.clientId ?? "", trainerId: trainerId)
         } catch {}
         isLoading = false
 
         // Als gelesen markieren
-        await chat.markRead(clientId: auth.clientId, trainerId: trainerId)
+        await chat.markRead(clientId: auth.clientId ?? "", trainerId: trainerId)
 
         // SSE abonnieren (Kanal: client_{clientId})
-        let clientId = auth.clientId
+        let clientId = auth.clientId ?? ""
         let token    = auth.token ?? ""
         await sse.connect(channel: "client_\(clientId)", token: token) {
             [self] eventType in
@@ -158,7 +158,7 @@ struct ChatThreadView: View {
         isSending = true
         messageText = ""
         if let msg = try? await ChatService.shared.sendMessage(
-            clientId: auth.clientId, trainerId: trainerId, text: text) {
+            clientId: auth.clientId ?? "", trainerId: trainerId, text: text) {
             messages.append(msg)
         }
         isSending = false
@@ -169,7 +169,7 @@ struct ChatThreadView: View {
     private func handleShare(text: String) {
         Task {
             if let msg = try? await ChatService.shared.sendMessage(
-                clientId: auth.clientId, trainerId: trainerId, text: text) {
+                clientId: auth.clientId ?? "", trainerId: trainerId, text: text) {
                 messages.append(msg)
             }
         }

@@ -16,7 +16,7 @@ struct ChatView: View {
                 ProgressView().tint(AppColor.primary)
             } else if let e = chat.error {
                 ChatErrorView(message: e) {
-                    Task { await chat.fetchConversations(clientId: auth.clientId) }
+                    Task { await chat.fetchConversations(clientId: auth.clientId ?? "") }
                 }
             } else if chat.conversations.isEmpty {
                 emptyChatView
@@ -27,11 +27,11 @@ struct ChatView: View {
         .task {
             // Beim ersten Erscheinen laden; beim Tab-Wechsel wird .task nicht erneut ausgelöst
             if chat.conversations.isEmpty {
-                await chat.fetchConversations(clientId: auth.clientId)
+                await chat.fetchConversations(clientId: auth.clientId ?? "")
             }
         }
         .refreshable {
-            await chat.fetchConversations(clientId: auth.clientId)
+            await chat.fetchConversations(clientId: auth.clientId ?? "")
         }
     }
 

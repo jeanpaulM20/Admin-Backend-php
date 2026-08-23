@@ -21,7 +21,7 @@ struct AnalyticsView: View {
                 ProgressView("Lade Leistungsdaten…").tint(AppColor.primary)
             } else if let e = analytics.error {
                 AnalyticsErrorView(message: e) {
-                    Task { await analytics.fetch(clientId: auth.clientId) }
+                    Task { await analytics.fetch(clientId: auth.clientId ?? "") }
                 }
             } else if analytics.sections.isEmpty && analytics.reviews.isEmpty {
                 emptyView
@@ -31,11 +31,11 @@ struct AnalyticsView: View {
         }
         .task {
             if analytics.sections.isEmpty && analytics.reviews.isEmpty {
-                await analytics.fetch(clientId: auth.clientId)
+                await analytics.fetch(clientId: auth.clientId ?? "")
             }
         }
         .refreshable {
-            await analytics.fetch(clientId: auth.clientId)
+            await analytics.fetch(clientId: auth.clientId ?? "")
         }
         .sheet(item: $compareTarget) { sel in
             TrainingCompareView(reviews: sel.reviews)
