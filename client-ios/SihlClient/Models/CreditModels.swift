@@ -17,13 +17,18 @@ struct CreditPackage: Identifiable {
     var isCoaching: Bool { kind == "coaching" }
 
     /// Preis formatiert in CHF (z.B. "CHF 250")
-    var priceFormatted: String {
+    var priceFormatted: String { Self.chf(price, minFraction: 0) }
+
+    /// Preis mit Rappen (z.B. "CHF 250.00") — z.B. im Bestätigungsdialog
+    var priceFormattedExact: String { Self.chf(price, minFraction: 2) }
+
+    private static func chf(_ value: Double, minFraction: Int) -> String {
         let f = NumberFormatter()
-        f.numberStyle        = .decimal
-        f.minimumFractionDigits = 0
+        f.numberStyle           = .decimal
+        f.minimumFractionDigits = minFraction
         f.maximumFractionDigits = 2
         f.locale = Locale(identifier: "de_CH")
-        return "CHF \(f.string(from: NSNumber(value: price)) ?? "\(Int(price))")"
+        return "CHF \(f.string(from: NSNumber(value: value)) ?? "\(Int(value))")"
     }
 
     var perSessionFormatted: String? {

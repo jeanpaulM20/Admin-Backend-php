@@ -47,9 +47,7 @@ final class AuthViewModel {
     }
 
     private func recoverClientId() async {
-        guard let data = try? await api.get("api/client/me"),
-              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-        else { return }
+        guard let obj = try? await api.getJSONObject("api/client/me") else { return }
         let id = (obj["id"] as? String) ?? (obj["id"] as? Int).map(String.init)
         if let id, !id.isEmpty {
             clientId = id

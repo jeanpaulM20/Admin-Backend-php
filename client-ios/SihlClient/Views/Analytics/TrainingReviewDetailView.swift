@@ -170,35 +170,59 @@ struct HrLineChart: View {
     var color:       Color  = AppColor.red
     var showXAxis:   Bool   = true
     var showTooltip: Bool   = false
+    /// Gestrichelte Max-HF-Referenzlinie (z.B. Chat-Review-Sheet); erweitert die Y-Domain.
+    var maxHrLine:   Int?   = nil
 
     @State private var selection: (index: Int, point: HrPoint)?
 
-    // Downsampled version
-    private var sampled: [(index: Int, point: HrPoint)] {
+    // Einmal beim Init berechnet — als computed properties liefen Downsampling
+    // und Min/Max sonst mehrfach pro Body-Evaluation bzw. pro Drag-Event.
+    private let sampled:       [(index: Int, point: HrPoint)]
+    private let minY:          Double
+    private let maxY:          Double
+    private let xLabelIndices: [Int]
+
+    init(chart: [HrPoint], lineWidth: Double = 2, color: Color = AppColor.red,
+         showXAxis: Bool = true, showTooltip: Bool = false, maxHrLine: Int? = nil) {
+        self.chart       = chart
+        self.lineWidth   = lineWidth
+        self.color       = color
+        self.showXAxis   = showXAxis
+        self.showTooltip = showTooltip
+        self.maxHrLine   = maxHrLine
+
+        // Downsampling auf maximal 500 Punkte
         let maxPts = 500
-        guard chart.count > maxPts else {
-            return chart.enumerated().map { ($0.offset, $0.element) }
+        let sampled: [(index: Int, point: HrPoint)]
+        if chart.count > maxPts {
+            let stride = max(chart.count / maxPts, 1)
+            sampled = Swift.stride(from: 0, to: chart.count, by: stride).map { ($0, chart[$0]) }
+        } else {
+            sampled = chart.enumerated().map { ($0.offset, $0.element) }
         }
-        let stride = chart.count / maxPts
-        return Swift.stride(from: 0, to: chart.count, by: max(stride, 1))
-            .map { ($0, chart[$0]) }
-    }
+        self.sampled = sampled
 
-    private var minY: Double {
         let vals = sampled.map(\.point.value)
-        return (vals.min() ?? 60) - 5
-    }
-    private var maxY: Double {
-        let vals = sampled.map(\.point.value)
-        return (vals.max() ?? 180) + 5
-    }
+        let lower = (vals.min() ?? 60) - 5
+        // Max-Linie in die Domain einbeziehen; lower+10 verhindert eine
+        // invertierte Domain (Crash) bei pathologischen Messwerten.
+        let upper = Swift.max((vals.max() ?? 180) + 5,
+                              Double(maxHrLine ?? 0) + 10,
+                              lower + 10)
+        self.minY = lower
+        self.maxY = upper
 
-    /// Uhrzeit-Labels bei 0 / 25 / 50 / 75 / 100 % der Kurve
-    /// (wie Flutter training_review_screen.dart:208-217).
-    private var xLabelIndices: [Int] {
-        let n = chart.count
-        guard n >= 2 else { return [] }
-        return Array(Set([0, n / 4, n / 2, (n * 3) / 4, n - 1])).sorted()
+        // Uhrzeit-Labels bei 0 / 25 / 50 / 75 / 100 % der Kurve — auf die
+        // tatsächlich geplotteten (gesampelten) Indizes gesnappt, sonst läge
+        // das Endlabel außerhalb der Daten-Domain und würde nicht gerendert.
+        let idxs = sampled.map(\.index)
+        if idxs.count >= 2 {
+            let n = idxs.count
+            self.xLabelIndices = Array(Set([idxs[0], idxs[n / 4], idxs[n / 2],
+                                            idxs[(n * 3) / 4], idxs[n - 1]])).sorted()
+        } else {
+            self.xLabelIndices = []
+        }
     }
 
     var body: some View {
@@ -222,6 +246,18 @@ struct HrLineChart: View {
                                    startPoint: .top, endPoint: .bottom)
                 )
                 .interpolationMethod(.catmullRom)
+            }
+
+            // Max-HF-Referenzlinie (Chat-Review-Sheet)
+            if let maxHr = maxHrLine, maxHr > 0 {
+                RuleMark(y: .value("Max", Double(maxHr)))
+                    .foregroundStyle(AppColor.zoneMax)
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                    .annotation(position: .top, alignment: .leading) {
+                        Text("Max")
+                            .font(.system(size: 10))
+                            .foregroundStyle(AppColor.zoneMax)
+                    }
             }
 
             // Tooltip-Indikator: gestrichelte Linie + Punkt (wie Flutter :196-200)

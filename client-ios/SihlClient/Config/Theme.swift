@@ -29,6 +29,13 @@ enum AppColor {
     // Neutral
     static let white        = Color.white
     static let black        = Color.black
+
+    // Herzfrequenz-Zonen (Training-Reviews, Chat-Datenkarten)
+    static let zoneMax       = Color(hex: 0xC2234D)
+    static let zoneIntense   = Color(hex: 0xD18B37)
+    static let zoneModerate  = Color(hex: 0x839C4D)
+    static let zoneLight     = Color(hex: 0x03A4B6)
+    static let zoneVeryLight = Color(hex: 0x9E9E9E)
 }
 
 extension Color {

@@ -53,6 +53,29 @@ actor APIClient {
         return try decode(data)
     }
 
+    // MARK: - JSON-Dictionary-Convenience
+    // Für Models mit `init(json: [String: Any])`-Muster — erspart den Services
+    // das JSONSerialization-Boilerplate. Parse-Fehler → leeres Ergebnis (die
+    // Services behandeln "keine Daten" und "unlesbare Daten" bewusst gleich).
+
+    /// GET, dessen Antwort ein JSON-Array von Objekten ist.
+    func getJSONArray(_ path: String) async throws -> [[String: Any]] {
+        let data = try await get(path)
+        return (try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]) ?? []
+    }
+
+    /// GET, dessen Antwort ein einzelnes JSON-Objekt ist.
+    func getJSONObject(_ path: String) async throws -> [String: Any]? {
+        let data = try await get(path)
+        return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+    }
+
+    /// POST, dessen Antwort ein einzelnes JSON-Objekt ist.
+    func postJSONObject(_ path: String, body: [String: Any]? = nil) async throws -> [String: Any]? {
+        let data = try await post(path, body: body)
+        return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+    }
+
     // MARK: - Intern
 
     private func send(path: String, method: String, body: [String: Any]?) async throws -> Data {

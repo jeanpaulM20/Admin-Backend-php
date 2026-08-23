@@ -158,18 +158,11 @@ struct CreditsView: View {
 
     /// Text des Bestätigungsdialogs: Lektionen / Gültigkeit / Preis + Zahlungsfrist-Hinweis.
     private func confirmMessage(for pkg: CreditPackage) -> String {
-        let f = NumberFormatter()
-        f.numberStyle           = .decimal
-        f.minimumFractionDigits = 2
-        f.maximumFractionDigits = 2
-        f.locale = Locale(identifier: "de_CH")
-        let price = f.string(from: NSNumber(value: pkg.price)) ?? "\(pkg.price)"
-
         var lines = [pkg.name, "", "Lektionen: \(pkg.credits)"]
         if let months = pkg.durationMonths {
             lines.append("Gültigkeit: \(months) Monate")
         }
-        lines.append("Preis: CHF \(price)")
+        lines.append("Preis: \(pkg.priceFormattedExact)")
         lines.append("")
         lines.append("Die Rechnung wird per E-Mail zugestellt und ist innert 7 Tagen zahlbar.")
         return lines.joined(separator: "\n")

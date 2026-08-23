@@ -8,26 +8,24 @@ struct ChatService {
 
     /// `GET /api/client/chat/{clientId}/conversations`
     func getConversations(clientId: String) async throws -> [ChatConversation] {
-        let data = try await APIClient.shared.get("/api/client/chat/\(clientId)/conversations")
-        guard let arr = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [] }
-        return arr.map { ChatConversation(json: $0) }
+        try await APIClient.shared
+            .getJSONArray("/api/client/chat/\(clientId)/conversations")
+            .map { ChatConversation(json: $0) }
     }
 
     /// `GET /api/client/chat/{clientId}/messages/{trainerId}`
     func getMessages(clientId: String, trainerId: String) async throws -> [ChatMessage] {
-        let data = try await APIClient.shared.get(
-            "/api/client/chat/\(clientId)/messages/\(trainerId)")
-        guard let arr = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [] }
-        return arr.map { ChatMessage(json: $0) }
+        try await APIClient.shared
+            .getJSONArray("/api/client/chat/\(clientId)/messages/\(trainerId)")
+            .map { ChatMessage(json: $0) }
     }
 
     /// `POST /api/client/chat/{clientId}/messages`
     @discardableResult
     func sendMessage(clientId: String, trainerId: String, text: String) async throws -> ChatMessage? {
         let body: [String: Any] = ["text": text, "trainer_id": trainerId]
-        let data = try await APIClient.shared.post(
-            "/api/client/chat/\(clientId)/messages", body: body)
-        guard let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        guard let dict = try await APIClient.shared.postJSONObject(
+            "/api/client/chat/\(clientId)/messages", body: body) else { return nil }
         return ChatMessage(json: dict)
     }
 
@@ -39,13 +37,11 @@ struct ChatService {
 
     /// `GET /api/client/reviews/{clientId}` — für ReviewDetailSheet
     func getReviews(clientId: String) async throws -> [[String: Any]] {
-        let data = try await APIClient.shared.get("/api/client/reviews/\(clientId)")
-        return (try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]) ?? []
+        try await APIClient.shared.getJSONArray("/api/client/reviews/\(clientId)")
     }
 
     /// `GET /api/client/tests/{clientId}` — für PerformanceDetailSheet
     func getPerformanceTests(clientId: String) async throws -> [[String: Any]] {
-        let data = try await APIClient.shared.get("/api/client/tests/\(clientId)")
-        return (try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]) ?? []
+        try await APIClient.shared.getJSONArray("/api/client/tests/\(clientId)")
     }
 }

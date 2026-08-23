@@ -1,5 +1,4 @@
 import SwiftUI
-import Charts
 
 // MARK: - ChatThreadView
 
@@ -892,26 +891,23 @@ private struct ReviewDetailSheet: View {
 // MARK: - ReviewHrChartSection
 
 /// HR-Verlaufschart mit Max-Linie + HF-Zonen-Legende
-/// (Pendant zu Flutter `_buildHrChart` / `_buildZoneLegend`; Swift-Charts-Stil wie `HrLineChart`).
+/// (Pendant zu Flutter `_buildHrChart` / `_buildZoneLegend`).
+/// Das Chart selbst kommt aus dem geteilten `HrLineChart` (Analytics).
 private struct ReviewHrChartSection: View {
-    let points:      [HrPoint]
     let clientMaxHr: Int?
 
-    private var validPoints: [HrPoint] { points.filter { $0.value > 0 } }
+    // Einmal beim Init berechnet statt mehrfach pro Body-Evaluation.
+    private let validPoints: [HrPoint]
+    private let minHr: Double
+    private let maxHr: Double
 
-    // Downsampling auf maximal 500 Punkte (wie `HrLineChart`)
-    private var sampled: [(index: Int, point: HrPoint)] {
-        let pts = validPoints
-        let maxPts = 500
-        guard pts.count > maxPts else {
-            return pts.enumerated().map { ($0.offset, $0.element) }
-        }
-        let stride = pts.count / maxPts
-        return Swift.stride(from: 0, to: pts.count, by: max(stride, 1)).map { ($0, pts[$0]) }
+    init(points: [HrPoint], clientMaxHr: Int?) {
+        self.clientMaxHr = clientMaxHr
+        let vp = points.filter { $0.value > 0 }
+        self.validPoints = vp
+        self.minHr = vp.map(\.value).min() ?? 0
+        self.maxHr = vp.map(\.value).max() ?? 0
     }
-
-    private var minHr: Double { validPoints.map(\.value).min() ?? 0 }
-    private var maxHr: Double { validPoints.map(\.value).max() ?? 0 }
 
     var body: some View {
         if validPoints.isEmpty {
@@ -934,7 +930,7 @@ private struct ReviewHrChartSection: View {
                         .font(.caption2)
                         .foregroundStyle(AppColor.muted)
                 }
-                chart
+                HrLineChart(chart: validPoints, showXAxis: false, maxHrLine: clientMaxHr)
                     .frame(height: 200)
                 if let maxHr = clientMaxHr, maxHr > 0 {
                     zoneLegend(Double(maxHr))
@@ -943,61 +939,14 @@ private struct ReviewHrChartSection: View {
         }
     }
 
-    private var chart: some View {
-        let lowerBound = max(minHr - 10, 40)
-        // lowerBound + 10 als Minimum verhindert eine invertierte Domain
-        // (Crash), falls alle Messwerte unterhalb des 40er-Floors liegen.
-        let upperBound = Swift.max(maxHr + 10, Double(clientMaxHr ?? 0) + 10, lowerBound + 10)
-        return Chart {
-            ForEach(sampled, id: \.index) { item in
-                LineMark(
-                    x: .value("Index", item.index),
-                    y: .value("BPM",   item.point.value)
-                )
-                .foregroundStyle(AppColor.red)
-                .interpolationMethod(.catmullRom)
-                .lineStyle(StrokeStyle(lineWidth: 2))
-
-                AreaMark(
-                    x: .value("Index", item.index),
-                    yStart: .value("Base", lowerBound),
-                    yEnd:   .value("BPM",  item.point.value)
-                )
-                .foregroundStyle(
-                    LinearGradient(colors: [AppColor.red.opacity(0.24), AppColor.red.opacity(0)],
-                                   startPoint: .top, endPoint: .bottom)
-                )
-                .interpolationMethod(.catmullRom)
-            }
-            if let clientMax = clientMaxHr, clientMax > 0 {
-                RuleMark(y: .value("Max", Double(clientMax)))
-                    .foregroundStyle(Color(hex: 0xC2234D))
-                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                    .annotation(position: .top, alignment: .leading) {
-                        Text("Max")
-                            .font(.system(size: 10))
-                            .foregroundStyle(Color(hex: 0xC2234D))
-                    }
-            }
-        }
-        .chartYScale(domain: lowerBound...upperBound)
-        .chartXAxis(.hidden)
-        .chartYAxis {
-            AxisMarks(position: .leading) {
-                AxisValueLabel().foregroundStyle(AppColor.muted)
-                AxisGridLine().foregroundStyle(AppColor.border.opacity(0.6))
-            }
-        }
-    }
-
     /// HF-Zonen-Legende (Flutter `_buildZoneLegend`).
     private func zoneLegend(_ maxHr: Double) -> some View {
         let zones: [(String, Color, Int)] = [
-            ("Maximal",     Color(hex: 0xC2234D), Int((maxHr * 0.9).rounded())),
-            ("Intensiv",    Color(hex: 0xD18B37), Int((maxHr * 0.8).rounded())),
-            ("Moderat",     Color(hex: 0x839C4D), Int((maxHr * 0.7).rounded())),
-            ("Leicht",      Color(hex: 0x03A4B6), Int((maxHr * 0.6).rounded())),
-            ("Sehr Leicht", Color(hex: 0x9E9E9E), Int((maxHr * 0.5).rounded())),
+            ("Maximal",     AppColor.zoneMax,       Int((maxHr * 0.9).rounded())),
+            ("Intensiv",    AppColor.zoneIntense,   Int((maxHr * 0.8).rounded())),
+            ("Moderat",     AppColor.zoneModerate,  Int((maxHr * 0.7).rounded())),
+            ("Leicht",      AppColor.zoneLight,     Int((maxHr * 0.6).rounded())),
+            ("Sehr Leicht", AppColor.zoneVeryLight, Int((maxHr * 0.5).rounded())),
         ]
         return LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), alignment: .leading)],
                          alignment: .leading, spacing: 4) {
@@ -1163,8 +1112,7 @@ private struct MetricDetailSheet: View {
     }
 
     private func load() async {
-        if let data = try? await APIClient.shared.get("api/client/profile/\(clientId)"),
-           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+        if let json = try? await APIClient.shared.getJSONObject("api/client/profile/\(clientId)") {
             metric = json
         }
         isLoading = false
