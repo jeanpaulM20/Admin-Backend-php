@@ -23,3 +23,8 @@ nestjs-backend/dev.sqlite
 *.tmp
 .DS_Store
 Thumbs.db
+
+# Xcode
+DerivedData/
+xcuserdata/
+*.xcuserstate
