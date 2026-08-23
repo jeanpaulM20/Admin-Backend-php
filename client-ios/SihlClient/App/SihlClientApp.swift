@@ -39,6 +39,20 @@ struct SihlClientApp: App {
                         Task { await PushNotificationService.shared.configure(clientId: id) }
                     }
                 }
+                .onChange(of: auth.isAuthenticated) { _, loggedIn in
+                    // Bei Logout alle Daten-ViewModels verwerfen, damit nach einem
+                    // Account-Wechsel keine Daten des vorherigen Users angezeigt werden.
+                    // (Libre hat einen eigenen, unabhängigen Login und bleibt bestehen.)
+                    if !loggedIn {
+                        start     = StartViewModel()
+                        profile   = ProfileViewModel()
+                        calendar  = CalendarViewModel()
+                        training  = TrainingViewModel()
+                        chatVM    = ChatViewModel()
+                        analytics = AnalyticsViewModel()
+                        creditsVM = CreditsViewModel()
+                    }
+                }
         }
     }
 }

@@ -38,6 +38,11 @@ final class AuthViewModel {
         // clientId aus alter Session evtl. nicht gespeichert → vom Server holen.
         if clientId?.isEmpty != false {
             await recoverClientId()
+            // Ohne clientId ist die App nicht nutzbar (RootView gated darauf) —
+            // dann lieber sauber ausloggen statt endlos im Ladezustand hängen.
+            if clientId?.isEmpty != false {
+                await logout()
+            }
         }
     }
 

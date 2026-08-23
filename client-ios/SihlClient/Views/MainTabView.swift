@@ -76,6 +76,14 @@ struct MainTabView: View {
                 ProfileView()
             }
         }
+        .task {
+            // Conversations schon beim App-Start laden, damit der Unread-Badge
+            // sichtbar ist, bevor der Chat-Tab je geöffnet wurde (Flutter lädt
+            // alle Screens eager im IndexedStack).
+            if chat.conversations.isEmpty, let id = auth.clientId {
+                await chat.fetchConversations(clientId: id)
+            }
+        }
     }
 
     /// Pendant zu Flutter `_buildInitials`: erste Buchstaben von Vor- und Nachname.

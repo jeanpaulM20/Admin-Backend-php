@@ -66,6 +66,10 @@ actor SSEClient {
                     // Auf den MainActor wechseln, dann Callback auslösen
                     await MainActor.run { onEvent(type) }
                 }
+                // Stream sauber beendet (z.B. 401/Fehlerantwort ohne Exception):
+                // ohne Delay würde die while-Schleife den Server im Tight-Loop hämmern.
+                if Task.isCancelled { return }
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
             } catch {
                 if Task.isCancelled { return }
                 // 5 s warten, dann neu verbinden (wie Flutter: `Future.delayed(5s)`)

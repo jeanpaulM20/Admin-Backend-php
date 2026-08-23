@@ -14,7 +14,10 @@ struct CreditsView: View {
     @State private var methodTarget: CreditPackage?        // welches Paket → Zahlungsart-Sheet
     @State private var confirmTarget: CreditPackage?       // welches Paket → Bestätigungsdialog (Bank)
     @State private var pendingPayment: PendingPayment?     // für Polling-Sheet
+    @State private var nextAfterAgb: CreditPackage?        // AGB akzeptiert → nach Dismiss Zahlungsart öffnen
+    @State private var nextConfirm: CreditPackage?         // Bank gewählt → nach Dismiss Bestätigung öffnen
     @State private var toast: (msg: String, ok: Bool)? = nil
+    @State private var toastNonce = 0
 
     var body: some View {
         ZStack {
@@ -47,28 +50,34 @@ struct CreditsView: View {
             }
         }
         .refreshable { await credits.fetch(clientId: auth.clientId ?? "") }
-        // AGB-Sheet → danach Zahlungsart-Sheet
-        .sheet(item: $agbTarget) { pkg in
+        // AGB-Sheet → danach Zahlungsart-Sheet. Verkettung über onDismiss statt
+        // eines 0.3s-Timers: onDismiss läuft erst NACH der Dismiss-Animation,
+        // die Folge-Präsentation kann also nicht verschluckt werden.
+        .sheet(item: $agbTarget, onDismiss: {
+            if let pkg = nextAfterAgb {
+                nextAfterAgb = nil
+                methodTarget = pkg
+            }
+        }) { pkg in
             AGBSheet(package: pkg) { accepted in
+                if accepted { nextAfterAgb = pkg }
                 agbTarget = nil
-                if accepted {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        methodTarget = pkg
-                    }
-                }
             }
         }
         // Zahlungsart wählen
-        .sheet(item: $methodTarget) { pkg in
+        .sheet(item: $methodTarget, onDismiss: {
+            if let pkg = nextConfirm {
+                nextConfirm = nil
+                confirmTarget = pkg
+            }
+        }) { pkg in
             PaymentMethodSheet(package: pkg) { method in
                 methodTarget = nil
                 guard let method else { return }
                 if method == "online" {
                     Task { await startOnlinePayment(pkg) }
                 } else {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        confirmTarget = pkg
-                    }
+                    nextConfirm = pkg
                 }
             }
         }
@@ -204,9 +213,16 @@ struct CreditsView: View {
     }
 
     private func showToast(_ msg: String, ok: Bool) {
+        toastNonce += 1
+        let nonce = toastNonce
         withAnimation { toast = (msg, ok) }
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-            withAnimation { toast = nil }
+            // Nur den eigenen Toast abräumen — sonst löscht der Timer eines
+            // früheren Toasts (z.B. "Zahlung wird vorbereitet…") eine später
+            // gesetzte Fehlermeldung vorzeitig.
+            if toastNonce == nonce {
+                withAnimation { toast = nil }
+            }
         }
     }
 }

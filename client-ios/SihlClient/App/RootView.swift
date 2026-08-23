@@ -8,7 +8,14 @@ struct RootView: View {
     var body: some View {
         Group {
             if auth.isAuthenticated {
-                MainTabView()
+                if auth.clientId != nil {
+                    MainTabView()
+                } else {
+                    // Alt-Session: clientId wird asynchron vom Server nachgeladen —
+                    // Main-UI erst zeigen, wenn sie da ist, sonst laden alle Screens
+                    // einmalig mit leerer ID ins Leere und retryen nie.
+                    ProgressView().tint(AppColor.primary)
+                }
             } else {
                 LoginView()
             }

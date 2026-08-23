@@ -22,7 +22,7 @@ struct ChatThreadView: View {
     @State private var showAttach    = false
     @State private var dataDetail:   DataDetailItem? = nil
     @State private var toast:        String? = nil
-    @State private var sseTask:      Task<Void, Never>? = nil
+    @State private var toastNonce    = 0
     @State private var sse           = SSEClient()
 
     var body: some View {
@@ -70,10 +70,11 @@ struct ChatThreadView: View {
                 ToastView(message: t)
                     .padding(.bottom, 72)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .onAppear {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                            withAnimation { toast = nil }
-                        }
+                    .task(id: toastNonce) {
+                        // Pro Toast ein eigener, automatisch gecancelter Timer —
+                        // ein alter Timer kann so keinen neueren Toast abräumen.
+                        try? await Task.sleep(nanoseconds: 3_000_000_000)
+                        withAnimation { toast = nil }
                     }
             }
         }
@@ -91,15 +92,14 @@ struct ChatThreadView: View {
             await loadAndSubscribe()
         }
         .onDisappear {
-            sseTask?.cancel()
             Task { await sse.disconnect() }
         }
     }
 
     /// Pendant zu Flutter `_getStatusText`: "N Nachrichten · M Workouts".
     private var statusText: String {
-        let msgCount    = messages.filter { !$0.isCircle }.count
-        let circleCount = messages.filter { $0.isCircle }.count
+        var msgCount = 0, circleCount = 0
+        for m in messages { if m.isCircle { circleCount += 1 } else { msgCount += 1 } }
         var parts: [String] = []
         if msgCount    > 0 { parts.append("\(msgCount) Nachrichten") }
         if circleCount > 0 { parts.append("\(circleCount) Workouts") }
@@ -185,18 +185,21 @@ struct ChatThreadView: View {
         // Als gelesen markieren
         await chat.markRead(clientId: auth.clientId ?? "", trainerId: trainerId)
 
-        // SSE abonnieren (Kanal: client_{clientId})
-        let clientId = auth.clientId ?? ""
-        let token    = auth.token ?? ""
+        // SSE abonnieren (Kanal: client_{clientId}) — nur mit gültiger Session,
+        // sonst würde der Reconnect-Loop endlos einen leeren Kanal abonnieren.
+        guard let clientId = auth.clientId, !clientId.isEmpty,
+              let token = auth.token, !token.isEmpty else { return }
         await sse.connect(channel: "client_\(clientId)", token: token) {
             [self] eventType in
             guard eventType == "chat" else { return }
             Task { @MainActor in
-                // Nachrichten neu laden wenn neues Chat-Event
+                // Wie Flutter `_refresh`: neu laden UND als gelesen markieren,
+                // sonst bleibt die Nachricht serverseitig ungelesen.
                 if let fresh = try? await ChatService.shared.getMessages(
                     clientId: clientId, trainerId: self.trainerId) {
                     self.messages = fresh
                 }
+                await self.chat.markRead(clientId: clientId, trainerId: self.trainerId)
             }
         }
     }
@@ -227,6 +230,7 @@ struct ChatThreadView: View {
         } catch {
             // Text wiederherstellen, damit erneut gesendet werden kann
             messageText = savedText
+            toastNonce += 1
             withAnimation { toast = "Nachricht konnte nicht gesendet werden" }
         }
         isSending = false
@@ -281,13 +285,22 @@ struct ChatThreadView: View {
 // MARK: - GroupedItem
 
 private struct GroupedItem: Identifiable {
-    let id = UUID()
     enum Content {
         case dateSeparator(String)
         case message(ChatMessage)
         case circleGroup([ChatMessage])
     }
     let content: Content
+
+    /// Stabile Identität aus den zugrundeliegenden Nachrichten — mit UUID()
+    /// würde die Liste bei jeder Body-Evaluation ihre Diffing-Identität verlieren.
+    var id: String {
+        switch content {
+        case .dateSeparator(let label): return "sep-\(label)"
+        case .message(let msg):         return "msg-\(msg.id)"
+        case .circleGroup(let msgs):    return "circle-\(msgs.first?.id ?? "")"
+        }
+    }
 }
 
 // MARK: - DateSeparatorView
@@ -715,7 +728,7 @@ private func chatDateMatches(_ rawDbDate: String?, _ ddMMyyyy: String?) -> Bool 
 }
 
 private func parseChatAPIDate(_ raw: String) -> Date? {
-    ISO8601DateFormatter().date(from: raw)
+    DateFormatter.chatISO8601.date(from: raw)
         ?? DateFormatter.chatYYYYMMDDHHMMSS.date(from: raw)
         ?? DateFormatter.chatYYYYMMDD.date(from: raw)
 }
@@ -932,7 +945,9 @@ private struct ReviewHrChartSection: View {
 
     private var chart: some View {
         let lowerBound = max(minHr - 10, 40)
-        let upperBound = Swift.max(maxHr + 10, Double(clientMaxHr ?? 0) + 10)
+        // lowerBound + 10 als Minimum verhindert eine invertierte Domain
+        // (Crash), falls alle Messwerte unterhalb des 40er-Floors liegen.
+        let upperBound = Swift.max(maxHr + 10, Double(clientMaxHr ?? 0) + 10, lowerBound + 10)
         return Chart {
             ForEach(sampled, id: \.index) { item in
                 LineMark(
@@ -1458,13 +1473,18 @@ private struct DataPickerSheet: View {
 // MARK: - DateFormatter helpers
 
 private extension DateFormatter {
-    static let chatDDMMYYYY: DateFormatter = {
-        let f = DateFormatter(); f.dateFormat = "dd.MM.yyyy"; return f
-    }()
-    static let chatYYYYMMDD: DateFormatter = {
-        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f
-    }()
-    static let chatYYYYMMDDHHMMSS: DateFormatter = {
-        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd HH:mm:ss"; return f
-    }()
+    /// API-Datumsformate: fixe POSIX-Locale + gregorianischer Kalender, damit
+    /// Parsen/Formatieren unabhängig vom Gerätekalender funktioniert
+    /// (z.B. buddhistischer Kalender würde sonst Jahr 2569 liefern).
+    private static func apiFormatter(_ format: String) -> DateFormatter {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.calendar = Calendar(identifier: .gregorian)
+        f.dateFormat = format
+        return f
+    }
+    static let chatDDMMYYYY      = apiFormatter("dd.MM.yyyy")
+    static let chatYYYYMMDD      = apiFormatter("yyyy-MM-dd")
+    static let chatYYYYMMDDHHMMSS = apiFormatter("yyyy-MM-dd HH:mm:ss")
+    static let chatISO8601 = ISO8601DateFormatter()
 }
