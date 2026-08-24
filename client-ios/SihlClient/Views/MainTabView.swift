@@ -53,6 +53,8 @@ struct MainTabView: View {
             if chat.conversations.isEmpty, let id = auth.clientId {
                 await chat.fetchConversations(clientId: id)
             }
+            // Offline aufgezeichnete Trainings nachreichen
+            await WorkoutUploadService.shared.retryPending()
         }
     }
 }

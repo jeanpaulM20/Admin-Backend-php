@@ -156,6 +156,17 @@ export class ClientAppController {
     return this.appService.getMetrics(clientId);
   }
 
+  /** App-recorded workout upload (Review + HR-Timeseries in einem Request) */
+  @Post('workouts/:clientId')
+  createWorkout(
+    @Req() req: Request,
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Body() body: any,
+  ) {
+    this.assertClientAccess(req, clientId);
+    return this.appService.createWorkout(clientId, body);
+  }
+
   /** Training reviews — HR data + charts from review module */
   @Get('reviews/:clientId')
   reviews(@Req() req: Request, @Param('clientId', ParseIntPipe) clientId: number) {

@@ -17,7 +17,8 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
-        INFOPLIST_KEY_UIBackgroundModes: remote-notification
+        INFOPLIST_KEY_UIBackgroundModes: ["remote-notification", "bluetooth-central"]
+        INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription: "SihlClient verbindet sich mit deinem Herzfrequenz-Brustgurt (z.B. Polar H10), um dein Training aufzuzeichnen."
         INFOPLIST_KEY_CFBundleDisplayName: SihlClient
         SWIFT_VERSION: "5.9"
         TARGETED_DEVICE_FAMILY: "1"

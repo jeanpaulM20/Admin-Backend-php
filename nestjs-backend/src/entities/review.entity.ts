@@ -29,6 +29,18 @@ export class Review {
   @Column({ nullable: true })
   training_id: number;
 
+  /** App-recorded workouts: direct client link (no booked training required) */
+  @Column({ nullable: true })
+  client_id: number;
+
+  /** Workout start (app recordings; booked trainings use training.date) */
+  @Column({ type: 'datetime', nullable: true })
+  date: string;
+
+  /** 'app' = recorded in the client app, null/legacy = trainer/polar flows */
+  @Column({ nullable: true })
+  source: string;
+
   @Column({ nullable: true })
   training_type: string;
 

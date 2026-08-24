@@ -10,6 +10,7 @@ struct TrainingView: View {
     @State private var showExpiryAlert  = false
     @State private var expiryGuard      = false
     @State private var showCreditsSheet = false
+    @State private var showRecord       = false
 
     var body: some View {
         @Bindable var vm = vm
@@ -70,6 +71,8 @@ struct TrainingView: View {
     private var content: some View {
         ScrollView {
             LazyVStack(spacing: 0, pinnedViews: []) {
+                recordCard
+
                 subscriptionBanner
 
                 if let err = vm.error {
@@ -93,6 +96,9 @@ struct TrainingView: View {
                 }
             }
         }
+        .navigationDestination(isPresented: $showRecord) {
+            RecordWorkoutView()
+        }
         .navigationDestination(for: ClientTrainingPlan.self) { plan in
             if plan.locked {
                 // Gesperrter Plan → Coaching-Paywall (wie Flutter CoachingPaywallScreen)
@@ -106,6 +112,42 @@ struct TrainingView: View {
                 )
             }
         }
+    }
+
+    // MARK: - Training aufzeichnen (Phase-1-Tracking, s. KONZEPT-TRAINING-TRACKING.md)
+
+    private var recordCard: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: AppRadius.control)
+                    .fill(AppColor.red.opacity(0.15))
+                    .frame(width: 40, height: 40)
+                Image(systemName: "record.circle")
+                    .font(.system(size: 20))
+                    .foregroundStyle(AppColor.red)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Training aufzeichnen")
+                    .font(.subheadline.bold())
+                    .foregroundStyle(AppColor.text)
+                Text("Herzfrequenz live mit dem Brustgurt tracken")
+                    .font(.caption)
+                    .foregroundStyle(AppColor.muted)
+            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(AppColor.muted)
+        }
+        .padding(AppSpacing.card)
+        .background(AppColor.surface)
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
+        .contentShape(Rectangle())
+        .onTapGesture { showRecord = true }
+        .padding(.horizontal, AppSpacing.screen)
+        .padding(.top, 12)
+        .padding(.bottom, AppSpacing.stack)
     }
 
     // MARK: - Subscription Banner

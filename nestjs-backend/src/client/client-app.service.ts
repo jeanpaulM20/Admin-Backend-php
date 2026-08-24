@@ -914,8 +914,8 @@ export class ClientAppService {
             ? Math.round(hrValues.reduce((a, b) => a + b, 0) / hrValues.length)
             : null;
 
-        // Get training date from the relation
-        const trainingDate = review.training?.date ?? '';
+        // App-Aufzeichnungen tragen ihr Datum direkt, gebuchte Trainings via Relation
+        const trainingDate = review.date ?? review.training?.date ?? '';
 
         return {
           id: review.id,
@@ -926,12 +926,63 @@ export class ClientAppService {
           hrAvg,
           hrr: null, // Heart Rate Recovery – requires specific protocol data
           hrv: null, // Heart Rate Variability – requires R-R interval data
+          source: review.source ?? null,
           chart,
         };
       }),
     );
 
     return results;
+  }
+
+  /** App-recorded workout upload: validates + persists review & HR series */
+  async createWorkout(clientId: number, body: any) {
+    const trainingType = String(body?.trainingType ?? '').trim() || 'Training';
+    const date = String(body?.startedAt ?? '').trim();
+    if (!date || Number.isNaN(Date.parse(date))) {
+      throw new Error('startedAt (ISO-Datum) fehlt oder ist ungueltig');
+    }
+    const duration =
+      typeof body?.duration === 'string' && /^\d{2}:\d{2}:\d{2}$/.test(body.duration)
+        ? body.duration
+        : null;
+
+    const rawSeries: any[] = Array.isArray(body?.hrSeries) ? body.hrSeries : [];
+    if (rawSeries.length > 50000) {
+      throw new Error('hrSeries zu gross (max. 50000 Punkte)');
+    }
+    const hrSeries = rawSeries
+      .map((p) => ({
+        t: String(p?.t ?? ''),
+        v: Math.round(Number(p?.v ?? 0)),
+      }))
+      .filter((p) => p.t && !Number.isNaN(Date.parse(p.t)) && p.v > 20 && p.v < 250);
+
+    const hrValues = hrSeries.map((p) => p.v);
+    const heartRate = hrValues.length
+      ? Math.round(hrValues.reduce((a, b) => a + b, 0) / hrValues.length)
+      : null;
+    const kcal = Number.isFinite(Number(body?.kcal)) && Number(body.kcal) > 0
+      ? Math.round(Number(body.kcal))
+      : null;
+
+    const review = await this.reviewService.createWorkout({
+      clientId,
+      date: new Date(date).toISOString().slice(0, 19).replace('T', ' '),
+      trainingType,
+      duration,
+      heartRate,
+      kcal,
+      hrSeries,
+    });
+
+    return {
+      success: true,
+      id: review.id,
+      hrMax: hrValues.length ? Math.max(...hrValues) : null,
+      hrAvg: heartRate,
+      points: hrSeries.length,
+    };
   }
 
   /** Polar status (stub – Polar integration to be migrated) */
