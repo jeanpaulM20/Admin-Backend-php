@@ -119,7 +119,7 @@ struct TrainingReviewDetailView: View {
                 .padding(.horizontal, AppSpacing.card).padding(.top, AppSpacing.card).padding(.bottom, 12)
             Map {
                 MapPolyline(coordinates: displayCoordinates)
-                    .stroke(AppColor.cta, lineWidth: 4)
+                    .stroke(AppColor.track, lineWidth: 4)
             }
             .frame(height: 220)
             .allowsHitTesting(false)

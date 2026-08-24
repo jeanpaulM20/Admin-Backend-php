@@ -185,8 +185,8 @@ struct BookingSheet: View {
         }
         .padding(12)
         .background(AppColor.green.opacity(0.04))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10)
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
             .stroke(AppColor.green.opacity(0.12), lineWidth: 1))
     }
 
@@ -250,8 +250,8 @@ struct BookingSheet: View {
         .padding(.horizontal, 12)
         .frame(height: 46)
         .background(AppColor.background)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(AppColor.border, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.control).stroke(AppColor.border, lineWidth: 1))
     }
 
     private func trainerName(id: String) -> String {

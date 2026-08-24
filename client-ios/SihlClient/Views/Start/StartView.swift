@@ -14,7 +14,9 @@ struct StartView: View {
         ZStack {
             AppColor.background.ignoresSafeArea()
 
-            if vm.isLoading {
+            if auth.clientId == "demo" {
+                DemoUnavailableView(message: "Die Startseite zeigt deinen persönlichen Trainingsstand.")
+            } else if vm.isLoading {
                 LoadingView(message: "Lade Daten…")
             } else if let err = vm.error {
                 ErrorStateView(message: err) {

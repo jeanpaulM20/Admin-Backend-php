@@ -89,7 +89,7 @@ struct CommentsSheet: View {
                 .font(.system(size: 14)).foregroundStyle(AppColor.text)
                 .padding(.horizontal, AppSpacing.card).padding(.vertical, 8)
                 .background(AppColor.surface2)
-                .clipShape(RoundedRectangle(cornerRadius: 22))
+                .clipShape(RoundedRectangle(cornerRadius: AppRadius.hero))
 
             Button {
                 Task { await send() }

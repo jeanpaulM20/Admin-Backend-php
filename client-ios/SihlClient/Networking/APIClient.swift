@@ -116,11 +116,22 @@ actor APIClient {
     }
 
     private func decodeError(statusCode: Int, data: Data) -> APIError {
-        var message = statusCode == 401
-            ? "E-Mail oder Passwort falsch"
-            : "Serverfehler (\(statusCode))"
-        if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let serverMsg = obj["message"] as? String {
+        var message: String
+        switch statusCode {
+        case 401:      message = "E-Mail oder Passwort falsch"
+        case 403:      message = "Dafür fehlt die Berechtigung."
+        case 404:      message = "Nicht gefunden."
+        case 500...:   message = "Der Server ist gerade nicht erreichbar — bitte später erneut versuchen."
+        default:       message = "Serverfehler (\(statusCode))"
+        }
+        // Server-Message nur übernehmen, wenn sie mehr sagt als die üblichen
+        // englischen HTTP-Floskeln ("Unauthorized" etc.)
+        let generic: Set<String> = ["unauthorized", "forbidden", "not found", "bad request",
+                                    "internal server error", "unprocessable entity"]
+        if statusCode != 401,
+           let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let serverMsg = obj["message"] as? String,
+           !generic.contains(serverMsg.lowercased()) {
             message = serverMsg
         }
         return APIError(statusCode: statusCode, message: message)

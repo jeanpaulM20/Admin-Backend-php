@@ -24,6 +24,10 @@ enum AppColor {
 
     // Erdton-Orange — NUR für die eine dominante Aktion pro Screen
     static let cta          = Color(hex: 0xC8532B)
+    /// Live-Track-/Routenlinien auf Karten. Bewusst dieselbe Signalfarbe wie
+    /// `cta` — die Form (Linie vs. Button) disambiguiert; als eigenes Token,
+    /// damit die Entscheidung dokumentiert und später änderbar ist.
+    static let track        = cta
     // Mattes Messing — Belege/Wertigkeit (Abo-Badge, Zertifikate, Messwerte)
     static let brass        = Color(hex: 0xB89A56)
 

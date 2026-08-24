@@ -289,3 +289,28 @@ struct ExerciseBadge: View {
             )
     }
 }
+
+
+// MARK: - DemoUnavailableView
+
+/// Ehrlicher Demo-Zustand: Dieser Bereich zeigt persönliche Daten und ist
+/// darum erst mit echtem Konto verfügbar — statt eines Server-Fehlers.
+struct DemoUnavailableView: View {
+    let message: String
+
+    var body: some View {
+        VStack(spacing: AppSpacing.stack) {
+            Image(systemName: "person.crop.circle.badge.questionmark")
+                .font(.system(size: 40))
+                .foregroundStyle(AppColor.muted)
+            Text("Im Demo-Modus nicht verfügbar")
+                .font(.headline)
+                .foregroundStyle(AppColor.text)
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(AppColor.muted)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.horizontal, AppSpacing.screen * 2)
+    }
+}

@@ -16,7 +16,9 @@ struct ChatView: View {
         ZStack {
             AppColor.background.ignoresSafeArea()
 
-            if chat.isLoading && chat.conversations.isEmpty {
+            if auth.clientId == "demo" {
+                DemoUnavailableView(message: "Der Chat verbindet dich mit deinem Trainer.")
+            } else if chat.isLoading && chat.conversations.isEmpty {
                 ProgressView().tint(AppColor.primary)
             } else if let e = chat.error {
                 ErrorStateView(message: e) {

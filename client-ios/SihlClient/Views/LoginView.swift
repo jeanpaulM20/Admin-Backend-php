@@ -17,11 +17,11 @@ struct LoginView: View {
                 VStack(spacing: 0) {
                     logo
                     Text("Sihl Training")
-                        .font(.system(size: 24, weight: .heavy))
+                        .font(.title2.weight(.heavy))
                         .foregroundStyle(AppColor.text)
                         .padding(.top, 24)
                     Text("Melde dich mit deinem Konto an")
-                        .font(.system(size: 14))
+                        .font(.subheadline)
                         .foregroundStyle(AppColor.muted)
                         .padding(.top, 8)
 
@@ -50,12 +50,12 @@ struct LoginView: View {
                     Button("Demo ansehen") {
                         auth.loginDemo()
                     }
-                    .font(.system(size: 13))
+                    .font(.footnote)
                     .foregroundStyle(AppColor.muted)
                     .padding(.top, 16)
                 }
                 .frame(maxWidth: 400)
-                .padding(.horizontal, 32)
+                .padding(.horizontal, AppSpacing.screen)
                 .frame(maxWidth: .infinity)
             }
         }
@@ -65,7 +65,7 @@ struct LoginView: View {
     }
 
     private var logo: some View {
-        RoundedRectangle(cornerRadius: 18)
+        RoundedRectangle(cornerRadius: AppRadius.hero)
             .fill(AppColor.primary)
             .frame(width: 72, height: 72)
             .overlay(

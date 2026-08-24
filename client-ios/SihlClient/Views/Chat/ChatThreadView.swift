@@ -138,7 +138,7 @@ struct ChatThreadView: View {
                 .lineLimit(1...5)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .background(AppColor.surface, in: RoundedRectangle(cornerRadius: 20))
+                .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.hero))
                 .foregroundStyle(AppColor.text)
             Button {
                 Task { await sendMessage() }
@@ -154,7 +154,7 @@ struct ChatThreadView: View {
             }
             .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending)
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, AppSpacing.screen)
         .padding(.vertical, 10)
         .background(AppColor.surface.opacity(0.95))
     }
@@ -340,7 +340,7 @@ private struct BubbleView: View {
                     .padding(.vertical, 10)
                     .background(
                         message.isFromClient ? AppColor.primary : AppColor.surface,
-                        in: RoundedRectangle(cornerRadius: 18)
+                        in: RoundedRectangle(cornerRadius: AppRadius.hero)
                     )
                 }
 
@@ -353,7 +353,7 @@ private struct BubbleView: View {
 
             if message.isFromTrainer { Spacer(minLength: 60) }
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, AppSpacing.screen)
         .padding(.vertical, 2)
     }
 
@@ -418,9 +418,9 @@ private struct DataCardView: View {
             }
             .padding(12)
             .frame(maxWidth: 260, alignment: .leading)
-            .background(AppColor.surface, in: RoundedRectangle(cornerRadius: 14))
+            .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
             .overlay(
-                RoundedRectangle(cornerRadius: 14)
+                RoundedRectangle(cornerRadius: AppRadius.card)
                     .stroke(AppColor.primary.opacity(0.3), lineWidth: 1)
             )
         }
@@ -486,15 +486,15 @@ private struct CircleGroupView: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
-                .background(AppColor.surface, in: RoundedRectangle(cornerRadius: 12))
+                .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.control))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12)
+                    RoundedRectangle(cornerRadius: AppRadius.control)
                         .stroke(AppColor.primary.opacity(0.24), lineWidth: 0.5)
                 )
             }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, AppSpacing.screen)
         .padding(.vertical, 6)
         .sheet(isPresented: $showExpanded, onDismiss: {
             if let v = pendingDetail {
@@ -553,9 +553,9 @@ private struct CirclesExpandedSheet: View {
                                 }
                                 .frame(width: 60, height: 60)
                                 .background(intensityColor(val).opacity(0.1),
-                                            in: RoundedRectangle(cornerRadius: 12))
+                                            in: RoundedRectangle(cornerRadius: AppRadius.control))
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
+                                    RoundedRectangle(cornerRadius: AppRadius.control)
                                         .stroke(intensityColor(val).opacity(0.31), lineWidth: 0.5)
                                 )
                             }
@@ -1222,7 +1222,7 @@ private struct AttachMenuSheet: View {
         Button(action: action) {
             HStack(spacing: 12) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 10)
+                    RoundedRectangle(cornerRadius: AppRadius.control)
                         .fill(color.opacity(0.1))
                         .frame(width: 40, height: 40)
                     Image(systemName: icon)
@@ -1310,7 +1310,7 @@ private struct DataPickerSheet: View {
                 } label: {
                     HStack(spacing: 12) {
                         ZStack {
-                            RoundedRectangle(cornerRadius: 10)
+                            RoundedRectangle(cornerRadius: AppRadius.control)
                                 .fill(accentColor.opacity(0.1))
                                 .frame(width: 38, height: 38)
                             Image(systemName: iconName)

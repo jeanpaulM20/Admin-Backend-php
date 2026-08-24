@@ -42,8 +42,8 @@ struct MainTabView: View {
                 .tag(TabIndex.chat.rawValue)
 
             // ── Tab 4: Analytics ─────────────────────────────────────────
-            TabRoot(title: "Analytics") { AnalyticsView() }
-                .tabItem { Label("Analytics", systemImage: "chart.line.uptrend.xyaxis") }
+            TabRoot(title: "Auswertung") { AnalyticsView() }
+                .tabItem { Label("Auswertung", systemImage: "chart.line.uptrend.xyaxis") }
                 .tag(TabIndex.analytics.rawValue)
         }
         .task {

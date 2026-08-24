@@ -73,7 +73,7 @@ struct AnalyticsView: View {
                 Spacer(minLength: 24)
             }
             .padding(.horizontal, AppSpacing.screen)
-            .padding(.top, 16)
+            .padding(.top, AppSpacing.card)
         }
     }
 }
@@ -113,7 +113,7 @@ private struct PerformanceSectionCard: View {
                     .font(.caption)
                     .foregroundStyle(AppColor.muted)
             }
-            .padding(16)
+            .padding(AppSpacing.card)
             .contentShape(Rectangle())
             .onTapGesture {
                 withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() }
@@ -122,6 +122,17 @@ private struct PerformanceSectionCard: View {
             // Items — programmatische Navigation über navigationDestination(item:)
             if expanded {
                 Divider().background(AppColor.muted.opacity(0.2))
+                // Spaltenköpfe — sonst bleiben die zwei Zahlen unbeschriftet
+                HStack {
+                    Spacer()
+                    Text("Aktuell").frame(width: 70)
+                    Text("Vorher").frame(width: 70)
+                    Color.clear.frame(width: 40)
+                }
+                .font(.caption2)
+                .foregroundStyle(AppColor.muted)
+                .padding(.horizontal, AppSpacing.card)
+                .padding(.top, 8)
                 ForEach(section.items.indices, id: \.self) { idx in
                     let item = section.items[idx]
                     PerformanceItemRow(
@@ -157,9 +168,11 @@ struct PerformanceItemRow: View {
                 .foregroundStyle(AppColor.muted)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            Text(item.value)
+            Text(item.unit.isEmpty ? item.value : "\(item.value) \(item.unit)")
                 .font(.callout.bold())
                 .foregroundStyle(AppColor.text)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
                 .frame(width: 70, alignment: .center)
 
             Text(item.previousValue)
@@ -175,8 +188,8 @@ struct PerformanceItemRow: View {
             }
             .frame(width: 40, alignment: .trailing)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, AppSpacing.card)
+        .padding(.vertical, AppSpacing.stack)
         .overlay(alignment: .bottom) {
             if !isLast {
                 Rectangle().fill(AppColor.muted.opacity(0.1)).frame(height: 1)
@@ -184,13 +197,24 @@ struct PerformanceItemRow: View {
         }
     }
 
+    /// Bei diesen Metriken ist ein Rückgang ein Fortschritt (Ziel: weniger).
+    private var lowerIsBetter: Bool {
+        let n = item.name.lowercased()
+        return ["gewicht", "fett", "bmi", "puls", "umfang", "taille"].contains { n.contains($0) }
+    }
+
     @ViewBuilder
     private var changeIcon: some View {
         let c = item.change.lowercased()
-        if c == "up" || c == "increase" || c == "+" || (c.hasPrefix("+") && c.count > 1) {
-            Image(systemName: "arrow.up").font(.caption).foregroundStyle(.green)
-        } else if c == "down" || c == "decrease" || c == "-" || c.hasPrefix("-") {
-            Image(systemName: "arrow.down").font(.caption).foregroundStyle(.red)
+        let isUp   = c == "up" || c == "increase" || c == "+" || (c.hasPrefix("+") && c.count > 1)
+        let isDown = c == "down" || c == "decrease" || c == "-" || c.hasPrefix("-")
+        if isUp || isDown {
+            // Farbe codiert die Bedeutung (Fortschritt/Rückschritt),
+            // der Pfeil die Richtung — nicht beides dasselbe.
+            let improving = isDown == lowerIsBetter
+            Image(systemName: isUp ? "arrow.up" : "arrow.down")
+                .font(.caption)
+                .foregroundStyle(improving ? AppColor.green : AppColor.red)
         } else if !item.change.isEmpty && item.change != "0" {
             Text(item.change).font(.caption.bold()).foregroundStyle(item.changeColor)
         }
@@ -379,8 +403,8 @@ private struct ReviewRowView: View {
                     .font(.caption2).foregroundStyle(AppColor.muted.opacity(0.5))
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, AppSpacing.card)
+        .padding(.vertical, AppSpacing.stack)
         .background(isSelected ? AppColor.primary.opacity(0.1) : Color.clear)
         .opacity(isDisabled ? 0.4 : 1)
         .overlay(alignment: .bottom) {

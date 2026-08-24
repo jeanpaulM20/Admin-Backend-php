@@ -78,7 +78,7 @@ struct TourDetailView: View {
                 Map {
                     ForEach(d.segments.indices, id: \.self) { i in
                         MapPolyline(coordinates: d.segments[i])
-                            .stroke(AppColor.cta, lineWidth: 3)
+                            .stroke(AppColor.track, lineWidth: 3)
                     }
                 }
                 .frame(height: 280)

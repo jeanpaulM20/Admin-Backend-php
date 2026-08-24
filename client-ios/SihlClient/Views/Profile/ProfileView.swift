@@ -21,7 +21,9 @@ struct ProfileView: View {
         ZStack {
             AppColor.background.ignoresSafeArea()
 
-            if vm.isLoading {
+            if auth.clientId == "demo" {
+                DemoUnavailableView(message: "Das Profil zeigt deine Konto- und Vertragsdaten.")
+            } else if vm.isLoading {
                 LoadingView(message: "Lade Profil…")
             } else if let err = vm.error {
                 ErrorStateView(message: err) {
@@ -155,7 +157,7 @@ struct ProfileView: View {
     private var creditsBuyRow: some View {
         NavigationLink(destination: CreditsView()) {
             HStack(spacing: 12) {
-                RoundedRectangle(cornerRadius: 9)
+                RoundedRectangle(cornerRadius: AppRadius.control)
                     .fill(AppColor.primary.opacity(0.12))
                     .frame(width: 36, height: 36)
                     .overlay(Image(systemName: "cart")
@@ -179,8 +181,8 @@ struct ProfileView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
             .background(AppColor.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppColor.border, lineWidth: 1))
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
         }
     }
 
@@ -189,7 +191,7 @@ struct ProfileView: View {
     private var glucoseRow: some View {
         NavigationLink(destination: GlucoseView().navigationTitle("Blutzucker")) {
             HStack(spacing: 12) {
-                RoundedRectangle(cornerRadius: 9)
+                RoundedRectangle(cornerRadius: AppRadius.control)
                     .fill(AppColor.red.opacity(0.12))
                     .frame(width: 36, height: 36)
                     .overlay(Image(systemName: "waveform.path.ecg")
@@ -213,8 +215,8 @@ struct ProfileView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
             .background(AppColor.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppColor.border, lineWidth: 1))
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
         }
     }
 
@@ -349,7 +351,7 @@ struct ProfileView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: AppRadius.control)
                     .stroke(AppColor.red.opacity(0.47), lineWidth: 1)
             )
         }
@@ -409,8 +411,8 @@ struct SectionDisclosure<Content: View>: View {
             }
         }
         .background(AppColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppColor.border, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
     }
 }
 
@@ -435,7 +437,7 @@ private struct CreditPackCard: View {
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
                     .background(AppColor.primary.opacity(0.15))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
             }
 
             // Progress Bar
@@ -469,7 +471,7 @@ private struct InvoiceRow: View {
         let color: Color = isPaid ? AppColor.green : AppColor.primary
 
         HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: AppRadius.control)
                 .fill(AppColor.primary.opacity(0.12))
                 .frame(width: 40, height: 40)
                 .overlay(Image(systemName: "receipt")
@@ -582,7 +584,7 @@ private struct PolarCard: View {
     var body: some View {
         HStack(spacing: 14) {
             // Polar "P" Logo
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: AppRadius.control)
                 .fill(polarRed.opacity(0.12))
                 .frame(width: 44, height: 44)
                 .overlay(

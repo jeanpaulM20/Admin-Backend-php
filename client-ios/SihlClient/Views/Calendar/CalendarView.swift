@@ -17,7 +17,9 @@ struct CalendarView: View {
         ZStack {
             AppColor.background.ignoresSafeArea()
 
-            if vm.isLoading && vm.calendarData == nil {
+            if auth.clientId == "demo" {
+                DemoUnavailableView(message: "Der Kalender zeigt deine gebuchten Termine.")
+            } else if vm.isLoading && vm.calendarData == nil {
                 LoadingView(message: "Lade Kalender…")
             } else if let err = vm.error, vm.calendarData == nil {
                 ErrorStateView(message: err) {
@@ -130,11 +132,11 @@ struct CalendarView: View {
                     availForDay:  { vm.availabilityForDay($0) },
                     hasBookable:  { vm.hasAnyBookableWindow(for: $0) }
                 )
-                .padding(.horizontal, 16)
+                .padding(.horizontal, AppSpacing.screen)
                 .padding(.top, 16)
 
                 // ── Tag-Header ─────────────────────────────────────────────────
-                dayHeader.padding(.horizontal, 16).padding(.top, 10)
+                dayHeader.padding(.horizontal, AppSpacing.screen).padding(.top, 10)
 
                 // ── Vorhandene Termine ────────────────────────────────────────
                 let events = vm.eventsForDay(vm.selectedDate)
@@ -147,7 +149,7 @@ struct CalendarView: View {
                             .opacity(appt.status.lowercased() == "cancelled" ? 0.45 : 1.0)
                         }
                     }
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, AppSpacing.screen)
                     .padding(.top, 8)
                 }
 
@@ -166,7 +168,7 @@ struct CalendarView: View {
                         }
                         bookingSlot = slot
                     }
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, AppSpacing.screen)
                     .padding(.top, 8)
                     .padding(.bottom, 80)
 

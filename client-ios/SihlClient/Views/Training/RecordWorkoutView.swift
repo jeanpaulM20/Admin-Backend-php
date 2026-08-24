@@ -117,6 +117,7 @@ struct RecordWorkoutView: View {
                 WorkoutRecorder.clearSnapshot()
                 recovered = nil
             }
+            Button("Abbrechen", role: .cancel) {}
         } message: { snap in
             Text("\(snap.activity.rawValue) · \(Self.format(snap.elapsed)) · \(snap.samples.count) HF-Punkte")
         }
@@ -392,13 +393,13 @@ private struct WorkoutSessionView: View {
             }
             if displayCoordinates.count >= 2 {
                 MapPolyline(coordinates: displayCoordinates)
-                    .stroke(AppColor.cta, lineWidth: 4)
+                    .stroke(AppColor.track, lineWidth: 4)
             }
             if let last = recorder.trackCoordinates.last {
                 Annotation("", coordinate: last) {
                     ZStack {
-                        Circle().fill(AppColor.cta.opacity(0.3)).frame(width: 22, height: 22)
-                        Circle().fill(AppColor.cta).frame(width: 12, height: 12)
+                        Circle().fill(AppColor.track.opacity(0.3)).frame(width: 22, height: 22)
+                        Circle().fill(AppColor.track).frame(width: 12, height: 12)
                             .overlay(Circle().stroke(.white, lineWidth: 2))
                     }
                 }
@@ -476,7 +477,7 @@ private struct WorkoutSessionView: View {
                                         style: StrokeStyle(lineWidth: 3, dash: [6, 4]))
                         }
                         MapPolyline(coordinates: displayCoordinates)
-                            .stroke(AppColor.cta, lineWidth: 4)
+                            .stroke(AppColor.track, lineWidth: 4)
                     }
                     .frame(height: 220)
                     .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))

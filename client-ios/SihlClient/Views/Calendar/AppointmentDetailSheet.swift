@@ -76,7 +76,7 @@ struct AppointmentDetailSheet: View {
                                 .foregroundStyle(AppColor.primary)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
-                                .overlay(RoundedRectangle(cornerRadius: 10)
+                                .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
                                     .stroke(AppColor.primary, lineWidth: 1))
                         }
 
@@ -90,7 +90,7 @@ struct AppointmentDetailSheet: View {
                                     .foregroundStyle(AppColor.red)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
-                                    .overlay(RoundedRectangle(cornerRadius: 10)
+                                    .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
                                         .stroke(AppColor.red, lineWidth: 1))
                             }
                         }
@@ -130,8 +130,8 @@ struct AppointmentDetailSheet: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
             .background(color.opacity(0.1))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(color.opacity(0.24), lineWidth: 1))
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.control).stroke(color.opacity(0.24), lineWidth: 1))
     }
 
     // MARK: - Detail Row
