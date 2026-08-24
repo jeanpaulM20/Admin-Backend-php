@@ -1,13 +1,17 @@
 import SwiftUI
 import Charts
+import MapKit
 
 // MARK: - TrainingReviewDetailView
 
-/// Pendant zu `TrainingReviewDetailScreen` — Stat-Karten + HR-Verlaufschart.
+/// Pendant zu `TrainingReviewDetailScreen` — Stat-Karten + HR-Verlaufschart;
+/// bei App-Aufzeichnungen mit GPS zusätzlich Route + Höhenprofil.
 struct TrainingReviewDetailView: View {
+    @Environment(AuthViewModel.self) private var auth
     let review: TrainingReview
 
     @State private var showFullscreen = false
+    @State private var track: [GeoPoint] = []
 
     var body: some View {
         ZStack {
@@ -17,9 +21,22 @@ struct TrainingReviewDetailView: View {
                     // ── Stat-Karten (Max HF | Avg HF | Training Load) ──────────
                     statRow
 
+                    // ── Outdoor-Stats (nur mit GPS-Daten) ─────────────────────
+                    if review.distance != nil || review.elevationGain != nil {
+                        outdoorStatRow
+                    }
+
                     if let dur = review.duration {
                         Text("Dauer: \(dur)")
                             .font(.callout).foregroundStyle(AppColor.muted)
+                    }
+
+                    // ── Route + Höhenprofil (lazy geladen) ────────────────────
+                    if track.count >= 2 {
+                        routeCard
+                        if track.contains(where: { $0.ele != nil }) {
+                            elevationCard
+                        }
                     }
 
                     // ── HR-Chart ───────────────────────────────────────────────
@@ -30,6 +47,12 @@ struct TrainingReviewDetailView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 20)
             }
+        }
+        .task {
+            // Track nur für App-Aufzeichnungen abfragen; leer = keine Karte
+            guard let clientId = auth.clientId else { return }
+            track = (try? await PerformanceService.shared.getTrack(
+                clientId: clientId, reviewId: review.id)) ?? []
         }
         .navigationTitle(review.trainingType)
         .navigationBarTitleDisplayMode(.inline)
@@ -63,6 +86,112 @@ struct TrainingReviewDetailView: View {
                      unit: "bpm", color: AppColor.primary)
             TrainingLoadCard(trimp: review.edwardsTrimp)
         }
+    }
+
+    // MARK: - Outdoor-Stats
+
+    private var outdoorStatRow: some View {
+        HStack(spacing: 10) {
+            if let d = review.distance {
+                StatCard(label: "Distanz",
+                         value: d >= 1000 ? String(format: "%.2f", d / 1000) : "\(Int(d))",
+                         unit: d >= 1000 ? "km" : "m", color: AppColor.text)
+            }
+            if let e = review.elevationGain {
+                StatCard(label: "Höhenmeter", value: "\(e)", unit: "m", color: AppColor.text)
+            }
+        }
+    }
+
+    // MARK: - Route
+
+    private var displayCoordinates: [CLLocationCoordinate2D] {
+        let coords = track.map { CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lon) }
+        guard coords.count > 600 else { return coords }
+        let stride = coords.count / 500
+        return coords.enumerated().compactMap { $0.offset % stride == 0 ? $0.element : nil }
+    }
+
+    private var routeCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Route")
+                .font(.callout.bold()).foregroundStyle(AppColor.text)
+                .padding(.horizontal, AppSpacing.card).padding(.top, AppSpacing.card).padding(.bottom, 12)
+            Map {
+                MapPolyline(coordinates: displayCoordinates)
+                    .stroke(AppColor.cta, lineWidth: 4)
+            }
+            .frame(height: 220)
+            .allowsHitTesting(false)
+        }
+        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
+    }
+
+    // MARK: - Höhenprofil
+
+    /// (Distanz [km], Höhe [m]) — kumuliert über den Track, auf ≤300 Punkte reduziert.
+    private var elevationProfile: [(x: Double, ele: Double)] {
+        var result: [(Double, Double)] = []
+        var cum = 0.0
+        var last: GeoPoint?
+        for p in track {
+            if let prev = last {
+                let a = CLLocation(latitude: prev.lat, longitude: prev.lon)
+                let b = CLLocation(latitude: p.lat, longitude: p.lon)
+                cum += b.distance(from: a)
+            }
+            last = p
+            if let ele = p.ele { result.append((cum / 1000, ele)) }
+        }
+        guard result.count > 300 else { return result }
+        let stride = result.count / 300
+        return result.enumerated().compactMap { $0.offset % stride == 0 ? $0.element : nil }
+    }
+
+    private var elevationCard: some View {
+        let profile = elevationProfile
+        return VStack(alignment: .leading, spacing: 12) {
+            Text("Höhenprofil")
+                .font(.callout.bold()).foregroundStyle(AppColor.text)
+            Chart {
+                ForEach(profile.indices, id: \.self) { i in
+                    let p = profile[i]
+                    LineMark(x: .value("km", p.x), y: .value("m", p.ele))
+                        .foregroundStyle(AppColor.primary)
+                        .interpolationMethod(.catmullRom)
+                    AreaMark(x: .value("km", p.x),
+                             yStart: .value("Base", profile.map(\.ele).min() ?? 0),
+                             yEnd: .value("m", p.ele))
+                        .foregroundStyle(
+                            LinearGradient(colors: [AppColor.primary.opacity(0.2), AppColor.primary.opacity(0)],
+                                           startPoint: .top, endPoint: .bottom))
+                        .interpolationMethod(.catmullRom)
+                }
+            }
+            .chartXAxis {
+                AxisMarks { value in
+                    AxisValueLabel {
+                        if let km = value.as(Double.self) {
+                            Text(String(format: "%.1f km", km))
+                                .font(.system(size: 9)).foregroundStyle(AppColor.muted)
+                        }
+                    }
+                    AxisGridLine().foregroundStyle(AppColor.muted.opacity(0.15))
+                }
+            }
+            .chartYAxis {
+                AxisMarks(position: .leading) {
+                    AxisValueLabel().foregroundStyle(AppColor.muted)
+                    AxisGridLine().foregroundStyle(AppColor.muted.opacity(0.15))
+                }
+            }
+            .frame(height: 140)
+        }
+        .padding(AppSpacing.card)
+        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
     }
 
     // MARK: - HR Chart

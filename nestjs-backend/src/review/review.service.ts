@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Review } from '../entities/review.entity';
 import { ReviewHeartRateTimeseries } from '../entities/review-heartrate-timeseries.entity';
+import { ReviewGpsTrack } from '../entities/review-gps-track.entity';
 
 @Injectable()
 export class ReviewService {
@@ -11,6 +12,8 @@ export class ReviewService {
     private readonly reviewRepo: Repository<Review>,
     @InjectRepository(ReviewHeartRateTimeseries)
     private readonly timeseriesRepo: Repository<ReviewHeartRateTimeseries>,
+    @InjectRepository(ReviewGpsTrack)
+    private readonly gpsRepo: Repository<ReviewGpsTrack>,
   ) {}
 
   /**
@@ -70,7 +73,10 @@ export class ReviewService {
     duration: string | null;
     heartRate: number | null;
     kcal: number | null;
+    distanceMeters: number | null;
+    elevationGain: number | null;
     hrSeries: { t: string; v: number }[];
+    gpsTrack: { t: string; lat: number; lon: number; ele: number | null; acc: number | null }[];
   }): Promise<Review> {
     return this.reviewRepo.manager.transaction(async (manager) => {
       const review = await manager.getRepository(Review).save({
@@ -81,6 +87,8 @@ export class ReviewService {
         duration: input.duration ?? undefined,
         heart_rate: input.heartRate ?? undefined,
         kcal: input.kcal ?? undefined,
+        distance: input.distanceMeters ?? undefined,
+        elevation_gain: input.elevationGain ?? undefined,
         source: 'app',
       });
 
@@ -95,7 +103,36 @@ export class ReviewService {
       for (let i = 0; i < rows.length; i += 1000) {
         await tsRepo.insert(rows.slice(i, i + 1000));
       }
+
+      const gpsRepo = manager.getRepository(ReviewGpsTrack);
+      const gpsRows = input.gpsTrack.map((p, i) => ({
+        review_id: review.id,
+        timestamp: p.t,
+        lat: p.lat,
+        lon: p.lon,
+        ele: p.ele ?? undefined,
+        accuracy: p.acc ?? undefined,
+        sort: i,
+      }));
+      for (let i = 0; i < gpsRows.length; i += 1000) {
+        await gpsRepo.insert(gpsRows.slice(i, i + 1000));
+      }
       return review;
+    });
+  }
+
+  /** GPS-Track eines Reviews — nur wenn das Review dem Client gehört. */
+  async getTrackForClient(clientId: number, reviewId: number) {
+    const review = await this.reviewRepo
+      .createQueryBuilder('review')
+      .leftJoin('review.training', 'training')
+      .where('review.id = :reviewId', { reviewId })
+      .andWhere('(training.client_id = :clientId OR review.client_id = :clientId)', { clientId })
+      .getOne();
+    if (!review) return [];
+    return this.gpsRepo.find({
+      where: { review_id: reviewId },
+      order: { sort: 'ASC' },
     });
   }
 

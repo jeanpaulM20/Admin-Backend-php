@@ -1,7 +1,8 @@
 import Foundation
+import CoreLocation
 import Observation
 
-// MARK: - Aktivitäten (Phase 1: alle ohne GPS)
+// MARK: - Aktivitäten
 
 enum WorkoutActivity: String, CaseIterable, Identifiable, Codable {
     case kraft   = "Krafttraining"
@@ -19,24 +20,36 @@ enum WorkoutActivity: String, CaseIterable, Identifiable, Codable {
         case .wandern: return "figure.hiking"
         }
     }
+
+    /// Outdoor-Aktivitäten zeichnen eine GPS-Route auf.
+    var usesGPS: Bool { self != .kraft }
+
+    /// Plausibilitätsgrenze für Punkt-zu-Punkt-Geschwindigkeit (m/s).
+    var maxSpeed: Double { self == .rad ? 25 : 12 }
 }
 
 // MARK: - WorkoutRecorder
 
-/// Aufnahme-Engine: sammelt 1-Hz-Herzfrequenz-Samples vom `HeartRateSource`,
-/// führt Dauer/Statistiken und sichert alle 30 s einen Snapshot auf Platte
-/// (Crash-/Kill-Recovery — ein Training darf nicht verloren gehen).
+/// Aufnahme-Engine: sammelt 1-Hz-Herzfrequenz-Samples vom `HeartRateSource`
+/// und (bei Outdoor-Aktivitäten) gefilterte GPS-Punkte vom `LocationSource`,
+/// führt Dauer/Distanz/Pace/Höhenmeter und sichert alle 30 s einen Snapshot
+/// auf Platte (Crash-/Kill-Recovery).
 @MainActor @Observable
 final class WorkoutRecorder {
     enum Phase { case setup, recording, paused, finished }
 
     private(set) var activity: WorkoutActivity = .kraft
     private let source: HeartRateSource
+    private let gpsSource: LocationSource
 
     private(set) var phase: Phase = .setup
     private(set) var hrState: HeartRateSourceState = .idle
+    private(set) var gpsState: LocationSourceState = .idle
     private(set) var currentHR: Int?
     private(set) var samples: [HrSample] = []
+    private(set) var track: [TrackPoint] = []
+    private(set) var distanceMeters: Double = 0
+    private(set) var elevationGain: Double = 0
     private(set) var startedAt: Date?
     private(set) var elapsed: TimeInterval = 0
 
@@ -45,11 +58,15 @@ final class WorkoutRecorder {
     private var pauseBegan: Date?
     private var ticker: Timer?
     private var lastSnapshot = Date.distantPast
+    private var lastSmoothedEle: Double?
 
-    init(source: HeartRateSource) {
+    init(source: HeartRateSource, gpsSource: LocationSource) {
         self.source = source
+        self.gpsSource = gpsSource
         source.onStateChange = { [weak self] state in self?.hrState = state }
         source.onSample = { [weak self] bpm in self?.ingest(bpm) }
+        gpsSource.onStateChange = { [weak self] state in self?.gpsState = state }
+        gpsSource.onPoint = { [weak self] point in self?.ingest(point) }
     }
 
     // MARK: Statistiken
@@ -65,10 +82,32 @@ final class WorkoutRecorder {
         return String(format: "%02d:%02d:%02d", s / 3600, (s % 3600) / 60, s % 60)
     }
 
+    var distanceString: String {
+        distanceMeters >= 1000
+            ? String(format: "%.2f km", distanceMeters / 1000)
+            : "\(Int(distanceMeters)) m"
+    }
+
+    /// Ø-Pace (min/km) bzw. Ø-Tempo (km/h beim Rad) über die gesamte Aufnahme.
+    var paceString: String {
+        guard distanceMeters > 50, elapsed > 10 else { return "–" }
+        if activity == .rad {
+            let kmh = distanceMeters / elapsed * 3.6
+            return String(format: "%.1f km/h", kmh)
+        }
+        let secPerKm = elapsed / (distanceMeters / 1000)
+        let m = Int(secPerKm) / 60, s = Int(secPerKm) % 60
+        return String(format: "%d:%02d /km", m, s)
+    }
+
     /// HF-Kurve für das bestehende `HrLineChart` in der Zusammenfassung.
     var hrPoints: [HrPoint] {
         let fmt = ISO8601DateFormatter()
         return samples.map { HrPoint(time: fmt.string(from: $0.t), value: Double($0.bpm)) }
+    }
+
+    var trackCoordinates: [CLLocationCoordinate2D] {
+        track.map { CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lon) }
     }
 
     // MARK: Steuerung
@@ -78,10 +117,15 @@ final class WorkoutRecorder {
     func startRecording(_ activity: WorkoutActivity) {
         guard phase == .setup else { return }
         self.activity = activity
+        if activity.usesGPS { gpsSource.start() }
         startedAt = Date()
         phase = .recording
         startTicker()
     }
+
+    /// GPS-Berechtigung/Fix schon im Setup anstoßen (Outdoor-Aktivität gewählt).
+    func prepareGPS() { gpsSource.start() }
+    func stopGPSPreparation() { if phase == .setup { gpsSource.stop() } }
 
     func pause() {
         guard phase == .recording else { return }
@@ -103,21 +147,61 @@ final class WorkoutRecorder {
         phase = .finished
         ticker?.invalidate()
         source.stop()
+        gpsSource.stop()
         persistSnapshot()   // bleibt bis zum erfolgreichen Upload liegen
     }
 
     func teardown() {
         ticker?.invalidate()
         source.stop()
+        gpsSource.stop()
     }
 
-    // MARK: Intern
+    // MARK: Intern — Herzfrequenz
 
     private func ingest(_ bpm: Int) {
         currentHR = bpm
         guard phase == .recording else { return }
         samples.append(HrSample(t: Date(), bpm: bpm))
     }
+
+    // MARK: Intern — GPS
+
+    private func ingest(_ point: TrackPoint) {
+        guard phase == .recording, activity.usesGPS else { return }
+
+        if let last = track.last {
+            let from = CLLocation(latitude: last.lat, longitude: last.lon)
+            let to   = CLLocation(latitude: point.lat, longitude: point.lon)
+            let d    = to.distance(from: from)
+            let dt   = point.t.timeIntervalSince(last.t)
+
+            // Jitter (< 2 m) und unplausible Sprünge verwerfen
+            guard d >= 2 else { return }
+            if dt > 0, d / dt > activity.maxSpeed { return }
+
+            distanceMeters += d
+        }
+
+        // Höhenmeter mit 2-m-Glättung gegen Barometer-/GPS-Rauschen
+        if let ele = point.ele {
+            if let smoothed = lastSmoothedEle {
+                let delta = ele - smoothed
+                if delta >= 2 {
+                    elevationGain += delta
+                    lastSmoothedEle = ele
+                } else if delta <= -2 {
+                    lastSmoothedEle = ele
+                }
+            } else {
+                lastSmoothedEle = ele
+            }
+        }
+
+        track.append(point)
+    }
+
+    // MARK: Intern — Zeit & Snapshot
 
     private func startTicker() {
         ticker = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
@@ -145,6 +229,9 @@ final class WorkoutRecorder {
         let startedAt: Date
         let elapsed: TimeInterval
         let samples: [HrSample]
+        var track: [TrackPoint]? = nil
+        var distanceMeters: Double? = nil
+        var elevationGain: Double? = nil
     }
 
     private static var snapshotURL: URL {
@@ -156,7 +243,10 @@ final class WorkoutRecorder {
         guard let start = startedAt else { return }
         lastSnapshot = Date()
         let snap = Snapshot(activity: activity, startedAt: start,
-                            elapsed: elapsed, samples: samples)
+                            elapsed: elapsed, samples: samples,
+                            track: track.isEmpty ? nil : track,
+                            distanceMeters: distanceMeters > 0 ? distanceMeters : nil,
+                            elevationGain: elevationGain > 0 ? elevationGain : nil)
         if let data = try? JSONEncoder().encode(snap) {
             try? data.write(to: Self.snapshotURL, options: .atomic)
         }
@@ -170,7 +260,7 @@ final class WorkoutRecorder {
     static func pendingSnapshot() -> Snapshot? {
         guard let data = try? Data(contentsOf: snapshotURL),
               let snap = try? JSONDecoder().decode(Snapshot.self, from: data),
-              snap.samples.count >= 10 else { return nil }
+              snap.samples.count >= 10 || (snap.track?.count ?? 0) >= 10 else { return nil }
         return snap
     }
 }

@@ -80,6 +80,10 @@ export class Review {
   @Column({ type: 'float', nullable: true })
   distance: number;
 
+  /** Kumulierte Höhenmeter (App-Aufzeichnungen, Meter) */
+  @Column({ name: 'elevation_gain', nullable: true })
+  elevation_gain: number;
+
   @ManyToOne(() => Training)
   @JoinColumn({ name: 'training_id' })
   training: Training;

@@ -1,14 +1,15 @@
 import SwiftUI
+import MapKit
 
-// MARK: - RecordWorkoutView (Einstieg: Aktivität wählen + Gurt verbinden)
+// MARK: - RecordWorkoutView (Einstieg: Aktivität wählen + Sensoren)
 
-/// Phase-1-Training-Tracking: Herzfrequenz-Aufzeichnung mit Polar H10
-/// (bzw. jedem BLE-Gurt). Wird aus dem Training-Tab gepusht.
+/// Training-Tracking: Herzfrequenz (Polar H10 / BLE-Gurt) + GPS-Route
+/// bei Outdoor-Aktivitäten. Wird aus dem Training-Tab gepusht.
 struct RecordWorkoutView: View {
     @Environment(AuthViewModel.self) private var auth
     @Environment(\.dismiss) private var dismiss
 
-    @State private var activity: WorkoutActivity = .kraft
+    @State private var activity: WorkoutActivity = .joggen
     @State private var recorder: WorkoutRecorder?
     @State private var showSession = false
     @State private var recovered: WorkoutRecorder.Snapshot?
@@ -26,12 +27,13 @@ struct RecordWorkoutView: View {
 
                     activityGrid
 
-                    Text("Herzfrequenz-Sensor")
+                    Text("Sensoren")
                         .font(.subheadline.bold())
                         .foregroundStyle(AppColor.text)
                         .padding(.top, 8)
 
                     sensorCard
+                    if activity.usesGPS { gpsCard }
 
                     Button("Training starten") {
                         recorder?.startRecording(activity)
@@ -41,7 +43,7 @@ struct RecordWorkoutView: View {
                     .padding(.top, 12)
 
                     if !(recorder?.hrState.isConnected ?? false) {
-                        Text("Du kannst auch ohne Gurt starten — dann wird nur die Dauer erfasst.")
+                        Text("Du kannst auch ohne Gurt starten — dann werden nur Dauer\(activity.usesGPS ? " und Route" : "") erfasst.")
                             .font(.caption)
                             .foregroundStyle(AppColor.muted)
                             .frame(maxWidth: .infinity, alignment: .center)
@@ -56,9 +58,16 @@ struct RecordWorkoutView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             if recorder == nil {
-                recorder = WorkoutRecorder(source: Self.makeSource(demo: isDemo))
+                recorder = WorkoutRecorder(
+                    source: Self.makeHeartRateSource(demo: isDemo),
+                    gpsSource: Self.makeLocationSource(demo: isDemo)
+                )
             }
+            if activity.usesGPS { recorder?.prepareGPS() }
             recovered = WorkoutRecorder.pendingSnapshot()
+        }
+        .onChange(of: activity) { _, newActivity in
+            newActivity.usesGPS ? recorder?.prepareGPS() : recorder?.stopGPSPreparation()
         }
         .onDisappear {
             // Nur aufräumen, wenn keine Session läuft
@@ -82,7 +91,10 @@ struct RecordWorkoutView: View {
                     trainingType: snap.activity.rawValue,
                     startedAt: snap.startedAt,
                     duration: Self.format(snap.elapsed),
-                    samples: snap.samples
+                    samples: snap.samples,
+                    track: snap.track,
+                    distanceMeters: snap.distanceMeters,
+                    elevationGain: snap.elevationGain
                 )
                 WorkoutRecorder.clearSnapshot()
                 recovered = nil
@@ -160,13 +172,45 @@ struct RecordWorkoutView: View {
         .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
     }
 
+    private var gpsCard: some View {
+        let state = recorder?.gpsState ?? .idle
+        return HStack(spacing: 12) {
+            Image(systemName: state.isActive ? "location.fill" : "location")
+                .font(.system(size: 20))
+                .foregroundStyle(state.isActive ? AppColor.green : AppColor.muted)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(state.label)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(AppColor.text)
+                if case .denied = state {
+                    Text("Standort in den iOS-Einstellungen erlauben")
+                        .font(.caption)
+                        .foregroundStyle(AppColor.muted)
+                }
+            }
+            Spacer()
+        }
+        .padding(AppSpacing.card)
+        .background(AppColor.surface)
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
+    }
+
     // MARK: Helfer
 
-    static func makeSource(demo: Bool) -> HeartRateSource {
+    static func makeHeartRateSource(demo: Bool) -> HeartRateSource {
         #if targetEnvironment(simulator)
         return SimulatedHeartRateSource()
         #else
         return demo ? SimulatedHeartRateSource() : BleHeartRateSource()
+        #endif
+    }
+
+    static func makeLocationSource(demo: Bool) -> LocationSource {
+        #if targetEnvironment(simulator)
+        return SimulatedLocationSource()
+        #else
+        return demo ? SimulatedLocationSource() : CoreLocationSource()
         #endif
     }
 
@@ -202,76 +246,143 @@ private struct WorkoutSessionView: View {
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
     }
 
+    /// Für die Kartendarstellung reduzierte Koordinaten (Render-Kosten).
+    private var displayCoordinates: [CLLocationCoordinate2D] {
+        let coords = recorder.trackCoordinates
+        guard coords.count > 600 else { return coords }
+        let stride = coords.count / 500
+        return coords.enumerated().compactMap { $0.offset % stride == 0 ? $0.element : nil }
+    }
+
     // MARK: Live
 
     private var liveView: some View {
-        VStack(spacing: 24) {
-            HStack {
-                Label(recorder.activity.rawValue, systemImage: recorder.activity.icon)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(AppColor.muted)
-                Spacer()
-                sensorBadge
+        VStack(spacing: 0) {
+            // Live-Karte (nur Outdoor)
+            if recorder.activity.usesGPS {
+                liveMap
+                    .frame(height: 280)
+                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+                    .padding(.horizontal, AppSpacing.screen)
+                    .padding(.top, 16)
             }
-            .padding(.top, 24)
 
-            Spacer()
+            VStack(spacing: 20) {
+                HStack {
+                    Label(recorder.activity.rawValue, systemImage: recorder.activity.icon)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(AppColor.muted)
+                    Spacer()
+                    sensorBadge
+                }
+                .padding(.top, 16)
 
-            // Dauer
-            Text(recorder.durationString)
-                .font(.system(size: 56, weight: .heavy).monospacedDigit())
-                .foregroundStyle(AppColor.text)
+                Spacer(minLength: 4)
 
-            // Herzfrequenz gross
-            VStack(spacing: 4) {
+                Text(recorder.durationString)
+                    .font(.system(size: recorder.activity.usesGPS ? 44 : 56,
+                                  weight: .heavy).monospacedDigit())
+                    .foregroundStyle(AppColor.text)
+
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Image(systemName: "heart.fill")
-                        .font(.system(size: 30))
+                        .font(.system(size: 24))
                         .foregroundStyle(AppColor.red)
                     Text(recorder.currentHR.map { "\($0)" } ?? "–")
-                        .font(.system(size: 88, weight: .black).monospacedDigit())
+                        .font(.system(size: recorder.activity.usesGPS ? 56 : 88,
+                                      weight: .black).monospacedDigit())
                         .foregroundStyle(AppColor.red)
                     Text("bpm")
                         .font(.title3)
                         .foregroundStyle(AppColor.muted)
                 }
-                HStack(spacing: 20) {
-                    statMini("Ø", recorder.avgHR)
-                    statMini("Max", recorder.maxHR)
+
+                if recorder.activity.usesGPS {
+                    HStack(spacing: 0) {
+                        liveStat("Distanz", recorder.distanceString)
+                        liveStat(recorder.activity == .rad ? "Tempo" : "Pace", recorder.paceString)
+                        liveStat("Höhenmeter", "\(Int(recorder.elevationGain)) m")
+                    }
+                } else {
+                    HStack(spacing: 20) {
+                        statMini("Ø", recorder.avgHR)
+                        statMini("Max", recorder.maxHR)
+                    }
                 }
-            }
 
-            Spacer()
+                Spacer(minLength: 4)
 
-            // Steuerung
-            HStack(spacing: AppSpacing.stack) {
-                Button(recorder.phase == .paused ? "Weiter" : "Pause") {
-                    recorder.phase == .paused ? recorder.resume() : recorder.pause()
+                HStack(spacing: AppSpacing.stack) {
+                    Button(recorder.phase == .paused ? "Weiter" : "Pause") {
+                        recorder.phase == .paused ? recorder.resume() : recorder.pause()
+                    }
+                    .buttonStyle(OutlineButtonStyle())
+                    .frame(maxWidth: .infinity)
+
+                    Button("Beenden") { confirmStop = true }
+                        .buttonStyle(PrimaryButtonStyle(fill: AppColor.red))
                 }
-                .buttonStyle(OutlineButtonStyle())
-                .frame(maxWidth: .infinity)
-
-                Button("Beenden") { confirmStop = true }
-                    .buttonStyle(PrimaryButtonStyle(fill: AppColor.red))
+                .padding(.bottom, 24)
             }
-            .padding(.bottom, 24)
+            .padding(.horizontal, AppSpacing.screen)
         }
-        .padding(.horizontal, AppSpacing.screen)
         .alert("Training beenden?", isPresented: $confirmStop) {
             Button("Weiter aufzeichnen", role: .cancel) {}
             Button("Beenden") { recorder.finish() }
         }
     }
 
-    private var sensorBadge: some View {
-        let state = recorder.hrState
-        return HStack(spacing: 6) {
-            Circle()
-                .fill(state.isConnected ? AppColor.green : AppColor.orange)
-                .frame(width: 8, height: 8)
-            Text(state.isConnected ? "Gurt verbunden" : state.label)
-                .font(.caption)
+    private var liveMap: some View {
+        Map {
+            if displayCoordinates.count >= 2 {
+                MapPolyline(coordinates: displayCoordinates)
+                    .stroke(AppColor.cta, lineWidth: 4)
+            }
+            if let last = recorder.trackCoordinates.last {
+                Annotation("", coordinate: last) {
+                    ZStack {
+                        Circle().fill(AppColor.cta.opacity(0.3)).frame(width: 22, height: 22)
+                        Circle().fill(AppColor.cta).frame(width: 12, height: 12)
+                            .overlay(Circle().stroke(.white, lineWidth: 2))
+                    }
+                }
+            }
+        }
+        .mapStyle(.standard)
+    }
+
+    private func liveStat(_ label: String, _ value: String) -> some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.system(size: 20, weight: .bold).monospacedDigit())
+                .foregroundStyle(AppColor.text)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(label)
+                .font(.caption2)
                 .foregroundStyle(AppColor.muted)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var sensorBadge: some View {
+        let hr = recorder.hrState
+        let gps = recorder.gpsState
+        return HStack(spacing: 10) {
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(hr.isConnected ? AppColor.green : AppColor.orange)
+                    .frame(width: 8, height: 8)
+                Text("Gurt").font(.caption).foregroundStyle(AppColor.muted)
+            }
+            if recorder.activity.usesGPS {
+                HStack(spacing: 5) {
+                    Circle()
+                        .fill(gps.isActive ? AppColor.green : AppColor.orange)
+                        .frame(width: 8, height: 8)
+                    Text("GPS").font(.caption).foregroundStyle(AppColor.muted)
+                }
+            }
         }
     }
 
@@ -300,7 +411,26 @@ private struct WorkoutSessionView: View {
                 }
                 .padding(.top, 24)
 
+                // Route (nur Outdoor mit Track)
+                if recorder.activity.usesGPS, displayCoordinates.count >= 2 {
+                    Map {
+                        MapPolyline(coordinates: displayCoordinates)
+                            .stroke(AppColor.cta, lineWidth: 4)
+                    }
+                    .frame(height: 220)
+                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+                    .allowsHitTesting(false)
+                }
+
                 // Statistiken
+                if recorder.activity.usesGPS {
+                    HStack(spacing: AppSpacing.stack) {
+                        summaryStat("Distanz", recorder.distanceString, "", AppColor.text)
+                        summaryStat(recorder.activity == .rad ? "Tempo" : "Pace",
+                                    recorder.paceString, "", AppColor.text)
+                        summaryStat("Höhenmeter", "\(Int(recorder.elevationGain))", "m", AppColor.text)
+                    }
+                }
                 HStack(spacing: AppSpacing.stack) {
                     summaryStat("Ø HF", recorder.avgHR.map { "\($0)" } ?? "–", "bpm", AppColor.primary)
                     summaryStat("Max HF", recorder.maxHR.map { "\($0)" } ?? "–", "bpm", AppColor.red)
@@ -314,17 +444,10 @@ private struct WorkoutSessionView: View {
                             .font(.callout.bold())
                             .foregroundStyle(AppColor.text)
                         HrLineChart(chart: recorder.hrPoints)
-                            .frame(height: 200)
+                            .frame(height: 180)
                     }
                     .padding(AppSpacing.card)
                     .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
-                } else {
-                    Text("Keine Herzfrequenz-Daten aufgezeichnet")
-                        .font(.footnote)
-                        .foregroundStyle(AppColor.muted)
-                        .frame(maxWidth: .infinity)
-                        .padding(AppSpacing.card)
-                        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
                 }
 
                 if let err = saveError {
@@ -366,8 +489,10 @@ private struct WorkoutSessionView: View {
     private func summaryStat(_ label: String, _ value: String, _ unit: String, _ color: Color) -> some View {
         VStack(spacing: 4) {
             Text(value)
-                .font(.system(size: 18, weight: .black).monospacedDigit())
+                .font(.system(size: 17, weight: .black).monospacedDigit())
                 .foregroundStyle(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
             if !unit.isEmpty {
                 Text(unit).font(.caption2).foregroundStyle(AppColor.muted)
             }
@@ -394,7 +519,10 @@ private struct WorkoutSessionView: View {
             trainingType: recorder.activity.rawValue,
             startedAt: started,
             duration: recorder.durationString,
-            samples: recorder.samples
+            samples: recorder.samples,
+            track: recorder.track.isEmpty ? nil : recorder.track,
+            distanceMeters: recorder.distanceMeters > 0 ? recorder.distanceMeters : nil,
+            elevationGain: recorder.elevationGain > 0 ? recorder.elevationGain : nil
         )
         Task {
             do {

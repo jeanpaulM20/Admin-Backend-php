@@ -81,6 +81,20 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       `ALTER TABLE review ADD COLUMN date DATETIME DEFAULT NULL`,
       `ALTER TABLE review ADD COLUMN source VARCHAR(20) DEFAULT NULL`,
       `ALTER TABLE review ADD INDEX idx_review_client_id (client_id)`,
+      // GPS-Tracking (Phase 2): Höhenmeter am Review + Track-Punkte-Tabelle
+      `ALTER TABLE review ADD COLUMN elevation_gain INT DEFAULT NULL`,
+      `CREATE TABLE IF NOT EXISTS review_gps_track (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          timestamp DATETIME DEFAULT NULL,
+          lat DOUBLE NOT NULL,
+          lon DOUBLE NOT NULL,
+          ele FLOAT DEFAULT NULL,
+          accuracy FLOAT DEFAULT NULL,
+          sort INT NOT NULL DEFAULT 0,
+          review_id INT NOT NULL,
+          INDEX idx_rgt_review_id (review_id),
+          CONSTRAINT fk_rgt_review FOREIGN KEY (review_id) REFERENCES review(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
       // Plan publication workflow: draft until the trainer releases it to the client
       `ALTER TABLE trainingplan ADD COLUMN status VARCHAR(20) DEFAULT 'draft'`,
       `ALTER TABLE trainingplan ADD COLUMN published_at DATETIME DEFAULT NULL`,

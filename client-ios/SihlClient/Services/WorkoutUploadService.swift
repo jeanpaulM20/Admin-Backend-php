@@ -14,6 +14,9 @@ struct WorkoutUploadService {
         let startedAt: Date
         let duration: String
         let samples: [HrSample]
+        var track: [TrackPoint]? = nil
+        var distanceMeters: Double? = nil
+        var elevationGain: Double? = nil
     }
 
     private static let iso = ISO8601DateFormatter()
@@ -22,12 +25,26 @@ struct WorkoutUploadService {
 
     /// Wirft bei Fehlschlag — Aufrufer entscheidet über Queue (`queue(_:)`).
     func upload(_ p: Payload) async throws {
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "trainingType": p.trainingType,
             "startedAt": Self.iso.string(from: p.startedAt),
             "duration": p.duration,
             "hrSeries": p.samples.map { ["t": Self.iso.string(from: $0.t), "v": $0.bpm] },
         ]
+        if let track = p.track, !track.isEmpty {
+            body["gpsTrack"] = track.map { pt -> [String: Any] in
+                var row: [String: Any] = [
+                    "t": Self.iso.string(from: pt.t),
+                    "lat": pt.lat,
+                    "lon": pt.lon,
+                ]
+                if let ele = pt.ele { row["ele"] = ele }
+                if let acc = pt.acc { row["acc"] = acc }
+                return row
+            }
+        }
+        if let d = p.distanceMeters { body["distanceMeters"] = d }
+        if let e = p.elevationGain  { body["elevationGain"]  = e }
         let result = try await APIClient.shared.postJSONObject(
             "/api/client/workouts/\(p.clientId)", body: body)
         guard result?["success"] as? Bool == true else {

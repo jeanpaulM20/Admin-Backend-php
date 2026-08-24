@@ -167,6 +167,17 @@ export class ClientAppController {
     return this.appService.createWorkout(clientId, body);
   }
 
+  /** GPS-Track einer App-Aufzeichnung */
+  @Get('workouts/:clientId/:reviewId/track')
+  workoutTrack(
+    @Req() req: Request,
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Param('reviewId', ParseIntPipe) reviewId: number,
+  ) {
+    this.assertClientAccess(req, clientId);
+    return this.appService.getWorkoutTrack(clientId, reviewId);
+  }
+
   /** Training reviews — HR data + charts from review module */
   @Get('reviews/:clientId')
   reviews(@Req() req: Request, @Param('clientId', ParseIntPipe) clientId: number) {

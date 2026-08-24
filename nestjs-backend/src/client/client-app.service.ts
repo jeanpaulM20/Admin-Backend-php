@@ -927,6 +927,8 @@ export class ClientAppService {
           hrr: null, // Heart Rate Recovery – requires specific protocol data
           hrv: null, // Heart Rate Variability – requires R-R interval data
           source: review.source ?? null,
+          distance: review.distance ?? null,          // Meter (App-Aufzeichnungen)
+          elevationGain: review.elevation_gain ?? null,
           chart,
         };
       }),
@@ -966,6 +968,35 @@ export class ClientAppService {
       ? Math.round(Number(body.kcal))
       : null;
 
+    // GPS-Track (Phase 2) — optional, gefiltert und begrenzt
+    const rawTrack: any[] = Array.isArray(body?.gpsTrack) ? body.gpsTrack : [];
+    if (rawTrack.length > 30000) {
+      throw new Error('gpsTrack zu gross (max. 30000 Punkte)');
+    }
+    const gpsTrack = rawTrack
+      .map((p) => ({
+        t: String(p?.t ?? ''),
+        lat: Number(p?.lat),
+        lon: Number(p?.lon),
+        ele: Number.isFinite(Number(p?.ele)) ? Number(p.ele) : null,
+        acc: Number.isFinite(Number(p?.acc)) ? Number(p.acc) : null,
+      }))
+      .filter(
+        (p) =>
+          p.t && !Number.isNaN(Date.parse(p.t)) &&
+          Number.isFinite(p.lat) && Number.isFinite(p.lon) &&
+          Math.abs(p.lat) <= 90 && Math.abs(p.lon) <= 180,
+      );
+
+    const distanceMeters =
+      Number.isFinite(Number(body?.distanceMeters)) && Number(body.distanceMeters) > 0
+        ? Math.round(Number(body.distanceMeters))
+        : null;
+    const elevationGain =
+      Number.isFinite(Number(body?.elevationGain)) && Number(body.elevationGain) >= 0
+        ? Math.round(Number(body.elevationGain))
+        : null;
+
     const review = await this.reviewService.createWorkout({
       clientId,
       date: new Date(date).toISOString().slice(0, 19).replace('T', ' '),
@@ -973,7 +1004,10 @@ export class ClientAppService {
       duration,
       heartRate,
       kcal,
+      distanceMeters,
+      elevationGain,
       hrSeries,
+      gpsTrack,
     });
 
     return {
@@ -982,7 +1016,19 @@ export class ClientAppService {
       hrMax: hrValues.length ? Math.max(...hrValues) : null,
       hrAvg: heartRate,
       points: hrSeries.length,
+      trackPoints: gpsTrack.length,
     };
+  }
+
+  /** GPS-Track einer Aufzeichnung (fürs Karten-/Höhenprofil-Detail) */
+  async getWorkoutTrack(clientId: number, reviewId: number) {
+    const rows = await this.reviewService.getTrackForClient(clientId, reviewId);
+    return rows.map((r) => ({
+      t: r.timestamp,
+      lat: r.lat,
+      lon: r.lon,
+      ele: r.ele ?? null,
+    }));
   }
 
   /** Polar status (stub – Polar integration to be migrated) */

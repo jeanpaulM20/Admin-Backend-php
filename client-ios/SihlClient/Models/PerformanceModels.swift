@@ -93,6 +93,9 @@ struct TrainingReview: Identifiable, Hashable {
     let hrAvg:        Int?
     let hrr:          Int?
     let hrv:          Double?
+    /// Distanz in Metern (App-Aufzeichnungen mit GPS)
+    let distance:      Double?
+    let elevationGain: Int?
     let chart:        [HrPoint]
 
     init(json: [String: Any]) {
@@ -105,6 +108,8 @@ struct TrainingReview: Identifiable, Hashable {
         self.hrAvg        = Int("\(json["hrAvg"] ?? "")")
         self.hrr          = Int("\(json["hrr"]   ?? "")")
         self.hrv          = Double("\(json["hrv"] ?? "")")
+        self.distance      = Double("\(json["distance"] ?? "")")
+        self.elevationGain = Int("\(json["elevationGain"] ?? "")")
 
         if let rawChart = json["chart"] as? [[String: Any]] {
             self.chart = rawChart.compactMap { p -> HrPoint? in
