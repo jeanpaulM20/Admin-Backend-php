@@ -81,6 +81,25 @@ struct TourDetail {
     }
 }
 
+// MARK: - TourRoute (Übergabe an den Workout-Recorder, T3)
+
+/// Eine Route, der beim Aufzeichnen gefolgt wird (graue Linie + Off-Route-Hinweis).
+struct TourRoute {
+    let name: String
+    let segments: [[CLLocationCoordinate2D]]
+    let distanceKm: Double?
+    let activity: String        // "hiking" | "bicycle"
+
+    /// Vorausgewählte Aufnahme-Aktivität.
+    var workoutActivity: WorkoutActivity { activity == "bicycle" ? .rad : .wandern }
+}
+
+extension TourDetail {
+    var asRoute: TourRoute {
+        TourRoute(name: name, segments: segments, distanceKm: distanceKm, activity: activity)
+    }
+}
+
 // MARK: - TourService
 
 /// Touren-Discovery (T1, s. KONZEPT-TOUREN.md): markierte OSM-Routen über

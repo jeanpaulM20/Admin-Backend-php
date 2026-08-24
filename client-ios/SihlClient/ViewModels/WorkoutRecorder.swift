@@ -53,6 +53,14 @@ final class WorkoutRecorder {
     private(set) var startedAt: Date?
     private(set) var elapsed: TimeInterval = 0
 
+    // Tour folgen (T3): Route-Overlay + Off-Route-Erkennung
+    private(set) var routeName: String?
+    private(set) var routeSegments: [[CLLocationCoordinate2D]] = []
+    private(set) var isOffRoute = false
+    private(set) var offRouteDistance: Double = 0
+    private var routeCheckPoints: [CLLocationCoordinate2D] = []
+    private var pointsSinceRouteCheck = 0
+
     // Pausen-Buchhaltung: elapsed = jetzt - start - Pausensumme
     private var pausedTotal: TimeInterval = 0
     private var pauseBegan: Date?
@@ -121,6 +129,16 @@ final class WorkoutRecorder {
         startedAt = Date()
         phase = .recording
         startTicker()
+    }
+
+    /// Route hinterlegen, der gefolgt wird (T3): Overlay + Off-Route-Hinweis.
+    /// Für den Distanz-Check wird die Route auf ~800 Punkte ausgedünnt.
+    func setRoute(_ route: TourRoute) {
+        routeName = route.name
+        routeSegments = route.segments
+        let all = route.segments.flatMap { $0 }
+        let stride = max(1, all.count / 800)
+        routeCheckPoints = all.enumerated().compactMap { $0.offset % stride == 0 ? $0.element : nil }
     }
 
     /// GPS-Berechtigung/Fix schon im Setup anstoßen (Outdoor-Aktivität gewählt).
@@ -199,6 +217,29 @@ final class WorkoutRecorder {
         }
 
         track.append(point)
+        updateOffRoute(point)
+    }
+
+    /// Off-Route-Check (gedrosselt, alle 5 Punkte): nächster Routenpunkt.
+    /// Hysterese 100 m raus / 60 m zurück, damit der Hinweis nicht flattert.
+    private func updateOffRoute(_ point: TrackPoint) {
+        guard !routeCheckPoints.isEmpty else { return }
+        pointsSinceRouteCheck += 1
+        guard pointsSinceRouteCheck >= 5 || track.count <= 1 else { return }
+        pointsSinceRouteCheck = 0
+
+        let here = CLLocation(latitude: point.lat, longitude: point.lon)
+        var minDist = Double.greatestFiniteMagnitude
+        for rp in routeCheckPoints {
+            let d = here.distance(from: CLLocation(latitude: rp.latitude, longitude: rp.longitude))
+            if d < minDist { minDist = d }
+        }
+        offRouteDistance = minDist
+        if isOffRoute {
+            if minDist < 60 { isOffRoute = false }
+        } else if minDist > 100 {
+            isOffRoute = true
+        }
     }
 
     // MARK: Intern — Zeit & Snapshot

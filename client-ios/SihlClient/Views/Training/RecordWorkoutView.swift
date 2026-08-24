@@ -9,6 +9,9 @@ struct RecordWorkoutView: View {
     @Environment(AuthViewModel.self) private var auth
     @Environment(\.dismiss) private var dismiss
 
+    /// Optional: Tour, der gefolgt wird (T3 — Overlay + Off-Route-Hinweis).
+    var tour: TourRoute? = nil
+
     @State private var activity: WorkoutActivity = .joggen
     @State private var recorder: WorkoutRecorder?
     @State private var showSession = false
@@ -21,6 +24,8 @@ struct RecordWorkoutView: View {
             AppColor.background.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: AppSpacing.stack) {
+                    if let tour { tourCard(tour) }
+
                     Text("Aktivität")
                         .font(.subheadline.bold())
                         .foregroundStyle(AppColor.text)
@@ -62,6 +67,10 @@ struct RecordWorkoutView: View {
                     source: Self.makeHeartRateSource(demo: isDemo),
                     gpsSource: Self.makeLocationSource(demo: isDemo)
                 )
+                if let tour {
+                    recorder?.setRoute(tour)
+                    activity = tour.workoutActivity
+                }
             }
             if activity.usesGPS { recorder?.prepareGPS() }
             recovered = WorkoutRecorder.pendingSnapshot()
@@ -114,6 +123,33 @@ struct RecordWorkoutView: View {
     }
 
     // MARK: Bausteine
+
+    private func tourCard(_ tour: TourRoute) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: AppRadius.control)
+                    .fill(AppColor.primary.opacity(0.15))
+                    .frame(width: 40, height: 40)
+                Image(systemName: "map")
+                    .font(.system(size: 18))
+                    .foregroundStyle(AppColor.primary)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(tour.name)
+                    .font(.subheadline.bold())
+                    .foregroundStyle(AppColor.text)
+                    .lineLimit(2)
+                Text("Route wird auf der Karte angezeigt\(tour.distanceKm.map { String(format: " · %.1f km", $0) } ?? "")")
+                    .font(.caption)
+                    .foregroundStyle(AppColor.muted)
+            }
+            Spacer()
+        }
+        .padding(AppSpacing.card)
+        .background(AppColor.surface)
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.primary, lineWidth: 1))
+    }
 
     private var activityGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: AppSpacing.stack),
@@ -232,6 +268,8 @@ private struct WorkoutSessionView: View {
     @State private var isSaving = false
     @State private var saveError: String?
     @State private var confirmDiscard = false
+    @State private var routeToast: AppToast?
+    @State private var wasOffRoute = false
 
     var body: some View {
         ZStack {
@@ -244,6 +282,18 @@ private struct WorkoutSessionView: View {
         }
         .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
+        // Off-Route-Hinweis (T3): sanfter Toast bei Verlassen/Wiederfinden der Route
+        .onChange(of: recorder.isOffRoute) { _, off in
+            if off {
+                wasOffRoute = true
+                routeToast = AppToast(
+                    message: "≈\(Int(recorder.offRouteDistance)) m neben der Route",
+                    style: .neutral)
+            } else if wasOffRoute {
+                routeToast = AppToast(message: "Zurück auf der Route", style: .success)
+            }
+        }
+        .appToast($routeToast, bottomPadding: 100)
     }
 
     /// Für die Kartendarstellung reduzierte Koordinaten (Render-Kosten).
@@ -334,6 +384,12 @@ private struct WorkoutSessionView: View {
 
     private var liveMap: some View {
         Map {
+            // Tour-Route (T3): gedeckte Linie unter dem eigenen Track
+            ForEach(recorder.routeSegments.indices, id: \.self) { i in
+                MapPolyline(coordinates: recorder.routeSegments[i])
+                    .stroke(AppColor.muted.opacity(0.8),
+                            style: StrokeStyle(lineWidth: 3, dash: [6, 4]))
+            }
             if displayCoordinates.count >= 2 {
                 MapPolyline(coordinates: displayCoordinates)
                     .stroke(AppColor.cta, lineWidth: 4)
@@ -411,9 +467,14 @@ private struct WorkoutSessionView: View {
                 }
                 .padding(.top, 24)
 
-                // Route (nur Outdoor mit Track)
+                // Route (nur Outdoor mit Track); Tour-Route als gedeckte Linie dahinter
                 if recorder.activity.usesGPS, displayCoordinates.count >= 2 {
                     Map {
+                        ForEach(recorder.routeSegments.indices, id: \.self) { i in
+                            MapPolyline(coordinates: recorder.routeSegments[i])
+                                .stroke(AppColor.muted.opacity(0.8),
+                                        style: StrokeStyle(lineWidth: 3, dash: [6, 4]))
+                        }
                         MapPolyline(coordinates: displayCoordinates)
                             .stroke(AppColor.cta, lineWidth: 4)
                     }

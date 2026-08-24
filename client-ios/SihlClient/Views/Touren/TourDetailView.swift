@@ -29,7 +29,8 @@ struct TourDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task { load() }
         .navigationDestination(isPresented: $showRecord) {
-            RecordWorkoutView()
+            // T3: Route in den Recorder übergeben (Overlay + Off-Route-Hinweis)
+            RecordWorkoutView(tour: detail?.asRoute)
         }
     }
 
@@ -84,7 +85,7 @@ struct TourDetailView: View {
                         .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
                 }
 
-                Button("Training aufzeichnen") { showRecord = true }
+                Button("Tour starten") { showRecord = true }
                     .buttonStyle(PrimaryButtonStyle())
                     .padding(.top, 8)
 
