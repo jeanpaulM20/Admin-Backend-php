@@ -32,25 +32,34 @@ enum TourActivity: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Nächstliegende Aktivität für den Rundtouren-Generator (kennt Wandern/Rad).
-    var roundtripActivity: WorkoutActivity {
+    /// Passende Aufnahme-Aktivität für den Workout-Recorder.
+    var workoutActivity: WorkoutActivity {
         switch self {
-        case .rennrad, .mtb: return .rad
-        default:             return .wandern
+        case .wandern, .vitaparcours: return .wandern
+        case .joggen, .finnenbahn:    return .joggen
+        case .rennrad, .mtb:          return .rad
+        }
+    }
+
+    /// Nächstliegende Aktivität für den Rundtouren-Generator (kennt Wandern/Rad).
+    var roundtripActivity: WorkoutActivity { workoutActivity == .rad ? .rad : .wandern }
+
+    /// Aktivität aus dem Backend-Wert (`activity` in Tour/TourDetail).
+    init(backendValue: String) {
+        switch backendValue {
+        case "bicycle":       self = .rennrad
+        case "mtb":           self = .mtb
+        case "running":       self = .joggen
+        case "fitness_trail": self = .vitaparcours
+        case "finnenbahn":    self = .finnenbahn
+        default:              self = .wandern
         }
     }
 }
 
 /// Icon je Backend-Aktivitätswert (`activity` in Tour/TourDetail).
 func tourActivityIcon(_ activity: String) -> String {
-    switch activity {
-    case "bicycle":       return "bicycle"
-    case "mtb":           return "figure.outdoor.cycle"
-    case "running":       return "figure.run"
-    case "fitness_trail": return "figure.strengthtraining.functional"
-    case "finnenbahn":    return "figure.track.and.field"
-    default:              return "figure.hiking"
-    }
+    TourActivity(backendValue: activity).icon
 }
 
 /// Eine markierte Route aus OSM (Listen-Eintrag der Touren-Discovery).
@@ -182,11 +191,7 @@ struct TourRoute {
 
     /// Vorausgewählte Aufnahme-Aktivität.
     var workoutActivity: WorkoutActivity {
-        switch activity {
-        case "bicycle", "mtb":        return .rad
-        case "running", "finnenbahn": return .joggen
-        default:                      return .wandern
-        }
+        TourActivity(backendValue: activity).workoutActivity
     }
 }
 

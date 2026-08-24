@@ -1149,8 +1149,22 @@ out tags center 80;`;
         ClientAppService.haversine(lat, lon, a.lat, a.lon) -
         ClientAppService.haversine(lat, lon, b.lat, b.lon));
 
-    this.tourListCache.set(key, { at: Date.now(), data: tours });
-    return tours;
+    // OSM führt manche Route doppelt (Route + Superroute, geteilte Wege) —
+    // pro Name bleibt nur der nächstgelegene Treffer. Finnenbahnen sind
+    // punktartige Anlagen und teilen sich oft den (Fallback-)Namen: dort
+    // dedupliziert der Name nur zusammen mit dem ~100-m-Standortraster.
+    const seenKeys = new Set<string>();
+    const deduped = tours.filter((t: any) => {
+      const dedupeKey = spec.osm === 'finnenbahn'
+        ? `${t.name}:${t.lat.toFixed(3)}:${t.lon.toFixed(3)}`
+        : t.name;
+      if (seenKeys.has(dedupeKey)) return false;
+      seenKeys.add(dedupeKey);
+      return true;
+    });
+
+    this.tourListCache.set(key, { at: Date.now(), data: deduped });
+    return deduped;
   }
 
   /** Geometrie + berechnete Werte einer Route (gecacht). */

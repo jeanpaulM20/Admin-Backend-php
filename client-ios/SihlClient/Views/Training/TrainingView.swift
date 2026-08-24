@@ -173,7 +173,7 @@ struct TrainingView: View {
                 Text("Touren entdecken")
                     .font(.subheadline.bold())
                     .foregroundStyle(AppColor.text)
-                Text("Markierte Wander- und Velorouten in deiner Nähe")
+                Text("Wander-, Lauf- und Velorouten, Vita Parcours und Finnenbahnen in deiner Nähe")
                     .font(.caption)
                     .foregroundStyle(AppColor.muted)
             }
