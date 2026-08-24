@@ -78,17 +78,29 @@ final class CoreLocationSource: NSObject, LocationSource {
         }
     }
 
+    /// true nur, wenn das Info.plist den "location"-Background-Mode deklariert —
+    /// allowsBackgroundLocationUpdates wirft sonst eine NSException (Crash).
+    private static let hasLocationBackgroundMode: Bool = {
+        let modes = Bundle.main.object(forInfoDictionaryKey: "UIBackgroundModes") as? [String] ?? []
+        return modes.contains("location")
+    }()
+
     func stop() {
         started = false
-        manager.allowsBackgroundLocationUpdates = false
+        if Self.hasLocationBackgroundMode {
+            manager.allowsBackgroundLocationUpdates = false
+        }
         manager.stopUpdatingLocation()
         emit(.idle)
     }
 
     private func beginUpdates() {
-        // Hintergrund-Updates erst nach erteilter Berechtigung aktivieren
-        manager.allowsBackgroundLocationUpdates = true
-        manager.showsBackgroundLocationIndicator = true
+        // Hintergrund-Updates erst nach erteilter Berechtigung aktivieren;
+        // ohne Background-Mode läuft die Aufzeichnung im Vordergrund weiter.
+        if Self.hasLocationBackgroundMode {
+            manager.allowsBackgroundLocationUpdates = true
+            manager.showsBackgroundLocationIndicator = true
+        }
         manager.startUpdatingLocation()
         emit(.active(accuracy: nil))
     }

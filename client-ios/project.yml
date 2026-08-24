@@ -9,18 +9,26 @@ targets:
     platform: iOS
     sources:
       - path: SihlClient
+    # Echtes Info.plist (von xcodegen generiert): UIBackgroundModes hat KEIN
+    # INFOPLIST_KEY_-Pendant in Xcode — als Build-Setting wird es still
+    # ignoriert, und allowsBackgroundLocationUpdates stürzt dann zur Laufzeit
+    # mit NSException ab.
+    info:
+      path: SihlClient/Info.plist
+      properties:
+        CFBundleDisplayName: SihlClient
+        UILaunchScreen: {}
+        UIBackgroundModes:
+          - remote-notification
+          - bluetooth-central
+          - location
+        NSBluetoothAlwaysUsageDescription: "SihlClient verbindet sich mit deinem Herzfrequenz-Brustgurt (z.B. Polar H10), um dein Training aufzuzeichnen."
+        NSLocationWhenInUseUsageDescription: "SihlClient zeichnet deine Route bei Outdoor-Trainings auf (Joggen, Radfahren, Wandern)."
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ch.sihltraining.SihlClient
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: 1
-        GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
-        INFOPLIST_KEY_UIBackgroundModes: ["remote-notification", "bluetooth-central", "location"]
-        INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription: "SihlClient verbindet sich mit deinem Herzfrequenz-Brustgurt (z.B. Polar H10), um dein Training aufzuzeichnen."
-        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "SihlClient zeichnet deine Route bei Outdoor-Trainings auf (Joggen, Radfahren, Wandern)."
-        INFOPLIST_KEY_CFBundleDisplayName: SihlClient
         SWIFT_VERSION: "5.9"
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_STYLE: Automatic
