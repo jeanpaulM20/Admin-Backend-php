@@ -4,16 +4,18 @@ import SwiftUI
 // MARK: - MetricHistoryPoint
 
 /// Pendant zu `MetricHistoryPoint` in `models/metric_history.dart`.
+/// Failable wie Flutters Parsing: Punkte mit unlesbarem Datum oder Wert
+/// werden übersprungen statt auf "heute"/0 zu fallen.
 struct MetricHistoryPoint {
     let date:  Date
     let value: Double
     let unit:  String
 
-    init(json: [String: Any]) {
-        self.date  = ISO8601DateFormatter().date(from: json["date"] as? String ?? "")
-                   ?? DateFormatter.yyyyMMdd.date(from: json["date"] as? String ?? "")
-                   ?? Date()
-        self.value = Double("\(json["value"] ?? 0)") ?? 0
+    init?(json: [String: Any]) {
+        guard let d = APIDate.parse("\(json["date"] ?? "")"),
+              let v = Double("\(json["value"] ?? "")") else { return nil }
+        self.date  = d
+        self.value = v
         self.unit  = json["unit"] as? String ?? ""
     }
 }
@@ -36,16 +38,9 @@ struct PerformanceItem: Hashable {
         self.change        = "\(json["change"]        ?? "")"
         self.unit          = "\(json["unit"]          ?? "")"
 
-        if let rawH = json["history"] as? [[String: Any]] {
-            var pts: [MetricHistoryPoint] = []
-            for h in rawH {
-                let pt = MetricHistoryPoint(json: h)
-                if pt.value != 0 { pts.append(pt) }
-            }
-            self.history = pts
-        } else {
-            self.history = []
-        }
+        // Wie Flutter: unparsebare Punkte überspringen, 0-Werte behalten.
+        self.history = (json["history"] as? [[String: Any]] ?? [])
+            .compactMap { MetricHistoryPoint(json: $0) }
     }
 
     // Hashable: nach Name identifiziert
@@ -103,9 +98,7 @@ struct TrainingReview: Identifiable, Hashable {
     init(json: [String: Any]) {
         self.id           = "\(json["id"] ?? UUID().uuidString)"
         let rawDate       = json["date"] as? String ?? ""
-        self.date         = ISO8601DateFormatter().date(from: rawDate)
-                          ?? DateFormatter.yyyyMMdd.date(from: rawDate)
-                          ?? Date()
+        self.date         = APIDate.parse(rawDate) ?? Date()
         self.trainingType = json["trainingType"] as? String ?? ""
         self.duration     = json["duration"] as? String
         self.hrMax        = Int("\(json["hrMax"] ?? "")")
@@ -212,10 +205,36 @@ struct PerformanceNavTarget: Hashable {
     func hash(into hasher: inout Hasher) { hasher.combine(sectionTitle); hasher.combine(item) }
 }
 
-// MARK: - DateFormatter helpers
+// MARK: - Datums-Parser
 
-private extension DateFormatter {
-    static let yyyyMMdd: DateFormatter = {
-        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f
+/// Robuster Parser für API-Datumsstrings. Das Backend liefert je nach
+/// Spaltentyp unterschiedliche Formate: `datetime` → ISO 8601 **mit
+/// Millisekunden** ("2026-05-12T10:00:00.000Z", von NestJS serialisiert),
+/// `date` → "yyyy-MM-dd". Fixe POSIX-Locale + gregorianischer Kalender,
+/// damit das Parsing vom Gerätekalender unabhängig ist.
+enum APIDate {
+    private static let isoFractional: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
     }()
+    private static let iso = ISO8601DateFormatter()
+
+    private static func formatter(_ format: String) -> DateFormatter {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.calendar = Calendar(identifier: .gregorian)
+        f.dateFormat = format
+        return f
+    }
+    private static let yyyyMMddHHmmss = formatter("yyyy-MM-dd HH:mm:ss")
+    private static let yyyyMMdd       = formatter("yyyy-MM-dd")
+
+    static func parse(_ raw: String) -> Date? {
+        guard !raw.isEmpty else { return nil }
+        return isoFractional.date(from: raw)
+            ?? iso.date(from: raw)
+            ?? yyyyMMddHHmmss.date(from: raw)
+            ?? yyyyMMdd.date(from: raw)
+    }
 }
