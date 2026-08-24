@@ -31,6 +31,24 @@ export class DailyQuoteService {
   /** In-memory cache: clientId → { date, quote } */
   private readonly cache = new Map<number, CacheEntry>();
 
+  /** Zuletzt verwendete Autoren je Client (best effort, übersteht keinen Deploy). */
+  private readonly recentAuthors = new Map<number, string[]>();
+
+  /** Themenrichtungen — erzwingen Tagesvarianz, wo das Modell sonst auf
+   *  dieselben Lieblingszitate konvergiert. */
+  private static readonly THEMES = [
+    'Ausdauer und Dranbleiben',
+    'Mut und Anfangen',
+    'Disziplin und Gewohnheit',
+    'Erholung und Geduld',
+    'Freude an der Bewegung',
+    'Wachstum durch Widerstand',
+    'Gelassenheit und mentale Stärke',
+    'Natur und Draussensein',
+    'kleine Schritte, grosse Wirkung',
+    'Selbstvertrauen',
+  ];
+
   constructor(
     @InjectRepository(TrainingPlan)
     private readonly planRepo: Repository<TrainingPlan>,
@@ -41,7 +59,10 @@ export class DailyQuoteService {
   }
 
   async getQuote(clientId: number, firstName: string): Promise<DailyQuoteDto> {
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    // Tageswechsel um Mitternacht Schweizer Zeit (nicht UTC — sonst erst um 1/2 Uhr)
+    const today = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Europe/Zurich',
+    }).format(new Date()); // YYYY-MM-DD
 
     // ── 1. In-memory cache hit ──────────────────────────────────────────────
     const cached = this.cache.get(clientId);
@@ -57,9 +78,18 @@ export class DailyQuoteService {
       .join(', ') || 'allgemeine Fitness und Gesundheit';
 
     // ── 3. Generate via Claude (or use fallback) ────────────────────────────
+    // Tagesabhängiges Thema (je Client verschoben) + zuletzt verwendete
+    // Autoren vermeiden → echte Varianz von Tag zu Tag
+    const dayNum = Math.floor(new Date(today).getTime() / 86_400_000);
+    const theme = DailyQuoteService.THEMES[(dayNum + clientId) % DailyQuoteService.THEMES.length];
+    const avoid = this.recentAuthors.get(clientId) ?? [];
+
     const quote = this.anthropic
-      ? await this._generateWithClaude(firstName, context)
+      ? await this._generateWithClaude(firstName, context, today, theme, avoid)
       : this._fallback();
+
+    const authors = [quote.author, ...avoid].slice(0, 7);
+    this.recentAuthors.set(clientId, authors);
 
     // ── 4. Cache for today ──────────────────────────────────────────────────
     this.cache.set(clientId, { date: today, quote });
@@ -69,20 +99,29 @@ export class DailyQuoteService {
   private async _generateWithClaude(
     firstName: string,
     context: string,
+    today: string,
+    theme: string,
+    avoidAuthors: string[],
   ): Promise<DailyQuoteDto> {
     try {
+      const avoidLine = avoidAuthors.length
+        ? `\n- Wähle eine Person, die NICHT in dieser Liste steht: ${avoidAuthors.join('; ')}.`
+        : '';
       const msg = await this.anthropic!.messages.create({
         model: 'claude-haiku-4-5',
         max_tokens: 256,
         messages: [
           {
             role: 'user',
-            content: `Du generierst ein inspirierendes Zitat für ${firstName}, der/die gerade mit folgendem Schwerpunkt trainiert: ${context}.
+            content: `Heute ist der ${today}. Du wählst das Tageszitat für ${firstName}, der/die gerade mit folgendem Schwerpunkt trainiert: ${context}.
+
+Heutige Themenrichtung: ${theme}.
 
 Regeln:
-- Wähle ein ECHTES, belegtes Zitat einer realen Person (Athlet, Philosoph, Denker, Wissenschaftler).
+- Wähle ein ECHTES, belegtes Zitat einer realen Person (Athlet, Philosoph, Denker, Wissenschaftler, Künstler).
 - Verwende nur Zitate, bei denen du sehr sicher bist, dass sie korrekt zitiert und korrekt zugeschrieben sind.
-- Das Zitat soll thematisch zu Disziplin, Bewegung, Gesundheit, Wachstum oder Ausdauer passen.
+- Überrasche: Jeder Tag soll ein anderes Zitat einer anderen Person bringen — greife bewusst auch zu weniger naheliegenden Persönlichkeiten.${avoidLine}
+- Das Zitat soll zur heutigen Themenrichtung passen.
 - Antwort auf Deutsch (oder das Originalzitat + deutsche Übersetzung falls passend).
 - Antworte NUR als valides JSON ohne Markdown: {"text": "...", "author": "Vorname Nachname, Beruf/Epoche"}`,
           },
