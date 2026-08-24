@@ -47,8 +47,6 @@ struct StartView: View {
 
                 DailyQuoteView(isLoading: vm.quoteLoading, quote: vm.quote)
 
-                summaryRow
-
                 sectionHeader
 
                 appointmentList
@@ -75,15 +73,6 @@ struct StartView: View {
                 .font(.app(28, weight: .heavy))
                 .foregroundStyle(AppColor.text)
         }
-    }
-
-    // MARK: - Summary
-
-    /// Einzige Kennzahl — das nächste Termindatum steht bereits in der Liste darunter.
-    private var summaryRow: some View {
-        SummaryCard(icon: "circle.grid.2x2",
-                    value: "\(vm.startData?.totalCredits ?? 0)",
-                    label: "Credits")
     }
 
     // MARK: - Section Header
