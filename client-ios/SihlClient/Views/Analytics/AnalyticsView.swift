@@ -294,16 +294,18 @@ private struct TrainingReviewSectionCard: View {
                     let isDisabled = compareMode && !review.hasChartData
                     let isSelected = selectedIds.contains(review.id)
 
-                    ReviewRowView(
-                        review:     review,
-                        isLast:     isLast,
-                        compareMode: compareMode,
-                        isSelected: isSelected,
-                        isDisabled: isDisabled
-                    )
-                    .onTapGesture {
-                        guard !isDisabled else { return }
-                        if compareMode {
+                    if compareMode {
+                        // Vergleichsmodus: Tap toggelt die Auswahl
+                        ReviewRowView(
+                            review:     review,
+                            isLast:     isLast,
+                            compareMode: compareMode,
+                            isSelected: isSelected,
+                            isDisabled: isDisabled
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            guard !isDisabled else { return }
                             withAnimation {
                                 if selectedIds.contains(review.id) {
                                     selectedIds.remove(review.id)
@@ -312,12 +314,18 @@ private struct TrainingReviewSectionCard: View {
                                 }
                             }
                         }
-                    }
-                    // NavigationLink nur außerhalb Vergleichsmodus
-                    .background {
-                        if !compareMode {
-                            NavigationLink(value: review) { EmptyView() }.opacity(0)
+                    } else {
+                        // Normalmodus: ganze Zeile ist der NavigationLink zum Detail
+                        NavigationLink(value: review) {
+                            ReviewRowView(
+                                review:     review,
+                                isLast:     isLast,
+                                compareMode: compareMode,
+                                isSelected: isSelected,
+                                isDisabled: isDisabled
+                            )
                         }
+                        .buttonStyle(.plain)
                     }
                 }
             }
