@@ -1031,6 +1031,133 @@ export class ClientAppService {
     }));
   }
 
+  // ── Touren-Discovery (T1, s. client-ios/KONZEPT-TOUREN.md) ────────
+  // Proxy + Cache vor der Overpass API: markierte OSM-Routen-Relationen
+  // (Wanderland/Veloland etc.). Cache ist Pflicht (Overpass fair use).
+
+  private tourListCache = new Map<string, { at: number; data: any }>();
+  private tourDetailCache = new Map<string, { at: number; data: any }>();
+  private static readonly TOUR_TTL_MS = 24 * 60 * 60 * 1000;
+
+  private async overpass(query: string): Promise<any> {
+    const res = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'data=' + encodeURIComponent(query),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok) throw new Error(`Overpass ${res.status}`);
+    return res.json();
+  }
+
+  private static haversine(aLat: number, aLon: number, bLat: number, bLon: number): number {
+    const R = 6371000;
+    const dLat = ((bLat - aLat) * Math.PI) / 180;
+    const dLon = ((bLon - aLon) * Math.PI) / 180;
+    const s =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((aLat * Math.PI) / 180) * Math.cos((bLat * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(s));
+  }
+
+  /** Markierte OSM-Routen im Umkreis (gecacht, Raster 0.01°). */
+  async getTours(lat: number, lon: number, radiusKm: number, activity: string) {
+    const osmRoute = activity === 'rad' ? 'bicycle' : 'hiking';
+    const r = Math.min(Math.max(radiusKm, 1), 30);
+    const key = `${osmRoute}:${lat.toFixed(2)}:${lon.toFixed(2)}:${Math.round(r)}`;
+    const hit = this.tourListCache.get(key);
+    if (hit && Date.now() - hit.at < ClientAppService.TOUR_TTL_MS) return hit.data;
+
+    const query = `[out:json][timeout:25];
+relation["route"="${osmRoute}"]["name"](around:${Math.round(r * 1000)},${lat},${lon});
+out tags center 80;`;
+    const json = await this.overpass(query);
+
+    const tours = (json?.elements ?? [])
+      .filter((e: any) => e?.tags?.name && e?.center)
+      .map((e: any) => {
+        const distKm = parseFloat(String(e.tags.distance ?? '').replace(',', '.')) || null;
+        return {
+          id: String(e.id),
+          name: String(e.tags.name),
+          ref: e.tags.ref ?? null,
+          activity: osmRoute,
+          network: e.tags.network ?? null,     // lwn/rwn/nwn = lokal/regional/national
+          distanceKm: distKm,
+          durationMin: distKm ? ClientAppService.tourDuration(distKm, osmRoute) : null,
+          difficulty: distKm ? ClientAppService.tourDifficulty(distKm) : null,
+          lat: e.center.lat,
+          lon: e.center.lon,
+        };
+      })
+      .sort((a: any, b: any) =>
+        ClientAppService.haversine(lat, lon, a.lat, a.lon) -
+        ClientAppService.haversine(lat, lon, b.lat, b.lon));
+
+    this.tourListCache.set(key, { at: Date.now(), data: tours });
+    return tours;
+  }
+
+  /** Geometrie + berechnete Werte einer Route (gecacht). */
+  async getTourDetail(id: string) {
+    const hit = this.tourDetailCache.get(id);
+    if (hit && Date.now() - hit.at < ClientAppService.TOUR_TTL_MS) return hit.data;
+
+    const relId = parseInt(id, 10);
+    if (!Number.isFinite(relId)) throw new Error('Ungueltige Touren-ID');
+    const json = await this.overpass(`[out:json][timeout:60];relation(${relId});out geom;`);
+    const rel = (json?.elements ?? [])[0];
+    if (!rel) throw new Error('Tour nicht gefunden');
+
+    // Wege-Segmente der Relation (Reihenfolge in OSM nicht garantiert —
+    // wir liefern Segmente; Länge = Summe, korrekt unabhängig von Ordnung)
+    const segments: { lat: number; lon: number }[][] = [];
+    let distanceM = 0;
+    for (const m of rel.members ?? []) {
+      if (m.type !== 'way' || !Array.isArray(m.geometry) || m.geometry.length < 2) continue;
+      const seg = m.geometry.map((g: any) => ({ lat: g.lat, lon: g.lon }));
+      for (let i = 1; i < seg.length; i++) {
+        distanceM += ClientAppService.haversine(seg[i - 1].lat, seg[i - 1].lon, seg[i].lat, seg[i].lon);
+      }
+      segments.push(seg);
+    }
+    // Payload begrenzen: lange Segmente ausdünnen (max ~4000 Punkte gesamt)
+    const total = segments.reduce((n, s) => n + s.length, 0);
+    const stride = Math.max(1, Math.ceil(total / 4000));
+    const slim = segments.map((seg) =>
+      seg.filter((_, i) => i % stride === 0 || i === seg.length - 1));
+
+    const distKm = distanceM / 1000;
+    const osmRoute = rel.tags?.route === 'bicycle' ? 'bicycle' : 'hiking';
+    const detail = {
+      id: String(rel.id),
+      name: rel.tags?.name ?? 'Route',
+      ref: rel.tags?.ref ?? null,
+      activity: osmRoute,
+      network: rel.tags?.network ?? null,
+      operator: rel.tags?.operator ?? null,
+      description: rel.tags?.description ?? null,
+      distanceKm: Math.round(distKm * 10) / 10,
+      durationMin: ClientAppService.tourDuration(distKm, osmRoute),
+      difficulty: ClientAppService.tourDifficulty(distKm),
+      segments: slim,
+    };
+    this.tourDetailCache.set(id, { at: Date.now(), data: detail });
+    return detail;
+  }
+
+  /** SAC-Basisformel ohne Höhenmeter (T1; Höhenprofil folgt mit ORS). */
+  private static tourDuration(distKm: number, osmRoute: string): number {
+    const hours = osmRoute === 'bicycle' ? distKm / 15 : distKm / 4.2;
+    return Math.round(hours * 60);
+  }
+
+  private static tourDifficulty(distKm: number): string {
+    if (distKm < 8) return 'Leicht';
+    if (distKm < 16) return 'Mittel';
+    return 'Schwer';
+  }
+
   /** Polar status (stub – Polar integration to be migrated) */
   getPolarStatus(_clientId: number) {
     return { connected: false, connectUrl: null };

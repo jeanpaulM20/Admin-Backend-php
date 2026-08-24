@@ -1,5 +1,6 @@
 import {
   Controller, Get, Post, Put, Delete, Param, Body, Query, Res, Req,
+  HttpException, HttpStatus,
   ParseIntPipe, NotFoundException, ForbiddenException,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
@@ -165,6 +166,35 @@ export class ClientAppController {
   ) {
     this.assertClientAccess(req, clientId);
     return this.appService.createWorkout(clientId, body);
+  }
+
+  /** Touren-Discovery: markierte OSM-Routen im Umkreis */
+  @Get('tours/:clientId')
+  tours(
+    @Req() req: Request,
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Query('lat') lat: string,
+    @Query('lon') lon: string,
+    @Query('radiusKm') radiusKm: string,
+    @Query('activity') activity: string,
+  ) {
+    this.assertClientAccess(req, clientId);
+    const la = parseFloat(lat), lo = parseFloat(lon);
+    if (!Number.isFinite(la) || !Number.isFinite(lo)) {
+      throw new HttpException({ message: 'lat/lon fehlen' }, HttpStatus.BAD_REQUEST);
+    }
+    return this.appService.getTours(la, lo, parseFloat(radiusKm) || 10, activity ?? 'wandern');
+  }
+
+  /** Touren-Detail: Geometrie + berechnete Werte */
+  @Get('tours/:clientId/:tourId')
+  tourDetail(
+    @Req() req: Request,
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Param('tourId') tourId: string,
+  ) {
+    this.assertClientAccess(req, clientId);
+    return this.appService.getTourDetail(tourId);
   }
 
   /** GPS-Track einer App-Aufzeichnung */

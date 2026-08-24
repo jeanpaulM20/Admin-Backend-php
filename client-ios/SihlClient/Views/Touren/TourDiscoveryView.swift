@@ -1,0 +1,275 @@
+import SwiftUI
+import MapKit
+
+// MARK: - TourDiscoveryView (T1: markierte OSM-Routen entdecken)
+
+/// Komoot-inspirierte Touren-Suche: Karte + Orts-Suche + Aktivität/Radius,
+/// Tour-Karten unten. Datenquelle: OpenStreetMap via Backend-Proxy.
+struct TourDiscoveryView: View {
+    @Environment(AuthViewModel.self) private var auth
+
+    @State private var activity: WorkoutActivity = .wandern
+    @State private var radiusKm: Double = 10
+    @State private var searchText = ""
+    @State private var center = CLLocationCoordinate2D(latitude: 47.37, longitude: 8.54) // Zürich
+    @State private var cameraCenter: CLLocationCoordinate2D?
+    @State private var camera: MapCameraPosition = .region(
+        MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: 47.37, longitude: 8.54),
+                           span: MKCoordinateSpan(latitudeDelta: 0.15, longitudeDelta: 0.15)))
+
+    @State private var tours: [Tour] = []
+    @State private var isLoading = false
+    @State private var error: String?
+    @State private var detailTour: Tour?
+
+    private var isDemo: Bool { auth.clientId == "demo" }
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            map
+
+            // Kopfzeile: Suche + Filter
+            VStack(spacing: 10) {
+                HStack(spacing: 10) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.callout)
+                            .foregroundStyle(AppColor.muted)
+                        TextField("Ort suchen…", text: $searchText)
+                            .font(.subheadline)
+                            .foregroundStyle(AppColor.text)
+                            .submitLabel(.search)
+                            .onSubmit { searchLocation() }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(AppColor.surface)
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(AppColor.border, lineWidth: 1))
+                }
+
+                HStack(spacing: 10) {
+                    // Aktivität
+                    HStack(spacing: 0) {
+                        activityChip(.wandern, icon: "figure.hiking")
+                        activityChip(.rad, icon: "figure.outdoor.cycle")
+                    }
+                    .background(AppColor.surface)
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(AppColor.border, lineWidth: 1))
+
+                    // Radius
+                    Menu {
+                        ForEach([5.0, 10, 25], id: \.self) { r in
+                            Button("in \(Int(r)) km Umkreis") { radiusKm = r; reload() }
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "scope").font(.caption)
+                            Text("\(Int(radiusKm)) km").font(.footnote.weight(.medium))
+                        }
+                        .foregroundStyle(AppColor.text)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(AppColor.surface)
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(AppColor.border, lineWidth: 1))
+                    }
+
+                    Spacer()
+
+                    // In diesem Gebiet suchen (Kartenmitte übernehmen)
+                    Button {
+                        if let c = cameraCenter { center = c }
+                        reload()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.counterclockwise").font(.caption)
+                            Text("Hier suchen").font(.footnote.weight(.bold))
+                        }
+                        .foregroundStyle(AppColor.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(AppColor.cta)
+                        .clipShape(Capsule())
+                    }
+                }
+            }
+            .padding(.horizontal, AppSpacing.screen)
+            .padding(.top, 12)
+
+            // Tour-Karten unten
+            VStack {
+                Spacer()
+                bottomCards
+            }
+        }
+        .navigationTitle("Touren")
+        .navigationBarTitleDisplayMode(.inline)
+        .task { if tours.isEmpty { reload() } }
+        .navigationDestination(item: $detailTour) { tour in
+            TourDetailView(tour: tour)
+        }
+    }
+
+    // MARK: Karte
+
+    private var map: some View {
+        Map(position: $camera) {
+            ForEach(tours) { tour in
+                Annotation(tour.name, coordinate:
+                            CLLocationCoordinate2D(latitude: tour.lat, longitude: tour.lon)) {
+                    ZStack {
+                        Circle().fill(AppColor.surface).frame(width: 34, height: 34)
+                            .overlay(Circle().stroke(AppColor.primary, lineWidth: 2))
+                        Image(systemName: tour.activity == "bicycle"
+                              ? "figure.outdoor.cycle" : "figure.hiking")
+                            .font(.system(size: 15))
+                            .foregroundStyle(AppColor.primary)
+                    }
+                    .onTapGesture { detailTour = tour }
+                }
+            }
+        }
+        .onMapCameraChange { context in
+            cameraCenter = context.region.center
+        }
+        .ignoresSafeArea(edges: .bottom)
+    }
+
+    private func activityChip(_ a: WorkoutActivity, icon: String) -> some View {
+        let selected = activity == a
+        return Image(systemName: icon)
+            .font(.system(size: 15))
+            .foregroundStyle(selected ? AppColor.white : AppColor.muted)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(selected ? AppColor.primary : .clear)
+            .clipShape(Capsule())
+            .contentShape(Capsule())
+            .onTapGesture {
+                guard activity != a else { return }
+                activity = a
+                reload()
+            }
+    }
+
+    // MARK: Karten unten
+
+    @ViewBuilder
+    private var bottomCards: some View {
+        if isLoading {
+            ProgressView().tint(AppColor.primary)
+                .padding(.bottom, 40)
+        } else if let error {
+            InlineErrorBanner(message: error)
+                .padding(.horizontal, AppSpacing.screen)
+                .padding(.bottom, 24)
+        } else if tours.isEmpty {
+            Text("Keine markierten Routen in diesem Gebiet gefunden.")
+                .font(.footnote)
+                .foregroundStyle(AppColor.muted)
+                .padding(12)
+                .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.control))
+                .padding(.bottom, 24)
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: AppSpacing.stack) {
+                    ForEach(tours.prefix(25)) { tour in
+                        tourCard(tour)
+                    }
+                }
+                .padding(.horizontal, AppSpacing.screen)
+            }
+            .padding(.bottom, 16)
+        }
+    }
+
+    private func tourCard(_ tour: Tour) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                if let diff = tour.difficulty {
+                    Text(diff)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(AppColor.white)
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(AppColor.primaryDark)
+                        .clipShape(Capsule())
+                }
+                if let net = tour.networkLabel {
+                    Text(net)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(AppColor.brass)
+                }
+                Spacer()
+            }
+            Text(tour.name)
+                .font(.subheadline.bold())
+                .foregroundStyle(AppColor.text)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+            HStack(spacing: 8) {
+                if let min = tour.durationMin {
+                    Label(Self.formatDuration(min), systemImage: "clock")
+                }
+                if let km = tour.distanceKm {
+                    Label(String(format: "%.1f km", km), systemImage: "point.topleft.down.to.point.bottomright.curvepath")
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(AppColor.muted)
+        }
+        .padding(AppSpacing.card)
+        .frame(width: 260, alignment: .leading)
+        .background(AppColor.surface)
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
+        .contentShape(Rectangle())
+        .onTapGesture { detailTour = tour }
+    }
+
+    static func formatDuration(_ minutes: Int) -> String {
+        minutes >= 60 ? "\(minutes / 60) Std \(minutes % 60) Min" : "\(minutes) Min"
+    }
+
+    // MARK: Daten
+
+    private func reload() {
+        error = nil
+        if isDemo {
+            tours = TourService.demoTours()
+            return
+        }
+        guard let clientId = auth.clientId else { return }
+        isLoading = true
+        Task {
+            do {
+                tours = try await TourService.shared.tours(
+                    clientId: clientId, lat: center.latitude, lon: center.longitude,
+                    radiusKm: radiusKm, activity: activity)
+            } catch {
+                self.error = "Touren konnten nicht geladen werden."
+            }
+            isLoading = false
+        }
+    }
+
+    private func searchLocation() {
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = searchText
+        request.region = MKCoordinateRegion(
+            center: center,
+            span: MKCoordinateSpan(latitudeDelta: 2, longitudeDelta: 2))
+        MKLocalSearch(request: request).start { response, _ in
+            guard let item = response?.mapItems.first else { return }
+            let c = item.placemark.coordinate
+            Task { @MainActor in
+                center = c
+                camera = .region(MKCoordinateRegion(
+                    center: c,
+                    span: MKCoordinateSpan(latitudeDelta: 0.15, longitudeDelta: 0.15)))
+                reload()
+            }
+        }
+    }
+}
