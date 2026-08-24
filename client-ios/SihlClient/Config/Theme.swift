@@ -1,24 +1,31 @@
 import SwiftUI
 
-/// App-Farben — 1:1 übernommen aus Flutter `app_colors.dart`.
-/// Brand-Olive von sihltraining.ch, dunkles Theme.
+/// App-Farben — Marken-Palette von sihltraining.ch
+/// (Pythia-Analyse 2026-08: grünstichige Dunkelflächen, warmes Off-White,
+/// Salbeigrau, Marken-Olive; Erdton-Orange EXKLUSIV für den einen
+/// Haupt-CTA pro Screen, Messing für Belege/Wertigkeit).
 enum AppColor {
-    // Brand olive
+    // Brand olive (≈ Website #606C38)
     static let primary      = Color(hex: 0x636B2F)
     static let primaryLight = Color(hex: 0x7A8438)
     static let primaryDark  = Color(hex: 0x4D5324)
 
-    // Dark surfaces — leichter Blaustich für Kohärenz
-    static let background   = Color(hex: 0x0D1117)
-    static let surface      = Color(hex: 0x161D2E)
-    static let surface2     = Color(hex: 0x1E2740)
+    // Dark surfaces — grünstichiges Nahschwarz (vorher Blaustich)
+    static let background   = Color(hex: 0x12140F)
+    static let surface      = Color(hex: 0x1B2016)
+    static let surface2     = Color(hex: 0x252C1E)
 
-    // Text
-    static let text         = Color(hex: 0xE8EAF0)
-    static let muted        = Color(hex: 0x8A9AB8)
+    // Text — warmes Off-White + Salbeigrau
+    static let text         = Color(hex: 0xF5F3EE)
+    static let muted        = Color(hex: 0x9AA38C)
 
     // Border
-    static let border       = Color(hex: 0x2A3550)
+    static let border       = Color(hex: 0x363E2A)
+
+    // Erdton-Orange — NUR für die eine dominante Aktion pro Screen
+    static let cta          = Color(hex: 0xC8532B)
+    // Mattes Messing — Belege/Wertigkeit (Abo-Badge, Zertifikate, Messwerte)
+    static let brass        = Color(hex: 0xB89A56)
 
     // Semantic
     static let green        = Color(hex: 0x34D399)

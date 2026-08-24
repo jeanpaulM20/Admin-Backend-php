@@ -151,7 +151,7 @@ struct CoachingPaywallView: View {
                 Text("Jetzt freischalten")
             }
         }
-        .buttonStyle(PrimaryButtonStyle(fill: AppColor.primaryDark))
+        .buttonStyle(PrimaryButtonStyle())
         .disabled(selectedId == nil || isPaying)
         .opacity((selectedId == nil || isPaying) ? 0.6 : 1)
     }

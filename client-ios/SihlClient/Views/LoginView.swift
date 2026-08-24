@@ -84,7 +84,7 @@ struct LoginView: View {
                 Text("Anmelden")
             }
         }
-        .buttonStyle(PrimaryButtonStyle(fill: AppColor.primary.opacity(auth.isLoading ? 0.5 : 1)))
+        .buttonStyle(PrimaryButtonStyle(fill: AppColor.cta.opacity(auth.isLoading ? 0.5 : 1)))
         .disabled(auth.isLoading)
     }
 

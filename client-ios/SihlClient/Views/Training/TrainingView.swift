@@ -118,13 +118,14 @@ struct TrainingView: View {
 
     private var recordCard: some View {
         HStack(spacing: 12) {
+            // Dominanter CTA des Screens → exklusives Erdton-Orange
             ZStack {
                 RoundedRectangle(cornerRadius: AppRadius.control)
-                    .fill(AppColor.red.opacity(0.15))
+                    .fill(AppColor.cta)
                     .frame(width: 40, height: 40)
                 Image(systemName: "record.circle")
                     .font(.system(size: 20))
-                    .foregroundStyle(AppColor.red)
+                    .foregroundStyle(AppColor.text)
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text("Training aufzeichnen")
@@ -137,12 +138,12 @@ struct TrainingView: View {
             Spacer()
             Image(systemName: "chevron.right")
                 .font(.caption)
-                .foregroundStyle(AppColor.muted)
+                .foregroundStyle(AppColor.cta)
         }
         .padding(AppSpacing.card)
         .background(AppColor.surface)
         .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
-        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.cta, lineWidth: 1))
         .contentShape(Rectangle())
         .onTapGesture { showRecord = true }
         .padding(.horizontal, AppSpacing.screen)
@@ -219,12 +220,14 @@ private struct SubBanner: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).font(.system(size: 14, weight: .bold)).foregroundStyle(AppColor.text)
-                    Text(subtitle).font(.system(size: 12)).foregroundStyle(AppColor.orange)
+                    // Sekundäre Aktion — optisch zurückgenommen (CTA-Farbe ist
+                    // exklusiv für die dominante Aktion des Screens reserviert)
+                    Text(subtitle).font(.system(size: 12)).foregroundStyle(AppColor.muted)
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14))
-                    .foregroundStyle(AppColor.orange.opacity(0.8))
+                    .foregroundStyle(AppColor.muted)
             }
             .padding(.horizontal, AppSpacing.card).padding(.vertical, 14)
             .background(AppColor.surface)
@@ -293,10 +296,11 @@ private struct PlanCard: View {
                 Spacer()
 
                 if plan.locked {
+                    // Messing = Wertigkeits-/Beleg-Farbe der Marken-Palette
                     Text("Abo")
-                        .font(.system(size: 10, weight: .bold)).foregroundStyle(AppColor.orange)
+                        .font(.system(size: 10, weight: .bold)).foregroundStyle(AppColor.brass)
                         .padding(.horizontal, 8).padding(.vertical, 4)
-                        .background(AppColor.orange.opacity(0.14))
+                        .background(AppColor.brass.opacity(0.14))
                         .clipShape(RoundedRectangle(cornerRadius: 4))
                 } else {
                     Image(systemName: "chevron.right")

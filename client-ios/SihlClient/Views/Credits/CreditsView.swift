@@ -296,7 +296,7 @@ private struct PackageCard: View {
                     Text("Abo kaufen")
                 }
             }
-            .buttonStyle(PrimaryButtonStyle(fill: purchasing ? AppColor.muted.opacity(0.3) : AppColor.primary))
+            .buttonStyle(PrimaryButtonStyle(fill: purchasing ? AppColor.muted.opacity(0.3) : AppColor.cta))
             .disabled(purchasing)
         }
         .padding(AppSpacing.card)

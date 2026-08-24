@@ -61,8 +61,10 @@ extension View {
 // MARK: - Button-Styles
 
 /// Primär-CTA: volle Breite, 50 pt Höhe, Dynamic-Type-fähig.
+/// Erdton-Orange als Default — die CTA-Farbe ist exklusiv für die
+/// EINE dominante Aktion pro Screen reserviert (Marken-Palette).
 struct PrimaryButtonStyle: ButtonStyle {
-    var fill: Color = AppColor.primary
+    var fill: Color = AppColor.cta
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
