@@ -79,7 +79,7 @@ struct GlucoseView: View {
             HStack(spacing: 8) {
                 Image(systemName: "rectangle.portrait.and.arrow.right")
                 Text("LibreView trennen")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.app(14, weight: .semibold))
             }
             .foregroundStyle(AppColor.red)
             .frame(maxWidth: .infinity)
@@ -114,27 +114,27 @@ private struct CurrentValueCard: View {
             // Großer Zahlenwert
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(String(format: "%.1f", reading.valueMmol))
-                    .font(.system(size: 64, weight: .heavy, design: .rounded))
+                    .font(.app(64, weight: .heavy, design: .rounded))
                     .foregroundStyle(valueColor)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("mmol/L")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.app(18, weight: .semibold))
                         .foregroundStyle(AppColor.muted)
                     Text(reading.trendIcon)
-                        .font(.system(size: 28))
+                        .font(.app(28))
                         .foregroundStyle(valueColor)
                 }
             }
 
             // mg/dL Zusatz
             Text("\(reading.valueMgDl) mg/dL")
-                .font(.system(size: 14))
+                .font(.app(14))
                 .foregroundStyle(AppColor.muted)
 
             // Status-Chip
             Text(statusLabel)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.app(12, weight: .semibold))
                 .foregroundStyle(valueColor)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 5)
@@ -164,10 +164,10 @@ private struct SyncInfoRow: View {
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: fromCache ? "arrow.clockwise.circle" : "checkmark.circle")
-                .font(.system(size: 12))
+                .font(.app(12))
                 .foregroundStyle(AppColor.muted)
             Text(label)
-                .font(.system(size: 11))
+                .font(.app(11))
                 .foregroundStyle(AppColor.muted)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -186,7 +186,7 @@ private struct ReadingsHistoryCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Verlauf (letzte \(recent.count) Messungen)")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.app(12, weight: .semibold))
                 .foregroundStyle(AppColor.muted)
 
             VStack(spacing: 0) {
@@ -227,16 +227,16 @@ private struct ReadingRow: View {
     var body: some View {
         HStack {
             Text(timeLabel)
-                .font(.system(size: 13, design: .monospaced))
+                .font(.app(13, design: .monospaced))
                 .foregroundStyle(AppColor.muted)
                 .frame(width: 48, alignment: .leading)
 
             Text(reading.displayValue)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.app(15, weight: .semibold))
                 .foregroundStyle(valueColor)
 
             Text(reading.trendIcon)
-                .font(.system(size: 14))
+                .font(.app(14))
                 .foregroundStyle(AppColor.muted)
 
             Spacer()
@@ -266,7 +266,7 @@ struct LibreLoginView: View {
                 // Header
                 VStack(spacing: 8) {
                     Image(systemName: "waveform.path.ecg.rectangle.fill")
-                        .font(.system(size: 48))
+                        .font(.app(48))
                         .foregroundStyle(AppColor.primary)
                     Text("FreeStyle Libre Login")
                         .font(.title2.bold())
@@ -293,7 +293,7 @@ struct LibreLoginView: View {
                     // Region
                     HStack(spacing: 12) {
                         Image(systemName: "globe")
-                            .font(.system(size: 16))
+                            .font(.app(16))
                             .foregroundStyle(AppColor.muted)
                             .frame(width: 20)
                         Picker("Region", selection: $region) {
@@ -362,7 +362,7 @@ private struct LibreField: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 16))
+                .font(.app(16))
                 .foregroundStyle(AppColor.muted)
                 .frame(width: 20)
             TextField(label, text: $value)
@@ -387,7 +387,7 @@ private struct LibreSecureField: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: "lock")
-                .font(.system(size: 16))
+                .font(.app(16))
                 .foregroundStyle(AppColor.muted)
                 .frame(width: 20)
             if visible {
@@ -403,7 +403,7 @@ private struct LibreSecureField: View {
                 visible.toggle()
             } label: {
                 Image(systemName: visible ? "eye.slash" : "eye")
-                    .font(.system(size: 14))
+                    .font(.app(14))
                     .foregroundStyle(AppColor.muted)
             }
         }

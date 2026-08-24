@@ -33,7 +33,7 @@ struct AppointmentDetailSheet: View {
                     HStack(alignment: .top) {
                         Text(appointment.trainingTypeName.isEmpty
                              ? "Training" : appointment.trainingTypeName)
-                            .font(.system(size: 18, weight: .bold))
+                            .font(.app(18, weight: .bold))
                             .foregroundStyle(isCancelled ? AppColor.muted : AppColor.text)
                             .strikethrough(isCancelled)
                         Spacer()
@@ -72,7 +72,7 @@ struct AppointmentDetailSheet: View {
                             dismiss()
                         } label: {
                             Label("Kalender", systemImage: "calendar.badge.plus")
-                                .font(.system(size: 14, weight: .medium))
+                                .font(.app(14, weight: .medium))
                                 .foregroundStyle(AppColor.primary)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
@@ -86,7 +86,7 @@ struct AppointmentDetailSheet: View {
                                 onCancel()
                             } label: {
                                 Label("Absagen", systemImage: "xmark.circle")
-                                    .font(.system(size: 14, weight: .medium))
+                                    .font(.app(14, weight: .medium))
                                     .foregroundStyle(AppColor.red)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
@@ -125,7 +125,7 @@ struct AppointmentDetailSheet: View {
             }
         }()
         return Text(label)
-            .font(.system(size: 11, weight: .semibold))
+            .font(.app(11, weight: .semibold))
             .foregroundStyle(color)
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
@@ -139,15 +139,15 @@ struct AppointmentDetailSheet: View {
     private func detailRow(_ icon: String, _ label: String, _ value: String) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: icon)
-                .font(.system(size: 14))
+                .font(.app(14))
                 .foregroundStyle(AppColor.muted)
                 .frame(width: 16)
             Text(label)
-                .font(.system(size: 13))
+                .font(.app(13))
                 .foregroundStyle(AppColor.muted)
                 .frame(width: 65, alignment: .leading)
             Text(value)
-                .font(.system(size: 14))
+                .font(.app(14))
                 .foregroundStyle(AppColor.text)
                 .fixedSize(horizontal: false, vertical: true)
         }

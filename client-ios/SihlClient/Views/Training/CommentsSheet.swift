@@ -28,7 +28,7 @@ struct CommentsSheet: View {
 
             // Titel
             Text(exerciseName.map { "Kommentare · \($0)" } ?? "Plan-Kommentare")
-                .font(.system(size: 15, weight: .bold))
+                .font(.app(15, weight: .bold))
                 .foregroundStyle(AppColor.text)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 20)
@@ -86,7 +86,7 @@ struct CommentsSheet: View {
         HStack(spacing: 8) {
             TextField("Kommentar schreiben…", text: $text, axis: .vertical)
                 .lineLimit(1...3)
-                .font(.system(size: 14)).foregroundStyle(AppColor.text)
+                .font(.app(14)).foregroundStyle(AppColor.text)
                 .padding(.horizontal, AppSpacing.card).padding(.vertical, 8)
                 .background(AppColor.surface2)
                 .clipShape(RoundedRectangle(cornerRadius: AppRadius.hero))
@@ -100,7 +100,7 @@ struct CommentsSheet: View {
                         ProgressView().tint(.white).scaleEffect(0.8)
                     } else {
                         Image(systemName: "paperplane.fill")
-                            .font(.system(size: 16)).foregroundStyle(.white)
+                            .font(.app(16)).foregroundStyle(.white)
                     }
                 }
             }
@@ -126,17 +126,17 @@ struct CommentsSheet: View {
                 .frame(width: 32, height: 32)
                 .overlay(
                     Text(author.prefix(1).uppercased())
-                        .font(.system(size: 13, weight: .bold)).foregroundStyle(bubbleColor)
+                        .font(.app(13, weight: .bold)).foregroundStyle(bubbleColor)
                 )
 
             VStack(alignment: .leading, spacing: 3) {
                 // Author row
                 HStack(spacing: 6) {
                     Text(author)
-                        .font(.system(size: 12, weight: .bold)).foregroundStyle(AppColor.text)
+                        .font(.app(12, weight: .bold)).foregroundStyle(AppColor.text)
                     if isClient {
                         Text("Du")
-                            .font(.system(size: 9, weight: .bold)).foregroundStyle(AppColor.primary)
+                            .font(.app(9, weight: .bold)).foregroundStyle(AppColor.primary)
                             .padding(.horizontal, 5).padding(.vertical, 1)
                             .background(AppColor.primary.opacity(0.14))
                             .clipShape(RoundedRectangle(cornerRadius: 4))
@@ -147,14 +147,14 @@ struct CommentsSheet: View {
                             pendingDeleteId = (idVal as? Int) ?? Int("\(idVal)")
                             showDeleteAlert = true
                         } label: {
-                            Image(systemName: "xmark").font(.system(size: 11)).foregroundStyle(AppColor.muted)
+                            Image(systemName: "xmark").font(.app(11)).foregroundStyle(AppColor.muted)
                         }
                     }
                 }
 
                 // Bubble
                 Text(txt)
-                    .font(.system(size: 13)).foregroundStyle(AppColor.text)
+                    .font(.app(13)).foregroundStyle(AppColor.text)
                     .padding(.horizontal, 12).padding(.vertical, 8)
                     .background(AppColor.surface2)
                     .clipShape(

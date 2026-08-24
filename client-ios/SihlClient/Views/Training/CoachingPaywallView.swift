@@ -70,10 +70,10 @@ struct CoachingPaywallView: View {
                             .padding(.bottom, 20)
 
                         Text("Trainingsplan · Chat-Feedback · Analysen")
-                            .font(.system(size: 15, weight: .bold))
+                            .font(.app(15, weight: .bold))
                             .foregroundStyle(AppColor.text)
                         Text("Wähle dein Abo und schalte alle Pläne frei.")
-                            .font(.system(size: 13))
+                            .font(.app(13))
                             .foregroundStyle(AppColor.muted)
                             .padding(.top, 4)
                             .padding(.bottom, 14)
@@ -125,10 +125,10 @@ struct CoachingPaywallView: View {
     private var teaserCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(plan.name ?? "Trainingsplan")
-                .font(.system(size: 16, weight: .bold))
+                .font(.app(16, weight: .bold))
                 .foregroundStyle(AppColor.text)
             Text(teaserMeta)
-                .font(.system(size: 13, weight: .light))
+                .font(.app(13, weight: .light))
                 .foregroundStyle(AppColor.muted)
                 .lineLimit(2)
         }
@@ -225,11 +225,11 @@ private struct TierCard: View {
                 // Preis — fixe Spalte, damit alle Tier-Namen auf einer Achse starten.
                 VStack(alignment: .leading, spacing: 0) {
                     Text("CHF \(Int(package.price.rounded()))")
-                        .font(.system(size: 19, weight: .heavy))
+                        .font(.app(19, weight: .heavy))
                         .foregroundStyle(AppColor.text)
                         .lineLimit(1)
                     Text("/ \(shortName)")
-                        .font(.system(size: 11))
+                        .font(.app(11))
                         .foregroundStyle(AppColor.muted)
                 }
                 .frame(width: 104, alignment: .leading)
@@ -239,10 +239,10 @@ private struct TierCard: View {
                 // Name + Value
                 VStack(alignment: .leading, spacing: 3) {
                     Text(shortName)
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.app(14, weight: .bold))
                         .foregroundStyle(AppColor.text)
                     Text(valueLine)
-                        .font(.system(size: 11))
+                        .font(.app(11))
                         .foregroundStyle(AppColor.muted)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
@@ -253,7 +253,7 @@ private struct TierCard: View {
 
                 // Auswahl-Indikator — das einzige, ausreichende Zustandssignal.
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 20))
+                    .font(.app(20))
                     .foregroundStyle(isSelected ? AppColor.primary : AppColor.border)
             }
             .padding(AppSpacing.card)

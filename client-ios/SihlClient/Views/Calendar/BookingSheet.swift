@@ -68,10 +68,10 @@ struct BookingSheet: View {
                     if locationWasReset {
                         HStack(spacing: 4) {
                             Image(systemName: "info.circle")
-                                .font(.system(size: 12))
+                                .font(.app(12))
                                 .foregroundStyle(AppColor.orange)
                             Text("Standort angepasst (Pufferzeit mit neuem Trainer)")
-                                .font(.system(size: 11))
+                                .font(.app(11))
                                 .foregroundStyle(AppColor.orange)
                         }
                         .padding(.top, 6)
@@ -109,18 +109,18 @@ struct BookingSheet: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Image(systemName: "calendar")
-                    .font(.system(size: 13))
+                    .font(.app(13))
                     .foregroundStyle(AppColor.primary)
                 Text(Self.dateFmt.string(from: day))
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.app(14, weight: .semibold))
                     .foregroundStyle(AppColor.primary)
             }
             HStack(spacing: 6) {
                 Image(systemName: "clock")
-                    .font(.system(size: 13))
+                    .font(.app(13))
                     .foregroundStyle(AppColor.primary)
                 Text("\(slot.timeStr) – \(slot.endTimeStr) (60 Min.)")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.app(14, weight: .semibold))
                     .foregroundStyle(AppColor.primary)
             }
         }
@@ -193,11 +193,11 @@ struct BookingSheet: View {
     private func confirmRow(_ label: String, _ value: String) -> some View {
         HStack {
             Text(label)
-                .font(.system(size: 13))
+                .font(.app(13))
                 .foregroundStyle(AppColor.muted)
                 .frame(width: 65, alignment: .leading)
             Text(value)
-                .font(.system(size: 13))
+                .font(.app(13))
                 .foregroundStyle(AppColor.text)
             Spacer()
         }
@@ -232,7 +232,7 @@ struct BookingSheet: View {
 
     private func pickerLabel(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 12, weight: .semibold))
+            .font(.app(12, weight: .semibold))
             .foregroundStyle(AppColor.muted)
             .padding(.bottom, 6)
     }
@@ -240,11 +240,11 @@ struct BookingSheet: View {
     private func pickerRow(label: String, hasValue: Bool) -> some View {
         HStack {
             Text(label)
-                .font(.system(size: 14))
+                .font(.app(14))
                 .foregroundStyle(hasValue ? AppColor.text : AppColor.muted)
             Spacer()
             Image(systemName: "chevron.down")
-                .font(.system(size: 13))
+                .font(.app(13))
                 .foregroundStyle(AppColor.muted)
         }
         .padding(.horizontal, 12)

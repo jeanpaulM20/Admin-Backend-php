@@ -108,15 +108,15 @@ struct ProfileView: View {
                 .frame(width: 90, height: 90)
                 .overlay(
                     Text(vm.data?.initials ?? "?")
-                        .font(.system(size: 32, weight: .heavy))
+                        .font(.app(32, weight: .heavy))
                         .foregroundStyle(AppColor.white)
                 )
             VStack(spacing: 4) {
                 Text(vm.data?.fullName ?? "")
-                    .font(.system(size: 22, weight: .bold))
+                    .font(.app(22, weight: .bold))
                     .foregroundStyle(AppColor.text)
                 Text("Mitglied")
-                    .font(.system(size: 14))
+                    .font(.app(14))
                     .foregroundStyle(AppColor.muted)
             }
         }
@@ -161,21 +161,21 @@ struct ProfileView: View {
                     .fill(AppColor.primary.opacity(0.12))
                     .frame(width: 36, height: 36)
                     .overlay(Image(systemName: "cart")
-                        .font(.system(size: 16))
+                        .font(.app(16))
                         .foregroundStyle(AppColor.primary))
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Credits kaufen")
-                        .font(.system(size: 15, weight: .bold))
+                        .font(.app(15, weight: .bold))
                         .foregroundStyle(AppColor.text)
                     Text("Abos & Pakete ansehen")
-                        .font(.system(size: 12))
+                        .font(.app(12))
                         .foregroundStyle(AppColor.muted)
                 }
 
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 14))
+                    .font(.app(14))
                     .foregroundStyle(AppColor.muted)
             }
             .padding(.horizontal, 16)
@@ -195,21 +195,21 @@ struct ProfileView: View {
                     .fill(AppColor.red.opacity(0.12))
                     .frame(width: 36, height: 36)
                     .overlay(Image(systemName: "waveform.path.ecg")
-                        .font(.system(size: 16))
+                        .font(.app(16))
                         .foregroundStyle(AppColor.red))
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Blutzucker")
-                        .font(.system(size: 15, weight: .bold))
+                        .font(.app(15, weight: .bold))
                         .foregroundStyle(AppColor.text)
                     Text("FreeStyle Libre CGM-Daten")
-                        .font(.system(size: 12))
+                        .font(.app(12))
                         .foregroundStyle(AppColor.muted)
                 }
 
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 14))
+                    .font(.app(14))
                     .foregroundStyle(AppColor.muted)
             }
             .padding(.horizontal, 16)
@@ -343,9 +343,9 @@ struct ProfileView: View {
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: "rectangle.portrait.and.arrow.right")
-                    .font(.system(size: 16))
+                    .font(.app(16))
                 Text("Abmelden")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.app(15, weight: .semibold))
             }
             .foregroundStyle(AppColor.red)
             .frame(maxWidth: .infinity)
@@ -377,21 +377,21 @@ struct SectionDisclosure<Content: View>: View {
             } label: {
                 HStack(spacing: 12) {
                     Image(systemName: icon)
-                        .font(.system(size: 18))
+                        .font(.app(18))
                         .foregroundStyle(AppColor.primary)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(title)
-                            .font(.system(size: 15, weight: .bold))
+                            .font(.app(15, weight: .bold))
                             .foregroundStyle(AppColor.text)
                         if let subtitle {
                             Text(subtitle)
-                                .font(.system(size: 12))
+                                .font(.app(12))
                                 .foregroundStyle(AppColor.muted)
                         }
                     }
                     Spacer()
                     Image(systemName: expanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 13))
+                        .font(.app(13))
                         .foregroundStyle(AppColor.muted)
                 }
                 .padding(16)
@@ -425,14 +425,14 @@ private struct CreditPackCard: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 10) {
                 Image(systemName: "creditcard")
-                    .font(.system(size: 16))
+                    .font(.app(16))
                     .foregroundStyle(AppColor.primary)
                 Text(pack.title)
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.app(15, weight: .bold))
                     .foregroundStyle(AppColor.text)
                 Spacer()
                 Text("\(pack.remainingCredits) / \(pack.prepaidCredits)")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.app(13, weight: .bold))
                     .foregroundStyle(AppColor.primary)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
@@ -475,16 +475,16 @@ private struct InvoiceRow: View {
                 .fill(AppColor.primary.opacity(0.12))
                 .frame(width: 40, height: 40)
                 .overlay(Image(systemName: "receipt")
-                    .font(.system(size: 18))
+                    .font(.app(18))
                     .foregroundStyle(AppColor.primary))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Rechnung \(invoice.invoiceNumber)")
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.app(14, weight: .bold))
                     .foregroundStyle(AppColor.text)
                 if let d = invoice.transactionDate {
                     Text(Self.dateFmt.string(from: d))
-                        .font(.system(size: 12))
+                        .font(.app(12))
                         .foregroundStyle(AppColor.muted)
                 }
             }
@@ -493,10 +493,10 @@ private struct InvoiceRow: View {
 
             VStack(alignment: .trailing, spacing: 4) {
                 Text("\(invoice.currency) \(String(format: "%.2f", invoice.amount))")
-                    .font(.system(size: 16, weight: .heavy))
+                    .font(.app(16, weight: .heavy))
                     .foregroundStyle(AppColor.text)
                 Text(isPaid ? "Bezahlt" : "Offen")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.app(11, weight: .bold))
                     .foregroundStyle(color)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
@@ -505,7 +505,7 @@ private struct InvoiceRow: View {
             }
 
             Image(systemName: "chevron.right")
-                .font(.system(size: 14))
+                .font(.app(14))
                 .foregroundStyle(AppColor.muted)
         }
         .padding(.vertical, 10)
@@ -529,20 +529,20 @@ private struct FileRow: View {
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: "doc.fill")
-                    .font(.system(size: 18))
+                    .font(.app(18))
                     .foregroundStyle(AppColor.primary)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(file.name)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.app(13, weight: .semibold))
                         .foregroundStyle(AppColor.text)
                     Text(file.date.map { Self.dateFmt.string(from: $0) } ?? "-")
-                        .font(.system(size: 12))
+                        .font(.app(12))
                         .foregroundStyle(AppColor.muted)
                 }
                 Spacer()
                 if file.hasUrl {
                     Image(systemName: "arrow.up.right.square")
-                        .font(.system(size: 16))
+                        .font(.app(16))
                         .foregroundStyle(AppColor.primary)
                 }
             }
@@ -589,16 +589,16 @@ private struct PolarCard: View {
                 .frame(width: 44, height: 44)
                 .overlay(
                     Text("P")
-                        .font(.system(size: 22, weight: .black))
+                        .font(.app(22, weight: .black))
                         .foregroundStyle(polarRed)
                 )
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Polar")
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.app(15, weight: .bold))
                     .foregroundStyle(AppColor.text)
                 Text(connected ? "Verbunden" : "Nicht verbunden")
-                    .font(.system(size: 12))
+                    .font(.app(12))
                     .foregroundStyle(connected ? AppColor.green : AppColor.muted)
             }
 
@@ -610,7 +610,7 @@ private struct PolarCard: View {
                 HStack(spacing: 8) {
                     Button(action: onSync) {
                         Label("Sync", systemImage: "arrow.clockwise")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.app(13, weight: .semibold))
                             .foregroundStyle(AppColor.primary)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
@@ -621,7 +621,7 @@ private struct PolarCard: View {
 
                     Button(action: onDisconnect) {
                         Label("Trennen", systemImage: "link.badge.minus")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.app(13, weight: .semibold))
                             .foregroundStyle(AppColor.red)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
@@ -634,7 +634,7 @@ private struct PolarCard: View {
                 // Getrennt: rechte Spalte zeigt die Aktion
                 Button(action: onConnect) {
                     Label("Verbinden", systemImage: "link")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.app(13, weight: .semibold))
                         .foregroundStyle(AppColor.primary)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
@@ -678,18 +678,18 @@ private struct PushNotificationCard: View {
                     .fill(AppColor.primary.opacity(0.12))
                     .frame(width: 44, height: 44)
                 Image(systemName: "bell.badge.fill")
-                    .font(.system(size: 18))
+                    .font(.app(18))
                     .foregroundStyle(AppColor.primary)
             }
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("Push-Benachrichtigungen")
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.app(15, weight: .bold))
                     .foregroundStyle(AppColor.text)
                 // Zustand signalisiert der Toggle; Fließtext nur im denied-Fall.
                 if denied {
                     Text("In den iOS-Einstellungen aktivieren")
-                        .font(.system(size: 12))
+                        .font(.app(12))
                         .foregroundStyle(AppColor.muted)
                 }
             }
@@ -704,7 +704,7 @@ private struct PushNotificationCard: View {
                     onToggle(true)
                 } label: {
                     Text("Einstellungen")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.app(12, weight: .semibold))
                         .foregroundStyle(AppColor.primary)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// App-Farben — Marken-Palette von sihltraining.ch
 /// (Pythia-Analyse 2026-08: grünstichige Dunkelflächen, warmes Off-White,
@@ -82,5 +83,21 @@ extension Color {
         let g = Double((hex >> 8) & 0xFF) / 255.0
         let b = Double(hex & 0xFF) / 255.0
         self.init(.sRGB, red: r, green: g, blue: b, opacity: 1.0)
+    }
+}
+
+
+// MARK: - Schrift
+
+extension Font {
+    /// Systemschrift in fester Grundgrösse, die mit Dynamic Type mitskaliert —
+    /// `Font.system(size:)` skaliert NICHT und schliesst Nutzer mit grosser
+    /// Schrift aus. Die Grundgrösse gilt bei Standard-Textgrösse unverändert,
+    /// darum ist die Umstellung layout-neutral.
+    static func app(_ size: CGFloat,
+                    weight: Font.Weight = .regular,
+                    design: Font.Design = .default) -> Font {
+        let scaled = UIFontMetrics(forTextStyle: .body).scaledValue(for: size)
+        return .system(size: scaled, weight: weight, design: design)
     }
 }

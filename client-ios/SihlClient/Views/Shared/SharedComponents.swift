@@ -103,7 +103,7 @@ struct EmptyStateView: View {
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: icon)
-                .font(.system(size: 32))
+                .font(.app(32))
                 .foregroundStyle(AppColor.muted)
             Text(message)
                 .font(.subheadline)
@@ -129,7 +129,7 @@ struct ErrorStateView: View {
     var body: some View {
         VStack(spacing: 24) {
             Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 40))
+                .font(.app(40))
                 .foregroundStyle(AppColor.muted)
             Text(message)
                 .font(.subheadline)
@@ -278,11 +278,11 @@ struct ExerciseBadge: View {
                 Group {
                     if let i = index {
                         Text("\(i + 1)")
-                            .font(.system(size: 13, weight: .heavy))
+                            .font(.app(13, weight: .heavy))
                             .foregroundStyle(accentColor)
                     } else {
                         Image(systemName: fallbackIcon)
-                            .font(.system(size: 20))
+                            .font(.app(20))
                             .foregroundStyle(accentColor)
                     }
                 }
@@ -301,7 +301,7 @@ struct DemoUnavailableView: View {
     var body: some View {
         VStack(spacing: AppSpacing.stack) {
             Image(systemName: "person.crop.circle.badge.questionmark")
-                .font(.system(size: 40))
+                .font(.app(40))
                 .foregroundStyle(AppColor.muted)
             Text("Im Demo-Modus nicht verfügbar")
                 .font(.headline)

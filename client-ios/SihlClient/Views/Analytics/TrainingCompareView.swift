@@ -103,7 +103,7 @@ struct TrainingCompareView: View {
                 .padding(.top, AppSpacing.card)
 
             Text("X-Achse: Trainingsverlauf in %")
-                .font(.system(size: 10))
+                .font(.app(10))
                 .foregroundStyle(AppColor.muted)
                 .padding(.horizontal, AppSpacing.card)
                 .padding(.top, 4)
@@ -149,7 +149,7 @@ struct TrainingCompareView: View {
                 AxisValueLabel {
                     if let v = value.as(Double.self) {
                         Text("\(Int(v))%")
-                            .font(.system(size: 9))
+                            .font(.app(9))
                             .foregroundStyle(AppColor.muted)
                     }
                 }
@@ -225,7 +225,7 @@ struct TrainingCompareView: View {
 
     private var emptyView: some View {
         VStack(spacing: 16) {
-            Image(systemName: "heart.slash").font(.system(size: 48)).foregroundStyle(AppColor.muted)
+            Image(systemName: "heart.slash").font(.app(48)).foregroundStyle(AppColor.muted)
             Text("Kein Vergleich möglich")
                 .font(.headline).foregroundStyle(AppColor.text)
             Text("Die ausgewählten Trainings haben keine Herzfrequenz-Aufzeichnungen.")

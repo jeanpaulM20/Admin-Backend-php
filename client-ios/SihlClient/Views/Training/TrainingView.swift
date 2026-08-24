@@ -130,7 +130,7 @@ struct TrainingView: View {
                     .fill(AppColor.cta)
                     .frame(width: 40, height: 40)
                 Image(systemName: "record.circle")
-                    .font(.system(size: 20))
+                    .font(.app(20))
                     .foregroundStyle(AppColor.text)
             }
             VStack(alignment: .leading, spacing: 2) {
@@ -166,7 +166,7 @@ struct TrainingView: View {
                     .fill(AppColor.primary.opacity(0.15))
                     .frame(width: 40, height: 40)
                 Image(systemName: "map")
-                    .font(.system(size: 18))
+                    .font(.app(18))
                     .foregroundStyle(AppColor.primary)
             }
             VStack(alignment: .leading, spacing: 2) {
@@ -260,14 +260,14 @@ private struct SubBanner: View {
         Button(action: onTap) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.system(size: 14, weight: .bold)).foregroundStyle(AppColor.text)
+                    Text(title).font(.app(14, weight: .bold)).foregroundStyle(AppColor.text)
                     // Sekundäre Aktion — optisch zurückgenommen (CTA-Farbe ist
                     // exklusiv für die dominante Aktion des Screens reserviert)
-                    Text(subtitle).font(.system(size: 12)).foregroundStyle(AppColor.muted)
+                    Text(subtitle).font(.app(12)).foregroundStyle(AppColor.muted)
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 14))
+                    .font(.app(14))
                     .foregroundStyle(AppColor.muted)
             }
             .padding(.horizontal, AppSpacing.card).padding(.vertical, 14)
@@ -322,13 +322,13 @@ private struct PlanCard: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(plan.name ?? "Trainingsplan")
-                        .font(.system(size: 15, weight: .bold))
+                        .font(.app(15, weight: .bold))
                         .foregroundStyle(AppColor.text)
                         .multilineTextAlignment(.leading)
                         .lineLimit(2)
                     if !phaseText.isEmpty {
                         Text(phaseText)
-                            .font(.system(size: 11))
+                            .font(.app(11))
                             .foregroundStyle(AppColor.muted)
                             .lineLimit(2)
                     }
@@ -339,13 +339,13 @@ private struct PlanCard: View {
                 if plan.locked {
                     // Messing = Wertigkeits-/Beleg-Farbe der Marken-Palette
                     Text("Abo")
-                        .font(.system(size: 10, weight: .bold)).foregroundStyle(AppColor.brass)
+                        .font(.app(10, weight: .bold)).foregroundStyle(AppColor.brass)
                         .padding(.horizontal, 8).padding(.vertical, 4)
                         .background(AppColor.brass.opacity(0.14))
                         .clipShape(RoundedRectangle(cornerRadius: 4))
                 } else {
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 14)).foregroundStyle(AppColor.muted)
+                        .font(.app(14)).foregroundStyle(AppColor.muted)
                 }
             }
             .padding(AppSpacing.card)
@@ -367,16 +367,16 @@ struct TrialSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("1 Monat gratis testen")
-                .font(.system(size: 18, weight: .heavy))
+                .font(.app(18, weight: .heavy))
                 .foregroundStyle(AppColor.text)
                 .padding(.bottom, 8)
             Text("Voller Zugriff: alle Trainingspläne · HR-Analyse · Chat-Feedback.\nKeine Zahlung. Endet automatisch nach 30 Tagen.")
-                .font(.system(size: 13)).foregroundStyle(AppColor.muted).lineSpacing(4)
+                .font(.app(13)).foregroundStyle(AppColor.muted).lineSpacing(4)
                 .padding(.bottom, 20)
             Button("Test-Abo aktivieren") { onConfirm() }
                 .buttonStyle(PrimaryButtonStyle())
             Button("Später") { onCancel() }
-                .font(.system(size: 14)).foregroundStyle(AppColor.muted)
+                .font(.app(14)).foregroundStyle(AppColor.muted)
                 .frame(maxWidth: .infinity).padding(.top, 8)
         }
         .padding(.horizontal, AppSpacing.screen).padding(.top, 20).padding(.bottom, 28)

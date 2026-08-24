@@ -69,10 +69,10 @@ struct StartView: View {
 
         return VStack(alignment: .leading, spacing: 4) {
             Text(greet)
-                .font(.system(size: 16))
+                .font(.app(16))
                 .foregroundStyle(AppColor.muted)
             Text(name.isEmpty ? "Willkommen!" : "\(name)!")
-                .font(.system(size: 28, weight: .heavy))
+                .font(.app(28, weight: .heavy))
                 .foregroundStyle(AppColor.text)
         }
     }
@@ -95,13 +95,13 @@ struct StartView: View {
                 .frame(width: 3, height: 20)
 
             Text("Nächste Termine")
-                .font(.system(size: 17, weight: .bold))
+                .font(.app(17, weight: .bold))
                 .foregroundStyle(AppColor.text)
 
             Spacer()
 
             Text("\(upcomingAppointments.count)")
-                .font(.system(size: 15, weight: .semibold))
+                .font(.app(15, weight: .semibold))
                 .foregroundStyle(AppColor.muted)
         }
     }
@@ -150,12 +150,12 @@ private struct DailyQuoteView: View {
         } else if let q = quote {
             VStack(alignment: .leading, spacing: 4) {
                 Text("„\(q.text)\u{201C}")
-                    .font(.system(size: 13))
+                    .font(.app(13))
                     .italic()
                     .foregroundStyle(AppColor.text.opacity(0.55))
                     .lineSpacing(4)
                 Text("— \(q.author)")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.app(11, weight: .medium))
                     .foregroundStyle(AppColor.muted)
             }
         }
@@ -197,12 +197,12 @@ private struct SummaryCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Image(systemName: icon)
-                .font(.system(size: 22))
+                .font(.app(22))
                 .foregroundStyle(AppColor.muted)
                 .padding(.bottom, 12)
 
             Text(value)
-                .font(.system(size: 22, weight: .heavy))
+                .font(.app(22, weight: .heavy))
                 .foregroundStyle(AppColor.text)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -242,10 +242,10 @@ private struct AppointmentCard: View {
             // ── Date Bubble ──────────────────────────────────────────────────
             VStack(spacing: 1) {
                 Text(Self.dayFmt.string(from: appointment.startDate))
-                    .font(.system(size: 18, weight: .heavy))
+                    .font(.app(18, weight: .heavy))
                     .foregroundStyle(AppColor.primary)
                 Text(Self.monFmt.string(from: appointment.startDate))
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.app(10, weight: .semibold))
                     .foregroundStyle(AppColor.primary)
             }
             .frame(width: 50, height: 50)
@@ -256,16 +256,16 @@ private struct AppointmentCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(appointment.trainingTypeName.isEmpty
                      ? "Training" : appointment.trainingTypeName)
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.app(15, weight: .bold))
                     .foregroundStyle(AppColor.text)
 
                 Text("\(Self.timeFmt.string(from: appointment.startDate)) · \(appointment.duration) Min.")
-                    .font(.system(size: 12))
+                    .font(.app(12))
                     .foregroundStyle(AppColor.muted)
 
                 if !appointment.trainerName.isEmpty {
                     Text(appointment.trainerName)
-                        .font(.system(size: 12))
+                        .font(.app(12))
                         .foregroundStyle(AppColor.muted)
                 }
             }
@@ -275,7 +275,7 @@ private struct AppointmentCard: View {
             // ── Status Badge ─────────────────────────────────────────────────
             let label = appointment.status == "booked" ? "Gebucht" : appointment.status
             Text(label)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.app(11, weight: .semibold))
                 .foregroundStyle(AppColor.green)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)

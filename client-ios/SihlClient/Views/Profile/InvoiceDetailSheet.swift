@@ -63,13 +63,13 @@ struct InvoiceDetailSheet: View {
                 .fill(AppColor.primary.opacity(0.12))
                 .frame(width: 48, height: 48)
                 .overlay(Image(systemName: "receipt")
-                    .font(.system(size: 20))
+                    .font(.app(20))
                     .foregroundStyle(AppColor.primary))
 
             // Number + Status
             VStack(alignment: .leading, spacing: 4) {
                 Text("Rechnung \(invoice.invoiceNumber)")
-                    .font(.system(size: 18, weight: .heavy))
+                    .font(.app(18, weight: .heavy))
                     .foregroundStyle(AppColor.text)
                 statusBadge
             }
@@ -78,7 +78,7 @@ struct InvoiceDetailSheet: View {
 
             // Amount
             Text("\(invoice.currency) \(String(format: "%.2f", invoice.amount))")
-                .font(.system(size: 20, weight: .heavy))
+                .font(.app(20, weight: .heavy))
                 .foregroundStyle(AppColor.text)
         }
     }
@@ -86,7 +86,7 @@ struct InvoiceDetailSheet: View {
     private var statusBadge: some View {
         let color = invoice.isPaid ? AppColor.green : AppColor.primary
         return Text(invoice.isPaid ? "Bezahlt" : "Offen")
-            .font(.system(size: 11, weight: .bold))
+            .font(.app(11, weight: .bold))
             .foregroundStyle(color)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
@@ -119,10 +119,10 @@ struct InvoiceDetailSheet: View {
     private var paymentInfoBox: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Zahlungsinformationen")
-                .font(.system(size: 13, weight: .bold))
+                .font(.app(13, weight: .bold))
                 .foregroundStyle(AppColor.text)
             Text("SIHLHEALTH GmbH\nVerwendungszweck: \(invoice.invoiceNumber)")
-                .font(.system(size: 12))
+                .font(.app(12))
                 .foregroundStyle(AppColor.muted)
                 .lineSpacing(4)
         }
@@ -144,7 +144,7 @@ struct InvoiceDetailSheet: View {
                     Task { await loadQr() }
                 } label: {
                     Label("QR-Rechnung anzeigen", systemImage: "qrcode")
-                        .font(.system(size: 15, weight: .medium))
+                        .font(.app(15, weight: .medium))
                         .foregroundStyle(AppColor.primary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
@@ -160,13 +160,13 @@ struct InvoiceDetailSheet: View {
             if let err = qrError {
                 VStack(spacing: 8) {
                     Text(err)
-                        .font(.system(size: 12))
+                        .font(.app(12))
                         .foregroundStyle(AppColor.muted)
                     Button {
                         Task { await loadQr() }
                     } label: {
                         Label("Erneut versuchen", systemImage: "arrow.clockwise")
-                            .font(.system(size: 14))
+                            .font(.app(14))
                             .foregroundStyle(AppColor.primary)
                     }
                 }
@@ -210,11 +210,11 @@ struct DetailRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
             Text(label)
-                .font(.system(size: 13))
+                .font(.app(13))
                 .foregroundStyle(AppColor.muted)
                 .frame(width: 130, alignment: .leading)
             Text(value)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.app(13, weight: .semibold))
                 .foregroundStyle(AppColor.text)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }

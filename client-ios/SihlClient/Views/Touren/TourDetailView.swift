@@ -151,7 +151,7 @@ struct TourDetailView: View {
     private func stat(_ label: String, _ value: String, _ unit: String) -> some View {
         VStack(spacing: 4) {
             Text(value)
-                .font(.system(size: 16, weight: .black))
+                .font(.app(16, weight: .black))
                 .foregroundStyle(AppColor.text)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)

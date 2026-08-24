@@ -132,7 +132,7 @@ struct RecordWorkoutView: View {
                     .fill(AppColor.primary.opacity(0.15))
                     .frame(width: 40, height: 40)
                 Image(systemName: "map")
-                    .font(.system(size: 18))
+                    .font(.app(18))
                     .foregroundStyle(AppColor.primary)
             }
             VStack(alignment: .leading, spacing: 2) {
@@ -159,7 +159,7 @@ struct RecordWorkoutView: View {
                 let selected = a == activity
                 VStack(spacing: 8) {
                     Image(systemName: a.icon)
-                        .font(.system(size: 26))
+                        .font(.app(26))
                         .foregroundStyle(selected ? AppColor.primary : AppColor.muted)
                     Text(a.rawValue)
                         .font(.footnote.weight(selected ? .bold : .regular))
@@ -181,7 +181,7 @@ struct RecordWorkoutView: View {
         let state = recorder?.hrState ?? .idle
         return HStack(spacing: 12) {
             Image(systemName: state.isConnected ? "heart.fill" : "heart")
-                .font(.system(size: 20))
+                .font(.app(20))
                 .foregroundStyle(state.isConnected ? AppColor.red : AppColor.muted)
             VStack(alignment: .leading, spacing: 2) {
                 Text(state.label)
@@ -213,7 +213,7 @@ struct RecordWorkoutView: View {
         let state = recorder?.gpsState ?? .idle
         return HStack(spacing: 12) {
             Image(systemName: state.isActive ? "location.fill" : "location")
-                .font(.system(size: 20))
+                .font(.app(20))
                 .foregroundStyle(state.isActive ? AppColor.green : AppColor.muted)
             VStack(alignment: .leading, spacing: 2) {
                 Text(state.label)
@@ -331,16 +331,16 @@ private struct WorkoutSessionView: View {
                 Spacer(minLength: 4)
 
                 Text(recorder.durationString)
-                    .font(.system(size: recorder.activity.usesGPS ? 44 : 56,
+                    .font(.app(recorder.activity.usesGPS ? 44 : 56,
                                   weight: .heavy).monospacedDigit())
                     .foregroundStyle(AppColor.text)
 
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Image(systemName: "heart.fill")
-                        .font(.system(size: 24))
+                        .font(.app(24))
                         .foregroundStyle(AppColor.red)
                     Text(recorder.currentHR.map { "\($0)" } ?? "–")
-                        .font(.system(size: recorder.activity.usesGPS ? 56 : 88,
+                        .font(.app(recorder.activity.usesGPS ? 56 : 88,
                                       weight: .black).monospacedDigit())
                         .foregroundStyle(AppColor.red)
                     Text("bpm")
@@ -411,7 +411,7 @@ private struct WorkoutSessionView: View {
     private func liveStat(_ label: String, _ value: String) -> some View {
         VStack(spacing: 2) {
             Text(value)
-                .font(.system(size: 20, weight: .bold).monospacedDigit())
+                .font(.app(20, weight: .bold).monospacedDigit())
                 .foregroundStyle(AppColor.text)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -551,7 +551,7 @@ private struct WorkoutSessionView: View {
     private func summaryStat(_ label: String, _ value: String, _ unit: String, _ color: Color) -> some View {
         VStack(spacing: 4) {
             Text(value)
-                .font(.system(size: 17, weight: .black).monospacedDigit())
+                .font(.app(17, weight: .black).monospacedDigit())
                 .foregroundStyle(color)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)

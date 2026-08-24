@@ -207,7 +207,7 @@ private struct SummaryCard: View {
                     .fill((has ? AppColor.primary : AppColor.orange).opacity(0.12))
                     .frame(width: 48, height: 48)
                 Image(systemName: has ? "checkmark.circle.fill" : "info.circle")
-                    .font(.system(size: 22))
+                    .font(.app(22))
                     .foregroundStyle(has ? AppColor.primary : AppColor.orange)
             }
             VStack(alignment: .leading, spacing: 2) {
@@ -254,7 +254,7 @@ private struct PackageCard: View {
                 // Preis — fixe Spalte, damit alle Paketnamen auf einer Achse starten.
                 VStack(alignment: .leading, spacing: 2) {
                     Text(package.priceFormatted)
-                        .font(.system(size: 19, weight: .heavy))
+                        .font(.app(19, weight: .heavy))
                         .foregroundStyle(AppColor.text)
                         .lineLimit(1)
                     if let pps = package.perSessionFormatted {
@@ -500,7 +500,7 @@ private struct PaymentMethodTile: View {
                         .fill(AppColor.primary.opacity(0.12))
                         .frame(width: 44, height: 44)
                     Image(systemName: icon)
-                        .font(.system(size: 20))
+                        .font(.app(20))
                         .foregroundStyle(AppColor.primary)
                 }
                 VStack(alignment: .leading, spacing: 2) {

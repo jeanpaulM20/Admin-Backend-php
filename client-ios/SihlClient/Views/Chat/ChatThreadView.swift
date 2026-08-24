@@ -545,10 +545,10 @@ private struct CirclesExpandedSheet: View {
                             Button { onSelect(val) } label: {
                                 VStack(spacing: 0) {
                                     Text("\(val)")
-                                        .font(.system(size: 18, weight: .bold))
+                                        .font(.app(18, weight: .bold))
                                         .foregroundStyle(intensityColor(val))
                                     Text("/10")
-                                        .font(.system(size: 10))
+                                        .font(.app(10))
                                         .foregroundStyle(intensityColor(val).opacity(0.6))
                                 }
                                 .frame(width: 60, height: 60)
@@ -596,7 +596,7 @@ private struct CircleDetailSheet: View {
                         .fill(AppColor.background)
                         .frame(width: 72, height: 72)
                     Text("\(value)/10")
-                        .font(.system(size: 22, weight: .bold))
+                        .font(.app(22, weight: .bold))
                         .foregroundStyle(AppColor.text)
                 }
                 .frame(width: 240, height: 240)
@@ -821,7 +821,7 @@ private struct ReviewDetailSheet: View {
                     }
                     VStack(alignment: .leading, spacing: 2) {
                         Text(trainingTypeLabel(r.trainingType.isEmpty ? nil : r.trainingType))
-                            .font(.system(size: 18, weight: .semibold))
+                            .font(.app(18, weight: .semibold))
                             .foregroundStyle(AppColor.text)
                         Text(fmtChatDate(rawDate))
                             .font(.footnote)
@@ -940,7 +940,7 @@ private struct ReviewHrChartSection: View {
                 HStack(spacing: 4) {
                     Circle().fill(zone.1).frame(width: 8, height: 8)
                     Text("\(zone.0) (\(zone.2)+)")
-                        .font(.system(size: 10))
+                        .font(.app(10))
                         .foregroundStyle(AppColor.muted)
                 }
             }
@@ -1028,7 +1028,7 @@ private struct PerformanceDetailSheet: View {
                     }
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Performance Test")
-                            .font(.system(size: 18, weight: .semibold))
+                            .font(.app(18, weight: .semibold))
                             .foregroundStyle(AppColor.text)
                         Text(fmtChatDate(t["date"] as? String))
                             .font(.footnote)
@@ -1048,7 +1048,7 @@ private struct PerformanceDetailSheet: View {
                                 .foregroundStyle(AppColor.text)
                             Spacer()
                             Text(f.value)
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(.app(16, weight: .semibold))
                                 .foregroundStyle(AppColor.text)
                         }
                         .padding(.horizontal, 14)
@@ -1129,7 +1129,7 @@ private struct MetricDetailSheet: View {
                             .foregroundStyle(AppColor.blue)
                     }
                     Text("Koerperwerte")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.app(18, weight: .semibold))
                         .foregroundStyle(AppColor.text)
                     Spacer()
                 }
@@ -1151,7 +1151,7 @@ private struct MetricDetailSheet: View {
                                     .foregroundStyle(AppColor.text)
                                 Spacer()
                                 Text(f.value)
-                                    .font(.system(size: 16, weight: .semibold))
+                                    .font(.app(16, weight: .semibold))
                                     .foregroundStyle(AppColor.text)
                             }
                             .padding(.horizontal, 14)

@@ -92,7 +92,7 @@ private struct TabRoot<Content: View>: View {
                                             .foregroundStyle(AppColor.white)
                                     } else {
                                         Text(avatarInitials)
-                                            .font(.system(size: 13, weight: .bold))
+                                            .font(.app(13, weight: .bold))
                                             .foregroundStyle(AppColor.white)
                                     }
                                 }

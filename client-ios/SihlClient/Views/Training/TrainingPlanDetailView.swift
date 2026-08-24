@@ -177,7 +177,7 @@ struct TrainingPlanDetailView: View {
                         } label: {
                             VStack(spacing: 0) {
                                 Text(meta.label.uppercased())
-                                    .font(.system(size: 12,
+                                    .font(.app(12,
                                                   weight: isSelected ? .bold : .regular))
                                     .foregroundStyle(isSelected ? AppColor.text : AppColor.muted)
                                     .padding(.horizontal, 16).padding(.vertical, 10)
@@ -209,7 +209,7 @@ struct TrainingPlanDetailView: View {
                         .fill(running ? AppColor.primary : AppColor.surface2)
                         .frame(width: 44, height: 44)
                     Image(systemName: running ? "pause.fill" : "play.fill")
-                        .font(.system(size: 20))
+                        .font(.app(20))
                         .foregroundStyle(running ? AppColor.white : AppColor.primary)
                 }
             }
@@ -218,7 +218,7 @@ struct TrainingPlanDetailView: View {
             // Zeit
             Spacer()
             Text(timer.display)
-                .font(.system(size: 90, weight: .bold, design: .monospaced))
+                .font(.app(90, weight: .bold, design: .monospaced))
                 .foregroundStyle(timeColor)
                 .lineLimit(1)
                 .minimumScaleFactor(0.3)
@@ -229,7 +229,7 @@ struct TrainingPlanDetailView: View {
             // Reset
             Button { timer.reset() } label: {
                 Image(systemName: "arrow.counterclockwise")
-                    .font(.system(size: 18)).foregroundStyle(AppColor.muted)
+                    .font(.app(18)).foregroundStyle(AppColor.muted)
             }
             .buttonStyle(.plain)
         }
@@ -253,7 +253,7 @@ struct TrainingPlanDetailView: View {
                 VStack {
                     Spacer()
                     Text("Keine Übungen in diesem Abschnitt")
-                        .font(.system(size: 13)).foregroundStyle(AppColor.muted)
+                        .font(.app(13)).foregroundStyle(AppColor.muted)
                     Spacer()
                 }
             } else {
@@ -302,11 +302,11 @@ struct TrainingPlanDetailView: View {
     private func lockedView(plan: ClientTrainingPlan) -> some View {
         VStack(spacing: 16) {
             Image(systemName: "lock.fill")
-                .font(.system(size: 44)).foregroundStyle(AppColor.orange)
+                .font(.app(44)).foregroundStyle(AppColor.orange)
             Text("Dieser Plan ist gesperrt")
-                .font(.system(size: 16, weight: .bold)).foregroundStyle(AppColor.text)
+                .font(.app(16, weight: .bold)).foregroundStyle(AppColor.text)
             Text("Schalte Online Coaching frei, um den Plan zu sehen.")
-                .font(.system(size: 13)).foregroundStyle(AppColor.muted)
+                .font(.app(13)).foregroundStyle(AppColor.muted)
                 .multilineTextAlignment(.center)
             NavigationLink(destination: CoachingPaywallView(plan: plan)) {
                 Text("Freischalten")
@@ -364,14 +364,14 @@ private struct ExerciseTile: View {
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text(row.exercise.isEmpty ? "Übung \(index + 1)" : row.exercise)
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.app(14, weight: .semibold))
                             .foregroundStyle(AppColor.text)
                             .multilineTextAlignment(.leading)
 
                         let parts = [row.device, row.sets, row.weight].filter { !$0.isEmpty }
                         if !parts.isEmpty {
                             Text(parts.joined(separator: " · "))
-                                .font(.system(size: 11)).foregroundStyle(AppColor.muted)
+                                .font(.app(11)).foregroundStyle(AppColor.muted)
                                 .lineLimit(1)
                         }
                     }
@@ -382,9 +382,9 @@ private struct ExerciseTile: View {
                         Button(action: onComment) {
                             HStack(spacing: 2) {
                                 Image(systemName: "bubble.left")
-                                    .font(.system(size: 11)).foregroundStyle(meta.color.opacity(0.8))
+                                    .font(.app(11)).foregroundStyle(meta.color.opacity(0.8))
                                 Text("\(commentCount)")
-                                    .font(.system(size: 11)).foregroundStyle(meta.color)
+                                    .font(.app(11)).foregroundStyle(meta.color)
                             }
                         }
                         .buttonStyle(.plain)
@@ -392,7 +392,7 @@ private struct ExerciseTile: View {
                     }
 
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 14)).foregroundStyle(AppColor.muted)
+                        .font(.app(14)).foregroundStyle(AppColor.muted)
                         .rotationEffect(.degrees(isExpanded ? 180 : 0))
                         .animation(.easeInOut(duration: 0.2), value: isExpanded)
                 }
@@ -460,10 +460,10 @@ private struct ExerciseTile: View {
                                 .fill(AppColor.border).frame(width: 2)
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Hinweis")
-                                    .font(.system(size: 10, weight: .semibold))
+                                    .font(.app(10, weight: .semibold))
                                     .foregroundStyle(AppColor.muted)
                                 Text(row.position)
-                                    .font(.system(size: 12)).foregroundStyle(AppColor.text.opacity(0.75))
+                                    .font(.app(12)).foregroundStyle(AppColor.text.opacity(0.75))
                                     .lineSpacing(3)
                             }
                         }
@@ -506,10 +506,10 @@ private struct TimerChip: View {
             HStack(spacing: 4) {
                 if isActive {
                     Image(systemName: "play.fill")
-                        .font(.system(size: 11)).foregroundStyle(meta.color)
+                        .font(.app(11)).foregroundStyle(meta.color)
                 }
                 Text(label())
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.app(12, weight: .semibold))
                     .foregroundStyle(isActive ? meta.color : AppColor.muted)
             }
             .padding(.horizontal, 12).padding(.vertical, 6)
@@ -539,9 +539,9 @@ private struct ActionChip: View {
         Button(action: onTap) {
             HStack(spacing: 4) {
                 Image(systemName: icon)
-                    .font(.system(size: 12)).foregroundStyle(active ? color : AppColor.muted)
+                    .font(.app(12)).foregroundStyle(active ? color : AppColor.muted)
                 Text(label)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.app(12, weight: .semibold))
                     .foregroundStyle(active ? color : AppColor.muted)
             }
             .padding(.horizontal, 10).padding(.vertical, 6)

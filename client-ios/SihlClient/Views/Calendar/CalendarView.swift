@@ -101,7 +101,7 @@ struct CalendarView: View {
                     VStack(spacing: 12) {
                         ProgressView().tint(AppColor.primary).scaleEffect(1.4)
                         Text(vm.isBooking ? "Termin wird gebucht…" : "Termin wird abgesagt…")
-                            .font(.system(size: 14))
+                            .font(.app(14))
                             .foregroundStyle(AppColor.text)
                     }
                     .padding(AppSpacing.card)
@@ -194,14 +194,14 @@ struct CalendarView: View {
 
         return HStack {
             Text(fmt.string(from: vm.selectedDate))
-                .font(.system(size: 15, weight: .semibold))
+                .font(.app(15, weight: .semibold))
                 .foregroundStyle(AppColor.text)
             Spacer()
             if !slots.isEmpty {
                 HStack(spacing: 4) {
                     Circle().fill(AppColor.green).frame(width: 6, height: 6)
                     Text("\(slots.count) Slots frei")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.app(11, weight: .medium))
                         .foregroundStyle(AppColor.green)
                 }
                 .padding(.horizontal, 8)
@@ -257,7 +257,7 @@ private struct MonthCalendarView: View {
                 }
                 Spacer()
                 Text(monthTitle)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.app(16, weight: .bold))
                     .foregroundStyle(AppColor.text)
                 Spacer()
                 Button {
@@ -273,7 +273,7 @@ private struct MonthCalendarView: View {
             LazyVGrid(columns: columns, spacing: 0) {
                 ForEach(weekDays, id: \.self) { d in
                     Text(d)
-                        .font(.system(size: 11))
+                        .font(.app(11))
                         .foregroundStyle(AppColor.muted)
                         .frame(height: 28)
                 }
@@ -341,7 +341,7 @@ private struct DayCell: View {
                         Circle().fill(AppColor.primary.opacity(0.3)).frame(width: 32, height: 32)
                     }
                     Text("\(dayNum)")
-                        .font(.system(size: 14, weight: isSelected ? .bold : .regular))
+                        .font(.app(14, weight: isSelected ? .bold : .regular))
                         .foregroundStyle(
                             isOutOfRange ? AppColor.muted.opacity(0.35)
                             : isSelected ? Color.white
@@ -375,7 +375,7 @@ private struct DayCell: View {
 
     private func countDot(_ color: Color, _ n: Int) -> some View {
         Text("\(n)")
-            .font(.system(size: 7, weight: .bold))
+            .font(.app(7, weight: .bold))
             .foregroundStyle(.white)
             .padding(.horizontal, 3)
             .frame(height: 10)
@@ -393,8 +393,8 @@ private struct SlotGridView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 6) {
-                Image(systemName: "square.grid.2x2").font(.system(size: 12)).foregroundStyle(AppColor.muted)
-                Text("Verfügbare Slots").font(.system(size: 12, weight: .semibold)).foregroundStyle(AppColor.muted)
+                Image(systemName: "square.grid.2x2").font(.app(12)).foregroundStyle(AppColor.muted)
+                Text("Verfügbare Slots").font(.app(12, weight: .semibold)).foregroundStyle(AppColor.muted)
             }
             .padding(.horizontal, 14).padding(.top, 12).padding(.bottom, 4)
 
@@ -409,7 +409,7 @@ private struct SlotGridView: View {
             // Legende
             HStack(spacing: 4) {
                 RoundedRectangle(cornerRadius: 2).fill(AppColor.green).frame(width: 8, height: 8)
-                Text("Antippen zum Buchen").font(.system(size: 10)).foregroundStyle(AppColor.green)
+                Text("Antippen zum Buchen").font(.app(10)).foregroundStyle(AppColor.green)
             }
             .padding(.horizontal, 14).padding(.bottom, 10)
         }
@@ -427,10 +427,10 @@ private struct SlotChip: View {
         Button(action: onTap) {
             VStack(spacing: 1) {
                 Text(slot.timeStr)
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.app(13, weight: .bold))
                     .foregroundStyle(AppColor.green)
                 Text(slot.endTimeStr)
-                    .font(.system(size: 10))
+                    .font(.app(10))
                     .foregroundStyle(AppColor.green.opacity(0.6))
             }
             .frame(width: 80)
@@ -507,15 +507,15 @@ struct CalEventCard: View {
 
                 // Status badge / chevron
                 if isCancelled {
-                    Text("Abgesagt").font(.system(size: 11)).foregroundStyle(AppColor.red)
+                    Text("Abgesagt").font(.app(11)).foregroundStyle(AppColor.red)
                         .padding(.horizontal, 8).padding(.vertical, 3)
                         .background(AppColor.red.opacity(0.1)).clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
                 } else if isMissed {
-                    Text("Verpasst").font(.system(size: 11)).foregroundStyle(AppColor.orange)
+                    Text("Verpasst").font(.app(11)).foregroundStyle(AppColor.orange)
                         .padding(.horizontal, 8).padding(.vertical, 3)
                         .background(AppColor.orange.opacity(0.1)).clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
                 } else {
-                    Image(systemName: "chevron.right").font(.system(size: 14)).foregroundStyle(AppColor.muted)
+                    Image(systemName: "chevron.right").font(.app(14)).foregroundStyle(AppColor.muted)
                 }
             }
             .padding(AppSpacing.card)

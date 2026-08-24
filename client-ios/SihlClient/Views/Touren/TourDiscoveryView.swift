@@ -110,7 +110,7 @@ struct TourDiscoveryView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "scope").font(.caption)
                             Text("\(Int(radiusKm)) km").font(.footnote.weight(.medium))
-                            Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold))
+                            Image(systemName: "chevron.down").font(.app(9, weight: .semibold))
                         }
                         .foregroundStyle(AppColor.text)
                         .padding(.horizontal, 14)
@@ -200,7 +200,7 @@ struct TourDiscoveryView: View {
                         Circle().fill(AppColor.surface).frame(width: 34, height: 34)
                             .overlay(Circle().stroke(AppColor.primary, lineWidth: 2))
                         Image(systemName: tourActivityIcon(tour.activity))
-                            .font(.system(size: 15))
+                            .font(.app(15))
                             .foregroundStyle(AppColor.primary)
                     }
                     // 44-pt-Tap-Ziel (Apple-Minimum) bei 34-pt-Optik
@@ -219,7 +219,7 @@ struct TourDiscoveryView: View {
     private func activityChip(_ a: TourActivity) -> some View {
         let selected = activity == a
         return HStack(spacing: 6) {
-            Image(systemName: a.icon).font(.system(size: 13))
+            Image(systemName: a.icon).font(.app(13))
             Text(a.label).font(.footnote.weight(selected ? .bold : .medium))
         }
         .foregroundStyle(selected ? AppColor.white : AppColor.muted)
@@ -281,7 +281,7 @@ struct TourDiscoveryView: View {
             HStack(spacing: 6) {
                 if let diff = tour.difficulty {
                     Text(diff)
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.app(10, weight: .bold))
                         .foregroundStyle(AppColor.white)
                         .padding(.horizontal, 8).padding(.vertical, 3)
                         .background(AppColor.primaryDark)
@@ -289,7 +289,7 @@ struct TourDiscoveryView: View {
                 }
                 if let net = tour.networkLabel {
                     Text(net)
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.app(10, weight: .medium))
                         .foregroundStyle(AppColor.brass)
                 }
                 Spacer()
@@ -497,7 +497,7 @@ private struct PlanTourSheet: View {
         let selected = chosenActivity == a
         return VStack(spacing: 6) {
             Image(systemName: icon)
-                .font(.system(size: 22))
+                .font(.app(22))
                 .foregroundStyle(selected ? AppColor.primary : AppColor.muted)
             Text(label)
                 .font(.footnote.weight(selected ? .bold : .regular))

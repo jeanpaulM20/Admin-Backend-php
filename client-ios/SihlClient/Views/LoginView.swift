@@ -70,7 +70,7 @@ struct LoginView: View {
             .frame(width: 72, height: 72)
             .overlay(
                 Text("ST")
-                    .font(.system(size: 28, weight: .black))
+                    .font(.app(28, weight: .black))
                     .foregroundStyle(AppColor.white)
                     .kerning(1)
             )

@@ -97,7 +97,7 @@ private struct PerformanceSectionCard: View {
                         .fill(AppColor.primary.opacity(0.15))
                         .frame(width: 36, height: 36)
                     Image(systemName: "chart.bar.fill")
-                        .font(.system(size: 18))
+                        .font(.app(18))
                         .foregroundStyle(AppColor.primary)
                 }
                 VStack(alignment: .leading, spacing: 2) {
@@ -245,7 +245,7 @@ private struct TrainingReviewSectionCard: View {
                         .fill(AppColor.red.opacity(0.15))
                         .frame(width: 36, height: 36)
                     Image(systemName: "waveform.path.ecg")
-                        .font(.system(size: 18))
+                        .font(.app(18))
                         .foregroundStyle(AppColor.red)
                 }
                 VStack(alignment: .leading, spacing: 2) {

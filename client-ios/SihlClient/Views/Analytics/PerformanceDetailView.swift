@@ -42,7 +42,7 @@ struct PerformanceDetailView: View {
                 Text("Aktueller Wert")
                     .font(.caption).foregroundStyle(AppColor.muted)
                 Text(item.value)
-                    .font(.system(size: 28, weight: .black))
+                    .font(.app(28, weight: .black))
                     .foregroundStyle(AppColor.text)
             }
             Spacer()
@@ -50,7 +50,7 @@ struct PerformanceDetailView: View {
                 Text("Vorher")
                     .font(.caption).foregroundStyle(AppColor.muted)
                 Text(item.previousValue)
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(.app(20, weight: .semibold))
                     .foregroundStyle(AppColor.muted)
             }
             if !item.change.isEmpty && item.change != "0" {

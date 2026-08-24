@@ -61,10 +61,10 @@ struct TrainingReviewDetailView: View {
             ToolbarItem(placement: .principal) {
                 VStack(spacing: 1) {
                     Text(review.trainingType)
-                        .font(.system(size: 15, weight: .bold))
+                        .font(.app(15, weight: .bold))
                         .foregroundStyle(AppColor.text)
                     Text(review.formattedDate())
-                        .font(.system(size: 11))
+                        .font(.app(11))
                         .foregroundStyle(AppColor.muted)
                 }
             }
@@ -175,7 +175,7 @@ struct TrainingReviewDetailView: View {
                     AxisValueLabel {
                         if let km = value.as(Double.self) {
                             Text(String(format: "%.1f km", km))
-                                .font(.system(size: 9)).foregroundStyle(AppColor.muted)
+                                .font(.app(9)).foregroundStyle(AppColor.muted)
                         }
                     }
                     AxisGridLine().foregroundStyle(AppColor.muted.opacity(0.15))
@@ -243,7 +243,7 @@ struct StatCard: View {
     var body: some View {
         VStack(spacing: 4) {
             Text(value)
-                .font(.system(size: 18, weight: .black))
+                .font(.app(18, weight: .black))
                 .foregroundStyle(color)
             Text(unit)
                 .font(.caption2).foregroundStyle(AppColor.muted)
@@ -269,7 +269,7 @@ private struct TrainingLoadCard: View {
 
         VStack(spacing: 4) {
             Text(value)
-                .font(.system(size: 18, weight: .black))
+                .font(.app(18, weight: .black))
                 .foregroundStyle(color)
             Text("Load")
                 .font(.caption2).foregroundStyle(AppColor.muted)
@@ -384,7 +384,7 @@ struct HrLineChart: View {
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                     .annotation(position: .top, alignment: .leading) {
                         Text("Max")
-                            .font(.system(size: 10))
+                            .font(.app(10))
                             .foregroundStyle(AppColor.zoneMax)
                     }
             }
@@ -413,7 +413,7 @@ struct HrLineChart: View {
                 AxisValueLabel {
                     if let idx = value.as(Int.self), idx < chart.count {
                         Text(Self.timeLabel(chart[idx].time))
-                            .font(.system(size: 9))
+                            .font(.app(9))
                             .foregroundStyle(AppColor.muted)
                     }
                 }
@@ -470,7 +470,7 @@ struct HrLineChart: View {
                 Text(t)
             }
         }
-        .font(.system(size: 12, weight: .semibold))
+        .font(.app(12, weight: .semibold))
         .foregroundStyle(color)
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
