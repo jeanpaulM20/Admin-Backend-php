@@ -197,10 +197,11 @@ struct TrainingReview: Identifiable, Hashable {
 
 // MARK: - PerformanceNavTarget (NavigationLink Wrapper)
 
-/// Kapselt Item + Sektionsname für NavigationLink in SwiftUI.
-struct PerformanceNavTarget: Hashable {
+/// Kapselt Item + Sektionsname für die programmatische Navigation.
+struct PerformanceNavTarget: Hashable, Identifiable {
     let sectionTitle: String
     let item:         PerformanceItem
+    var id: String { "\(sectionTitle)-\(item.name)" }
     static func == (l: Self, r: Self) -> Bool { l.sectionTitle == r.sectionTitle && l.item == r.item }
     func hash(into hasher: inout Hasher) { hasher.combine(sectionTitle); hasher.combine(item) }
 }

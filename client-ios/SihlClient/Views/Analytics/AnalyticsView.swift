@@ -43,13 +43,8 @@ struct AnalyticsView: View {
         .sheet(item: $compareTarget) { sel in
             TrainingCompareView(reviews: sel.reviews)
         }
-        // NavigationDestinations werden im NavigationStack von MainTabView registriert
-        .navigationDestination(for: PerformanceNavTarget.self) { target in
-            PerformanceDetailView(item: target.item, sectionTitle: target.sectionTitle)
-        }
-        .navigationDestination(for: TrainingReview.self) { review in
-            TrainingReviewDetailView(review: review)
-        }
+        // Navigation läuft programmatisch in den Section-Cards
+        // (navigationDestination(item:) + Tap-Gesten).
     }
 
     // MARK: - Content list
@@ -90,55 +85,61 @@ private struct PerformanceSectionCard: View {
     let section: PerformanceSection
     @State private var expanded = false
 
+    @State private var detailTarget: PerformanceNavTarget?
+
     var body: some View {
         VStack(spacing: 0) {
-            // Header (Tap zum Auf-/Zuklappen)
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() }
-            } label: {
-                HStack(spacing: 12) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: AppRadius.control)
-                            .fill(AppColor.primary.opacity(0.15))
-                            .frame(width: 36, height: 36)
-                        Image(systemName: "chart.bar.fill")
-                            .font(.system(size: 18))
-                            .foregroundStyle(AppColor.primary)
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(section.title)
-                            .font(.subheadline.bold())
-                            .foregroundStyle(AppColor.text)
-                        Text("\(section.items.count) Messwert\(section.items.count == 1 ? "" : "e")")
-                            .font(.caption)
-                            .foregroundStyle(AppColor.muted)
-                    }
-                    Spacer()
-                    Image(systemName: expanded ? "chevron.up" : "chevron.down")
+            // Header (Tap zum Auf-/Zuklappen) — Gesture statt Button:
+            // Buttons in dieser ScrollView reagieren nicht zuverlässig.
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: AppRadius.control)
+                        .fill(AppColor.primary.opacity(0.15))
+                        .frame(width: 36, height: 36)
+                    Image(systemName: "chart.bar.fill")
+                        .font(.system(size: 18))
+                        .foregroundStyle(AppColor.primary)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(section.title)
+                        .font(.subheadline.bold())
+                        .foregroundStyle(AppColor.text)
+                    Text("\(section.items.count) Messwert\(section.items.count == 1 ? "" : "e")")
                         .font(.caption)
                         .foregroundStyle(AppColor.muted)
                 }
-                .padding(16)
+                Spacer()
+                Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                    .font(.caption)
+                    .foregroundStyle(AppColor.muted)
             }
-            .buttonStyle(.plain)
+            .padding(16)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() }
+            }
 
-            // Items
+            // Items — programmatische Navigation über navigationDestination(item:)
             if expanded {
                 Divider().background(AppColor.muted.opacity(0.2))
                 ForEach(section.items.indices, id: \.self) { idx in
                     let item = section.items[idx]
-                    NavigationLink(value: PerformanceNavTarget(sectionTitle: section.title, item: item)) {
-                        PerformanceItemRow(
-                            item:   item,
-                            isLast: idx == section.items.count - 1
-                        )
+                    PerformanceItemRow(
+                        item:   item,
+                        isLast: idx == section.items.count - 1
+                    )
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        detailTarget = PerformanceNavTarget(sectionTitle: section.title, item: item)
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
         .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
         .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
+        .navigationDestination(item: $detailTarget) { target in
+            PerformanceDetailView(item: target.item, sectionTitle: target.sectionTitle)
+        }
     }
 }
 
@@ -207,6 +208,7 @@ private struct TrainingReviewSectionCard: View {
 
     private let minCompare = 2
     @State private var expanded = false
+    @State private var detailReview: TrainingReview?
 
     private var comparableCount: Int { reviews.filter(\.hasChartData).count }
 
@@ -250,14 +252,16 @@ private struct TrainingReviewSectionCard: View {
                         compareMode ? AppColor.primary : AppColor.muted.opacity(0.3), lineWidth: 1))
                 }
 
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() }
-                } label: {
-                    Image(systemName: expanded ? "chevron.up" : "chevron.down")
-                        .font(.caption).foregroundStyle(AppColor.muted)
-                }
+                Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                    .font(.caption).foregroundStyle(AppColor.muted)
             }
             .padding(16)
+            // Ganzer Header klappt auf/zu (wie Flutters ExpansionTile) —
+            // der Vergleichen-Button behält als Button Vorrang auf seiner Fläche.
+            .contentShape(Rectangle())
+            .onTapGesture {
+                withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() }
+            }
 
             if expanded {
                 Divider().background(AppColor.muted.opacity(0.2))
@@ -294,18 +298,20 @@ private struct TrainingReviewSectionCard: View {
                     let isDisabled = compareMode && !review.hasChartData
                     let isSelected = selectedIds.contains(review.id)
 
-                    if compareMode {
-                        // Vergleichsmodus: Tap toggelt die Auswahl
-                        ReviewRowView(
-                            review:     review,
-                            isLast:     isLast,
-                            compareMode: compareMode,
-                            isSelected: isSelected,
-                            isDisabled: isDisabled
-                        )
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            guard !isDisabled else { return }
+                    // Gesture statt NavigationLink/Button — Buttons in dieser
+                    // ScrollView reagieren nicht zuverlässig; Navigation läuft
+                    // programmatisch über navigationDestination(item:).
+                    ReviewRowView(
+                        review:     review,
+                        isLast:     isLast,
+                        compareMode: compareMode,
+                        isSelected: isSelected,
+                        isDisabled: isDisabled
+                    )
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        guard !isDisabled else { return }
+                        if compareMode {
                             withAnimation {
                                 if selectedIds.contains(review.id) {
                                     selectedIds.remove(review.id)
@@ -313,19 +319,9 @@ private struct TrainingReviewSectionCard: View {
                                     selectedIds.insert(review.id)
                                 }
                             }
+                        } else {
+                            detailReview = review
                         }
-                    } else {
-                        // Normalmodus: ganze Zeile ist der NavigationLink zum Detail
-                        NavigationLink(value: review) {
-                            ReviewRowView(
-                                review:     review,
-                                isLast:     isLast,
-                                compareMode: compareMode,
-                                isSelected: isSelected,
-                                isDisabled: isDisabled
-                            )
-                        }
-                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -333,6 +329,9 @@ private struct TrainingReviewSectionCard: View {
         .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
         .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(
             AppColor.muted.opacity(0.15), lineWidth: 1))
+        .navigationDestination(item: $detailReview) { review in
+            TrainingReviewDetailView(review: review)
+        }
     }
 }
 

@@ -84,6 +84,7 @@ struct ProfileView: View {
                 invoicesSection
                 filesSection
                 connectionsSection
+                glucoseRow
                 notificationsSection
 
                 Spacer(minLength: 24)
@@ -166,6 +167,40 @@ struct ProfileView: View {
                         .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(AppColor.text)
                     Text("Abos & Pakete ansehen")
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppColor.muted)
+                }
+
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14))
+                    .foregroundStyle(AppColor.muted)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(AppColor.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppColor.border, lineWidth: 1))
+        }
+    }
+
+    // MARK: - Blutzucker Row (CGM — ehemals Tab 6; max. 5 Tabs, s. MainTabView)
+
+    private var glucoseRow: some View {
+        NavigationLink(destination: GlucoseView().navigationTitle("Blutzucker")) {
+            HStack(spacing: 12) {
+                RoundedRectangle(cornerRadius: 9)
+                    .fill(AppColor.red.opacity(0.12))
+                    .frame(width: 36, height: 36)
+                    .overlay(Image(systemName: "waveform.path.ecg")
+                        .font(.system(size: 16))
+                        .foregroundStyle(AppColor.red))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Blutzucker")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(AppColor.text)
+                    Text("FreeStyle Libre CGM-Daten")
                         .font(.system(size: 12))
                         .foregroundStyle(AppColor.muted)
                 }

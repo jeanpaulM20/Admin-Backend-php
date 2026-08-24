@@ -283,7 +283,7 @@ struct HrLineChart: View {
             AxisMarks(values: showXAxis ? xLabelIndices : []) { value in
                 AxisValueLabel {
                     if let idx = value.as(Int.self), idx < chart.count {
-                        Text(chart[idx].time ?? "")
+                        Text(Self.timeLabel(chart[idx].time))
                             .font(.system(size: 9))
                             .foregroundStyle(AppColor.muted)
                     }
@@ -320,11 +320,24 @@ struct HrLineChart: View {
         }
     }
 
+    /// Zeitstempel (ISO/`HH:mm:ss`) → kompaktes "HH:mm"-Label.
+    static func timeLabel(_ raw: String?) -> String {
+        guard let raw, !raw.isEmpty else { return "" }
+        guard let d = APIDate.parse(raw) else { return raw }
+        return Self.hhmm.string(from: d)
+    }
+    private static let hhmm: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "HH:mm"
+        return f
+    }()
+
     /// Tooltip-Inhalt: bpm + Uhrzeit (wie Flutter :187-194).
     private func tooltipLabel(_ p: HrPoint) -> some View {
         VStack(spacing: 2) {
             Text("\(Int(p.value)) bpm")
-            if let t = p.time, !t.isEmpty {
+            if let t = Self.timeLabel(p.time) as String?, !t.isEmpty {
                 Text(t)
             }
         }
