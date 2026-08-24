@@ -52,7 +52,8 @@ struct StartView: View {
                 appointmentList
             }
             .padding(.horizontal, AppSpacing.screen)
-            .padding(.vertical, AppSpacing.bottomInset)
+            .padding(.top, AppSpacing.card)
+            .padding(.bottom, AppSpacing.bottomInset)
         }
     }
 
@@ -89,9 +90,13 @@ struct StartView: View {
 
             Spacer()
 
-            Text("\(upcomingAppointments.count)")
-                .font(.app(15, weight: .semibold))
-                .foregroundStyle(AppColor.muted)
+            // Zähler nur, wenn es etwas zu zählen gibt — eine nackte "0"
+            // neben dem Leerzustand wäre redundant und unlesbar
+            if !upcomingAppointments.isEmpty {
+                Text("\(upcomingAppointments.count)")
+                    .font(.app(15, weight: .semibold))
+                    .foregroundStyle(AppColor.muted)
+            }
         }
     }
 
@@ -101,16 +106,20 @@ struct StartView: View {
         let upcoming = upcomingAppointments
         return Group {
             if upcoming.isEmpty {
+                // Die eine Hauptaktion der leeren Startseite → CTA-Stil
                 EmptyStateView(
                     icon: "calendar",
-                    message: "Suche Dir einen passenden Termin aus.",
+                    message: "Du hast noch keine Termine geplant.",
                     actionTitle: onGoToCalendar != nil ? "Termin buchen" : nil,
-                    action: onGoToCalendar
+                    action: onGoToCalendar,
+                    prominentAction: true
                 )
             } else {
-                VStack(spacing: 10) {
+                VStack(spacing: AppSpacing.stack) {
                     ForEach(upcoming) { appt in
                         AppointmentCard(appointment: appt)
+                            .contentShape(Rectangle())
+                            .onTapGesture { onGoToCalendar?() }
                     }
                 }
             }
@@ -176,58 +185,36 @@ private struct QuoteShimmer: View {
     }
 }
 
-// MARK: - Summary Card
-
-private struct SummaryCard: View {
-    let icon: String
-    let value: String
-    let label: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Image(systemName: icon)
-                .font(.app(22))
-                .foregroundStyle(AppColor.muted)
-                .padding(.bottom, 12)
-
-            Text(value)
-                .font(.app(22, weight: .heavy))
-                .foregroundStyle(AppColor.text)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-                .padding(.bottom, 4)
-
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(AppColor.muted)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(AppSpacing.card)
-        .background(AppColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
-    }
-}
-
 // MARK: - Appointment Card
 
 private struct AppointmentCard: View {
     let appointment: Appointment
 
     private static let dayFmt: DateFormatter = {
-        let f = DateFormatter(); f.locale = Locale(identifier: "de_DE"); f.dateFormat = "dd"; return f
+        let f = DateFormatter(); f.locale = Locale(identifier: "de_CH"); f.dateFormat = "dd"; return f
     }()
     private static let monFmt: DateFormatter = {
-        let f = DateFormatter(); f.locale = Locale(identifier: "de_DE"); f.dateFormat = "MMM"; return f
+        let f = DateFormatter(); f.locale = Locale(identifier: "de_CH"); f.dateFormat = "MMM"; return f
     }()
     private static let dateFmt: DateFormatter = {
-        let f = DateFormatter(); f.locale = Locale(identifier: "de_DE"); f.dateFormat = "EEE, d. MMM"; return f
+        let f = DateFormatter(); f.locale = Locale(identifier: "de_CH"); f.dateFormat = "EEE, d. MMM"; return f
     }()
     private static let timeFmt: DateFormatter = {
         let f = DateFormatter(); f.dateFormat = "HH:mm"; return f
     }()
 
+    /// Bekannte Status deutsch und mit passender Farbe; Unbekanntes neutral.
+    private static func statusBadge(_ status: String) -> (String, Color) {
+        switch status.lowercased() {
+        case "booked", "confirmed": return ("Gebucht", AppColor.green)
+        case "cancelled", "canceled": return ("Abgesagt", AppColor.red)
+        case "pending", "requested": return ("Angefragt", AppColor.brass)
+        default: return (status, AppColor.muted)
+        }
+    }
+
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: AppSpacing.stack) {
             // ── Date Bubble ──────────────────────────────────────────────────
             VStack(spacing: 1) {
                 Text(Self.dayFmt.string(from: appointment.startDate))
@@ -239,7 +226,7 @@ private struct AppointmentCard: View {
             }
             .frame(width: 50, height: 50)
             .background(AppColor.primary.opacity(0.15))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
 
             // ── Details ──────────────────────────────────────────────────────
             VStack(alignment: .leading, spacing: 4) {
@@ -261,14 +248,14 @@ private struct AppointmentCard: View {
 
             Spacer()
 
-            // ── Status Badge ─────────────────────────────────────────────────
-            let label = appointment.status == "booked" ? "Gebucht" : appointment.status
+            // ── Status Badge — Sprache UND Farbe folgen dem Status ───────────
+            let (label, color) = Self.statusBadge(appointment.status)
             Text(label)
                 .font(.app(11, weight: .semibold))
-                .foregroundStyle(AppColor.green)
+                .foregroundStyle(color)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(AppColor.green.opacity(0.12))
+                .background(color.opacity(0.12))
                 .clipShape(RoundedRectangle(cornerRadius: 4))
         }
         .padding(AppSpacing.card)

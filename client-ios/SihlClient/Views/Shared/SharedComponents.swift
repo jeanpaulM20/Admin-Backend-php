@@ -99,6 +99,9 @@ struct EmptyStateView: View {
     let message: String
     var actionTitle: String? = nil
     var action: (() -> Void)? = nil
+    /// true, wenn die Aktion DIE Hauptaktion des Screens ist (Ein-CTA-Prinzip) —
+    /// dann trägt sie CTA-Orange statt des sekundären Outline-Stils.
+    var prominentAction: Bool = false
 
     var body: some View {
         VStack(spacing: 16) {
@@ -112,12 +115,26 @@ struct EmptyStateView: View {
                 .padding(.horizontal, 32)
             if let actionTitle, let action {
                 Button(actionTitle, action: action)
-                    .buttonStyle(OutlineButtonStyle())
+                    .buttonStyle(prominentAction
+                        ? AnyButtonStyle(PrimaryButtonStyle())
+                        : AnyButtonStyle(OutlineButtonStyle()))
                     .padding(.top, 8)
+                    .padding(.horizontal, prominentAction ? 32 : 0)
             }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 32)
+    }
+}
+
+/// Typ-Radierer, damit Button-Stile bedingt wählbar sind.
+struct AnyButtonStyle: ButtonStyle {
+    private let _makeBody: (Configuration) -> AnyView
+    init<S: ButtonStyle>(_ style: S) {
+        _makeBody = { AnyView(style.makeBody(configuration: $0)) }
+    }
+    func makeBody(configuration: Configuration) -> some View {
+        _makeBody(configuration)
     }
 }
 
