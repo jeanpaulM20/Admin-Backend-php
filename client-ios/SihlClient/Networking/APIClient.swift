@@ -24,12 +24,12 @@ actor APIClient {
 
     // MARK: - Öffentliche Verben
 
-    func get(_ path: String) async throws -> Data {
-        try await send(path: path, method: "GET", body: nil)
+    func get(_ path: String, timeout: TimeInterval? = nil) async throws -> Data {
+        try await send(path: path, method: "GET", body: nil, timeout: timeout)
     }
 
-    func post(_ path: String, body: [String: Any]? = nil) async throws -> Data {
-        try await send(path: path, method: "POST", body: body)
+    func post(_ path: String, body: [String: Any]? = nil, timeout: TimeInterval? = nil) async throws -> Data {
+        try await send(path: path, method: "POST", body: body, timeout: timeout)
     }
 
     func put(_ path: String, body: [String: Any]? = nil) async throws -> Data {
@@ -59,29 +59,30 @@ actor APIClient {
     // Services behandeln "keine Daten" und "unlesbare Daten" bewusst gleich).
 
     /// GET, dessen Antwort ein JSON-Array von Objekten ist.
-    func getJSONArray(_ path: String) async throws -> [[String: Any]] {
-        let data = try await get(path)
+    func getJSONArray(_ path: String, timeout: TimeInterval? = nil) async throws -> [[String: Any]] {
+        let data = try await get(path, timeout: timeout)
         return (try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]) ?? []
     }
 
     /// GET, dessen Antwort ein einzelnes JSON-Objekt ist.
-    func getJSONObject(_ path: String) async throws -> [String: Any]? {
-        let data = try await get(path)
+    func getJSONObject(_ path: String, timeout: TimeInterval? = nil) async throws -> [String: Any]? {
+        let data = try await get(path, timeout: timeout)
         return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
     }
 
     /// POST, dessen Antwort ein einzelnes JSON-Objekt ist.
-    func postJSONObject(_ path: String, body: [String: Any]? = nil) async throws -> [String: Any]? {
-        let data = try await post(path, body: body)
+    func postJSONObject(_ path: String, body: [String: Any]? = nil, timeout: TimeInterval? = nil) async throws -> [String: Any]? {
+        let data = try await post(path, body: body, timeout: timeout)
         return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
     }
 
     // MARK: - Intern
 
-    private func send(path: String, method: String, body: [String: Any]?) async throws -> Data {
+    private func send(path: String, method: String, body: [String: Any]?,
+                      timeout: TimeInterval? = nil) async throws -> Data {
         var request = URLRequest(url: buildURL(path))
         request.httpMethod = method
-        request.timeoutInterval = APIConfig.timeout
+        request.timeoutInterval = timeout ?? APIConfig.timeout
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if let token, !token.isEmpty {

@@ -207,8 +207,16 @@ struct TourDiscoveryView: View {
     @ViewBuilder
     private var bottomCards: some View {
         if isLoading {
-            ProgressView().tint(AppColor.primary)
-                .padding(.bottom, 40)
+            HStack(spacing: 10) {
+                ProgressView().tint(AppColor.primary)
+                Text("Lade Touren — die erste Suche in einem Gebiet kann bis zu einer halben Minute dauern…")
+                    .font(.caption)
+                    .foregroundStyle(AppColor.muted)
+            }
+            .padding(12)
+            .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.control))
+            .padding(.horizontal, AppSpacing.screen)
+            .padding(.bottom, 24)
         } else if let error {
             InlineErrorBanner(message: error)
                 .padding(.horizontal, AppSpacing.screen)

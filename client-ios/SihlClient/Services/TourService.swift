@@ -152,13 +152,14 @@ struct TourService {
                radiusKm: Double, activity: WorkoutActivity) async throws -> [Tour] {
         let act = activity == .rad ? "rad" : "wandern"
         return try await APIClient.shared
-            .getJSONArray("/api/client/tours/\(clientId)?lat=\(lat)&lon=\(lon)&radiusKm=\(radiusKm)&activity=\(act)")
+            .getJSONArray("/api/client/tours/\(clientId)?lat=\(lat)&lon=\(lon)&radiusKm=\(radiusKm)&activity=\(act)",
+                          timeout: 45)
             .compactMap { Tour(json: $0) }
     }
 
     func detail(clientId: String, tourId: String) async throws -> TourDetail? {
         guard let json = try await APIClient.shared
-            .getJSONObject("/api/client/tours/\(clientId)/\(tourId)") else { return nil }
+            .getJSONObject("/api/client/tours/\(clientId)/\(tourId)", timeout: 60) else { return nil }
         return TourDetail(json: json)
     }
 
@@ -170,7 +171,7 @@ struct TourService {
             "activity": activity == .rad ? "rad" : "wandern",
         ]
         guard let json = try await APIClient.shared
-            .postJSONObject("/api/client/tours/roundtrip/\(clientId)", body: body) else { return nil }
+            .postJSONObject("/api/client/tours/roundtrip/\(clientId)", body: body, timeout: 60) else { return nil }
         return TourDetail(json: json)
     }
 
