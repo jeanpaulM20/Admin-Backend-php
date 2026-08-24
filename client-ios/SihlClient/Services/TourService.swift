@@ -36,19 +36,13 @@ struct Tour: Identifiable, Hashable {
     static func == (l: Self, r: Self) -> Bool { l.id == r.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
 
-    var networkLabel: String? {
-        switch network {
-        case "lwn", "lcn": return "Lokale Route"
-        case "rwn", "rcn": return "Regionale Route"
-        case "nwn", "ncn": return "Nationale Route"
-        default:           return nil
-        }
-    }
+    var networkLabel: String? { TourDetail.networkLabel(network) }
 }
 
-/// Detail einer Route: Geometrie als Segmente (OSM-Reihenfolge nicht
-/// garantiert — Segmente einzeln zeichnen, Länge ist die Summe).
-struct TourDetail {
+/// Detail einer Route: Geometrie als Segmente. OSM-Relationen liefern die
+/// Segmente ungeordnet; generierte Rundtouren (T4) und GPX-Importe sind
+/// geordnet (ein Segment bzw. Segmentfolge).
+struct TourDetail: Identifiable, Hashable {
     let id: String
     let name: String
     let activity: String
@@ -58,26 +52,72 @@ struct TourDetail {
     let distanceKm: Double?
     let durationMin: Int?
     let difficulty: String?
+    let elevationGain: Int?
     let segments: [[CLLocationCoordinate2D]]
+    /// Höhen je Segmentpunkt (parallel zu `segments`), falls die Quelle sie liefert.
+    let elevations: [[Double?]]
+
+    init(id: String, name: String, activity: String, network: String? = nil,
+         operatorName: String? = nil, description: String? = nil,
+         distanceKm: Double? = nil, durationMin: Int? = nil,
+         difficulty: String? = nil, elevationGain: Int? = nil,
+         segments: [[CLLocationCoordinate2D]], elevations: [[Double?]] = []) {
+        self.id = id
+        self.name = name
+        self.activity = activity
+        self.network = network
+        self.operatorName = operatorName
+        self.description = description
+        self.distanceKm = distanceKm
+        self.durationMin = durationMin
+        self.difficulty = difficulty
+        self.elevationGain = elevationGain
+        self.segments = segments
+        self.elevations = elevations
+    }
 
     init?(json: [String: Any]) {
         guard let name = json["name"] as? String else { return nil }
-        self.id = "\(json["id"] ?? "")"
-        self.name = name
-        self.activity = json["activity"] as? String ?? "hiking"
-        self.network = json["network"] as? String
-        self.operatorName = json["operator"] as? String
-        self.description = json["description"] as? String
-        self.distanceKm = Double("\(json["distanceKm"] ?? "")")
-        self.durationMin = Int("\(json["durationMin"] ?? "")")
-        self.difficulty = json["difficulty"] as? String
-        self.segments = (json["segments"] as? [[[String: Any]]] ?? []).map { seg in
-            seg.compactMap { p in
+        var segs: [[CLLocationCoordinate2D]] = []
+        var eles: [[Double?]] = []
+        for seg in (json["segments"] as? [[[String: Any]]] ?? []) {
+            var coords: [CLLocationCoordinate2D] = []
+            var segEles: [Double?] = []
+            for p in seg {
                 guard let lat = Double("\(p["lat"] ?? "")"),
-                      let lon = Double("\(p["lon"] ?? "")") else { return nil }
-                return CLLocationCoordinate2D(latitude: lat, longitude: lon)
+                      let lon = Double("\(p["lon"] ?? "")") else { continue }
+                coords.append(CLLocationCoordinate2D(latitude: lat, longitude: lon))
+                segEles.append(Double("\(p["ele"] ?? "")"))
             }
-        }.filter { $0.count >= 2 }
+            if coords.count >= 2 { segs.append(coords); eles.append(segEles) }
+        }
+        self.init(
+            id: "\(json["id"] ?? UUID().uuidString)",
+            name: name,
+            activity: json["activity"] as? String ?? "hiking",
+            network: json["network"] as? String,
+            operatorName: json["operator"] as? String,
+            description: json["description"] as? String,
+            distanceKm: Double("\(json["distanceKm"] ?? "")"),
+            durationMin: Int("\(json["durationMin"] ?? "")"),
+            difficulty: json["difficulty"] as? String,
+            elevationGain: Int("\(json["elevationGain"] ?? "")"),
+            segments: segs, elevations: eles
+        )
+    }
+
+    static func == (l: Self, r: Self) -> Bool { l.id == r.id }
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
+
+    var networkLabel: String? { Self.networkLabel(network) }
+
+    static func networkLabel(_ network: String?) -> String? {
+        switch network {
+        case "lwn", "lcn": return "Lokale Route"
+        case "rwn", "rcn": return "Regionale Route"
+        case "nwn", "ncn": return "Nationale Route"
+        default:           return nil
+        }
     }
 }
 
@@ -102,8 +142,8 @@ extension TourDetail {
 
 // MARK: - TourService
 
-/// Touren-Discovery (T1, s. KONZEPT-TOUREN.md): markierte OSM-Routen über
-/// den Backend-Proxy (Overpass + Cache). Datenquelle: OpenStreetMap (ODbL).
+/// Touren-Discovery (T1) + Rundtouren-Generator (T4, BRouter/OSM).
+/// Datenquelle: OpenStreetMap (ODbL) über den Backend-Proxy.
 struct TourService {
     static let shared = TourService()
     private init() {}
@@ -119,6 +159,18 @@ struct TourService {
     func detail(clientId: String, tourId: String) async throws -> TourDetail? {
         guard let json = try await APIClient.shared
             .getJSONObject("/api/client/tours/\(clientId)/\(tourId)") else { return nil }
+        return TourDetail(json: json)
+    }
+
+    /// Rundtour ab Startpunkt generieren (T4, geordnete Route inkl. Höhen).
+    func roundtrip(clientId: String, lat: Double, lon: Double,
+                   distanceKm: Double, activity: WorkoutActivity) async throws -> TourDetail? {
+        let body: [String: Any] = [
+            "lat": lat, "lon": lon, "distanceKm": distanceKm,
+            "activity": activity == .rad ? "rad" : "wandern",
+        ]
+        guard let json = try await APIClient.shared
+            .postJSONObject("/api/client/tours/roundtrip/\(clientId)", body: body) else { return nil }
         return TourDetail(json: json)
     }
 
@@ -138,7 +190,6 @@ struct TourService {
     }
 
     static func demoDetail(_ id: String) -> TourDetail? {
-        // Einfacher Streckenzug entlang der Sihl
         let base: [(Double, Double)] = [
             (47.320, 8.525), (47.316, 8.527), (47.311, 8.528),
             (47.306, 8.531), (47.300, 8.534), (47.294, 8.538),
@@ -153,5 +204,31 @@ struct TourService {
             "description": "Demo-Route entlang der Sihl.",
             "segments": [base.map { ["lat": $0.0, "lon": $0.1] }],
         ])
+    }
+
+    /// Demo-Rundtour: Kreis um den Startpunkt mit synthetischem Höhenprofil.
+    static func demoRoundtrip(lat: Double, lon: Double, distanceKm: Double,
+                              activity: WorkoutActivity) -> TourDetail {
+        let rKm = distanceKm / (2 * .pi)
+        let latKm = 110.574, lonKm = 111.32 * cos(lat * .pi / 180)
+        let cLat = lat + rKm / latKm
+        var seg: [[String: Any]] = []
+        for i in 0...72 {
+            let phi = Double(i) / 72 * 2 * .pi + .pi
+            seg.append([
+                "lat": cLat + (rKm / latKm) * cos(phi),
+                "lon": lon + (rKm / lonKm) * sin(phi),
+                "ele": 460 + 40 * sin(phi * 2),
+            ])
+        }
+        return TourDetail(json: [
+            "id": "rt-demo", "name": String(format: "Rundtour · %.1f km", distanceKm),
+            "activity": activity == .rad ? "bicycle" : "hiking",
+            "distanceKm": distanceKm,
+            "durationMin": Int(distanceKm / (activity == .rad ? 15 : 4.2) * 60),
+            "difficulty": distanceKm < 8 ? "Leicht" : (distanceKm < 16 ? "Mittel" : "Schwer"),
+            "elevationGain": 120,
+            "segments": [seg],
+        ])!
     }
 }

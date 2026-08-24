@@ -1,16 +1,37 @@
 import SwiftUI
 import MapKit
 
-// MARK: - TourDetailView (T1: Route, Stats, Einstieg in die Aufzeichnung)
+// MARK: - TourDetailView (T1/T4: Route, Stats, GPX-Export, Tour starten)
 
+/// Zeigt eine Route: aus OSM (per Tour-ID nachgeladen), aus dem
+/// Rundtouren-Generator oder aus einer GPX-Datei (bereits geladen).
 struct TourDetailView: View {
     @Environment(AuthViewModel.self) private var auth
-    let tour: Tour
+
+    let title: String
+    private let tourId: String?
 
     @State private var detail: TourDetail?
-    @State private var isLoading = true
+    @State private var isLoading: Bool
     @State private var error: String?
     @State private var showRecord = false
+    @State private var gpxURL: URL?
+
+    /// OSM-Tour aus der Discovery (Detail wird nachgeladen).
+    init(tour: Tour) {
+        self.title = tour.name
+        self.tourId = tour.id
+        _detail = State(initialValue: nil)
+        _isLoading = State(initialValue: true)
+    }
+
+    /// Bereits geladene Route (Rundtouren-Generator, GPX-Import).
+    init(detail: TourDetail) {
+        self.title = detail.name
+        self.tourId = nil
+        _detail = State(initialValue: detail)
+        _isLoading = State(initialValue: false)
+    }
 
     private var isDemo: Bool { auth.clientId == "demo" }
 
@@ -25,9 +46,24 @@ struct TourDetailView: View {
                 content(detail)
             }
         }
-        .navigationTitle(tour.name)
+        .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
-        .task { load() }
+        .toolbar {
+            // GPX-Export (T4) — sobald die Geometrie da ist
+            if let url = gpxURL {
+                ToolbarItem(placement: .topBarTrailing) {
+                    ShareLink(item: url) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.callout)
+                            .foregroundStyle(AppColor.muted)
+                    }
+                }
+            }
+        }
+        .task {
+            load()
+        }
+        .onChange(of: detail?.id) { _, _ in prepareGPX() }
         .navigationDestination(isPresented: $showRecord) {
             // T3: Route in den Recorder übergeben (Overlay + Off-Route-Hinweis)
             RecordWorkoutView(tour: detail?.asRoute)
@@ -58,18 +94,28 @@ struct TourDetailView: View {
                     if let min = d.durationMin {
                         stat("Dauer ca.", TourDiscoveryView.formatDuration(min), "")
                     }
-                    if let diff = d.difficulty {
+                    if let gain = d.elevationGain {
+                        stat("Höhenmeter", "\(gain)", "m")
+                    } else if let diff = d.difficulty {
                         stat("Schwierigkeit", diff, "")
+                    }
+                }
+                if d.elevationGain != nil, let diff = d.difficulty {
+                    HStack(spacing: 8) {
+                        Image(systemName: "figure.hiking")
+                            .font(.footnote).foregroundStyle(AppColor.muted)
+                        Text("Schwierigkeit: \(diff)")
+                            .font(.footnote).foregroundStyle(AppColor.muted)
                     }
                 }
 
                 // Herkunft/Netzwerk
-                if tour.networkLabel != nil || d.operatorName != nil {
+                if d.networkLabel != nil || d.operatorName != nil {
                     HStack(spacing: 8) {
                         Image(systemName: "signpost.right")
                             .font(.footnote)
                             .foregroundStyle(AppColor.brass)
-                        Text([tour.networkLabel, d.operatorName]
+                        Text([d.networkLabel, d.operatorName]
                             .compactMap { $0 }.joined(separator: " · "))
                             .font(.footnote)
                             .foregroundStyle(AppColor.muted)
@@ -89,7 +135,7 @@ struct TourDetailView: View {
                     .buttonStyle(PrimaryButtonStyle())
                     .padding(.top, 8)
 
-                Text("Die Dauer ist eine Schätzung ohne Höhenmeter. Routendaten: © OpenStreetMap-Mitwirkende (ODbL).")
+                Text("\(d.elevationGain == nil ? "Die Dauer ist eine Schätzung ohne Höhenmeter. " : "")Routendaten: © OpenStreetMap-Mitwirkende (ODbL).")
                     .font(.caption2)
                     .foregroundStyle(AppColor.muted)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -118,22 +164,32 @@ struct TourDetailView: View {
     }
 
     private func load() {
+        // Bereits geladen (Generator/GPX) → nur GPX-Export vorbereiten
+        guard detail == nil else { prepareGPX(); return }
+        guard let tourId else { return }
         error = nil
         isLoading = true
         if isDemo {
-            detail = TourService.demoDetail(tour.id)
+            detail = TourService.demoDetail(tourId)
             isLoading = false
+            prepareGPX()
             return
         }
         guard let clientId = auth.clientId else { return }
         Task {
             do {
-                detail = try await TourService.shared.detail(clientId: clientId, tourId: tour.id)
+                detail = try await TourService.shared.detail(clientId: clientId, tourId: tourId)
                 if detail == nil { error = "Route konnte nicht geladen werden." }
             } catch {
                 self.error = "Route konnte nicht geladen werden."
             }
             isLoading = false
+            prepareGPX()
         }
+    }
+
+    private func prepareGPX() {
+        guard let d = detail, !d.segments.isEmpty else { return }
+        gpxURL = GPXFile.write(name: d.name, segments: d.segments, elevations: d.elevations)
     }
 }

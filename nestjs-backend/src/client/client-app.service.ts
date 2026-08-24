@@ -1146,6 +1146,72 @@ out tags center 80;`;
     return detail;
   }
 
+  /**
+   * Rundtouren-Generator (T4): Wegpunkte auf einem Kreis durch den Start,
+   * Routing über die freie BRouter-Instanz (OSM, inkl. Höhendaten).
+   */
+  async generateRoundtrip(lat: number, lon: number, distanceKm: number, activity: string, seed?: number) {
+    const dist = Math.min(Math.max(distanceKm, 3), 60);
+    const profile = activity === 'rad' ? 'trekking' : 'hiking-beta';
+    const bearing = ((seed ?? Math.floor(Math.random() * 360)) % 360) * (Math.PI / 180);
+
+    // Kreis mit Umfang ≈ Zieldistanz, Start liegt AUF dem Kreis
+    const rKm = dist / (2 * Math.PI);
+    const latKm = 110.574;
+    const lonKm = 111.32 * Math.cos((lat * Math.PI) / 180);
+    const cLat = lat + (rKm / latKm) * Math.cos(bearing);
+    const cLon = lon + (rKm / lonKm) * Math.sin(bearing);
+    const points: [number, number][] = [[lon, lat]];
+    for (let i = 1; i < 4; i++) {
+      const phi = bearing + Math.PI + (i * 2 * Math.PI) / 4;
+      points.push([
+        cLon + (rKm / lonKm) * Math.sin(phi),
+        cLat + (rKm / latKm) * Math.cos(phi),
+      ]);
+    }
+    points.push([lon, lat]);
+
+    const lonlats = points.map((p) => `${p[0].toFixed(6)},${p[1].toFixed(6)}`).join('|');
+    const url = `https://brouter.de/brouter?lonlats=${lonlats}&profile=${profile}&alternativeidx=0&format=geojson`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
+    if (!res.ok) throw new Error(`Routing fehlgeschlagen (${res.status})`);
+    const geo = await res.json();
+    const feature = geo?.features?.[0];
+    const coords: number[][] = feature?.geometry?.coordinates ?? [];
+    if (coords.length < 2) throw new Error('Keine Route gefunden');
+
+    const props = feature.properties ?? {};
+    const lengthM = parseFloat(props['track-length'] ?? '0') || 0;
+    const ascend = parseInt(props['filtered ascend'] ?? '0', 10) || 0;
+
+    // Geordnete Route → ein Segment; auf ≤2000 Punkte ausdünnen
+    const stride = Math.max(1, Math.ceil(coords.length / 2000));
+    const segment = coords
+      .filter((_, i) => i % stride === 0 || i === coords.length - 1)
+      .map((c) => ({ lat: c[1], lon: c[0], ele: c[2] ?? null }));
+
+    const distOut = lengthM / 1000;
+    return {
+      id: `rt-${Date.now()}`,
+      name: `Rundtour · ${distOut.toFixed(1)} km`,
+      activity: activity === 'rad' ? 'bicycle' : 'hiking',
+      generated: true,
+      distanceKm: Math.round(distOut * 10) / 10,
+      elevationGain: ascend,
+      durationMin: ClientAppService.tourDurationWithClimb(distOut, ascend, profile === 'trekking'),
+      difficulty: ClientAppService.tourDifficulty(distOut),
+      segments: [segment],
+    };
+  }
+
+  /** SAC-Formel MIT Höhenmetern: t = max(a,b) + min(a,b)/2. */
+  private static tourDurationWithClimb(distKm: number, ascendM: number, bike: boolean): number {
+    const horiz = bike ? distKm / 15 : distKm / 4.2;
+    const climb = ascendM / (bike ? 600 : 400);
+    const hours = Math.max(horiz, climb) + Math.min(horiz, climb) / 2;
+    return Math.round(hours * 60);
+  }
+
   /** SAC-Basisformel ohne Höhenmeter (T1; Höhenprofil folgt mit ORS). */
   private static tourDuration(distKm: number, osmRoute: string): number {
     const hours = osmRoute === 'bicycle' ? distKm / 15 : distKm / 4.2;

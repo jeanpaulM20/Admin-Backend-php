@@ -186,6 +186,25 @@ export class ClientAppController {
     return this.appService.getTours(la, lo, parseFloat(radiusKm) || 10, activity ?? 'wandern');
   }
 
+  /** Rundtouren-Generator (T4): Kreis-Route ab Startpunkt via BRouter */
+  @Post('tours/roundtrip/:clientId')
+  roundtrip(
+    @Req() req: Request,
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Body() body: any,
+  ) {
+    this.assertClientAccess(req, clientId);
+    const lat = parseFloat(body?.lat), lon = parseFloat(body?.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      throw new HttpException({ message: 'lat/lon fehlen' }, HttpStatus.BAD_REQUEST);
+    }
+    return this.appService.generateRoundtrip(
+      lat, lon, parseFloat(body?.distanceKm) || 10,
+      String(body?.activity ?? 'wandern'),
+      Number.isFinite(Number(body?.seed)) ? Number(body.seed) : undefined,
+    );
+  }
+
   /** Touren-Detail: Geometrie + berechnete Werte */
   @Get('tours/:clientId/:tourId')
   tourDetail(

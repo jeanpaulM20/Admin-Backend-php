@@ -1,5 +1,6 @@
 import SwiftUI
 import MapKit
+import UniformTypeIdentifiers
 
 // MARK: - TourDiscoveryView (T1: markierte OSM-Routen entdecken)
 
@@ -21,6 +22,9 @@ struct TourDiscoveryView: View {
     @State private var isLoading = false
     @State private var error: String?
     @State private var detailTour: Tour?
+    @State private var showPlanSheet = false
+    @State private var generatedDetail: TourDetail?
+    @State private var showImporter = false
 
     private var isDemo: Bool { auth.clientId == "demo" }
 
@@ -46,6 +50,21 @@ struct TourDiscoveryView: View {
                     .background(AppColor.surface)
                     .clipShape(Capsule())
                     .overlay(Capsule().stroke(AppColor.border, lineWidth: 1))
+
+                    // Rundtouren-Generator (T4)
+                    Button {
+                        showPlanSheet = true
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus.circle.fill").font(.callout)
+                            Text("Planen").font(.subheadline.bold())
+                        }
+                        .foregroundStyle(AppColor.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(AppColor.cta)
+                        .clipShape(Capsule())
+                    }
                 }
 
                 HStack(spacing: 10) {
@@ -106,9 +125,38 @@ struct TourDiscoveryView: View {
         }
         .navigationTitle("Touren")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            // GPX-Import (T4) — z.B. aus Komoot exportierte Touren
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { showImporter = true } label: {
+                    Image(systemName: "square.and.arrow.down")
+                        .font(.callout)
+                        .foregroundStyle(AppColor.muted)
+                }
+                .accessibilityLabel("GPX importieren")
+            }
+        }
         .task { if tours.isEmpty { reload() } }
         .navigationDestination(item: $detailTour) { tour in
             TourDetailView(tour: tour)
+        }
+        .navigationDestination(item: $generatedDetail) { detail in
+            TourDetailView(detail: detail)
+        }
+        .sheet(isPresented: $showPlanSheet) {
+            PlanTourSheet(activity: activity, isDemo: isDemo,
+                          center: cameraCenter ?? center) { detail in
+                showPlanSheet = false
+                if let detail { generatedDetail = detail }
+            }
+        }
+        .fileImporter(isPresented: $showImporter,
+                      allowedContentTypes: [UTType(filenameExtension: "gpx") ?? .xml]) { result in
+            if case .success(let url) = result, let detail = GPXFile.parse(url: url) {
+                generatedDetail = detail
+            } else {
+                error = "GPX-Datei konnte nicht gelesen werden."
+            }
         }
     }
 
@@ -269,6 +317,129 @@ struct TourDiscoveryView: View {
                     center: c,
                     span: MKCoordinateSpan(latitudeDelta: 0.15, longitudeDelta: 0.15)))
                 reload()
+            }
+        }
+    }
+}
+
+
+// MARK: - PlanTourSheet (T4: Rundtouren-Generator)
+
+private struct PlanTourSheet: View {
+    @Environment(AuthViewModel.self) private var auth
+    let activity: WorkoutActivity
+    let isDemo: Bool
+    let center: CLLocationCoordinate2D
+    let onDone: (TourDetail?) -> Void
+
+    @State private var distanceKm: Double = 10
+    @State private var chosenActivity: WorkoutActivity
+    @State private var isGenerating = false
+    @State private var error: String?
+
+    init(activity: WorkoutActivity, isDemo: Bool,
+         center: CLLocationCoordinate2D, onDone: @escaping (TourDetail?) -> Void) {
+        self.activity = activity
+        self.isDemo = isDemo
+        self.center = center
+        self.onDone = onDone
+        _chosenActivity = State(initialValue: activity)
+    }
+
+    var body: some View {
+        ZStack {
+            AppColor.background.ignoresSafeArea()
+            VStack(alignment: .leading, spacing: AppSpacing.stack) {
+                Text("Rundtour planen")
+                    .font(.headline)
+                    .foregroundStyle(AppColor.text)
+                    .padding(.top, 20)
+
+                Text("Startpunkt ist die aktuelle Kartenmitte. Die Route führt als Runde dorthin zurück.")
+                    .font(.footnote)
+                    .foregroundStyle(AppColor.muted)
+
+                // Aktivität
+                HStack(spacing: AppSpacing.stack) {
+                    choice(.wandern, "figure.hiking", "Wandern")
+                    choice(.rad, "figure.outdoor.cycle", "Radfahren")
+                }
+
+                // Distanz
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Gewünschte Distanz: \(Int(distanceKm)) km")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(AppColor.text)
+                    Slider(value: $distanceKm, in: 3...40, step: 1)
+                        .tint(AppColor.primary)
+                }
+                .padding(AppSpacing.card)
+                .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
+
+                if let error {
+                    InlineErrorBanner(message: error)
+                }
+
+                Button(isGenerating ? "Route wird berechnet…" : "Rundtour erstellen") { generate() }
+                    .buttonStyle(PrimaryButtonStyle())
+                    .disabled(isGenerating)
+
+                Text("Routing: BRouter auf OpenStreetMap-Daten — inklusive Höhenmeter.")
+                    .font(.caption2)
+                    .foregroundStyle(AppColor.muted)
+                    .frame(maxWidth: .infinity, alignment: .center)
+
+                Spacer()
+            }
+            .padding(.horizontal, AppSpacing.screen)
+        }
+        .presentationDetents([.height(420)])
+        .presentationDragIndicator(.visible)
+    }
+
+    private func choice(_ a: WorkoutActivity, _ icon: String, _ label: String) -> some View {
+        let selected = chosenActivity == a
+        return VStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 22))
+                .foregroundStyle(selected ? AppColor.primary : AppColor.muted)
+            Text(label)
+                .font(.footnote.weight(selected ? .bold : .regular))
+                .foregroundStyle(selected ? AppColor.text : AppColor.muted)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(AppColor.surface)
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card)
+            .stroke(selected ? AppColor.primary : AppColor.border, lineWidth: selected ? 1.5 : 1))
+        .contentShape(Rectangle())
+        .onTapGesture { chosenActivity = a }
+    }
+
+    private func generate() {
+        error = nil
+        if isDemo {
+            onDone(TourService.demoRoundtrip(lat: center.latitude, lon: center.longitude,
+                                             distanceKm: distanceKm, activity: chosenActivity))
+            return
+        }
+        guard let clientId = auth.clientId else { return }
+        isGenerating = true
+        Task {
+            do {
+                let detail = try await TourService.shared.roundtrip(
+                    clientId: clientId, lat: center.latitude, lon: center.longitude,
+                    distanceKm: distanceKm, activity: chosenActivity)
+                isGenerating = false
+                if let detail {
+                    onDone(detail)
+                } else {
+                    error = "Keine Route gefunden — anderen Startpunkt versuchen."
+                }
+            } catch {
+                isGenerating = false
+                self.error = "Route konnte nicht berechnet werden."
             }
         }
     }
