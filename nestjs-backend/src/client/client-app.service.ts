@@ -1088,31 +1088,58 @@ export class ClientAppService {
     return 2 * R * Math.asin(Math.sqrt(s));
   }
 
+  /**
+   * Overpass-Selektoren je Aktivität. Finnenbahnen sind in OSM Wege (keine
+   * Relationen) und oft nur über den Namen erkennbar — daher zwei Selektoren
+   * als Union; ihre IDs bekommen ein "w"-Präfix fürs Detail.
+   */
+  private static tourSpec(activity: string): { selectors: string[]; osm: string } {
+    switch (activity) {
+      case 'rad':
+      case 'rennrad':
+        return { selectors: ['relation["route"="bicycle"]["name"]'], osm: 'bicycle' };
+      case 'mtb':
+        return { selectors: ['relation["route"="mtb"]["name"]'], osm: 'mtb' };
+      case 'joggen':
+        return { selectors: ['relation["route"="running"]["name"]'], osm: 'running' };
+      case 'vitaparcours':
+        return { selectors: ['relation["route"="fitness_trail"]["name"]'], osm: 'fitness_trail' };
+      case 'finnenbahn':
+        return {
+          selectors: ['way["leisure"="track"]["sport"="running"]', 'way["name"~"[Ff]innenbahn"]'],
+          osm: 'finnenbahn',
+        };
+      default:
+        return { selectors: ['relation["route"="hiking"]["name"]'], osm: 'hiking' };
+    }
+  }
+
   /** Markierte OSM-Routen im Umkreis (gecacht, Raster 0.01°). */
   async getTours(lat: number, lon: number, radiusKm: number, activity: string) {
-    const osmRoute = activity === 'rad' ? 'bicycle' : 'hiking';
+    const spec = ClientAppService.tourSpec(activity);
     const r = Math.min(Math.max(radiusKm, 1), 30);
-    const key = `${osmRoute}:${lat.toFixed(2)}:${lon.toFixed(2)}:${Math.round(r)}`;
+    const key = `${spec.osm}:${lat.toFixed(2)}:${lon.toFixed(2)}:${Math.round(r)}`;
     const hit = this.tourListCache.get(key);
     if (hit && Date.now() - hit.at < ClientAppService.TOUR_TTL_MS) return hit.data;
 
+    const around = `(around:${Math.round(r * 1000)},${lat},${lon})`;
     const query = `[out:json][timeout:25];
-relation["route"="${osmRoute}"]["name"](around:${Math.round(r * 1000)},${lat},${lon});
+(${spec.selectors.map((sel) => sel + around + ';').join('')});
 out tags center 80;`;
     const json = await this.overpass(query);
 
     const tours = (json?.elements ?? [])
-      .filter((e: any) => e?.tags?.name && e?.center)
+      .filter((e: any) => e?.center && (e?.tags?.name || spec.osm === 'finnenbahn'))
       .map((e: any) => {
-        const distKm = parseFloat(String(e.tags.distance ?? '').replace(',', '.')) || null;
+        const distKm = parseFloat(String(e.tags?.distance ?? '').replace(',', '.')) || null;
         return {
-          id: String(e.id),
-          name: String(e.tags.name),
-          ref: e.tags.ref ?? null,
-          activity: osmRoute,
-          network: e.tags.network ?? null,     // lwn/rwn/nwn = lokal/regional/national
+          id: (e.type === 'way' ? 'w' : '') + e.id,
+          name: String(e.tags?.name ?? 'Finnenbahn'),
+          ref: e.tags?.ref ?? null,
+          activity: spec.osm,
+          network: e.tags?.network ?? null,    // lwn/rwn/nwn = lokal/regional/national
           distanceKm: distKm,
-          durationMin: distKm ? ClientAppService.tourDuration(distKm, osmRoute) : null,
+          durationMin: distKm ? ClientAppService.tourDuration(distKm, spec.osm) : null,
           difficulty: distKm ? ClientAppService.tourDifficulty(distKm) : null,
           lat: e.center.lat,
           lon: e.center.lon,
@@ -1131,19 +1158,27 @@ out tags center 80;`;
     const hit = this.tourDetailCache.get(id);
     if (hit && Date.now() - hit.at < ClientAppService.TOUR_TTL_MS) return hit.data;
 
-    const relId = parseInt(id, 10);
-    if (!Number.isFinite(relId)) throw new Error('Ungueltige Touren-ID');
-    const json = await this.overpass(`[out:json][timeout:60];relation(${relId});out geom;`);
+    const isWay = id.startsWith('w');
+    const numId = parseInt(isWay ? id.slice(1) : id, 10);
+    if (!Number.isFinite(numId)) throw new Error('Ungueltige Touren-ID');
+    const json = await this.overpass(
+      `[out:json][timeout:60];${isWay ? 'way' : 'relation'}(${numId});out geom;`);
     const rel = (json?.elements ?? [])[0];
     if (!rel) throw new Error('Tour nicht gefunden');
 
-    // Wege-Segmente der Relation (Reihenfolge in OSM nicht garantiert —
-    // wir liefern Segmente; Länge = Summe, korrekt unabhängig von Ordnung)
+    // Geometrie: Wege (Finnenbahnen) tragen sie direkt, Relationen über ihre
+    // Member-Wege (Reihenfolge in OSM nicht garantiert — wir liefern Segmente;
+    // Länge = Summe, korrekt unabhängig von Ordnung)
+    const rawSegments: any[][] = isWay
+      ? [rel.geometry ?? []]
+      : (rel.members ?? [])
+          .filter((m: any) => m.type === 'way' && Array.isArray(m.geometry))
+          .map((m: any) => m.geometry);
     const segments: { lat: number; lon: number }[][] = [];
     let distanceM = 0;
-    for (const m of rel.members ?? []) {
-      if (m.type !== 'way' || !Array.isArray(m.geometry) || m.geometry.length < 2) continue;
-      const seg = m.geometry.map((g: any) => ({ lat: g.lat, lon: g.lon }));
+    for (const geometry of rawSegments) {
+      if (geometry.length < 2) continue;
+      const seg = geometry.map((g: any) => ({ lat: g.lat, lon: g.lon }));
       for (let i = 1; i < seg.length; i++) {
         distanceM += ClientAppService.haversine(seg[i - 1].lat, seg[i - 1].lon, seg[i].lat, seg[i].lon);
       }
@@ -1156,9 +1191,14 @@ out tags center 80;`;
       seg.filter((_, i) => i % stride === 0 || i === seg.length - 1));
 
     const distKm = distanceM / 1000;
-    const osmRoute = rel.tags?.route === 'bicycle' ? 'bicycle' : 'hiking';
+    const routeTag = rel.tags?.route;
+    const osmRoute = isWay
+      ? 'finnenbahn'
+      : ['bicycle', 'mtb', 'running', 'fitness_trail'].includes(routeTag)
+        ? routeTag
+        : 'hiking';
     const detail = {
-      id: String(rel.id),
+      id,
       name: rel.tags?.name ?? 'Route',
       ref: rel.tags?.ref ?? null,
       activity: osmRoute,
@@ -1245,8 +1285,12 @@ out tags center 80;`;
 
   /** SAC-Basisformel ohne Höhenmeter (T1; Höhenprofil folgt mit ORS). */
   private static tourDuration(distKm: number, osmRoute: string): number {
-    const hours = osmRoute === 'bicycle' ? distKm / 15 : distKm / 4.2;
-    return Math.round(hours * 60);
+    const kmh =
+      osmRoute === 'bicycle' ? 15 :
+      osmRoute === 'mtb' ? 12 :
+      osmRoute === 'running' || osmRoute === 'finnenbahn' ? 8 :
+      4.2; // hiking, fitness_trail
+    return Math.round((distKm / kmh) * 60);
   }
 
   private static tourDifficulty(distKm: number): string {
