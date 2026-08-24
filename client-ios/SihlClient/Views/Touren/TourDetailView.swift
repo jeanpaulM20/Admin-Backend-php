@@ -84,7 +84,7 @@ struct TourDetailView: View {
                 .frame(height: 280)
                 .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
                 .allowsHitTesting(false)
-                .padding(.top, 12)
+                .padding(.top, AppSpacing.stack)
 
                 // Kennzahlen
                 HStack(spacing: AppSpacing.stack) {
@@ -161,7 +161,7 @@ struct TourDetailView: View {
             Text(label).font(.caption2).foregroundStyle(AppColor.muted)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
+        .padding(.vertical, AppSpacing.card)
         .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
     }
 

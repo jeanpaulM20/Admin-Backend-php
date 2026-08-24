@@ -35,8 +35,8 @@ struct TourDiscoveryView: View {
             map
 
             // Kopfzeile: Suche + Filter
-            VStack(spacing: 10) {
-                HStack(spacing: 10) {
+            VStack(spacing: AppSpacing.stack) {
+                HStack(spacing: AppSpacing.stack) {
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass")
                             .font(.callout)
@@ -57,13 +57,13 @@ struct TourDiscoveryView: View {
                     .clipShape(Capsule())
                     .overlay(Capsule().stroke(AppColor.border, lineWidth: 1))
 
-                    // Rundtouren-Generator (T4)
+                    // Rundtouren-Generator (T4) — der eine CTA dieses Screens
                     Button {
                         showPlanSheet = true
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "plus.circle.fill").font(.callout)
-                            Text("Planen").font(.subheadline.bold())
+                            Text("Rundtour").font(.subheadline.bold())
                         }
                         .foregroundStyle(AppColor.white)
                         .padding(.horizontal, 16)
@@ -100,8 +100,8 @@ struct TourDiscoveryView: View {
                 }
                 .padding(.horizontal, -AppSpacing.screen)
 
-                HStack(spacing: 10) {
-                    // Radius
+                HStack(spacing: AppSpacing.stack) {
+                    // Radius (Chevron zeigt das Menü-Angebot an)
                     Menu {
                         ForEach([5.0, 10, 25], id: \.self) { r in
                             Button("in \(Int(r)) km Umkreis") { radiusKm = r; reload() }
@@ -110,6 +110,7 @@ struct TourDiscoveryView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "scope").font(.caption)
                             Text("\(Int(radiusKm)) km").font(.footnote.weight(.medium))
+                            Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold))
                         }
                         .foregroundStyle(AppColor.text)
                         .padding(.horizontal, 14)
@@ -121,25 +122,27 @@ struct TourDiscoveryView: View {
 
                     Spacer()
 
-                    // In diesem Gebiet suchen (Kartenmitte übernehmen)
+                    // In diesem Gebiet suchen (Kartenmitte übernehmen) — ruhiger
+                    // Kontext-Chip, kein zweiter CTA (Ein-CTA-Prinzip)
                     Button {
                         if let c = cameraCenter { center = c }
                         reload()
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "arrow.counterclockwise").font(.caption)
-                            Text("Hier suchen").font(.footnote.weight(.bold))
+                            Text("Hier suchen").font(.footnote.weight(.medium))
                         }
-                        .foregroundStyle(AppColor.white)
+                        .foregroundStyle(AppColor.text)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
-                        .background(AppColor.cta)
+                        .background(AppColor.surface)
                         .clipShape(Capsule())
+                        .overlay(Capsule().stroke(AppColor.border, lineWidth: 1))
                     }
                 }
             }
             .padding(.horizontal, AppSpacing.screen)
-            .padding(.top, 12)
+            .padding(.top, AppSpacing.stack)
 
             // Tour-Karten unten
             VStack {
@@ -153,9 +156,11 @@ struct TourDiscoveryView: View {
             // GPX-Import (T4) — z.B. aus Komoot exportierte Touren
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showImporter = true } label: {
-                    Image(systemName: "square.and.arrow.down")
-                        .font(.callout)
-                        .foregroundStyle(AppColor.muted)
+                    HStack(spacing: 4) {
+                        Image(systemName: "square.and.arrow.down").font(.callout)
+                        Text("GPX").font(.footnote.weight(.medium))
+                    }
+                    .foregroundStyle(AppColor.muted)
                 }
                 .accessibilityLabel("GPX importieren")
             }
@@ -198,6 +203,9 @@ struct TourDiscoveryView: View {
                             .font(.system(size: 15))
                             .foregroundStyle(AppColor.primary)
                     }
+                    // 44-pt-Tap-Ziel (Apple-Minimum) bei 34-pt-Optik
+                    .frame(width: 44, height: 44)
+                    .contentShape(Circle())
                     .onTapGesture { detailTour = tour }
                 }
             }
@@ -215,8 +223,8 @@ struct TourDiscoveryView: View {
             Text(a.label).font(.footnote.weight(selected ? .bold : .medium))
         }
         .foregroundStyle(selected ? AppColor.white : AppColor.muted)
-        .padding(.horizontal, 13)
-        .padding(.vertical, 9)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
         .background(selected ? AppColor.primary : AppColor.surface)
         .clipShape(Capsule())
         .overlay(Capsule().stroke(selected ? AppColor.primary : AppColor.border, lineWidth: 1))
@@ -242,18 +250,19 @@ struct TourDiscoveryView: View {
             .padding(12)
             .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.control))
             .padding(.horizontal, AppSpacing.screen)
-            .padding(.bottom, 24)
+            .padding(.bottom, 16)
         } else if let error {
             InlineErrorBanner(message: error)
                 .padding(.horizontal, AppSpacing.screen)
-                .padding(.bottom, 24)
+                .padding(.bottom, 16)
         } else if tours.isEmpty {
-            Text("Keine markierten Routen in diesem Gebiet gefunden.")
+            Text("In diesem Gebiet wurde nichts gefunden.")
                 .font(.footnote)
                 .foregroundStyle(AppColor.muted)
                 .padding(12)
                 .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.control))
-                .padding(.bottom, 24)
+                .padding(.horizontal, AppSpacing.screen)
+                .padding(.bottom, 16)
         } else {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: AppSpacing.stack) {
