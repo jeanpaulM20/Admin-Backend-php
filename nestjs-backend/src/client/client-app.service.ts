@@ -1044,11 +1044,16 @@ export class ClientAppService {
   private static readonly OSM_UA = 'SihlClient-Backend/1.0 (sihltraining.ch)';
 
   private async overpass(query: string): Promise<any> {
+    // osm.ch zuerst: Schweizer Instanz, für unser Einzugsgebiet ~10x schneller
+    // und ohne die Lastprobleme der Hauptinstanz. Sie deckt aber nur die
+    // Schweiz ab und liefert anderswo ein leeres (aber gültiges) Ergebnis —
+    // ein leeres Ergebnis probiert darum die nächste Instanz, bevor es zählt.
     const endpoints = [
+      'https://overpass.osm.ch/api/interpreter',
       'https://overpass-api.de/api/interpreter',
-      'https://overpass.kumi.systems/api/interpreter',
     ];
     let lastErr: Error = new Error('Overpass nicht erreichbar');
+    let emptyResult: any = null;
     for (const endpoint of endpoints) {
       try {
         const res = await fetch(endpoint, {
@@ -1059,14 +1064,17 @@ export class ClientAppService {
             Accept: 'application/json',
           },
           body: 'data=' + encodeURIComponent(query),
-          signal: AbortSignal.timeout(30000),
+          signal: AbortSignal.timeout(20000),
         });
         if (!res.ok) { lastErr = new Error(`Overpass ${res.status}`); continue; }
-        return await res.json();
+        const json = await res.json();
+        if ((json?.elements ?? []).length > 0) return json;
+        emptyResult = json;
       } catch (err: any) {
         lastErr = err;
       }
     }
+    if (emptyResult) return emptyResult;
     throw lastErr;
   }
 
