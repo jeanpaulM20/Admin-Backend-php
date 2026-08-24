@@ -1039,15 +1039,35 @@ export class ClientAppService {
   private tourDetailCache = new Map<string, { at: number; data: any }>();
   private static readonly TOUR_TTL_MS = 24 * 60 * 60 * 1000;
 
+  // Overpass-Nutzungsrichtlinie verlangt einen identifizierenden User-Agent —
+  // Node-fetch sendet keinen und bekommt sonst 406 Not Acceptable.
+  private static readonly OSM_UA = 'SihlClient-Backend/1.0 (sihltraining.ch)';
+
   private async overpass(query: string): Promise<any> {
-    const res = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: 'data=' + encodeURIComponent(query),
-      signal: AbortSignal.timeout(30000),
-    });
-    if (!res.ok) throw new Error(`Overpass ${res.status}`);
-    return res.json();
+    const endpoints = [
+      'https://overpass-api.de/api/interpreter',
+      'https://overpass.kumi.systems/api/interpreter',
+    ];
+    let lastErr: Error = new Error('Overpass nicht erreichbar');
+    for (const endpoint of endpoints) {
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': ClientAppService.OSM_UA,
+            Accept: 'application/json',
+          },
+          body: 'data=' + encodeURIComponent(query),
+          signal: AbortSignal.timeout(30000),
+        });
+        if (!res.ok) { lastErr = new Error(`Overpass ${res.status}`); continue; }
+        return await res.json();
+      } catch (err: any) {
+        lastErr = err;
+      }
+    }
+    throw lastErr;
   }
 
   private static haversine(aLat: number, aLon: number, bLat: number, bLon: number): number {
@@ -1173,7 +1193,10 @@ out tags center 80;`;
 
     const lonlats = points.map((p) => `${p[0].toFixed(6)},${p[1].toFixed(6)}`).join('|');
     const url = `https://brouter.de/brouter?lonlats=${lonlats}&profile=${profile}&alternativeidx=0&format=geojson`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
+    const res = await fetch(url, {
+      headers: { 'User-Agent': ClientAppService.OSM_UA },
+      signal: AbortSignal.timeout(30000),
+    });
     if (!res.ok) throw new Error(`Routing fehlgeschlagen (${res.status})`);
     const geo = await res.json();
     const feature = geo?.features?.[0];

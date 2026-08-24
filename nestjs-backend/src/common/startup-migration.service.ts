@@ -81,6 +81,10 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       `ALTER TABLE review ADD COLUMN date DATETIME DEFAULT NULL`,
       `ALTER TABLE review ADD COLUMN source VARCHAR(20) DEFAULT NULL`,
       `ALTER TABLE review ADD INDEX idx_review_client_id (client_id)`,
+      // App-Workouts haben kein Exerciseset/Training — Legacy-Spalten waren
+      // NOT NULL ohne Default und liessen den INSERT scheitern (ER_NO_DEFAULT)
+      `ALTER TABLE review MODIFY COLUMN exerciseset_id INT DEFAULT NULL`,
+      `ALTER TABLE review MODIFY COLUMN training_id INT DEFAULT NULL`,
       // GPS-Tracking (Phase 2): Höhenmeter am Review + Track-Punkte-Tabelle
       `ALTER TABLE review ADD COLUMN elevation_gain INT DEFAULT NULL`,
       `CREATE TABLE IF NOT EXISTS review_gps_track (
