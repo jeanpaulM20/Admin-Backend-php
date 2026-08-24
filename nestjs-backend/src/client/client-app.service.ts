@@ -1105,8 +1105,14 @@ export class ClientAppService {
       case 'vitaparcours':
         return { selectors: ['relation["route"="fitness_trail"]["name"]'], osm: 'fitness_trail' };
       case 'finnenbahn':
+        // Laufbahn ist nicht gleich Finnenbahn: leisure=track+sport=running
+        // allein erwischt auch Sprint-/Aschenbahnen. Echte Finnenbahnen sind
+        // benannt oder haben Holzschnitzel-Belag (surface=woodchips/wood).
         return {
-          selectors: ['way["leisure"="track"]["sport"="running"]', 'way["name"~"[Ff]innenbahn"]'],
+          selectors: [
+            'way["leisure"="track"]["sport"="running"]["name"~"[Ff]innenbahn"]',
+            'way["leisure"="track"]["sport"="running"]["surface"~"^wood"]',
+          ],
           osm: 'finnenbahn',
         };
       default:
@@ -1123,18 +1129,23 @@ export class ClientAppService {
     if (hit && Date.now() - hit.at < ClientAppService.TOUR_TTL_MS) return hit.data;
 
     const around = `(around:${Math.round(r * 1000)},${lat},${lon})`;
+    if (spec.osm === 'finnenbahn') {
+      const bahnen = await this.finnenbahnList(lat, lon, spec.selectors, around);
+      this.tourListCache.set(key, { at: Date.now(), data: bahnen });
+      return bahnen;
+    }
     const query = `[out:json][timeout:25];
 (${spec.selectors.map((sel) => sel + around + ';').join('')});
 out tags center 80;`;
     const json = await this.overpass(query);
 
     const tours = (json?.elements ?? [])
-      .filter((e: any) => e?.center && (e?.tags?.name || spec.osm === 'finnenbahn'))
+      .filter((e: any) => e?.center && e?.tags?.name)
       .map((e: any) => {
         const distKm = parseFloat(String(e.tags?.distance ?? '').replace(',', '.')) || null;
         return {
           id: (e.type === 'way' ? 'w' : '') + e.id,
-          name: String(e.tags?.name ?? 'Finnenbahn'),
+          name: String(e.tags.name),
           ref: e.tags?.ref ?? null,
           activity: spec.osm,
           network: e.tags?.network ?? null,    // lwn/rwn/nwn = lokal/regional/national
@@ -1150,21 +1161,71 @@ out tags center 80;`;
         ClientAppService.haversine(lat, lon, b.lat, b.lon));
 
     // OSM führt manche Route doppelt (Route + Superroute, geteilte Wege) —
-    // pro Name bleibt nur der nächstgelegene Treffer. Finnenbahnen sind
-    // punktartige Anlagen und teilen sich oft den (Fallback-)Namen: dort
-    // dedupliziert der Name nur zusammen mit dem ~100-m-Standortraster.
+    // pro Name bleibt nur der nächstgelegene Treffer
     const seenKeys = new Set<string>();
     const deduped = tours.filter((t: any) => {
-      const dedupeKey = spec.osm === 'finnenbahn'
-        ? `${t.name}:${t.lat.toFixed(3)}:${t.lon.toFixed(3)}`
-        : t.name;
-      if (seenKeys.has(dedupeKey)) return false;
-      seenKeys.add(dedupeKey);
+      if (seenKeys.has(t.name)) return false;
+      seenKeys.add(t.name);
       return true;
     });
 
     this.tourListCache.set(key, { at: Date.now(), data: deduped });
     return deduped;
+  }
+
+  /**
+   * Finnenbahnen: kurze Rundbahnen aus einem oder mehreren OSM-Wegen.
+   * Lädt die Geometrie mit (kleine Payload), berechnet echte Längen und
+   * fasst gleichnamige Wege derselben Anlage (<500 m) zu einem Eintrag
+   * zusammen — die ID trägt dann alle Weg-IDs ("w123+456").
+   */
+  private async finnenbahnList(lat: number, lon: number, selectors: string[], around: string) {
+    const query = `[out:json][timeout:25];
+(${selectors.map((sel) => sel + around + ';').join('')});
+out geom 80;`;
+    const json = await this.overpass(query);
+    const ways = (json?.elements ?? []).filter(
+      (e: any) => e.type === 'way' && Array.isArray(e.geometry) && e.geometry.length >= 2);
+
+    type Bahn = { ids: number[]; name: string; lengthM: number; lat: number; lon: number; n: number };
+    const groups: Bahn[] = [];
+    for (const w of ways) {
+      let lengthM = 0;
+      for (let i = 1; i < w.geometry.length; i++) {
+        lengthM += ClientAppService.haversine(
+          w.geometry[i - 1].lat, w.geometry[i - 1].lon, w.geometry[i].lat, w.geometry[i].lon);
+      }
+      const cLat = w.geometry.reduce((a: number, g: any) => a + g.lat, 0) / w.geometry.length;
+      const cLon = w.geometry.reduce((a: number, g: any) => a + g.lon, 0) / w.geometry.length;
+      const name = w.tags?.name ?? 'Finnenbahn';
+      const group = groups.find(
+        (g) => g.name === name && ClientAppService.haversine(g.lat, g.lon, cLat, cLon) < 500);
+      if (group) {
+        group.ids.push(w.id);
+        group.lengthM += lengthM;
+        group.lat = (group.lat * group.n + cLat) / (group.n + 1);
+        group.lon = (group.lon * group.n + cLon) / (group.n + 1);
+        group.n += 1;
+      } else {
+        groups.push({ ids: [w.id], name, lengthM, lat: cLat, lon: cLon, n: 1 });
+      }
+    }
+    return groups
+      .map((g) => ({
+        id: 'w' + g.ids.join('+'),
+        name: g.name,
+        ref: null,
+        activity: 'finnenbahn',
+        network: null,
+        distanceKm: Math.round(g.lengthM) / 1000 || null,
+        durationMin: null,   // Rundenbahn: eine "Tour-Dauer" wäre irreführend
+        difficulty: null,
+        lat: g.lat,
+        lon: g.lon,
+      }))
+      .sort((a, b) =>
+        ClientAppService.haversine(lat, lon, a.lat, a.lon) -
+        ClientAppService.haversine(lat, lon, b.lat, b.lon));
   }
 
   /** Geometrie + berechnete Werte einer Route (gecacht). */
@@ -1173,18 +1234,30 @@ out tags center 80;`;
     if (hit && Date.now() - hit.at < ClientAppService.TOUR_TTL_MS) return hit.data;
 
     const isWay = id.startsWith('w');
-    const numId = parseInt(isWay ? id.slice(1) : id, 10);
-    if (!Number.isFinite(numId)) throw new Error('Ungueltige Touren-ID');
-    const json = await this.overpass(
-      `[out:json][timeout:60];${isWay ? 'way' : 'relation'}(${numId});out geom;`);
-    const rel = (json?.elements ?? [])[0];
+    let els: any[];
+    if (isWay) {
+      // Finnenbahn-Anlagen können aus mehreren Wegen bestehen ("w123+456")
+      const ids = id.slice(1).split('+').map((v) => parseInt(v, 10));
+      if (!ids.length || ids.some((n) => !Number.isFinite(n))) {
+        throw new Error('Ungueltige Touren-ID');
+      }
+      const json = await this.overpass(
+        `[out:json][timeout:60];(${ids.map((n) => `way(${n});`).join('')});out geom;`);
+      els = (json?.elements ?? []).filter((e: any) => e.type === 'way');
+    } else {
+      const relId = parseInt(id, 10);
+      if (!Number.isFinite(relId)) throw new Error('Ungueltige Touren-ID');
+      const json = await this.overpass(`[out:json][timeout:60];relation(${relId});out geom;`);
+      els = json?.elements ?? [];
+    }
+    const rel = els.find((e: any) => e.tags?.name) ?? els[0];
     if (!rel) throw new Error('Tour nicht gefunden');
 
     // Geometrie: Wege (Finnenbahnen) tragen sie direkt, Relationen über ihre
     // Member-Wege (Reihenfolge in OSM nicht garantiert — wir liefern Segmente;
     // Länge = Summe, korrekt unabhängig von Ordnung)
     const rawSegments: any[][] = isWay
-      ? [rel.geometry ?? []]
+      ? els.map((e: any) => e.geometry ?? [])
       : (rel.members ?? [])
           .filter((m: any) => m.type === 'way' && Array.isArray(m.geometry))
           .map((m: any) => m.geometry);
@@ -1213,15 +1286,15 @@ out tags center 80;`;
         : 'hiking';
     const detail = {
       id,
-      name: rel.tags?.name ?? 'Route',
+      name: rel.tags?.name ?? (isWay ? 'Finnenbahn' : 'Route'),
       ref: rel.tags?.ref ?? null,
       activity: osmRoute,
       network: rel.tags?.network ?? null,
       operator: rel.tags?.operator ?? null,
       description: rel.tags?.description ?? null,
-      distanceKm: Math.round(distKm * 10) / 10,
-      durationMin: ClientAppService.tourDuration(distKm, osmRoute),
-      difficulty: ClientAppService.tourDifficulty(distKm),
+      distanceKm: isWay ? Math.round(distanceM) / 1000 : Math.round(distKm * 10) / 10,
+      durationMin: isWay ? null : ClientAppService.tourDuration(distKm, osmRoute),
+      difficulty: isWay ? null : ClientAppService.tourDifficulty(distKm),
       segments: slim,
     };
     this.tourDetailCache.set(id, { at: Date.now(), data: detail });

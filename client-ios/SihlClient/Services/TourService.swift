@@ -270,8 +270,7 @@ struct TourService {
              "lat": 47.34, "lon": 8.53]]
         case .finnenbahn: return [
             ["id": "demo-f1", "name": "Finnenbahn Allmend Brunau", "activity": "finnenbahn",
-             "distanceKm": 0.4, "durationMin": 3, "difficulty": "Leicht",
-             "lat": 47.353, "lon": 8.525]]
+             "distanceKm": 0.4, "lat": 47.353, "lon": 8.525]]
         }
     }
 

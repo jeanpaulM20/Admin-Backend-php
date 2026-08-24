@@ -89,7 +89,9 @@ struct TourDetailView: View {
                 // Kennzahlen
                 HStack(spacing: AppSpacing.stack) {
                     if let km = d.distanceKm {
-                        stat("Distanz", String(format: "%.1f", km), "km")
+                        stat("Distanz",
+                             km < 1 ? "\(Int((km * 1000).rounded()))" : String(format: "%.1f", km),
+                             km < 1 ? "m" : "km")
                     }
                     if let min = d.durationMin {
                         stat("Dauer ca.", TourDiscoveryView.formatDuration(min), "")
@@ -135,7 +137,7 @@ struct TourDetailView: View {
                     .buttonStyle(PrimaryButtonStyle())
                     .padding(.top, 8)
 
-                Text("\(d.elevationGain == nil ? "Die Dauer ist eine Schätzung ohne Höhenmeter. " : "")Routendaten: © OpenStreetMap-Mitwirkende (ODbL).")
+                Text("\(d.durationMin != nil && d.elevationGain == nil ? "Die Dauer ist eine Schätzung ohne Höhenmeter. " : "")Routendaten: © OpenStreetMap-Mitwirkende (ODbL).")
                     .font(.caption2)
                     .foregroundStyle(AppColor.muted)
                     .frame(maxWidth: .infinity, alignment: .center)
