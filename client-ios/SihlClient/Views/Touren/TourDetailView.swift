@@ -102,7 +102,7 @@ struct TourDetailView: View {
                 }
                 if d.elevationGain != nil, let diff = d.difficulty {
                     HStack(spacing: 8) {
-                        Image(systemName: "figure.hiking")
+                        Image(systemName: tourActivityIcon(d.activity))
                             .font(.footnote).foregroundStyle(AppColor.muted)
                         Text("Schwierigkeit: \(diff)")
                             .font(.footnote).foregroundStyle(AppColor.muted)

@@ -9,7 +9,7 @@ import UniformTypeIdentifiers
 struct TourDiscoveryView: View {
     @Environment(AuthViewModel.self) private var auth
 
-    @State private var activity: WorkoutActivity = .wandern
+    @State private var activity: TourActivity = .wandern
     @State private var radiusKm: Double = 10
     @State private var searchText = ""
     @State private var center = CLLocationCoordinate2D(latitude: 47.37, longitude: 8.54) // Zürich
@@ -67,16 +67,18 @@ struct TourDiscoveryView: View {
                     }
                 }
 
-                HStack(spacing: 10) {
-                    // Aktivität
-                    HStack(spacing: 0) {
-                        activityChip(.wandern, icon: "figure.hiking")
-                        activityChip(.rad, icon: "figure.outdoor.cycle")
+                // Aktivität (scrollbar — sechs Routentypen)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(TourActivity.allCases) { a in
+                            activityChip(a)
+                        }
                     }
-                    .background(AppColor.surface)
-                    .clipShape(Capsule())
-                    .overlay(Capsule().stroke(AppColor.border, lineWidth: 1))
+                    .padding(.horizontal, AppSpacing.screen)
+                }
+                .padding(.horizontal, -AppSpacing.screen)
 
+                HStack(spacing: 10) {
                     // Radius
                     Menu {
                         ForEach([5.0, 10, 25], id: \.self) { r in
@@ -144,7 +146,7 @@ struct TourDiscoveryView: View {
             TourDetailView(detail: detail)
         }
         .sheet(isPresented: $showPlanSheet) {
-            PlanTourSheet(activity: activity, isDemo: isDemo,
+            PlanTourSheet(activity: activity.roundtripActivity, isDemo: isDemo,
                           center: cameraCenter ?? center) { detail in
                 showPlanSheet = false
                 if let detail { generatedDetail = detail }
@@ -170,8 +172,7 @@ struct TourDiscoveryView: View {
                     ZStack {
                         Circle().fill(AppColor.surface).frame(width: 34, height: 34)
                             .overlay(Circle().stroke(AppColor.primary, lineWidth: 2))
-                        Image(systemName: tour.activity == "bicycle"
-                              ? "figure.outdoor.cycle" : "figure.hiking")
+                        Image(systemName: tourActivityIcon(tour.activity))
                             .font(.system(size: 15))
                             .foregroundStyle(AppColor.primary)
                     }
@@ -185,21 +186,24 @@ struct TourDiscoveryView: View {
         .ignoresSafeArea(edges: .bottom)
     }
 
-    private func activityChip(_ a: WorkoutActivity, icon: String) -> some View {
+    private func activityChip(_ a: TourActivity) -> some View {
         let selected = activity == a
-        return Image(systemName: icon)
-            .font(.system(size: 15))
-            .foregroundStyle(selected ? AppColor.white : AppColor.muted)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(selected ? AppColor.primary : .clear)
-            .clipShape(Capsule())
-            .contentShape(Capsule())
-            .onTapGesture {
-                guard activity != a else { return }
-                activity = a
-                reload()
-            }
+        return HStack(spacing: 6) {
+            Image(systemName: a.icon).font(.system(size: 13))
+            Text(a.label).font(.footnote.weight(selected ? .bold : .medium))
+        }
+        .foregroundStyle(selected ? AppColor.white : AppColor.muted)
+        .padding(.horizontal, 13)
+        .padding(.vertical, 9)
+        .background(selected ? AppColor.primary : AppColor.surface)
+        .clipShape(Capsule())
+        .overlay(Capsule().stroke(selected ? AppColor.primary : AppColor.border, lineWidth: 1))
+        .contentShape(Capsule())
+        .onTapGesture {
+            guard activity != a else { return }
+            activity = a
+            reload()
+        }
     }
 
     // MARK: Karten unten
@@ -293,7 +297,7 @@ struct TourDiscoveryView: View {
     private func reload() {
         error = nil
         if isDemo {
-            tours = TourService.demoTours()
+            tours = TourService.demoTours(activity: activity)
             return
         }
         guard let clientId = auth.clientId else { return }

@@ -3,6 +3,56 @@ import CoreLocation
 
 // MARK: - Modelle
 
+/// Aktivitäten der Touren-Discovery. Der Rohwert ist zugleich der
+/// API-Parameter des Backend-Proxys (dort auf Overpass-Selektoren gemappt).
+enum TourActivity: String, CaseIterable, Identifiable {
+    case wandern, joggen, rennrad, mtb, vitaparcours, finnenbahn
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .wandern:      return "Wandern"
+        case .joggen:       return "Joggen"
+        case .rennrad:      return "Rennrad"
+        case .mtb:          return "MTB"
+        case .vitaparcours: return "Vita Parcours"
+        case .finnenbahn:   return "Finnenbahn"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .wandern:      return "figure.hiking"
+        case .joggen:       return "figure.run"
+        case .rennrad:      return "bicycle"
+        case .mtb:          return "figure.outdoor.cycle"
+        case .vitaparcours: return "figure.strengthtraining.functional"
+        case .finnenbahn:   return "figure.track.and.field"
+        }
+    }
+
+    /// Nächstliegende Aktivität für den Rundtouren-Generator (kennt Wandern/Rad).
+    var roundtripActivity: WorkoutActivity {
+        switch self {
+        case .rennrad, .mtb: return .rad
+        default:             return .wandern
+        }
+    }
+}
+
+/// Icon je Backend-Aktivitätswert (`activity` in Tour/TourDetail).
+func tourActivityIcon(_ activity: String) -> String {
+    switch activity {
+    case "bicycle":       return "bicycle"
+    case "mtb":           return "figure.outdoor.cycle"
+    case "running":       return "figure.run"
+    case "fitness_trail": return "figure.strengthtraining.functional"
+    case "finnenbahn":    return "figure.track.and.field"
+    default:              return "figure.hiking"
+    }
+}
+
 /// Eine markierte Route aus OSM (Listen-Eintrag der Touren-Discovery).
 struct Tour: Identifiable, Hashable {
     let id: String
@@ -131,7 +181,13 @@ struct TourRoute {
     let activity: String        // "hiking" | "bicycle"
 
     /// Vorausgewählte Aufnahme-Aktivität.
-    var workoutActivity: WorkoutActivity { activity == "bicycle" ? .rad : .wandern }
+    var workoutActivity: WorkoutActivity {
+        switch activity {
+        case "bicycle", "mtb":        return .rad
+        case "running", "finnenbahn": return .joggen
+        default:                      return .wandern
+        }
+    }
 }
 
 extension TourDetail {
@@ -149,10 +205,9 @@ struct TourService {
     private init() {}
 
     func tours(clientId: String, lat: Double, lon: Double,
-               radiusKm: Double, activity: WorkoutActivity) async throws -> [Tour] {
-        let act = activity == .rad ? "rad" : "wandern"
-        return try await APIClient.shared
-            .getJSONArray("/api/client/tours/\(clientId)?lat=\(lat)&lon=\(lon)&radiusKm=\(radiusKm)&activity=\(act)",
+               radiusKm: Double, activity: TourActivity) async throws -> [Tour] {
+        try await APIClient.shared
+            .getJSONArray("/api/client/tours/\(clientId)?lat=\(lat)&lon=\(lon)&radiusKm=\(radiusKm)&activity=\(activity.rawValue)",
                           timeout: 45)
             .compactMap { Tour(json: $0) }
     }
@@ -177,34 +232,66 @@ struct TourService {
 
     // MARK: - Demo-Daten (Demo-Modus: kein Backend-Zugriff)
 
-    static func demoTours() -> [Tour] {
-        [
-            Tour(json: ["id": "demo-t1", "name": "Sihluferweg Adliswil–Langnau",
-                        "activity": "hiking", "network": "lwn", "distanceKm": 6.8,
-                        "durationMin": 97, "difficulty": "Leicht",
-                        "lat": 47.309, "lon": 8.53]),
-            Tour(json: ["id": "demo-t2", "name": "Uetliberg Panoramaweg",
-                        "activity": "hiking", "network": "rwn", "distanceKm": 12.4,
-                        "durationMin": 177, "difficulty": "Mittel",
-                        "lat": 47.35, "lon": 8.49]),
-        ].compactMap { $0 }
+    private static func demoCatalog(_ activity: TourActivity) -> [[String: Any]] {
+        switch activity {
+        case .wandern: return [
+            ["id": "demo-t1", "name": "Sihluferweg Adliswil–Langnau", "activity": "hiking",
+             "network": "lwn", "distanceKm": 6.8, "durationMin": 97, "difficulty": "Leicht",
+             "lat": 47.309, "lon": 8.53],
+            ["id": "demo-t2", "name": "Uetliberg Panoramaweg", "activity": "hiking",
+             "network": "rwn", "distanceKm": 12.4, "durationMin": 177, "difficulty": "Mittel",
+             "lat": 47.35, "lon": 8.49]]
+        case .joggen: return [
+            ["id": "demo-j1", "name": "Helsana Trail Adliswil blau", "activity": "running",
+             "distanceKm": 5.4, "durationMin": 41, "difficulty": "Leicht",
+             "lat": 47.312, "lon": 8.524],
+            ["id": "demo-j2", "name": "Sihlrunde", "activity": "running",
+             "distanceKm": 8.2, "durationMin": 62, "difficulty": "Mittel",
+             "lat": 47.33, "lon": 8.52]]
+        case .rennrad: return [
+            ["id": "demo-r1", "name": "Zürichsee-Runde Süd", "activity": "bicycle",
+             "network": "rcn", "distanceKm": 42.0, "durationMin": 168, "difficulty": "Schwer",
+             "lat": 47.28, "lon": 8.56]]
+        case .mtb: return [
+            ["id": "demo-m1", "name": "Triemlitrail", "activity": "mtb",
+             "distanceKm": 4.8, "durationMin": 24, "difficulty": "Leicht",
+             "lat": 47.36, "lon": 8.49],
+            ["id": "demo-m2", "name": "Adlisberg Trail", "activity": "mtb",
+             "distanceKm": 6.5, "durationMin": 33, "difficulty": "Leicht",
+             "lat": 47.37, "lon": 8.58]]
+        case .vitaparcours: return [
+            ["id": "demo-v1", "name": "Vitaparcours Entlisberg", "activity": "fitness_trail",
+             "distanceKm": 2.3, "durationMin": 33, "difficulty": "Leicht",
+             "lat": 47.34, "lon": 8.53]]
+        case .finnenbahn: return [
+            ["id": "demo-f1", "name": "Finnenbahn Allmend Brunau", "activity": "finnenbahn",
+             "distanceKm": 0.4, "durationMin": 3, "difficulty": "Leicht",
+             "lat": 47.353, "lon": 8.525]]
+        }
+    }
+
+    static func demoTours(activity: TourActivity) -> [Tour] {
+        demoCatalog(activity).compactMap { Tour(json: $0) }
     }
 
     static func demoDetail(_ id: String) -> TourDetail? {
-        let base: [(Double, Double)] = [
-            (47.320, 8.525), (47.316, 8.527), (47.311, 8.528),
-            (47.306, 8.531), (47.300, 8.534), (47.294, 8.538),
-        ]
-        return TourDetail(json: [
-            "id": id,
-            "name": id == "demo-t2" ? "Uetliberg Panoramaweg" : "Sihluferweg Adliswil–Langnau",
-            "activity": "hiking", "network": "lwn",
-            "distanceKm": id == "demo-t2" ? 12.4 : 6.8,
-            "durationMin": id == "demo-t2" ? 177 : 97,
-            "difficulty": id == "demo-t2" ? "Mittel" : "Leicht",
-            "description": "Demo-Route entlang der Sihl.",
-            "segments": [base.map { ["lat": $0.0, "lon": $0.1] }],
-        ])
+        let all = TourActivity.allCases.flatMap { demoCatalog($0) }
+        guard let t = all.first(where: { ($0["id"] as? String) == id }),
+              let lat = t["lat"] as? Double, let lon = t["lon"] as? Double else { return nil }
+        // Kreisförmige Demo-Geometrie mit passendem Umfang um den Tour-Mittelpunkt
+        let km = t["distanceKm"] as? Double ?? 5
+        let rKm = km / (2 * .pi)
+        let latKm = 110.574, lonKm = 111.32 * cos(lat * .pi / 180)
+        var seg: [[String: Any]] = []
+        for i in 0...60 {
+            let phi = Double(i) / 60 * 2 * .pi
+            seg.append(["lat": lat + (rKm / latKm) * cos(phi),
+                        "lon": lon + (rKm / lonKm) * sin(phi)])
+        }
+        var json = t
+        json["description"] = "Demo-Route."
+        json["segments"] = [seg]
+        return TourDetail(json: json)
     }
 
     /// Demo-Rundtour: Kreis um den Startpunkt mit synthetischem Höhenprofil.
