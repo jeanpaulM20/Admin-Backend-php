@@ -25,6 +25,8 @@ struct TourDiscoveryView: View {
     @State private var showPlanSheet = false
     @State private var generatedDetail: TourDetail?
     @State private var showImporter = false
+    @State private var searchModel = LocationSearchModel()
+    @FocusState private var searchFocused: Bool
 
     private var isDemo: Bool { auth.clientId == "demo" }
 
@@ -43,7 +45,11 @@ struct TourDiscoveryView: View {
                             .font(.subheadline)
                             .foregroundStyle(AppColor.text)
                             .submitLabel(.search)
+                            .focused($searchFocused)
                             .onSubmit { searchLocation() }
+                            .onChange(of: searchText) { _, text in
+                                searchModel.update(query: text, near: cameraCenter ?? center)
+                            }
                     }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
@@ -65,6 +71,22 @@ struct TourDiscoveryView: View {
                         .background(AppColor.cta)
                         .clipShape(Capsule())
                     }
+                }
+
+                // Live-Ortsvorschläge während des Tippens
+                if searchFocused && !searchModel.suggestions.isEmpty {
+                    VStack(spacing: 0) {
+                        ForEach(searchModel.suggestions) { s in
+                            suggestionRow(s)
+                            if s.id != searchModel.suggestions.last?.id {
+                                Divider().overlay(AppColor.border)
+                            }
+                        }
+                    }
+                    .background(AppColor.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
+                    .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
+                        .stroke(AppColor.border, lineWidth: 1))
                 }
 
                 // Aktivität (scrollbar — sechs Routentypen)
@@ -314,23 +336,71 @@ struct TourDiscoveryView: View {
         }
     }
 
+    private func suggestionRow(_ s: LocationSearchModel.Suggestion) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "mappin.and.ellipse")
+                .font(.callout)
+                .foregroundStyle(AppColor.muted)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(s.title)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(AppColor.text)
+                    .lineLimit(1)
+                if !s.subtitle.isEmpty {
+                    Text(s.subtitle)
+                        .font(.caption)
+                        .foregroundStyle(AppColor.muted)
+                        .lineLimit(1)
+                }
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
+        .onTapGesture { select(s) }
+    }
+
+    /// Vorschlag übernehmen: auflösen, Karte zentrieren, Touren laden.
+    private func select(_ s: LocationSearchModel.Suggestion) {
+        searchFocused = false
+        searchText = s.title
+        searchModel.clear()
+        Task {
+            guard let c = await searchModel.resolve(s) else {
+                error = "Ort konnte nicht geladen werden."
+                return
+            }
+            moveTo(c)
+        }
+    }
+
+    /// Fallback für die „Suchen“-Taste ohne gewählten Vorschlag.
     private func searchLocation() {
+        searchFocused = false
+        searchModel.clear()
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = searchText
         request.region = MKCoordinateRegion(
             center: center,
             span: MKCoordinateSpan(latitudeDelta: 2, longitudeDelta: 2))
         MKLocalSearch(request: request).start { response, _ in
-            guard let item = response?.mapItems.first else { return }
-            let c = item.placemark.coordinate
             Task { @MainActor in
-                center = c
-                camera = .region(MKCoordinateRegion(
-                    center: c,
-                    span: MKCoordinateSpan(latitudeDelta: 0.15, longitudeDelta: 0.15)))
-                reload()
+                guard let item = response?.mapItems.first else {
+                    error = "„\(searchText)“ wurde nicht gefunden."
+                    return
+                }
+                moveTo(item.placemark.coordinate)
             }
         }
+    }
+
+    private func moveTo(_ c: CLLocationCoordinate2D) {
+        center = c
+        camera = .region(MKCoordinateRegion(
+            center: c,
+            span: MKCoordinateSpan(latitudeDelta: 0.15, longitudeDelta: 0.15)))
+        reload()
     }
 }
 
