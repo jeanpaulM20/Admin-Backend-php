@@ -116,7 +116,9 @@ struct TourDetailView: View {
                     factRow("road.lanes", "Belag: \(surface)")
                 }
                 if d.lit == true {
-                    factRow("lightbulb", "Beleuchtet — auch früh und spät nutzbar")
+                    // Ohne Schaltzeiten aus OSM kein Zeitversprechen (viele
+                    // Anlagen schalten z. B. um 22 Uhr ab)
+                    factRow("lightbulb", "Beleuchtet")
                 }
                 if let km = d.distanceKm, km > 0, km < 1 {
                     factRow("arrow.triangle.2.circlepath",
@@ -182,7 +184,7 @@ struct TourDetailView: View {
     /// OSM-surface → deutsche Bezeichnung (nur bekannte Werte, sonst nichts).
     static func surfaceLabel(_ surface: String?) -> String? {
         switch surface {
-        case "woodchips":            return "Holzschnitzel (gelenkschonend)"
+        case "woodchips":            return "Holzschnitzel/Sägemehl (gelenkschonend)"
         case "wood":                 return "Holz"
         case "fine_gravel":          return "Feinkies"
         case "gravel":               return "Kies"
