@@ -61,6 +61,8 @@ struct TourAssistantView: View {
     @State private var input = ""
     @State private var isThinking = false
     @State private var detailRoute: TourDetail?
+    @State private var startTour: TourRoute?
+    @State private var showRecord = false
     @FocusState private var inputFocused: Bool
 
     private var isDemo: Bool { auth.clientId == "demo" }
@@ -91,6 +93,10 @@ struct TourAssistantView: View {
             }
             .navigationDestination(item: $detailRoute) { detail in
                 TourDetailView(detail: detail)
+            }
+            // Direktstart aus dem Chat: Route in den Recorder übergeben (T3)
+            .navigationDestination(isPresented: $showRecord) {
+                RecordWorkoutView(tour: startTour)
             }
         }
     }
@@ -173,8 +179,9 @@ struct TourAssistantView: View {
         .id(message.id)
     }
 
-    /// Kompakte Routen-Karte: Name + Kennzahlen, Tap → Detail mit „Tour starten".
+    /// Kompakte Routen-Karte: Tap → Detail; „Tour starten" startet direkt.
     private func routeCard(_ route: TourDetail) -> some View {
+        VStack(spacing: 0) {
         Button {
             detailRoute = route
         } label: {
@@ -211,14 +218,31 @@ struct TourAssistantView: View {
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.caption)
-                    .foregroundStyle(AppColor.cta)
+                    .foregroundStyle(AppColor.muted)
             }
             .padding(AppSpacing.card)
-            .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
-            .overlay(RoundedRectangle(cornerRadius: AppRadius.card)
-                .stroke(AppColor.cta, lineWidth: 1))
         }
         .buttonStyle(.plain)
+
+        Button {
+            startTour = route.asRoute
+            showRecord = true
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "record.circle").font(.callout)
+                Text("Tour starten").font(.subheadline.bold())
+            }
+            .foregroundStyle(AppColor.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 11)
+            .background(AppColor.cta)
+        }
+        .buttonStyle(.plain)
+        }
+        .background(AppColor.surface)
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card)
+            .stroke(AppColor.border, lineWidth: 1))
     }
 
     // MARK: Eingabe
