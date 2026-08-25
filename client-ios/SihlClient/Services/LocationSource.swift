@@ -40,6 +40,8 @@ enum LocationSourceState: Equatable {
 protocol LocationSource: AnyObject {
     var onPoint: ((TrackPoint) -> Void)? { get set }
     var onStateChange: ((LocationSourceState) -> Void)? { get set }
+    /// Blickrichtung in Grad (0 = Nord) — Kompass bzw. Bewegungsrichtung.
+    var onHeading: ((Double) -> Void)? { get set }
     func start()
     func stop()
 }
@@ -52,6 +54,7 @@ protocol LocationSource: AnyObject {
 final class CoreLocationSource: NSObject, LocationSource {
     var onPoint: ((TrackPoint) -> Void)?
     var onStateChange: ((LocationSourceState) -> Void)?
+    var onHeading: ((Double) -> Void)?
 
     private let manager = CLLocationManager()
     private var started = false
@@ -62,6 +65,7 @@ final class CoreLocationSource: NSObject, LocationSource {
         manager.desiredAccuracy = kCLLocationAccuracyBest
         manager.activityType = .fitness
         manager.distanceFilter = 5
+        manager.headingFilter = 5   // Grad — Kompass nicht bei jedem Wackeln feuern
         manager.pausesLocationUpdatesAutomatically = false
     }
 
@@ -91,6 +95,7 @@ final class CoreLocationSource: NSObject, LocationSource {
             manager.allowsBackgroundLocationUpdates = false
         }
         manager.stopUpdatingLocation()
+        manager.stopUpdatingHeading()
         emit(.idle)
     }
 
@@ -102,6 +107,9 @@ final class CoreLocationSource: NSObject, LocationSource {
             manager.showsBackgroundLocationIndicator = true
         }
         manager.startUpdatingLocation()
+        if CLLocationManager.headingAvailable() {
+            manager.startUpdatingHeading()
+        }
         emit(.active(accuracy: nil))
     }
 
@@ -118,6 +126,13 @@ extension CoreLocationSource: CLLocationManagerDelegate {
         case .denied, .restricted:                    emit(.denied)
         default: break
         }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
+        // Echter Nordbezug, falls verfügbar; sonst magnetisch
+        let deg = newHeading.trueHeading >= 0 ? newHeading.trueHeading : newHeading.magneticHeading
+        guard deg >= 0 else { return }
+        Task { @MainActor in self.onHeading?(deg) }
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
@@ -149,6 +164,8 @@ extension CoreLocationSource: CLLocationManagerDelegate {
 final class SimulatedLocationSource: LocationSource {
     var onPoint: ((TrackPoint) -> Void)?
     var onStateChange: ((LocationSourceState) -> Void)?
+    var onHeading: ((Double) -> Void)?
+    private var lastSim: (lat: Double, lon: Double)?
 
     private var timer: Timer?
     private var tick = 0
@@ -168,6 +185,13 @@ final class SimulatedLocationSource: LocationSource {
                 let lon = self.baseLon + 0.006 * cos(angle)
                 let ele = 470.0 + 25.0 * sin(angle * 2)   // sanfte Hügel
                 self.onPoint?(TrackPoint(t: Date(), lat: lat, lon: lon, ele: ele, acc: 5))
+                if let last = self.lastSim {
+                    let dLat = lat - last.lat
+                    let dLon = (lon - last.lon) * cos(lat * .pi / 180)
+                    let deg = atan2(dLon, dLat) * 180 / .pi
+                    self.onHeading?(deg < 0 ? deg + 360 : deg)
+                }
+                self.lastSim = (lat, lon)
             }
         }
     }

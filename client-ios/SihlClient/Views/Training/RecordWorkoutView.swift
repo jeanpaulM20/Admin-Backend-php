@@ -304,6 +304,7 @@ private struct WorkoutSessionView: View {
     @State private var followUser = true
     @State private var liveCamera: MapCameraPosition = .automatic
     @State private var programmaticMove = false
+    @State private var cameraHeading: Double = 0
 
     /// Für die Kartendarstellung reduzierte Koordinaten (Render-Kosten).
     private var displayCoordinates: [CLLocationCoordinate2D] {
@@ -415,19 +416,16 @@ private struct WorkoutSessionView: View {
                 MapPolyline(coordinates: displayCoordinates)
                     .stroke(AppColor.track, lineWidth: 4)
             }
-            if let last = recorder.trackCoordinates.last {
-                Annotation("", coordinate: last) {
-                    ZStack {
-                        Circle().fill(AppColor.track.opacity(0.3)).frame(width: 22, height: 22)
-                        Circle().fill(AppColor.track).frame(width: 12, height: 12)
-                            .overlay(Circle().stroke(.white, lineWidth: 2))
-                    }
+            if let pos = bestPosition {
+                Annotation("", coordinate: pos) {
+                    positionMarker
                 }
             }
         }
         .mapStyle(.standard)
         // Manuelles Verschieben beendet die Verfolgung …
-        .onMapCameraChange(frequency: .onEnd) { _ in
+        .onMapCameraChange(frequency: .onEnd) { context in
+            cameraHeading = context.camera.heading
             if !programmaticMove { followUser = false }
         }
         // … neue Positionen zentrieren die Kamera, solange sie folgt
@@ -451,6 +449,22 @@ private struct WorkoutSessionView: View {
                     .overlay(Circle().stroke(AppColor.border, lineWidth: 1))
             }
             .padding(10)
+        }
+    }
+
+    /// Positionsmarker: oranger Punkt; sobald eine Blickrichtung bekannt
+    /// ist, zeigt ein Pfeil sie an (um die Kartendrehung korrigiert).
+    private var positionMarker: some View {
+        ZStack {
+            Circle().fill(AppColor.track.opacity(0.25)).frame(width: 36, height: 36)
+            Circle().fill(AppColor.track).frame(width: 20, height: 20)
+                .overlay(Circle().stroke(.white, lineWidth: 2))
+            if let heading = recorder.headingDegrees {
+                Image(systemName: "arrowtriangle.up.fill")
+                    .font(.app(9, weight: .black))
+                    .foregroundStyle(.white)
+                    .rotationEffect(.degrees(heading - cameraHeading))
+            }
         }
     }
 

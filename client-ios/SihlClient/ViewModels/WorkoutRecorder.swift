@@ -60,6 +60,8 @@ final class WorkoutRecorder {
     private(set) var lastKnownCoordinate: CLLocationCoordinate2D?
     /// Zähler je Positions-Update; die View beobachtet ihn für den Follow-Modus.
     private(set) var locationTick = 0
+    /// Blickrichtung in Grad (0 = Nord), vom Kompass bzw. simuliert.
+    private(set) var headingDegrees: Double?
     private(set) var routeSegments: [[CLLocationCoordinate2D]] = []
     private(set) var isOffRoute = false
     private(set) var offRouteDistance: Double = 0
@@ -80,6 +82,7 @@ final class WorkoutRecorder {
         source.onSample = { [weak self] bpm in self?.ingest(bpm) }
         gpsSource.onStateChange = { [weak self] state in self?.gpsState = state }
         gpsSource.onPoint = { [weak self] point in self?.ingest(point) }
+        gpsSource.onHeading = { [weak self] deg in self?.headingDegrees = deg }
     }
 
     // MARK: Statistiken
