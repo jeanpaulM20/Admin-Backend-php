@@ -467,10 +467,11 @@ private struct PlanTourSheet: View {
                     .font(.footnote)
                     .foregroundStyle(AppColor.muted)
 
-                // Aktivität
-                HStack(spacing: AppSpacing.stack) {
+                // Aktivität — gleiches Kachel-Schema wie Discovery/Aufzeichnung
+                HStack(spacing: 8) {
                     choice(.wandern, "figure.hiking", "Wandern")
                     choice(.rad, "figure.outdoor.cycle", "Radfahren")
+                    Spacer(minLength: 0)
                 }
 
                 // Distanz
@@ -507,20 +508,17 @@ private struct PlanTourSheet: View {
 
     private func choice(_ a: WorkoutActivity, _ icon: String, _ label: String) -> some View {
         let selected = chosenActivity == a
-        return VStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.app(22))
-                .foregroundStyle(selected ? AppColor.primary : AppColor.muted)
-            Text(label)
-                .font(.footnote.weight(selected ? .bold : .regular))
-                .foregroundStyle(selected ? AppColor.text : AppColor.muted)
+        return HStack(spacing: 6) {
+            Image(systemName: icon).font(.app(13))
+            Text(label).font(.footnote.weight(selected ? .bold : .medium))
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .background(AppColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
-        .overlay(RoundedRectangle(cornerRadius: AppRadius.card)
-            .stroke(selected ? AppColor.primary : AppColor.border, lineWidth: selected ? 1.5 : 1))
+        .foregroundStyle(selected ? AppColor.white : AppColor.muted)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(selected ? AppColor.primary : AppColor.surface,
+                    in: RoundedRectangle(cornerRadius: AppRadius.control))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
+            .stroke(selected ? AppColor.primary : AppColor.border, lineWidth: 1))
         .contentShape(Rectangle())
         .onTapGesture { chosenActivity = a }
     }
