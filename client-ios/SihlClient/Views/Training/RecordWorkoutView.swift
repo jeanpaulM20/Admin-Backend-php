@@ -452,19 +452,23 @@ private struct WorkoutSessionView: View {
         }
     }
 
-    /// Positionsmarker: oranger Punkt; sobald eine Blickrichtung bekannt
-    /// ist, zeigt ein Pfeil sie an (um die Kartendrehung korrigiert).
+    /// Positionsmarker im Karten-Standard (Apple/Google Maps): oranger Punkt
+    /// mit Sichtkegel — die Richtung ist als Fläche auf einen Blick lesbar,
+    /// um die Kartendrehung korrigiert und sanft animiert.
     private var positionMarker: some View {
         ZStack {
-            Circle().fill(AppColor.track.opacity(0.25)).frame(width: 36, height: 36)
-            Circle().fill(AppColor.track).frame(width: 20, height: 20)
-                .overlay(Circle().stroke(.white, lineWidth: 2))
             if let heading = recorder.headingDegrees {
-                Image(systemName: "arrowtriangle.up.fill")
-                    .font(.app(9, weight: .black))
-                    .foregroundStyle(.white)
+                HeadingCone()
+                    .fill(RadialGradient(
+                        colors: [AppColor.track.opacity(0.6), AppColor.track.opacity(0)],
+                        center: .center, startRadius: 4, endRadius: 34))
+                    .frame(width: 68, height: 68)
                     .rotationEffect(.degrees(heading - cameraHeading))
+                    .animation(.easeOut(duration: 0.25),
+                               value: recorder.headingDegrees)
             }
+            Circle().fill(AppColor.track).frame(width: 18, height: 18)
+                .overlay(Circle().stroke(.white, lineWidth: 2.5))
         }
     }
 
@@ -698,5 +702,23 @@ private struct WorkoutSessionView: View {
                 onDone()
             }
         }
+    }
+}
+
+
+// MARK: - HeadingCone
+
+/// Sichtkegel des Positionsmarkers: 56°-Keil, der nach oben (Norden) zeigt
+/// und per rotationEffect in die Blickrichtung gedreht wird.
+private struct HeadingCone: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        p.move(to: center)
+        p.addArc(center: center, radius: rect.width / 2,
+                 startAngle: .degrees(-118), endAngle: .degrees(-62),
+                 clockwise: false)
+        p.closeSubpath()
+        return p
     }
 }
