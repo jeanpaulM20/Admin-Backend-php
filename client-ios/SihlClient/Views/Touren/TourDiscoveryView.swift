@@ -31,18 +31,15 @@ struct TourDiscoveryView: View {
     private var isDemo: Bool { auth.clientId == "demo" }
 
     var body: some View {
-        // Kopfzeile auf solidem Grund, Karte beginnt darunter (Mockup 2026-08-25)
-        VStack(spacing: 0) {
-            header
-                .padding(.horizontal, AppSpacing.screen)
-                .padding(.top, AppSpacing.stack)
-                .padding(.bottom, AppSpacing.stack)
-                .background(AppColor.background)
+        // Kacheln schweben über der Karte — sie bleibt zwischen den
+        // Bedienelementen sichtbar (moderner Look, User-Wunsch 2026-08-25)
+        ZStack(alignment: .top) {
+            map
 
-            ZStack(alignment: .top) {
-                map
+            VStack(spacing: AppSpacing.stack) {
+                header
 
-                // Live-Ortsvorschläge überlagern die Karte
+                // Live-Ortsvorschläge direkt unter der Suche
                 if searchFocused && !searchModel.suggestions.isEmpty {
                     VStack(spacing: 0) {
                         ForEach(searchModel.suggestions) { s in
@@ -56,15 +53,15 @@ struct TourDiscoveryView: View {
                     .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
                     .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
                         .stroke(AppColor.border, lineWidth: 1))
-                    .padding(.horizontal, AppSpacing.screen)
-                    .padding(.top, AppSpacing.stack)
                 }
+            }
+            .padding(.horizontal, AppSpacing.screen)
+            .padding(.top, AppSpacing.stack)
 
-                // Tour-Karten unten
-                VStack {
-                    Spacer()
-                    bottomCards
-                }
+            // Tour-Karten unten
+            VStack {
+                Spacer()
+                bottomCards
             }
         }
         .navigationTitle("Touren")
