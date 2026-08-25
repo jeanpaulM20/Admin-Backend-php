@@ -457,22 +457,23 @@ private struct WorkoutSessionView: View {
     /// den Punkt kreist — um die Kartendrehung korrigiert und sanft animiert.
     private var positionMarker: some View {
         ZStack {
-            Circle().fill(AppColor.green.opacity(0.18))
-                .frame(width: 64, height: 64)
+            Circle().fill(.white.opacity(0.16))
+                .frame(width: 72, height: 72)
             if let heading = recorder.headingDegrees {
                 HeadingArrow()
-                    .fill(.white)
+                    .fill(AppColor.text)
                     .overlay(HeadingArrow()
-                        .stroke(.white, style: StrokeStyle(lineWidth: 5, lineJoin: .round)))
-                    .frame(width: 15, height: 12)
-                    .shadow(color: .black.opacity(0.35), radius: 1.5, y: 1)
-                    .offset(y: -20)
+                        .stroke(AppColor.text,
+                                style: StrokeStyle(lineWidth: 5, lineJoin: .round)))
+                    .frame(width: 17, height: 19)
+                    .shadow(color: .black.opacity(0.3), radius: 1.5, y: 1)
+                    .offset(y: -27)
                     .rotationEffect(.degrees(heading - cameraHeading))
                     .animation(.easeOut(duration: 0.25),
                                value: recorder.headingDegrees)
             }
-            Circle().fill(AppColor.green).frame(width: 16, height: 16)
-                .overlay(Circle().stroke(.white, lineWidth: 2))
+            Circle().fill(AppColor.green).frame(width: 20, height: 20)
+                .overlay(Circle().stroke(.white, lineWidth: 4))
         }
     }
 
@@ -712,15 +713,16 @@ private struct WorkoutSessionView: View {
 
 // MARK: - HeadingArrow
 
-/// Richtungspfeil des Positionsmarkers (Mockup 2026-08-25): breites,
-/// abgerundetes Dreieck — die runden Ecken entstehen über den Round-Join-
-/// Stroke um die gefüllte Form.
+/// Richtungspfeil des Positionsmarkers (Mockup 2026-08-25): Navigations-
+/// Dart mit eingekerbter Unterkante; die runden Ecken entstehen über den
+/// Round-Join-Stroke um die gefüllte Form.
 private struct HeadingArrow: Shape {
     func path(in rect: CGRect) -> Path {
         var p = Path()
-        p.move(to: CGPoint(x: rect.midX, y: rect.minY))
-        p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
-        p.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        p.move(to: CGPoint(x: rect.midX, y: rect.minY))                            // Spitze
+        p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))                         // rechts unten
+        p.addLine(to: CGPoint(x: rect.midX, y: rect.maxY - rect.height * 0.3))     // Kerbe
+        p.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))                         // links unten
         p.closeSubpath()
         return p
     }
