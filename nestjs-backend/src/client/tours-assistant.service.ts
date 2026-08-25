@@ -33,10 +33,13 @@ export class ToursAssistantService {
 Regeln:
 - Antworte in der Sprache der Frage (meist Deutsch), knapp und freundlich per Du.
 - Du darfst NUR Routen empfehlen, die du mit den Werkzeugen berechnet hast — nie Distanzen, Dauern oder Höhenmeter schätzen.
-- Prüfe Wünsche ehrlich gegen die berechneten Werte (SAC-Dauer). Ist ein Wunsch nicht machbar (z. B. Zeitbudget zu klein), sag das klar und rechne eine machbare Alternative (z. B. höherer Startpunkt mit Bahn, kürzeres Ziel).
+- Prüfe Wünsche ehrlich gegen die berechneten Werte (SAC-Dauer). Weicht eine Route vom Wunsch ab (z. B. länger als das Zeitbudget), benenne die Abweichung ehrlich in Zahlen.
+- EISERNE REGEL: Jede Antwort endet ENTWEDER mit genau einer Rückfrage ODER mit einer empfohlenen Route (empfehlung(...) wurde aufgerufen). Es gibt keinen dritten Fall. Auch eine nicht perfekte Route ist besser als keine — empfiehl die beste berechnete Option und sag ehrlich, was abweicht.
+- Liegt die berechnete Dauer ÜBER dem Zeitbudget, aber unter dem Doppelten: Empfiehl die berechnete Route DIREKT per empfehlung(...) und benenne die Abweichung ehrlich — KEINE Alternativsuche.
+- PFLICHT-SCHRITT: Überschreitet die berechnete Dauer das genannte Zeitbudget auf MEHR ALS DAS DOPPELTE, darfst du NICHT direkt antworten. Du MUSST zuerst mindestens eine Alternative berechnen (geocode eines höher gelegenen, mit Bahn/Bus erreichbaren Startpunkts — z. B. Bergstationen wie "Rigi Kaltbad" oder "Rigi Klösterli" — dann route von dort) und DIESE Alternative per empfehlung(...) empfehlen. Die unmachbare Direktroute nie als Empfehlung stehen lassen.
 - "Mit der Bahn zurück/runter" o. Ä. heisst: Einweg-Route reicht; erwähne die Bahn im Text.
 - Korrigiere offensichtliche Ortsnamen-Tippfehler stillschweigend (z. B. "Vetznau" → "Vitznau").
-- Wenn Angaben fehlen (Start, Aktivität), stelle EINE kurze Rückfrage statt zu raten.
+- Wenn Angaben fehlen (Start, Aktivität), stelle EINE kurze Rückfrage statt zu raten. Eine Rückfrage ist NUR erlaubt, wenn dir Angaben fehlen, um überhaupt eine Route zu rechnen — nie, um eine Empfehlung abzusichern. Hast du bereits eine Route berechnet, empfiehl die beste davon.
 - Wenn du eine finale Route empfiehlst: Rufe zuerst empfehlung(routeId, titel) auf und beschreibe die Route danach im Text (Distanz, Dauer, Höhenmeter, ggf. Bahn-Hinweis).
 - Maximal eine empfohlene Route pro Antwort.`;
 
@@ -151,11 +154,20 @@ Regeln:
       convo.push({ role: 'user', content: results });
     }
 
-    // Finale Route als TourDetail-JSON (Schema des Rundtouren-Endpoints)
+    // Finale Route als TourDetail-JSON (Schema des Rundtouren-Endpoints).
+    // Garantie: Hat der Loop Routen berechnet, bekommt der Kunde eine Karte —
+    // auch wenn das Modell empfehlung() vergessen hat (zuletzt berechnete
+    // Route = in der Regel die beste/letzte Alternative).
     let route: any;
     if (chosen && routes.has(chosen.routeId)) {
       const r = routes.get(chosen.routeId);
       route = { ...r.detail, id: `assist-${Date.now()}`, name: chosen.titel };
+    } else if (routes.size > 0) {
+      const last = [...routes.values()][routes.size - 1].detail;
+      const name = last.name && last.name !== 'Route'
+        ? last.name
+        : `Route · ${last.distanceKm} km`;
+      route = { ...last, id: `assist-${Date.now()}`, name };
     }
     return { reply: reply || 'Da ist etwas schiefgelaufen — versuch es bitte nochmal.', route };
   }
