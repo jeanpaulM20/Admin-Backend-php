@@ -267,6 +267,7 @@ out geom 80;`;
       description: rel.tags?.description ?? null,
       surface: rel.tags?.surface ?? null,
       lit: rel.tags?.lit === 'yes' ? true : rel.tags?.lit === 'no' ? false : null,
+      official: await this.cityOfficial(osmRoute, slim),
       distanceKm: isWay ? Math.round(distanceM) / 1000 : Math.round(distKm * 10) / 10,
       durationMin: isWay ? null : ToursService.tourDuration(distKm, osmRoute),
       difficulty: isWay ? null : ToursService.tourDifficulty(distKm),
@@ -452,6 +453,72 @@ out geom 80;`;
       coords,
       lengthM: parseFloat(props['track-length'] ?? '0') || 0,
       ascend: parseInt(props['filtered ascend'] ?? '0', 10) || 0,
+    };
+  }
+
+  // ── Offizielle Anlagen-Infos der Stadt Zürich ────────────────────────
+  // Open-Data-Datensatz "Erholungs- und Sporteinrichtungen" (Lizenz CC0):
+  // autoritative Angaben (Belag, Beleuchtungszeiten, Garderobe, Kontakt)
+  // für Finnenbahnen und Vitaparcours im Stadtgebiet. Anreicherung ist
+  // optional — Fehler dürfen das Detail nie brechen.
+
+  private readonly cityCache = new Map<string, { at: number; features: any[] }>();
+
+  private async cityFeatures(layer: string): Promise<any[]> {
+    const hit = this.cityCache.get(layer);
+    if (hit && Date.now() - hit.at < ToursService.TOUR_TTL_MS) return hit.features;
+    try {
+      const url =
+        'https://www.ogd.stadt-zuerich.ch/wfs/geoportal/Erholungs__und_Sporteinrichtungen' +
+        `?SERVICE=WFS&VERSION=1.1.0&REQUEST=GetFeature&TYPENAME=${layer}` +
+        '&outputFormat=application/json&srsName=EPSG:4326';
+      const res = await fetch(url, {
+        headers: { 'User-Agent': ToursService.OSM_UA },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!res.ok) throw new Error(`Stadt-Zuerich-Daten ${res.status}`);
+      const json = await res.json();
+      const features = Array.isArray(json?.features) ? json.features : [];
+      this.cityCache.set(layer, { at: Date.now(), features });
+      return features;
+    } catch {
+      return [];
+    }
+  }
+
+  /** Nächste städtische Anlage (<500 m vom Routen-Schwerpunkt) — oder null. */
+  private async cityOfficial(
+    osmRoute: string,
+    segments: { lat: number; lon: number }[][],
+  ): Promise<any | null> {
+    const layer =
+      osmRoute === 'finnenbahn' ? 'poi_finnenbahn_view' :
+      osmRoute === 'fitness_trail' ? 'poi_vitaparcours_view' : null;
+    if (!layer) return null;
+    const pts = segments.flat();
+    if (!pts.length) return null;
+    const cLat = pts.reduce((a, p) => a + p.lat, 0) / pts.length;
+    const cLon = pts.reduce((a, p) => a + p.lon, 0) / pts.length;
+
+    const features = await this.cityFeatures(layer);
+    let best: any = null;
+    let bestDist = 500;
+    for (const f of features) {
+      const c = f?.geometry?.coordinates;
+      if (!Array.isArray(c) || c.length < 2) continue;
+      const d = ToursService.haversine(cLat, cLon, c[1], c[0]);
+      if (d < bestDist) { bestDist = d; best = f; }
+    }
+    if (!best) return null;
+    const p = best.properties ?? {};
+    return {
+      name: p.name ?? null,
+      belag: p.belagsmaterial ?? null,
+      beleuchtung: p.beleuchtung ?? null,
+      gelaendeinfo: p.gelaendeinfo ?? null,
+      garderobe: p.garderobe ?? null,
+      kontakt: p.kontakt ?? null,
+      www: p.www ?? null,
     };
   }
 }

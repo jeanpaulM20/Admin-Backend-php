@@ -155,6 +155,28 @@ struct Tour: Identifiable, Hashable {
     var networkLabel: String? { TourDetail.networkLabel(network) }
 }
 
+/// Offizielle Anlagen-Infos der Stadt Zürich (Open Data, CC0) —
+/// nur für Anlagen im Stadtgebiet vorhanden.
+struct OfficialInfo: Hashable {
+    let belag: String?
+    let beleuchtung: String?
+    let gelaendeinfo: String?
+    let garderobe: String?
+    let kontakt: String?
+
+    init?(json: [String: Any]?) {
+        guard let json else { return nil }
+        belag = json["belag"] as? String
+        beleuchtung = json["beleuchtung"] as? String
+        gelaendeinfo = json["gelaendeinfo"] as? String
+        garderobe = json["garderobe"] as? String
+        kontakt = json["kontakt"] as? String
+        if [belag, beleuchtung, gelaendeinfo, garderobe, kontakt].allSatisfy({ $0 == nil }) {
+            return nil
+        }
+    }
+}
+
 /// Detail einer Route: Geometrie als Segmente. OSM-Relationen liefern die
 /// Segmente ungeordnet; generierte Rundtouren (T4) und GPX-Importe sind
 /// geordnet (ein Segment bzw. Segmentfolge).
@@ -171,6 +193,7 @@ struct TourDetail: Identifiable, Hashable {
     let elevationGain: Int?
     let surface: String?
     let lit: Bool?
+    let official: OfficialInfo?
     let segments: [[CLLocationCoordinate2D]]
     /// Höhen je Segmentpunkt (parallel zu `segments`), falls die Quelle sie liefert.
     let elevations: [[Double?]]
@@ -179,7 +202,7 @@ struct TourDetail: Identifiable, Hashable {
          operatorName: String? = nil, description: String? = nil,
          distanceKm: Double? = nil, durationMin: Int? = nil,
          difficulty: String? = nil, elevationGain: Int? = nil,
-         surface: String? = nil, lit: Bool? = nil,
+         surface: String? = nil, lit: Bool? = nil, official: OfficialInfo? = nil,
          segments: [[CLLocationCoordinate2D]], elevations: [[Double?]] = []) {
         self.id = id
         self.name = name
@@ -193,6 +216,7 @@ struct TourDetail: Identifiable, Hashable {
         self.elevationGain = elevationGain
         self.surface = surface
         self.lit = lit
+        self.official = official
         self.segments = segments
         self.elevations = elevations
     }
@@ -225,6 +249,7 @@ struct TourDetail: Identifiable, Hashable {
             elevationGain: Int("\(json["elevationGain"] ?? "")"),
             surface: json["surface"] as? String,
             lit: json["lit"] as? Bool,
+            official: OfficialInfo(json: json["official"] as? [String: Any]),
             segments: segs, elevations: eles
         )
     }
@@ -335,6 +360,9 @@ struct TourService {
         case .finnenbahn: return [
             ["id": "demo-f1", "name": "Finnenbahn Allmend Brunau", "activity": "finnenbahn",
              "distanceKm": 0.4, "surface": "woodchips", "lit": true,
+             "official": ["belag": "Sägemehl", "beleuchtung": "ja, bis 22 Uhr",
+                          "gelaendeinfo": "Länge: 400 m / Höhendifferenz: 3 m",
+                          "garderobe": "Sportanlage Allmend"],
              "lat": 47.353, "lon": 8.525]]
         }
     }

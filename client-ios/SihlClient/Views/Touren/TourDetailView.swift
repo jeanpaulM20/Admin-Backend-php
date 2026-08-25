@@ -111,11 +111,15 @@ struct TourDetailView: View {
                     }
                 }
 
-                // Fakten aus OSM + berechnet
-                if let surface = Self.surfaceLabel(d.surface) {
+                // Fakten — offizielle Stadt-Zürich-Angaben haben Vorrang vor OSM
+                if let belag = d.official?.belag {
+                    factRow("road.lanes", "Belag: \(belag)")
+                } else if let surface = Self.surfaceLabel(d.surface) {
                     factRow("road.lanes", "Belag: \(surface)")
                 }
-                if d.lit == true {
+                if let licht = d.official?.beleuchtung {
+                    factRow("lightbulb", "Beleuchtung: \(licht)")
+                } else if d.lit == true {
                     // Ohne Schaltzeiten aus OSM kein Zeitversprechen (viele
                     // Anlagen schalten z. B. um 22 Uhr ab)
                     factRow("lightbulb", "Beleuchtet")
@@ -123,6 +127,15 @@ struct TourDetailView: View {
                 if let km = d.distanceKm, km > 0, km < 1 {
                     factRow("arrow.triangle.2.circlepath",
                             "1 km ≈ \(Self.roundsLabel(1.0 / km)) Runden")
+                }
+                if let info = d.official?.gelaendeinfo {
+                    factRow("ruler", info)
+                }
+                if let garderobe = d.official?.garderobe {
+                    factRow("tshirt", "Garderobe: \(garderobe)")
+                }
+                if let kontakt = d.official?.kontakt {
+                    factRow("phone", kontakt)
                 }
 
                 // Herkunft/Netzwerk
@@ -151,7 +164,7 @@ struct TourDetailView: View {
                     .buttonStyle(PrimaryButtonStyle())
                     .padding(.top, 8)
 
-                Text("\(d.durationMin != nil && d.elevationGain == nil ? "Die Dauer ist eine Schätzung ohne Höhenmeter. " : "")Routendaten: © OpenStreetMap-Mitwirkende (ODbL).")
+                Text("\(d.durationMin != nil && d.elevationGain == nil ? "Die Dauer ist eine Schätzung ohne Höhenmeter. " : "")Routendaten: © OpenStreetMap-Mitwirkende (ODbL).\(d.official != nil ? " Anlagen-Infos: Stadt Zürich (Open Data)." : "")")
                     .font(.caption2)
                     .foregroundStyle(AppColor.muted)
                     .frame(maxWidth: .infinity, alignment: .center)
