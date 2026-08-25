@@ -305,6 +305,9 @@ private struct WorkoutSessionView: View {
     @State private var liveCamera: MapCameraPosition = .automatic
     @State private var programmaticMove = false
     @State private var cameraHeading: Double = 0
+    /// Aktueller Zoom (Span) — beim Folgen wird nur das Zentrum nachgeführt,
+    /// der vom User gewählte Zoom bleibt erhalten.
+    @State private var followSpan = MKCoordinateSpan(latitudeDelta: 0.008, longitudeDelta: 0.008)
 
     /// Für die Kartendarstellung reduzierte Koordinaten (Render-Kosten).
     private var displayCoordinates: [CLLocationCoordinate2D] {
@@ -428,6 +431,7 @@ private struct WorkoutSessionView: View {
         // Manuelles Verschieben beendet die Verfolgung …
         .onMapCameraChange(frequency: .onEnd) { context in
             cameraHeading = context.camera.heading
+            followSpan = context.region.span
             if !programmaticMove { followUser = false }
         }
         // … neue Positionen zentrieren die Kamera, solange sie folgt
@@ -503,12 +507,10 @@ private struct WorkoutSessionView: View {
             .overlay(Circle().stroke(.white, lineWidth: 1.5))
     }
 
-    /// Kamera auf eine Koordinate setzen (~800-m-Ausschnitt).
+    /// Kamera auf eine Koordinate setzen — im zuletzt gewählten Zoom.
     private func recenter(on coord: CLLocationCoordinate2D, animated: Bool) {
         programmaticMove = true
-        let region = MKCoordinateRegion(
-            center: coord,
-            span: MKCoordinateSpan(latitudeDelta: 0.008, longitudeDelta: 0.008))
+        let region = MKCoordinateRegion(center: coord, span: followSpan)
         if animated {
             withAnimation(.easeInOut(duration: 0.4)) { liveCamera = .region(region) }
         } else {

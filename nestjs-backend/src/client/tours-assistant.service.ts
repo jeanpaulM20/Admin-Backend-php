@@ -124,10 +124,11 @@ Regeln:
 
     const convo: Anthropic.MessageParam[] = [...history];
     let reply = '';
+    let truncated = false;
     for (let step = 0; step < 8; step++) {
       const res = await this.anthropic.messages.create({
         model: 'claude-haiku-4-5',
-        max_tokens: 1200,
+        max_tokens: 1500,
         system: ToursAssistantService.SYSTEM,
         tools: ToursAssistantService.TOOLS,
         messages: convo,
@@ -137,7 +138,10 @@ Regeln:
       const texts = res.content.filter((b): b is Anthropic.TextBlock => b.type === 'text');
       if (texts.length) reply = texts.map((t) => t.text).join('\n').trim();
 
-      if (!toolUses.length || res.stop_reason !== 'tool_use') break;
+      if (!toolUses.length || res.stop_reason !== 'tool_use') {
+        truncated = res.stop_reason === 'max_tokens';
+        break;
+      }
 
       convo.push({ role: 'assistant', content: res.content });
       const results: Anthropic.ToolResultBlockParam[] = [];
@@ -169,6 +173,7 @@ Regeln:
         : `Route · ${last.distanceKm} km`;
       route = { ...last, id: `assist-${Date.now()}`, name };
     }
+    if (truncated && reply) reply += ' …';
     return { reply: reply || 'Da ist etwas schiefgelaufen — versuch es bitte nochmal.', route };
   }
 
@@ -220,8 +225,22 @@ Regeln:
     }
   }
 
+  /** Geocode-Cache + Zeitstempel der letzten Anfrage (Nominatim-Drosselung). */
+  private readonly geocodeCache = new Map<string, any>();
+  private lastGeocodeAt = 0;
+
   private async geocode(ort: string) {
     if (!ort.trim()) return { fehler: 'Leerer Ortsname' };
+    const key = ort.trim().toLowerCase();
+    const cached = this.geocodeCache.get(key);
+    if (cached) return cached;
+
+    // Nominatim-Nutzungsrichtlinie: max. 1 Anfrage/Sekunde — Verstösse
+    // führen zur IP-Sperre (gleiche Fehlerklasse wie damals Overpass 406)
+    const wait = this.lastGeocodeAt + 1100 - Date.now();
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    this.lastGeocodeAt = Date.now();
+
     const url =
       'https://nominatim.openstreetmap.org/search?format=json&limit=1' +
       '&countrycodes=ch,li,at,de,fr,it&q=' + encodeURIComponent(ort);
@@ -231,12 +250,16 @@ Regeln:
     });
     if (!res.ok) throw new Error(`Geocoding ${res.status}`);
     const arr: any[] = await res.json();
-    if (!arr.length) return { fehler: `"${ort}" nicht gefunden` };
-    return {
-      name: String(arr[0].display_name ?? ort).split(',').slice(0, 2).join(','),
-      lat: parseFloat(arr[0].lat),
-      lon: parseFloat(arr[0].lon),
-    };
+    const result = !arr.length
+      ? { fehler: `"${ort}" nicht gefunden` }
+      : {
+          name: String(arr[0].display_name ?? ort).split(',').slice(0, 2).join(','),
+          lat: parseFloat(arr[0].lat),
+          lon: parseFloat(arr[0].lon),
+        };
+    if (this.geocodeCache.size > 500) this.geocodeCache.clear();
+    this.geocodeCache.set(key, result);
+    return result;
   }
 
   /** BRouter-Profile + Tempo je Aktivität (analog roundtripSpec). */

@@ -33,6 +33,7 @@ struct TourDiscoveryView: View {
     // der Karte gezeichnet (Details werden nachgeladen und gecacht)
     @State private var visibleTourId: String?
     @State private var previewCache: [String: TourDetail] = [:]
+    @State private var loadingPreviews: Set<String> = []
 
     private var isDemo: Bool { auth.clientId == "demo" }
 
@@ -388,6 +389,8 @@ struct TourDiscoveryView: View {
         previewCache = [:]
         if isDemo {
             tours = TourService.demoTours(activity: activity)
+            visibleTourId = tours.first?.id
+            loadPreview(for: visibleTourId)
             return
         }
         guard let clientId = auth.clientId else { return }
@@ -397,6 +400,8 @@ struct TourDiscoveryView: View {
                 tours = try await TourService.shared.tours(
                     clientId: clientId, lat: center.latitude, lon: center.longitude,
                     radiusKm: radiusKm, activity: activity)
+                visibleTourId = tours.first?.id
+                loadPreview(for: visibleTourId)
             } catch {
                 self.error = "Touren konnten nicht geladen werden."
             }
@@ -446,16 +451,18 @@ struct TourDiscoveryView: View {
     /// Fallback für die „Suchen“-Taste ohne gewählten Vorschlag.
     /// Detail der gewählten Tour laden und als Karten-Vorschau zeichnen.
     private func loadPreview(for id: String?) {
-        guard let id, previewCache[id] == nil else { return }
+        guard let id, previewCache[id] == nil, !loadingPreviews.contains(id) else { return }
         if isDemo {
             previewCache[id] = TourService.demoDetail(id)
             return
         }
         guard let clientId = auth.clientId else { return }
+        loadingPreviews.insert(id)
         Task {
             if let detail = try? await TourService.shared.detail(clientId: clientId, tourId: id) {
                 previewCache[id] = detail
             }
+            loadingPreviews.remove(id)
         }
     }
 
