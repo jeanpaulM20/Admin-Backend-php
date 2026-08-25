@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { ClientAppService } from './client-app.service';
+import { ToursAssistantService } from './tours-assistant.service';
 import { ClientChatService } from './client-chat.service';
 import { InvoiceService } from '../invoice/invoice.service';
 import { SaferpayService } from '../payment/saferpay.service';
@@ -23,6 +24,7 @@ export class ClientAppController {
 
   constructor(
     private readonly appService: ClientAppService,
+    private readonly toursAssistantService: ToursAssistantService,
     private readonly chatService: ClientChatService,
     private readonly invoiceService: InvoiceService,
     private readonly saferpayService: SaferpayService,
@@ -214,6 +216,18 @@ export class ClientAppController {
   ) {
     this.assertClientAccess(req, clientId);
     return this.appService.getTourDetail(tourId);
+  }
+
+  /** Touren-Assistent (C1): natürliche Sprache → berechnete Route. */
+  @Post('tours/assistant/:clientId')
+  toursAssistant(
+    @Req() req: Request,
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Body() body: any,
+  ) {
+    this.assertClientAccess(req, clientId);
+    const messages = Array.isArray(body?.messages) ? body.messages : [];
+    return this.toursAssistantService.chat(clientId, messages);
   }
 
   /** GPS-Track einer App-Aufzeichnung */
