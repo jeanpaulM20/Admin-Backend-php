@@ -145,23 +145,6 @@ struct TourDetailView: View {
                         .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
                 }
 
-                // Wissenswertes zum Routentyp
-                if let fact = Self.funFact(d.activity) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("WISSENSWERTES")
-                            .font(.caption2.weight(.bold))
-                            .kerning(1)
-                            .foregroundStyle(AppColor.brass)
-                        Text(fact)
-                            .font(.footnote)
-                            .foregroundStyle(AppColor.muted)
-                            .lineSpacing(3)
-                    }
-                    .padding(AppSpacing.card)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
-                }
-
                 Button("Tour starten") { showRecord = true }
                     .buttonStyle(PrimaryButtonStyle())
                     .padding(.top, 8)
@@ -208,24 +191,6 @@ struct TourDetailView: View {
         case "grass":                return "Rasen"
         case "compacted":            return "befestigter Weg"
         default:                     return nil
-        }
-    }
-
-    /// Kurzes Wissenswertes je Routentyp — allgemeine, belegbare Fakten.
-    static func funFact(_ activity: String) -> String? {
-        switch TourActivity(backendValue: activity) {
-        case .finnenbahn:
-            return "Finnenbahnen stammen — der Name verrät es — aus Finnland: Der weiche Holzschnitzel-Belag federt jeden Schritt und schont Gelenke und Sehnen. Ideal für Tempoläufe, Lauf-ABC und lockere regenerative Runden."
-        case .vitaparcours:
-            return "Vitaparcours sind ein Schweizer Original: Rundkurse mit Übungsposten für Kraft, Beweglichkeit und Ausdauer — kostenlos, ganzjährig offen und von der Stiftung Vitaparcours unterhalten."
-        case .joggen:
-            return "Markierte Laufstrecken wie die Helsana Trails sind ausgeschildert und meist in mehreren Längen angelegt — verlässliche Standardrunden, auch gut für Intervalle."
-        case .wandern:
-            return "Schweizer Wanderwege sind einheitlich gelb signalisiert. Die angegebene Dauer folgt der SAC-Formel aus Distanz und Höhenmetern — dein persönliches Tempo kann abweichen."
-        case .rennrad:
-            return "Nationale und regionale Velorouten (SchweizMobil) sind durchgehend signalisiert — die rot-weissen Tafeln tragen die Routennummer."
-        case .mtb:
-            return "Mountainbike-Routen von SchweizMobil sind signalisiert. Trails teilen sich den Weg oft mit Wandernden — Rücksicht und Bremsbereitschaft gehören dazu."
         }
     }
 
