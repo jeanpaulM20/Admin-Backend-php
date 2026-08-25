@@ -25,6 +25,7 @@ struct TourDiscoveryView: View {
     @State private var showPlanSheet = false
     @State private var generatedDetail: TourDetail?
     @State private var showImporter = false
+    @State private var showAssistant = false
     @State private var searchModel = LocationSearchModel()
     @FocusState private var searchFocused: Bool
 
@@ -67,6 +68,15 @@ struct TourDiscoveryView: View {
         .navigationTitle("Touren")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            // Touren-Assistent (C1): Wunschtour beschreiben → Route
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { showAssistant = true } label: {
+                    Image(systemName: "sparkles")
+                        .font(.callout)
+                        .foregroundStyle(AppColor.brass)
+                }
+                .accessibilityLabel("Touren-Assistent")
+            }
             // GPX-Import (T4) — z.B. aus Komoot exportierte Touren
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showImporter = true } label: {
@@ -85,6 +95,9 @@ struct TourDiscoveryView: View {
         }
         .navigationDestination(item: $generatedDetail) { detail in
             TourDetailView(detail: detail)
+        }
+        .sheet(isPresented: $showAssistant) {
+            TourAssistantView()
         }
         .sheet(isPresented: $showPlanSheet) {
             PlanTourSheet(activity: activity.roundtrip, isDemo: isDemo,
