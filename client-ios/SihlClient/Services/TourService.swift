@@ -169,6 +169,8 @@ struct TourDetail: Identifiable, Hashable {
     let durationMin: Int?
     let difficulty: String?
     let elevationGain: Int?
+    let surface: String?
+    let lit: Bool?
     let segments: [[CLLocationCoordinate2D]]
     /// Höhen je Segmentpunkt (parallel zu `segments`), falls die Quelle sie liefert.
     let elevations: [[Double?]]
@@ -177,6 +179,7 @@ struct TourDetail: Identifiable, Hashable {
          operatorName: String? = nil, description: String? = nil,
          distanceKm: Double? = nil, durationMin: Int? = nil,
          difficulty: String? = nil, elevationGain: Int? = nil,
+         surface: String? = nil, lit: Bool? = nil,
          segments: [[CLLocationCoordinate2D]], elevations: [[Double?]] = []) {
         self.id = id
         self.name = name
@@ -188,6 +191,8 @@ struct TourDetail: Identifiable, Hashable {
         self.durationMin = durationMin
         self.difficulty = difficulty
         self.elevationGain = elevationGain
+        self.surface = surface
+        self.lit = lit
         self.segments = segments
         self.elevations = elevations
     }
@@ -218,6 +223,8 @@ struct TourDetail: Identifiable, Hashable {
             durationMin: Int("\(json["durationMin"] ?? "")"),
             difficulty: json["difficulty"] as? String,
             elevationGain: Int("\(json["elevationGain"] ?? "")"),
+            surface: json["surface"] as? String,
+            lit: json["lit"] as? Bool,
             segments: segs, elevations: eles
         )
     }
@@ -327,7 +334,8 @@ struct TourService {
              "lat": 47.34, "lon": 8.53]]
         case .finnenbahn: return [
             ["id": "demo-f1", "name": "Finnenbahn Allmend Brunau", "activity": "finnenbahn",
-             "distanceKm": 0.4, "lat": 47.353, "lon": 8.525]]
+             "distanceKm": 0.4, "surface": "woodchips", "lit": true,
+             "lat": 47.353, "lon": 8.525]]
         }
     }
 

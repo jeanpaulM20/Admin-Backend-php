@@ -111,6 +111,18 @@ struct TourDetailView: View {
                     }
                 }
 
+                // Fakten aus OSM + berechnet
+                if let surface = Self.surfaceLabel(d.surface) {
+                    factRow("road.lanes", "Belag: \(surface)")
+                }
+                if d.lit == true {
+                    factRow("lightbulb", "Beleuchtet — auch früh und spät nutzbar")
+                }
+                if let km = d.distanceKm, km > 0, km < 1 {
+                    factRow("arrow.triangle.2.circlepath",
+                            "1 km ≈ \(Self.roundsLabel(1.0 / km)) Runden")
+                }
+
                 // Herkunft/Netzwerk
                 if d.networkLabel != nil || d.operatorName != nil {
                     HStack(spacing: 8) {
@@ -133,6 +145,23 @@ struct TourDetailView: View {
                         .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
                 }
 
+                // Wissenswertes zum Routentyp
+                if let fact = Self.funFact(d.activity) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("WISSENSWERTES")
+                            .font(.caption2.weight(.bold))
+                            .kerning(1)
+                            .foregroundStyle(AppColor.brass)
+                        Text(fact)
+                            .font(.footnote)
+                            .foregroundStyle(AppColor.muted)
+                            .lineSpacing(3)
+                    }
+                    .padding(AppSpacing.card)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
+                }
+
                 Button("Tour starten") { showRecord = true }
                     .buttonStyle(PrimaryButtonStyle())
                     .padding(.top, 8)
@@ -145,6 +174,58 @@ struct TourDetailView: View {
             }
             .padding(.horizontal, AppSpacing.screen)
             .padding(.bottom, AppSpacing.bottomInset)
+        }
+    }
+
+    private func factRow(_ icon: String, _ text: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.footnote)
+                .foregroundStyle(AppColor.muted)
+            Text(text)
+                .font(.footnote)
+                .foregroundStyle(AppColor.muted)
+        }
+    }
+
+    /// Runden pro Kilometer: ganzzahlig, wenn es (fast) aufgeht, sonst eine
+    /// Dezimalstelle (400-m-Bahn → "2.5", 330-m-Bahn → "3").
+    static func roundsLabel(_ rounds: Double) -> String {
+        abs(rounds - rounds.rounded()) < 0.15
+            ? "\(Int(rounds.rounded()))"
+            : String(format: "%.1f", rounds)
+    }
+
+    /// OSM-surface → deutsche Bezeichnung (nur bekannte Werte, sonst nichts).
+    static func surfaceLabel(_ surface: String?) -> String? {
+        switch surface {
+        case "woodchips":            return "Holzschnitzel (gelenkschonend)"
+        case "wood":                 return "Holz"
+        case "fine_gravel":          return "Feinkies"
+        case "gravel":               return "Kies"
+        case "asphalt":              return "Asphalt"
+        case "ground", "dirt", "earth": return "Naturweg"
+        case "grass":                return "Rasen"
+        case "compacted":            return "befestigter Weg"
+        default:                     return nil
+        }
+    }
+
+    /// Kurzes Wissenswertes je Routentyp — allgemeine, belegbare Fakten.
+    static func funFact(_ activity: String) -> String? {
+        switch TourActivity(backendValue: activity) {
+        case .finnenbahn:
+            return "Finnenbahnen stammen — der Name verrät es — aus Finnland: Der weiche Holzschnitzel-Belag federt jeden Schritt und schont Gelenke und Sehnen. Ideal für Tempoläufe, Lauf-ABC und lockere regenerative Runden."
+        case .vitaparcours:
+            return "Vitaparcours sind ein Schweizer Original: Rundkurse mit Übungsposten für Kraft, Beweglichkeit und Ausdauer — kostenlos, ganzjährig offen und von der Stiftung Vitaparcours unterhalten."
+        case .joggen:
+            return "Markierte Laufstrecken wie die Helsana Trails sind ausgeschildert und meist in mehreren Längen angelegt — verlässliche Standardrunden, auch gut für Intervalle."
+        case .wandern:
+            return "Schweizer Wanderwege sind einheitlich gelb signalisiert. Die angegebene Dauer folgt der SAC-Formel aus Distanz und Höhenmetern — dein persönliches Tempo kann abweichen."
+        case .rennrad:
+            return "Nationale und regionale Velorouten (SchweizMobil) sind durchgehend signalisiert — die rot-weissen Tafeln tragen die Routennummer."
+        case .mtb:
+            return "Mountainbike-Routen von SchweizMobil sind signalisiert. Trails teilen sich den Weg oft mit Wandernden — Rücksicht und Bremsbereitschaft gehören dazu."
         }
     }
 

@@ -265,6 +265,8 @@ out geom 80;`;
       network: rel.tags?.network ?? null,
       operator: rel.tags?.operator ?? null,
       description: rel.tags?.description ?? null,
+      surface: rel.tags?.surface ?? null,
+      lit: rel.tags?.lit === 'yes' ? true : rel.tags?.lit === 'no' ? false : null,
       distanceKm: isWay ? Math.round(distanceM) / 1000 : Math.round(distKm * 10) / 10,
       durationMin: isWay ? null : ToursService.tourDuration(distKm, osmRoute),
       difficulty: isWay ? null : ToursService.tourDifficulty(distKm),
