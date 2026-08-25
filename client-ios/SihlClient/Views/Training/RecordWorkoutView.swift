@@ -452,23 +452,25 @@ private struct WorkoutSessionView: View {
         }
     }
 
-    /// Positionsmarker im Karten-Standard (Apple/Google Maps): oranger Punkt
-    /// mit Sichtkegel — die Richtung ist als Fläche auf einen Blick lesbar,
-    /// um die Kartendrehung korrigiert und sanft animiert.
+    /// Positionsmarker nach Mockup (2026-08-25): mintgrüner Punkt (GPS-Farbe)
+    /// mit weichem Halo; die Richtung zeigt ein weisser Pfeil, der aussen um
+    /// den Punkt kreist — um die Kartendrehung korrigiert und sanft animiert.
     private var positionMarker: some View {
         ZStack {
+            Circle().fill(AppColor.green.opacity(0.18))
+                .frame(width: 64, height: 64)
             if let heading = recorder.headingDegrees {
-                HeadingCone()
-                    .fill(RadialGradient(
-                        colors: [AppColor.track.opacity(0.6), AppColor.track.opacity(0)],
-                        center: .center, startRadius: 4, endRadius: 34))
-                    .frame(width: 68, height: 68)
+                Image(systemName: "arrowtriangle.up.fill")
+                    .font(.app(13, weight: .bold))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.4), radius: 1.5)
+                    .offset(y: -21)
                     .rotationEffect(.degrees(heading - cameraHeading))
                     .animation(.easeOut(duration: 0.25),
                                value: recorder.headingDegrees)
             }
-            Circle().fill(AppColor.track).frame(width: 18, height: 18)
-                .overlay(Circle().stroke(.white, lineWidth: 2.5))
+            Circle().fill(AppColor.green).frame(width: 16, height: 16)
+                .overlay(Circle().stroke(.white, lineWidth: 2))
         }
     }
 
@@ -702,23 +704,5 @@ private struct WorkoutSessionView: View {
                 onDone()
             }
         }
-    }
-}
-
-
-// MARK: - HeadingCone
-
-/// Sichtkegel des Positionsmarkers: 56°-Keil, der nach oben (Norden) zeigt
-/// und per rotationEffect in die Blickrichtung gedreht wird.
-private struct HeadingCone: Shape {
-    func path(in rect: CGRect) -> Path {
-        var p = Path()
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        p.move(to: center)
-        p.addArc(center: center, radius: rect.width / 2,
-                 startAngle: .degrees(-118), endAngle: .degrees(-62),
-                 clockwise: false)
-        p.closeSubpath()
-        return p
     }
 }
