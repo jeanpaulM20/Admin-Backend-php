@@ -29,6 +29,11 @@ struct TourDiscoveryView: View {
     @State private var searchModel = LocationSearchModel()
     @FocusState private var searchFocused: Bool
 
+    // Routen-Vorschau: die Route der gerade gewählten Tour-Karte wird auf
+    // der Karte gezeichnet (Details werden nachgeladen und gecacht)
+    @State private var visibleTourId: String?
+    @State private var previewCache: [String: TourDetail] = [:]
+
     private var isDemo: Bool { auth.clientId == "demo" }
 
     var body: some View {
@@ -215,8 +220,19 @@ struct TourDiscoveryView: View {
 
     // MARK: Karte
 
+    private var previewDetail: TourDetail? {
+        visibleTourId.flatMap { previewCache[$0] }
+    }
+
     private var map: some View {
         Map(position: $camera) {
+            // Routenverlauf der gewählten Tour (blau = betrachtete Route)
+            if let preview = previewDetail {
+                ForEach(preview.segments.indices, id: \.self) { i in
+                    MapPolyline(coordinates: preview.segments[i])
+                        .stroke(AppColor.blue.opacity(0.9), lineWidth: 3)
+                }
+            }
             ForEach(tours) { tour in
                 Annotation(tour.name, coordinate:
                             CLLocationCoordinate2D(latitude: tour.lat, longitude: tour.lon)) {
@@ -293,11 +309,22 @@ struct TourDiscoveryView: View {
                 HStack(spacing: AppSpacing.stack) {
                     ForEach(tours.prefix(25)) { tour in
                         tourCard(tour)
+                            .id(tour.id)
                     }
                 }
+                .scrollTargetLayout()
                 .padding(.horizontal, AppSpacing.screen)
             }
+            .scrollTargetBehavior(.viewAligned)
+            .scrollPosition(id: $visibleTourId)
             .padding(.bottom, 16)
+            .onChange(of: visibleTourId) { _, id in
+                loadPreview(for: id)
+            }
+            .onAppear {
+                if visibleTourId == nil { visibleTourId = tours.first?.id }
+                loadPreview(for: visibleTourId)
+            }
         }
     }
 
@@ -357,6 +384,8 @@ struct TourDiscoveryView: View {
 
     private func reload() {
         error = nil
+        visibleTourId = nil
+        previewCache = [:]
         if isDemo {
             tours = TourService.demoTours(activity: activity)
             return
@@ -415,6 +444,21 @@ struct TourDiscoveryView: View {
     }
 
     /// Fallback für die „Suchen“-Taste ohne gewählten Vorschlag.
+    /// Detail der gewählten Tour laden und als Karten-Vorschau zeichnen.
+    private func loadPreview(for id: String?) {
+        guard let id, previewCache[id] == nil else { return }
+        if isDemo {
+            previewCache[id] = TourService.demoDetail(id)
+            return
+        }
+        guard let clientId = auth.clientId else { return }
+        Task {
+            if let detail = try? await TourService.shared.detail(clientId: clientId, tourId: id) {
+                previewCache[id] = detail
+            }
+        }
+    }
+
     private func searchLocation() {
         searchFocused = false
         searchModel.clear()
