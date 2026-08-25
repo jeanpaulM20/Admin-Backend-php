@@ -55,6 +55,11 @@ final class WorkoutRecorder {
 
     // Tour folgen (T3): Route-Overlay + Off-Route-Erkennung
     private(set) var routeName: String?
+
+    /// Letzte empfangene Position (auch ungenaue) — fürs Karten-Zentrieren.
+    private(set) var lastKnownCoordinate: CLLocationCoordinate2D?
+    /// Zähler je Positions-Update; die View beobachtet ihn für den Follow-Modus.
+    private(set) var locationTick = 0
     private(set) var routeSegments: [[CLLocationCoordinate2D]] = []
     private(set) var isOffRoute = false
     private(set) var offRouteDistance: Double = 0
@@ -186,7 +191,14 @@ final class WorkoutRecorder {
     // MARK: Intern — GPS
 
     private func ingest(_ point: TrackPoint) {
+        // Beste bekannte Position — unabhängig von Phase und Track-Filter,
+        // damit die Live-Karte sofort und immer zentrieren kann
+        lastKnownCoordinate = CLLocationCoordinate2D(latitude: point.lat, longitude: point.lon)
+        locationTick += 1
+
         guard phase == .recording, activity.usesGPS else { return }
+        // Qualitäts-Schwelle für die Aufzeichnung (vorher in der Quelle)
+        guard (point.acc ?? .infinity) <= 30 else { return }
 
         if let last = track.last {
             let from = CLLocation(latitude: last.lat, longitude: last.lon)

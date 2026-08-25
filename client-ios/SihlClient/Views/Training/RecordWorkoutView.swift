@@ -430,17 +430,17 @@ private struct WorkoutSessionView: View {
         .onMapCameraChange(frequency: .onEnd) { _ in
             if !programmaticMove { followUser = false }
         }
-        // … neue GPS-Punkte zentrieren die Kamera, solange sie folgt
-        .onChange(of: recorder.trackCoordinates.count) { _, _ in
-            guard followUser, let last = recorder.trackCoordinates.last else { return }
-            recenter(on: last, animated: false)
+        // … neue Positionen zentrieren die Kamera, solange sie folgt
+        .onChange(of: recorder.locationTick) { _, _ in
+            guard followUser, let pos = bestPosition else { return }
+            recenter(on: pos, animated: false)
         }
-        // Zentrier-Button: zurück zur eigenen Position
+        // Zentrier-Button: zurück zur eigenen Position (Fallback: Routenstart)
         .overlay(alignment: .bottomTrailing) {
             Button {
                 followUser = true
-                if let last = recorder.trackCoordinates.last {
-                    recenter(on: last, animated: true)
+                if let pos = bestPosition ?? recorder.routeSegments.first?.first {
+                    recenter(on: pos, animated: true)
                 }
             } label: {
                 Image(systemName: followUser ? "location.fill" : "location")
@@ -452,6 +452,11 @@ private struct WorkoutSessionView: View {
             }
             .padding(10)
         }
+    }
+
+    /// Beste bekannte Position: aufgezeichneter Track vor roher Position.
+    private var bestPosition: CLLocationCoordinate2D? {
+        recorder.trackCoordinates.last ?? recorder.lastKnownCoordinate
     }
 
     /// Start und Ziel der Route liegen (fast) aufeinander → Rundtour.

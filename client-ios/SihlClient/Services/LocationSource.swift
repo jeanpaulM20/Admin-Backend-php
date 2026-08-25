@@ -122,8 +122,11 @@ extension CoreLocationSource: CLLocationManagerDelegate {
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         for loc in locations {
-            // Drift-Filter: unbrauchbare Punkte verwerfen
-            guard loc.horizontalAccuracy > 0, loc.horizontalAccuracy <= 30 else { continue }
+            // Nur komplett unbrauchbare Punkte verwerfen — die Qualitäts-
+            // Schwelle für den Track setzt der Recorder. Die Karte braucht
+            // auch grobe Positionen (Zentrieren funktioniert sonst erst,
+            // wenn der Fix gut genug für die Aufzeichnung ist).
+            guard loc.horizontalAccuracy > 0 else { continue }
             let point = TrackPoint(
                 t:   loc.timestamp,
                 lat: loc.coordinate.latitude,
