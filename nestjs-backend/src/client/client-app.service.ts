@@ -1307,7 +1307,8 @@ out geom 80;`;
    */
   async generateRoundtrip(lat: number, lon: number, distanceKm: number, activity: string, seed?: number) {
     const dist = Math.min(Math.max(distanceKm, 3), 60);
-    const profile = activity === 'rad' ? 'trekking' : 'hiking-beta';
+    const spec = ClientAppService.roundtripSpec(activity);
+    const profile = spec.profile;
     const bearing = ((seed ?? Math.floor(Math.random() * 360)) % 360) * (Math.PI / 180);
 
     // Kreis mit Umfang ≈ Zieldistanz, Start liegt AUF dem Kreis
@@ -1352,20 +1353,40 @@ out geom 80;`;
     return {
       id: `rt-${Date.now()}`,
       name: `Rundtour · ${distOut.toFixed(1)} km`,
-      activity: activity === 'rad' ? 'bicycle' : 'hiking',
+      activity: spec.osm,
       generated: true,
       distanceKm: Math.round(distOut * 10) / 10,
       elevationGain: ascend,
-      durationMin: ClientAppService.tourDurationWithClimb(distOut, ascend, profile === 'trekking'),
+      durationMin: ClientAppService.tourDurationWithClimb(distOut, ascend, spec.kmh, spec.climbPerH),
       difficulty: ClientAppService.tourDifficulty(distOut),
       segments: [segment],
     };
   }
 
+  /**
+   * BRouter-Profil, Richtgeschwindigkeit und Steigleistung je
+   * Generator-Aktivität (alle Profile auf brouter.de verifiziert).
+   */
+  private static roundtripSpec(activity: string): {
+    profile: string; kmh: number; climbPerH: number; osm: string;
+  } {
+    switch (activity) {
+      case 'rad':
+      case 'velo':    return { profile: 'trekking',    kmh: 15,  climbPerH: 600, osm: 'bicycle' };
+      case 'rennrad': return { profile: 'fastbike',    kmh: 20,  climbPerH: 800, osm: 'bicycle' };
+      case 'gravel':  return { profile: 'gravel',      kmh: 16,  climbPerH: 600, osm: 'bicycle' };
+      case 'mtb':     return { profile: 'mtb',         kmh: 12,  climbPerH: 500, osm: 'mtb' };
+      case 'joggen':  return { profile: 'hiking-beta', kmh: 8,   climbPerH: 500, osm: 'running' };
+      default:        return { profile: 'hiking-beta', kmh: 4.2, climbPerH: 400, osm: 'hiking' };
+    }
+  }
+
   /** SAC-Formel MIT Höhenmetern: t = max(a,b) + min(a,b)/2. */
-  private static tourDurationWithClimb(distKm: number, ascendM: number, bike: boolean): number {
-    const horiz = bike ? distKm / 15 : distKm / 4.2;
-    const climb = ascendM / (bike ? 600 : 400);
+  private static tourDurationWithClimb(
+    distKm: number, ascendM: number, kmh: number, climbPerH: number,
+  ): number {
+    const horiz = distKm / kmh;
+    const climb = ascendM / climbPerH;
     const hours = Math.max(horiz, climb) + Math.min(horiz, climb) / 2;
     return Math.round(hours * 60);
   }

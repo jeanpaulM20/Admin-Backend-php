@@ -41,8 +41,15 @@ enum TourActivity: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Nächstliegende Aktivität für den Rundtouren-Generator (kennt Wandern/Rad).
-    var roundtripActivity: WorkoutActivity { workoutActivity == .rad ? .rad : .wandern }
+    /// Vorauswahl im Rundtouren-Generator passend zur Discovery-Aktivität.
+    var roundtrip: RoundtripActivity {
+        switch self {
+        case .wandern, .vitaparcours: return .wandern
+        case .joggen, .finnenbahn:    return .joggen
+        case .rennrad:                return .rennrad
+        case .mtb:                    return .mtb
+        }
+    }
 
     /// Aktivität aus dem Backend-Wert (`activity` in Tour/TourDetail).
     init(backendValue: String) {
@@ -53,6 +60,56 @@ enum TourActivity: String, CaseIterable, Identifiable {
         case "fitness_trail": self = .vitaparcours
         case "finnenbahn":    self = .finnenbahn
         default:              self = .wandern
+        }
+    }
+}
+
+/// Aktivitäten des Rundtouren-Generators — alles, was BRouter sinnvoll
+/// routen kann. Vita Parcours und Finnenbahnen sind feste Anlagen und
+/// darum bewusst nicht generierbar. Rohwert = API-Parameter.
+enum RoundtripActivity: String, CaseIterable, Identifiable {
+    case wandern, joggen, rennrad, gravel, mtb
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .wandern: return "Wandern"
+        case .joggen:  return "Joggen"
+        case .rennrad: return "Rennrad"
+        case .gravel:  return "Gravel"
+        case .mtb:     return "MTB"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .wandern: return "figure.hiking"
+        case .joggen:  return "figure.run"
+        case .rennrad: return "bicycle"
+        case .gravel:  return "bicycle.circle"
+        case .mtb:     return "figure.outdoor.cycle"
+        }
+    }
+
+    /// Richtgeschwindigkeit für die Demo-Dauerberechnung (km/h).
+    var kmh: Double {
+        switch self {
+        case .wandern: return 4.2
+        case .joggen:  return 8
+        case .rennrad: return 20
+        case .gravel:  return 16
+        case .mtb:     return 12
+        }
+    }
+
+    /// Backend-Aktivitätswert der generierten Route (Icons/Recorder-Mapping).
+    var osmValue: String {
+        switch self {
+        case .wandern: return "hiking"
+        case .joggen:  return "running"
+        case .rennrad, .gravel: return "bicycle"
+        case .mtb:     return "mtb"
         }
     }
 }
@@ -225,10 +282,10 @@ struct TourService {
 
     /// Rundtour ab Startpunkt generieren (T4, geordnete Route inkl. Höhen).
     func roundtrip(clientId: String, lat: Double, lon: Double,
-                   distanceKm: Double, activity: WorkoutActivity) async throws -> TourDetail? {
+                   distanceKm: Double, activity: RoundtripActivity) async throws -> TourDetail? {
         let body: [String: Any] = [
             "lat": lat, "lon": lon, "distanceKm": distanceKm,
-            "activity": activity == .rad ? "rad" : "wandern",
+            "activity": activity.rawValue,
         ]
         guard let json = try await APIClient.shared
             .postJSONObject("/api/client/tours/roundtrip/\(clientId)", body: body, timeout: 60) else { return nil }
@@ -300,7 +357,7 @@ struct TourService {
 
     /// Demo-Rundtour: Kreis um den Startpunkt mit synthetischem Höhenprofil.
     static func demoRoundtrip(lat: Double, lon: Double, distanceKm: Double,
-                              activity: WorkoutActivity) -> TourDetail {
+                              activity: RoundtripActivity) -> TourDetail {
         let rKm = distanceKm / (2 * .pi)
         let latKm = 110.574, lonKm = 111.32 * cos(lat * .pi / 180)
         let cLat = lat + rKm / latKm
@@ -315,9 +372,9 @@ struct TourService {
         }
         return TourDetail(json: [
             "id": "rt-demo", "name": String(format: "Rundtour · %.1f km", distanceKm),
-            "activity": activity == .rad ? "bicycle" : "hiking",
+            "activity": activity.osmValue,
             "distanceKm": distanceKm,
-            "durationMin": Int(distanceKm / (activity == .rad ? 15 : 4.2) * 60),
+            "durationMin": Int(distanceKm / activity.kmh * 60),
             "difficulty": distanceKm < 8 ? "Leicht" : (distanceKm < 16 ? "Mittel" : "Schwer"),
             "elevationGain": 120,
             "segments": [seg],

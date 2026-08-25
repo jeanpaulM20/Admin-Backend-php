@@ -87,7 +87,7 @@ struct TourDiscoveryView: View {
             TourDetailView(detail: detail)
         }
         .sheet(isPresented: $showPlanSheet) {
-            PlanTourSheet(activity: activity.roundtripActivity, isDemo: isDemo,
+            PlanTourSheet(activity: activity.roundtrip, isDemo: isDemo,
                           center: cameraCenter ?? center) { detail in
                 showPlanSheet = false
                 if let detail { generatedDetail = detail }
@@ -435,17 +435,17 @@ struct TourDiscoveryView: View {
 
 private struct PlanTourSheet: View {
     @Environment(AuthViewModel.self) private var auth
-    let activity: WorkoutActivity
+    let activity: RoundtripActivity
     let isDemo: Bool
     let center: CLLocationCoordinate2D
     let onDone: (TourDetail?) -> Void
 
     @State private var distanceKm: Double = 10
-    @State private var chosenActivity: WorkoutActivity
+    @State private var chosenActivity: RoundtripActivity
     @State private var isGenerating = false
     @State private var error: String?
 
-    init(activity: WorkoutActivity, isDemo: Bool,
+    init(activity: RoundtripActivity, isDemo: Bool,
          center: CLLocationCoordinate2D, onDone: @escaping (TourDetail?) -> Void) {
         self.activity = activity
         self.isDemo = isDemo
@@ -468,11 +468,15 @@ private struct PlanTourSheet: View {
                     .foregroundStyle(AppColor.muted)
 
                 // Aktivität — gleiches Kachel-Schema wie Discovery/Aufzeichnung
-                HStack(spacing: 8) {
-                    choice(.wandern, "figure.hiking", "Wandern")
-                    choice(.rad, "figure.outdoor.cycle", "Radfahren")
-                    Spacer(minLength: 0)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(RoundtripActivity.allCases) { a in
+                            choice(a)
+                        }
+                    }
+                    .padding(.horizontal, AppSpacing.screen)
                 }
+                .padding(.horizontal, -AppSpacing.screen)
 
                 // Distanz
                 VStack(alignment: .leading, spacing: 6) {
@@ -506,11 +510,11 @@ private struct PlanTourSheet: View {
         .presentationDragIndicator(.visible)
     }
 
-    private func choice(_ a: WorkoutActivity, _ icon: String, _ label: String) -> some View {
+    private func choice(_ a: RoundtripActivity) -> some View {
         let selected = chosenActivity == a
         return HStack(spacing: 6) {
-            Image(systemName: icon).font(.app(13))
-            Text(label).font(.footnote.weight(selected ? .bold : .medium))
+            Image(systemName: a.icon).font(.app(13))
+            Text(a.label).font(.footnote.weight(selected ? .bold : .medium))
         }
         .foregroundStyle(selected ? AppColor.white : AppColor.muted)
         .padding(.horizontal, 14)
