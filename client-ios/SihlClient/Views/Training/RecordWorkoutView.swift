@@ -460,11 +460,13 @@ private struct WorkoutSessionView: View {
             Circle().fill(AppColor.green.opacity(0.18))
                 .frame(width: 64, height: 64)
             if let heading = recorder.headingDegrees {
-                Image(systemName: "arrowtriangle.up.fill")
-                    .font(.app(13, weight: .bold))
-                    .foregroundStyle(.white)
-                    .shadow(color: .black.opacity(0.4), radius: 1.5)
-                    .offset(y: -21)
+                HeadingArrow()
+                    .fill(.white)
+                    .overlay(HeadingArrow()
+                        .stroke(.white, style: StrokeStyle(lineWidth: 5, lineJoin: .round)))
+                    .frame(width: 15, height: 12)
+                    .shadow(color: .black.opacity(0.35), radius: 1.5, y: 1)
+                    .offset(y: -20)
                     .rotationEffect(.degrees(heading - cameraHeading))
                     .animation(.easeOut(duration: 0.25),
                                value: recorder.headingDegrees)
@@ -704,5 +706,22 @@ private struct WorkoutSessionView: View {
                 onDone()
             }
         }
+    }
+}
+
+
+// MARK: - HeadingArrow
+
+/// Richtungspfeil des Positionsmarkers (Mockup 2026-08-25): breites,
+/// abgerundetes Dreieck — die runden Ecken entstehen über den Round-Join-
+/// Stroke um die gefüllte Form.
+private struct HeadingArrow: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        p.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        p.closeSubpath()
+        return p
     }
 }
