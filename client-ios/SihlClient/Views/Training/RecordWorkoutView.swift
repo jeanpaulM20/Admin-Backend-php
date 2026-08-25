@@ -152,29 +152,31 @@ struct RecordWorkoutView: View {
         .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.primary, lineWidth: 1))
     }
 
+    /// Aktivitätsauswahl im selben Kachel-Schema wie die Touren-Discovery
+    /// (scrollbare Chip-Reihe) — einheitlicher Look über beide Screens.
     private var activityGrid: some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: AppSpacing.stack),
-                            GridItem(.flexible())], spacing: AppSpacing.stack) {
-            ForEach(WorkoutActivity.allCases) { a in
-                let selected = a == activity
-                VStack(spacing: 8) {
-                    Image(systemName: a.icon)
-                        .font(.app(26))
-                        .foregroundStyle(selected ? AppColor.primary : AppColor.muted)
-                    Text(a.rawValue)
-                        .font(.footnote.weight(selected ? .bold : .regular))
-                        .foregroundStyle(selected ? AppColor.text : AppColor.muted)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(WorkoutActivity.allCases) { a in
+                    let selected = a == activity
+                    HStack(spacing: 6) {
+                        Image(systemName: a.icon).font(.app(13))
+                        Text(a.rawValue).font(.footnote.weight(selected ? .bold : .medium))
+                    }
+                    .foregroundStyle(selected ? AppColor.white : AppColor.muted)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(selected ? AppColor.primary : AppColor.surface,
+                                in: RoundedRectangle(cornerRadius: AppRadius.control))
+                    .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
+                        .stroke(selected ? AppColor.primary : AppColor.border, lineWidth: 1))
+                    .contentShape(Rectangle())
+                    .onTapGesture { activity = a }
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, AppSpacing.card)
-                .background(AppColor.surface)
-                .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
-                .overlay(RoundedRectangle(cornerRadius: AppRadius.card)
-                    .stroke(selected ? AppColor.primary : AppColor.border, lineWidth: selected ? 1.5 : 1))
-                .contentShape(Rectangle())
-                .onTapGesture { activity = a }
             }
+            .padding(.horizontal, AppSpacing.screen)
         }
+        .padding(.horizontal, -AppSpacing.screen)
     }
 
     private var sensorCard: some View {
