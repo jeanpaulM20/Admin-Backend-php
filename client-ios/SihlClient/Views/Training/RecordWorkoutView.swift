@@ -344,14 +344,16 @@ private struct WorkoutSessionView: View {
                                   weight: .heavy).monospacedDigit())
                     .foregroundStyle(AppColor.text)
 
+                // Rot nur, wenn echte Pulswerte fliessen — der Platzhalter
+                // ohne Gurt ist ein legitimer Zustand, kein Alarm (Gute Form)
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Image(systemName: "heart.fill")
                         .font(.app(24))
-                        .foregroundStyle(AppColor.red)
+                        .foregroundStyle(recorder.currentHR != nil ? AppColor.red : AppColor.muted)
                     Text(recorder.currentHR.map { "\($0)" } ?? "–")
                         .font(.app(recorder.activity.usesGPS ? 56 : 88,
                                       weight: .black).monospacedDigit())
-                        .foregroundStyle(AppColor.red)
+                        .foregroundStyle(recorder.currentHR != nil ? AppColor.red : AppColor.muted)
                     Text("bpm")
                         .font(.title3)
                         .foregroundStyle(AppColor.muted)
@@ -457,8 +459,10 @@ private struct WorkoutSessionView: View {
     /// den Punkt kreist — um die Kartendrehung korrigiert und sanft animiert.
     private var positionMarker: some View {
         ZStack {
-            Circle().fill(.white.opacity(0.16))
-                .frame(width: 72, height: 72)
+            Circle().fill(RadialGradient(
+                colors: [.white.opacity(0.20), .white.opacity(0)],
+                center: .center, startRadius: 10, endRadius: 38))
+                .frame(width: 76, height: 76)
             if let heading = recorder.headingDegrees {
                 HeadingArrow()
                     .fill(AppColor.text)
@@ -533,7 +537,7 @@ private struct WorkoutSessionView: View {
         return HStack(spacing: 10) {
             HStack(spacing: 5) {
                 Circle()
-                    .fill(hr.isConnected ? AppColor.green : AppColor.orange)
+                    .fill(hr.isConnected ? AppColor.green : AppColor.muted)
                     .frame(width: 8, height: 8)
                 Text("Gurt").font(.caption).foregroundStyle(AppColor.muted)
             }
