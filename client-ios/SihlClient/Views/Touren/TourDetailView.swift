@@ -94,7 +94,7 @@ struct TourDetailView: View {
                              km < 1 ? "m" : "km")
                     }
                     if let min = d.durationMin {
-                        stat("Dauer ca.", TourDiscoveryView.formatDuration(min), "")
+                        stat("Dauer ca.", TourFormat.duration(min), "")
                     }
                     if let gain = d.elevationGain {
                         stat("Höhenmeter", "\(gain)", "m")

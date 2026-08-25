@@ -354,10 +354,10 @@ struct TourDiscoveryView: View {
                 .multilineTextAlignment(.leading)
             HStack(spacing: 8) {
                 if let min = tour.durationMin {
-                    Label(Self.formatDuration(min), systemImage: "clock")
+                    Label(TourFormat.duration(min), systemImage: "clock")
                 }
                 if let km = tour.distanceKm {
-                    Label(Self.formatDistance(km), systemImage: "point.topleft.down.to.point.bottomright.curvepath")
+                    Label(TourFormat.distance(km), systemImage: "point.topleft.down.to.point.bottomright.curvepath")
                 }
             }
             .font(.caption)
@@ -370,15 +370,6 @@ struct TourDiscoveryView: View {
         .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
         .contentShape(Rectangle())
         .onTapGesture { detailTour = tour }
-    }
-
-    static func formatDuration(_ minutes: Int) -> String {
-        minutes >= 60 ? "\(minutes / 60) Std \(minutes % 60) Min" : "\(minutes) Min"
-    }
-
-    /// Kurze Bahnen metergenau, Routen in Kilometern.
-    static func formatDistance(_ km: Double) -> String {
-        km < 1 ? "\(Int((km * 1000).rounded())) m" : String(format: "%.1f km", km)
     }
 
     // MARK: Daten

@@ -6,6 +6,7 @@ import {
 import { Request, Response } from 'express';
 import { ClientAppService } from './client-app.service';
 import { ToursAssistantService } from './tours-assistant.service';
+import { ToursService } from './tours.service';
 import { ClientChatService } from './client-chat.service';
 import { InvoiceService } from '../invoice/invoice.service';
 import { SaferpayService } from '../payment/saferpay.service';
@@ -25,6 +26,7 @@ export class ClientAppController {
   constructor(
     private readonly appService: ClientAppService,
     private readonly toursAssistantService: ToursAssistantService,
+    private readonly toursService: ToursService,
     private readonly chatService: ClientChatService,
     private readonly invoiceService: InvoiceService,
     private readonly saferpayService: SaferpayService,
@@ -185,7 +187,7 @@ export class ClientAppController {
     if (!Number.isFinite(la) || !Number.isFinite(lo)) {
       throw new HttpException({ message: 'lat/lon fehlen' }, HttpStatus.BAD_REQUEST);
     }
-    return this.appService.getTours(la, lo, parseFloat(radiusKm) || 10, activity ?? 'wandern');
+    return this.toursService.getTours(la, lo, parseFloat(radiusKm) || 10, activity ?? 'wandern');
   }
 
   /** Rundtouren-Generator (T4): Kreis-Route ab Startpunkt via BRouter */
@@ -200,7 +202,7 @@ export class ClientAppController {
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
       throw new HttpException({ message: 'lat/lon fehlen' }, HttpStatus.BAD_REQUEST);
     }
-    return this.appService.generateRoundtrip(
+    return this.toursService.generateRoundtrip(
       lat, lon, parseFloat(body?.distanceKm) || 10,
       String(body?.activity ?? 'wandern'),
       Number.isFinite(Number(body?.seed)) ? Number(body.seed) : undefined,
@@ -215,7 +217,7 @@ export class ClientAppController {
     @Param('tourId') tourId: string,
   ) {
     this.assertClientAccess(req, clientId);
-    return this.appService.getTourDetail(tourId);
+    return this.toursService.getTourDetail(tourId);
   }
 
   /** Touren-Assistent (C1): natürliche Sprache → berechnete Route. */

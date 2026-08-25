@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
-import { ClientAppService } from './client-app.service';
+import { ToursService } from './tours.service';
 
 /**
  * Touren-Assistent (KONZEPT-TOUREN-CHAT.md, Phase C1):
@@ -22,7 +22,7 @@ export class ToursAssistantService {
   private static readonly DAILY_LIMIT =
     parseInt(process.env.ASSISTANT_DAILY_LIMIT ?? '0', 10) || 0;
 
-  constructor(private readonly appService: ClientAppService) {
+  constructor(private readonly tours: ToursService) {
     const key = process.env.ANTHROPIC_API_KEY?.trim();
     if (key) this.anthropic = new Anthropic({ apiKey: key });
     else this.logger.warn('ANTHROPIC_API_KEY not set — Touren-Assistent deaktiviert');
@@ -187,9 +187,9 @@ Regeln:
   ): Promise<any> {
     switch (name) {
       case 'geocode':
-        return this.geocode(String(input.ort ?? ''));
+        return this.tours.geocode(String(input.ort ?? ''));
       case 'route': {
-        const detail = await this.routeAB(
+        const detail = await this.tours.routeAB(
           Number(input.startLat), Number(input.startLon),
           Number(input.zielLat), Number(input.zielLon),
           String(input.aktivitaet ?? 'wandern'),
@@ -204,7 +204,7 @@ Regeln:
         };
       }
       case 'rundtour': {
-        const detail = await this.appService.generateRoundtrip(
+        const detail = await this.tours.generateRoundtrip(
           Number(input.lat), Number(input.lon),
           Number(input.distanceKm), String(input.aktivitaet ?? 'wandern'),
         );
@@ -225,95 +225,4 @@ Regeln:
     }
   }
 
-  /** Geocode-Cache + Zeitstempel der letzten Anfrage (Nominatim-Drosselung). */
-  private readonly geocodeCache = new Map<string, any>();
-  private lastGeocodeAt = 0;
-
-  private async geocode(ort: string) {
-    if (!ort.trim()) return { fehler: 'Leerer Ortsname' };
-    const key = ort.trim().toLowerCase();
-    const cached = this.geocodeCache.get(key);
-    if (cached) return cached;
-
-    // Nominatim-Nutzungsrichtlinie: max. 1 Anfrage/Sekunde — Verstösse
-    // führen zur IP-Sperre (gleiche Fehlerklasse wie damals Overpass 406)
-    const wait = this.lastGeocodeAt + 1100 - Date.now();
-    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
-    this.lastGeocodeAt = Date.now();
-
-    const url =
-      'https://nominatim.openstreetmap.org/search?format=json&limit=1' +
-      '&countrycodes=ch,li,at,de,fr,it&q=' + encodeURIComponent(ort);
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'SihlClient-Backend/1.0 (sihltraining.ch)' },
-      signal: AbortSignal.timeout(10000),
-    });
-    if (!res.ok) throw new Error(`Geocoding ${res.status}`);
-    const arr: any[] = await res.json();
-    const result = !arr.length
-      ? { fehler: `"${ort}" nicht gefunden` }
-      : {
-          name: String(arr[0].display_name ?? ort).split(',').slice(0, 2).join(','),
-          lat: parseFloat(arr[0].lat),
-          lon: parseFloat(arr[0].lon),
-        };
-    if (this.geocodeCache.size > 500) this.geocodeCache.clear();
-    this.geocodeCache.set(key, result);
-    return result;
-  }
-
-  /** BRouter-Profile + Tempo je Aktivität (analog roundtripSpec). */
-  private static spec(aktivitaet: string): { profile: string; kmh: number; climbPerH: number; osm: string } {
-    switch (aktivitaet) {
-      case 'velo':    return { profile: 'trekking',    kmh: 15,  climbPerH: 600, osm: 'bicycle' };
-      case 'rennrad': return { profile: 'fastbike',    kmh: 20,  climbPerH: 800, osm: 'bicycle' };
-      case 'gravel':  return { profile: 'gravel',      kmh: 16,  climbPerH: 600, osm: 'bicycle' };
-      case 'mtb':     return { profile: 'mtb',         kmh: 12,  climbPerH: 500, osm: 'mtb' };
-      case 'joggen':  return { profile: 'hiking-beta', kmh: 8,   climbPerH: 500, osm: 'running' };
-      default:        return { profile: 'hiking-beta', kmh: 4.2, climbPerH: 400, osm: 'hiking' };
-    }
-  }
-
-  /** A→B-Route über BRouter, gleiche Detail-Form wie der Rundtouren-Endpoint. */
-  private async routeAB(aLat: number, aLon: number, bLat: number, bLon: number, aktivitaet: string) {
-    if (![aLat, aLon, bLat, bLon].every(Number.isFinite)) throw new Error('Ungültige Koordinaten');
-    const spec = ToursAssistantService.spec(aktivitaet);
-    const lonlats = `${aLon.toFixed(6)},${aLat.toFixed(6)}|${bLon.toFixed(6)},${bLat.toFixed(6)}`;
-    const url = `https://brouter.de/brouter?lonlats=${lonlats}&profile=${spec.profile}&alternativeidx=0&format=geojson`;
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'SihlClient-Backend/1.0 (sihltraining.ch)' },
-      signal: AbortSignal.timeout(30000),
-    });
-    if (!res.ok) throw new Error(`Routing fehlgeschlagen (${res.status})`);
-    const geo = await res.json();
-    const feature = geo?.features?.[0];
-    const coords: number[][] = feature?.geometry?.coordinates ?? [];
-    if (coords.length < 2) throw new Error('Keine Route gefunden');
-
-    const props = feature.properties ?? {};
-    const lengthM = parseFloat(props['track-length'] ?? '0') || 0;
-    const ascend = parseInt(props['filtered ascend'] ?? '0', 10) || 0;
-    const distKm = lengthM / 1000;
-
-    const stride = Math.max(1, Math.ceil(coords.length / 2000));
-    const segment = coords
-      .filter((_, i) => i % stride === 0 || i === coords.length - 1)
-      .map((c) => ({ lat: c[1], lon: c[0], ele: c[2] ?? null }));
-
-    const horiz = distKm / spec.kmh;
-    const climb = ascend / spec.climbPerH;
-    const hours = Math.max(horiz, climb) + Math.min(horiz, climb) / 2;
-
-    return {
-      id: `ab-${Date.now()}`,
-      name: 'Route',
-      activity: spec.osm,
-      generated: true,
-      distanceKm: Math.round(distKm * 10) / 10,
-      elevationGain: ascend,
-      durationMin: Math.round(hours * 60),
-      difficulty: distKm < 8 ? 'Leicht' : distKm < 16 ? 'Mittel' : 'Schwer',
-      segments: [segment],
-    };
-  }
 }
