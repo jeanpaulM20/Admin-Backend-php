@@ -13,9 +13,14 @@ export class ToursAssistantService {
   private readonly logger = new Logger(ToursAssistantService.name);
   private readonly anthropic?: Anthropic;
 
-  /** Einfaches Tageslimit je Kunde (Missbrauchs-/Kostenbremse). */
+  /**
+   * Tageslimit je Kunde (Missbrauchs-/Kostenbremse). Über die
+   * Umgebungsvariable ASSISTANT_DAILY_LIMIT steuerbar; 0 oder nicht
+   * gesetzt = kein Limit (Testphase).
+   */
   private readonly usage = new Map<number, { date: string; count: number }>();
-  private static readonly DAILY_LIMIT = 20;
+  private static readonly DAILY_LIMIT =
+    parseInt(process.env.ASSISTANT_DAILY_LIMIT ?? '0', 10) || 0;
 
   constructor(private readonly appService: ClientAppService) {
     const key = process.env.ANTHROPIC_API_KEY?.trim();
@@ -90,13 +95,15 @@ Regeln:
       return { reply: 'Der Touren-Assistent ist zurzeit nicht verfügbar.' };
     }
     // Tageslimit
-    const today = new Date().toISOString().slice(0, 10);
-    const u = this.usage.get(clientId);
-    const count = u?.date === today ? u.count : 0;
-    if (count >= ToursAssistantService.DAILY_LIMIT) {
-      return { reply: 'Du hast das Tageslimit des Assistenten erreicht — morgen geht es weiter.' };
+    if (ToursAssistantService.DAILY_LIMIT > 0) {
+      const today = new Date().toISOString().slice(0, 10);
+      const u = this.usage.get(clientId);
+      const count = u?.date === today ? u.count : 0;
+      if (count >= ToursAssistantService.DAILY_LIMIT) {
+        return { reply: 'Du hast das Tageslimit des Assistenten erreicht — morgen geht es weiter.' };
+      }
+      this.usage.set(clientId, { date: today, count: count + 1 });
     }
-    this.usage.set(clientId, { date: today, count: count + 1 });
 
     // Verlauf säubern und begrenzen
     const history: Anthropic.MessageParam[] = messages
