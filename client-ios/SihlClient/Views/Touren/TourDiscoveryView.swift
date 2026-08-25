@@ -31,49 +31,18 @@ struct TourDiscoveryView: View {
     private var isDemo: Bool { auth.clientId == "demo" }
 
     var body: some View {
-        ZStack(alignment: .top) {
-            map
+        // Kopfzeile auf solidem Grund, Karte beginnt darunter (Mockup 2026-08-25)
+        VStack(spacing: 0) {
+            header
+                .padding(.horizontal, AppSpacing.screen)
+                .padding(.top, AppSpacing.stack)
+                .padding(.bottom, AppSpacing.stack)
+                .background(AppColor.background)
 
-            // Kopfzeile: Suche + Filter
-            VStack(spacing: AppSpacing.stack) {
-                HStack(spacing: AppSpacing.stack) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.callout)
-                            .foregroundStyle(AppColor.muted)
-                        TextField("Ort suchen…", text: $searchText)
-                            .font(.subheadline)
-                            .foregroundStyle(AppColor.text)
-                            .submitLabel(.search)
-                            .focused($searchFocused)
-                            .onSubmit { searchLocation() }
-                            .onChange(of: searchText) { _, text in
-                                searchModel.update(query: text, near: cameraCenter ?? center)
-                            }
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(AppColor.surface)
-                    .clipShape(Capsule())
-                    .overlay(Capsule().stroke(AppColor.border, lineWidth: 1))
+            ZStack(alignment: .top) {
+                map
 
-                    // Rundtouren-Generator (T4) — der eine CTA dieses Screens
-                    Button {
-                        showPlanSheet = true
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "plus.circle.fill").font(.callout)
-                            Text("Rundtour").font(.subheadline.bold())
-                        }
-                        .foregroundStyle(AppColor.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(AppColor.cta)
-                        .clipShape(Capsule())
-                    }
-                }
-
-                // Live-Ortsvorschläge während des Tippens
+                // Live-Ortsvorschläge überlagern die Karte
                 if searchFocused && !searchModel.suggestions.isEmpty {
                     VStack(spacing: 0) {
                         ForEach(searchModel.suggestions) { s in
@@ -87,67 +56,15 @@ struct TourDiscoveryView: View {
                     .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
                     .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
                         .stroke(AppColor.border, lineWidth: 1))
-                }
-
-                // Aktivität (scrollbar — sechs Routentypen)
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(TourActivity.allCases) { a in
-                            activityChip(a)
-                        }
-                    }
                     .padding(.horizontal, AppSpacing.screen)
+                    .padding(.top, AppSpacing.stack)
                 }
-                .padding(.horizontal, -AppSpacing.screen)
 
-                HStack(spacing: AppSpacing.stack) {
-                    // Radius (Chevron zeigt das Menü-Angebot an)
-                    Menu {
-                        ForEach([5.0, 10, 25], id: \.self) { r in
-                            Button("in \(Int(r)) km Umkreis") { radiusKm = r; reload() }
-                        }
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "scope").font(.caption)
-                            Text("\(Int(radiusKm)) km").font(.footnote.weight(.medium))
-                            Image(systemName: "chevron.down").font(.app(9, weight: .semibold))
-                        }
-                        .foregroundStyle(AppColor.text)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(AppColor.surface)
-                        .clipShape(Capsule())
-                        .overlay(Capsule().stroke(AppColor.border, lineWidth: 1))
-                    }
-
+                // Tour-Karten unten
+                VStack {
                     Spacer()
-
-                    // In diesem Gebiet suchen (Kartenmitte übernehmen) — ruhiger
-                    // Kontext-Chip, kein zweiter CTA (Ein-CTA-Prinzip)
-                    Button {
-                        if let c = cameraCenter { center = c }
-                        reload()
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "arrow.counterclockwise").font(.caption)
-                            Text("Hier suchen").font(.footnote.weight(.medium))
-                        }
-                        .foregroundStyle(AppColor.text)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(AppColor.surface)
-                        .clipShape(Capsule())
-                        .overlay(Capsule().stroke(AppColor.border, lineWidth: 1))
-                    }
+                    bottomCards
                 }
-            }
-            .padding(.horizontal, AppSpacing.screen)
-            .padding(.top, AppSpacing.stack)
-
-            // Tour-Karten unten
-            VStack {
-                Spacer()
-                bottomCards
             }
         }
         .navigationTitle("Touren")
@@ -189,6 +106,103 @@ struct TourDiscoveryView: View {
         }
     }
 
+    // MARK: Kopfzeile (Kacheln — Suche, Aktivität, Filter + Rundtour)
+
+    private var header: some View {
+        VStack(spacing: AppSpacing.stack) {
+            // Suche vollbreit
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .font(.callout)
+                    .foregroundStyle(AppColor.muted)
+                TextField("Ort oder Region suchen", text: $searchText)
+                    .font(.subheadline)
+                    .foregroundStyle(AppColor.text)
+                    .submitLabel(.search)
+                    .focused($searchFocused)
+                    .onSubmit { searchLocation() }
+                    .onChange(of: searchText) { _, text in
+                        searchModel.update(query: text, near: cameraCenter ?? center)
+                    }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.card)
+                .stroke(AppColor.border, lineWidth: 1))
+
+            // Aktivität (scrollbar — sechs Routentypen)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(TourActivity.allCases) { a in
+                        activityChip(a)
+                    }
+                }
+                .padding(.horizontal, AppSpacing.screen)
+            }
+            .padding(.horizontal, -AppSpacing.screen)
+
+            // Filterzeile: Radius · Hier suchen · Rundtour (der eine CTA) —
+            // bewusst kompakter als die Standard-Masse, damit alle drei
+            // Kacheln auf 402-pt-Geräten einzeilig bleiben
+            HStack(spacing: 8) {
+                Menu {
+                    ForEach([5.0, 10, 25], id: \.self) { r in
+                        Button("in \(Int(r)) km Umkreis") { radiusKm = r; reload() }
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "scope").font(.caption)
+                        Text("\(Int(radiusKm)) km").font(.footnote.weight(.medium))
+                        Image(systemName: "chevron.down").font(.app(9, weight: .semibold))
+                    }
+                    .foregroundStyle(AppColor.text)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.control))
+                    .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
+                        .stroke(AppColor.border, lineWidth: 1))
+                    .fixedSize()
+                }
+
+                // Kartenmitte übernehmen — ruhiger Kontext-Chip, kein zweiter CTA
+                Button {
+                    if let c = cameraCenter { center = c }
+                    reload()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.counterclockwise").font(.caption)
+                        Text("Hier suchen").font(.footnote.weight(.medium))
+                    }
+                    .foregroundStyle(AppColor.text)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.control))
+                    .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
+                        .stroke(AppColor.border, lineWidth: 1))
+                    .fixedSize()
+                }
+
+                Spacer(minLength: 0)
+
+                Button {
+                    showPlanSheet = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "plus.circle.fill").font(.callout)
+                        Text("Rundtour").font(.footnote.bold())
+                    }
+                    .lineLimit(1)
+                    .foregroundStyle(AppColor.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 11)
+                    .background(AppColor.cta, in: RoundedRectangle(cornerRadius: AppRadius.control))
+                    .fixedSize()
+                }
+            }
+        }
+    }
+
     // MARK: Karte
 
     private var map: some View {
@@ -225,10 +239,11 @@ struct TourDiscoveryView: View {
         .foregroundStyle(selected ? AppColor.white : AppColor.muted)
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(selected ? AppColor.primary : AppColor.surface)
-        .clipShape(Capsule())
-        .overlay(Capsule().stroke(selected ? AppColor.primary : AppColor.border, lineWidth: 1))
-        .contentShape(Capsule())
+        .background(selected ? AppColor.primary : AppColor.surface,
+                    in: RoundedRectangle(cornerRadius: AppRadius.control))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
+            .stroke(selected ? AppColor.primary : AppColor.border, lineWidth: 1))
+        .contentShape(Rectangle())
         .onTapGesture {
             guard activity != a else { return }
             activity = a
