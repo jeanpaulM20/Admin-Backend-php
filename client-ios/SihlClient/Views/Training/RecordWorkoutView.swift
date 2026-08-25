@@ -299,6 +299,12 @@ private struct WorkoutSessionView: View {
         .appToast($routeToast, bottomPadding: 100)
     }
 
+    // Kamera-Führung der Live-Karte: folgt der Position, bis der User
+    // die Karte selbst bewegt; der Zentrier-Button holt ihn zurück.
+    @State private var followUser = true
+    @State private var liveCamera: MapCameraPosition = .automatic
+    @State private var programmaticMove = false
+
     /// Für die Kartendarstellung reduzierte Koordinaten (Render-Kosten).
     private var displayCoordinates: [CLLocationCoordinate2D] {
         let coords = recorder.trackCoordinates
@@ -386,12 +392,24 @@ private struct WorkoutSessionView: View {
     }
 
     private var liveMap: some View {
-        Map {
-            // Tour-Route (T3): gedeckte Linie unter dem eigenen Track
+        Map(position: $liveCamera) {
+            // Tour-Route (T3): geplante Route blau gestrichelt — klar
+            // unterscheidbar von der eigenen (orangen) Spur
             ForEach(recorder.routeSegments.indices, id: \.self) { i in
                 MapPolyline(coordinates: recorder.routeSegments[i])
-                    .stroke(AppColor.muted.opacity(0.8),
+                    .stroke(AppColor.blue.opacity(0.85),
                             style: StrokeStyle(lineWidth: 3, dash: [6, 4]))
+            }
+            // Start-/Ziel-Marker der Route (Rundtour: ein gemeinsamer Punkt)
+            if let start = recorder.routeSegments.first?.first {
+                Annotation(routeEndsMeet ? "Start/Ziel" : "Start", coordinate: start) {
+                    routeFlag
+                }
+            }
+            if !routeEndsMeet, let end = recorder.routeSegments.last?.last {
+                Annotation("Ziel", coordinate: end) {
+                    routeFlag
+                }
             }
             if displayCoordinates.count >= 2 {
                 MapPolyline(coordinates: displayCoordinates)
@@ -408,6 +426,63 @@ private struct WorkoutSessionView: View {
             }
         }
         .mapStyle(.standard)
+        // Manuelles Verschieben beendet die Verfolgung …
+        .onMapCameraChange(frequency: .onEnd) { _ in
+            if !programmaticMove { followUser = false }
+        }
+        // … neue GPS-Punkte zentrieren die Kamera, solange sie folgt
+        .onChange(of: recorder.trackCoordinates.count) { _, _ in
+            guard followUser, let last = recorder.trackCoordinates.last else { return }
+            recenter(on: last, animated: false)
+        }
+        // Zentrier-Button: zurück zur eigenen Position
+        .overlay(alignment: .bottomTrailing) {
+            Button {
+                followUser = true
+                if let last = recorder.trackCoordinates.last {
+                    recenter(on: last, animated: true)
+                }
+            } label: {
+                Image(systemName: followUser ? "location.fill" : "location")
+                    .font(.app(15, weight: .semibold))
+                    .foregroundStyle(followUser ? AppColor.primary : AppColor.muted)
+                    .frame(width: 40, height: 40)
+                    .background(AppColor.surface, in: Circle())
+                    .overlay(Circle().stroke(AppColor.border, lineWidth: 1))
+            }
+            .padding(10)
+        }
+    }
+
+    /// Start und Ziel der Route liegen (fast) aufeinander → Rundtour.
+    private var routeEndsMeet: Bool {
+        guard let a = recorder.routeSegments.first?.first,
+              let b = recorder.routeSegments.last?.last else { return true }
+        return CLLocation(latitude: a.latitude, longitude: a.longitude)
+            .distance(from: CLLocation(latitude: b.latitude, longitude: b.longitude)) < 50
+    }
+
+    private var routeFlag: some View {
+        Image(systemName: "flag.fill")
+            .font(.app(11, weight: .semibold))
+            .foregroundStyle(AppColor.white)
+            .frame(width: 24, height: 24)
+            .background(AppColor.blue, in: Circle())
+            .overlay(Circle().stroke(.white, lineWidth: 1.5))
+    }
+
+    /// Kamera auf eine Koordinate setzen (~800-m-Ausschnitt).
+    private func recenter(on coord: CLLocationCoordinate2D, animated: Bool) {
+        programmaticMove = true
+        let region = MKCoordinateRegion(
+            center: coord,
+            span: MKCoordinateSpan(latitudeDelta: 0.008, longitudeDelta: 0.008))
+        if animated {
+            withAnimation(.easeInOut(duration: 0.4)) { liveCamera = .region(region) }
+        } else {
+            liveCamera = .region(region)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { programmaticMove = false }
     }
 
     private func liveStat(_ label: String, _ value: String) -> some View {
@@ -475,7 +550,7 @@ private struct WorkoutSessionView: View {
                     Map {
                         ForEach(recorder.routeSegments.indices, id: \.self) { i in
                             MapPolyline(coordinates: recorder.routeSegments[i])
-                                .stroke(AppColor.muted.opacity(0.8),
+                                .stroke(AppColor.blue.opacity(0.85),
                                         style: StrokeStyle(lineWidth: 3, dash: [6, 4]))
                         }
                         MapPolyline(coordinates: displayCoordinates)
