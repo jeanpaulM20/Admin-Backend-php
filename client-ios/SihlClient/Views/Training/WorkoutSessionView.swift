@@ -47,9 +47,9 @@ struct WorkoutSessionView: View {
     @State private var liveCamera: MapCameraPosition = .automatic
     @State private var programmaticMove = false
     @State private var cameraHeading: Double = 0
-    /// Aktueller Zoom (Span) — beim Folgen wird nur das Zentrum nachgeführt,
-    /// der vom User gewählte Zoom bleibt erhalten.
-    @State private var followSpan = MKCoordinateSpan(latitudeDelta: 0.008, longitudeDelta: 0.008)
+    /// Kamera-Distanz in Metern — beim Folgen bleibt der vom User gewählte
+    /// Zoom erhalten, nur Zentrum und Drehung werden nachgeführt.
+    @State private var followDistance: Double = 1400
 
     /// Für die Kartendarstellung reduzierte Koordinaten (Render-Kosten).
     private var displayCoordinates: [CLLocationCoordinate2D] {
@@ -173,11 +173,16 @@ struct WorkoutSessionView: View {
         // Manuelles Verschieben beendet die Verfolgung …
         .onMapCameraChange(frequency: .onEnd) { context in
             cameraHeading = context.camera.heading
-            followSpan = context.region.span
+            if context.camera.distance > 0 { followDistance = context.camera.distance }
             if !programmaticMove { followUser = false }
         }
         // … neue Positionen zentrieren die Kamera, solange sie folgt
         .onChange(of: recorder.locationTick) { _, _ in
+            guard followUser, let pos = bestPosition else { return }
+            recenter(on: pos, animated: false)
+        }
+        // … und die Karte dreht mit der Blickrichtung (Laufrichtung-oben)
+        .onChange(of: recorder.headingDegrees) { _, _ in
             guard followUser, let pos = bestPosition else { return }
             recenter(on: pos, animated: false)
         }
@@ -249,15 +254,19 @@ struct WorkoutSessionView: View {
             .overlay(Circle().stroke(.white, lineWidth: 1.5))
     }
 
-    /// Kamera auf eine Koordinate setzen — im zuletzt gewählten Zoom.
+    /// Kamera auf eine Koordinate setzen — Laufrichtung-oben (course-up),
+    /// im zuletzt gewählten Zoom. Ohne Kompasswert bleibt die aktuelle Drehung.
     private func recenter(on coord: CLLocationCoordinate2D, animated: Bool) {
         programmaticMove = true
-        let region = MKCoordinateRegion(center: coord, span: followSpan)
-        if animated {
-            withAnimation(.easeInOut(duration: 0.4)) { liveCamera = .region(region) }
-        } else {
-            liveCamera = .region(region)
+        let heading = recorder.headingDegrees ?? cameraHeading
+        let camera = MapCamera(centerCoordinate: coord, distance: followDistance,
+                               heading: heading, pitch: 0)
+        withAnimation(.easeOut(duration: animated ? 0.4 : 0.3)) {
+            liveCamera = .camera(camera)
         }
+        // Pfeil-Korrektur sofort aktuell halten (nicht erst beim nächsten
+        // Kamera-Ereignis) — der Marker zeigt beim Folgen konstant nach oben
+        cameraHeading = heading
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { programmaticMove = false }
     }
 
