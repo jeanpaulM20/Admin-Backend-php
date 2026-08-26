@@ -50,6 +50,8 @@ struct WorkoutSessionView: View {
     /// Kamera-Distanz in Metern — beim Folgen bleibt der vom User gewählte
     /// Zoom erhalten, nur Zentrum und Drehung werden nachgeführt.
     @State private var followDistance: Double = 1400
+    /// Optionales Karten-Vollbild (per Button auf der Karte).
+    @State private var mapFullscreen = false
 
     /// Für die Kartendarstellung reduzierte Koordinaten (Render-Kosten).
     private var displayCoordinates: [CLLocationCoordinate2D] {
@@ -61,7 +63,114 @@ struct WorkoutSessionView: View {
 
     // MARK: Live
 
+    /// Karte dominiert bei Orientierungs-Aktivitäten (Wandern/Rad) —
+    /// beim Joggen zählen die Werte, dort bleibt die Karte kompakt.
+    private var mapDominant: Bool {
+        recorder.activity.usesGPS && recorder.activity != .joggen
+    }
+
+    @ViewBuilder
     private var liveView: some View {
+        Group {
+            if recorder.activity.usesGPS && mapFullscreen {
+                fullscreenLayout
+            } else if mapDominant {
+                expandedLayout
+            } else {
+                compactLayout
+            }
+        }
+        .alert("Training beenden?", isPresented: $confirmStop) {
+            Button("Weiter aufzeichnen", role: .cancel) {}
+            Button("Beenden") { recorder.finish() }
+        }
+    }
+
+    // MARK: Vollbild — Karte füllt alles, minimaler HUD (optional)
+
+    private var fullscreenLayout: some View {
+        liveMap
+            .ignoresSafeArea(edges: .bottom)
+            .overlay(alignment: .top) {
+                HStack(spacing: 10) {
+                    Text(recorder.durationString)
+                        .font(.app(16, weight: .heavy).monospacedDigit())
+                        .foregroundStyle(AppColor.text)
+                    Text("·").foregroundStyle(AppColor.muted)
+                    Text(recorder.distanceString)
+                        .font(.app(16, weight: .semibold).monospacedDigit())
+                        .foregroundStyle(AppColor.text)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 9)
+                .background(AppColor.surface.opacity(0.95), in: Capsule())
+                .overlay(Capsule().stroke(AppColor.border, lineWidth: 1))
+                .padding(.top, 8)
+            }
+    }
+
+    // MARK: Grosse Karte — Übersicht wie Komoot, Werte kompakt darunter
+
+    private var expandedLayout: some View {
+        VStack(spacing: 0) {
+            liveMap
+                .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+                .padding(.horizontal, AppSpacing.screen)
+                .padding(.top, 8)
+
+            VStack(spacing: AppSpacing.stack) {
+                HStack {
+                    Label(recorder.activity.rawValue, systemImage: recorder.activity.icon)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(AppColor.muted)
+                    Spacer()
+                    sensorBadge
+                }
+                .padding(.top, AppSpacing.stack)
+
+                HStack(alignment: .firstTextBaseline) {
+                    Text(recorder.durationString)
+                        .font(.app(34, weight: .heavy).monospacedDigit())
+                        .foregroundStyle(AppColor.text)
+                    Spacer()
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Image(systemName: "heart.fill")
+                            .font(.app(16))
+                            .foregroundStyle(recorder.currentHR != nil ? AppColor.red : AppColor.muted)
+                        Text(recorder.currentHR.map { "\($0)" } ?? "–")
+                            .font(.app(30, weight: .black).monospacedDigit())
+                            .foregroundStyle(recorder.currentHR != nil ? AppColor.red : AppColor.muted)
+                        Text("bpm")
+                            .font(.footnote)
+                            .foregroundStyle(AppColor.muted)
+                    }
+                }
+
+                HStack(spacing: 0) {
+                    liveStat("Distanz", recorder.distanceString)
+                    liveStat(recorder.activity == .rad ? "Tempo" : "Pace", recorder.paceString)
+                    liveStat("Höhenmeter", "\(Int(recorder.elevationGain)) m")
+                }
+
+                HStack(spacing: AppSpacing.stack) {
+                    Button(recorder.phase == .paused ? "Weiter" : "Pause") {
+                        recorder.phase == .paused ? recorder.resume() : recorder.pause()
+                    }
+                    .buttonStyle(OutlineButtonStyle())
+                    .frame(maxWidth: .infinity)
+
+                    Button("Beenden") { confirmStop = true }
+                        .buttonStyle(PrimaryButtonStyle(fill: AppColor.red))
+                }
+                .padding(.bottom, AppSpacing.bottomInset)
+            }
+            .padding(.horizontal, AppSpacing.screen)
+        }
+    }
+
+    // MARK: Kompakt — kleines Kartenfenster, grosse Werte (Joggen/Kraft)
+
+    private var compactLayout: some View {
         VStack(spacing: 0) {
             // Live-Karte (nur Outdoor)
             if recorder.activity.usesGPS {
@@ -133,10 +242,6 @@ struct WorkoutSessionView: View {
             }
             .padding(.horizontal, AppSpacing.screen)
         }
-        .alert("Training beenden?", isPresented: $confirmStop) {
-            Button("Weiter aufzeichnen", role: .cancel) {}
-            Button("Beenden") { recorder.finish() }
-        }
     }
 
     private var liveMap: some View {
@@ -185,6 +290,23 @@ struct WorkoutSessionView: View {
         .onChange(of: recorder.headingDegrees) { _, _ in
             guard followUser, let pos = bestPosition else { return }
             recenter(on: pos, animated: false)
+        }
+        // Vollbild optional ein-/ausschalten
+        .overlay(alignment: .topTrailing) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) { mapFullscreen.toggle() }
+            } label: {
+                Image(systemName: mapFullscreen
+                      ? "arrow.down.right.and.arrow.up.left"
+                      : "arrow.up.left.and.arrow.down.right")
+                    .font(.app(14, weight: .semibold))
+                    .foregroundStyle(AppColor.muted)
+                    .frame(width: 40, height: 40)
+                    .background(AppColor.surface, in: Circle())
+                    .overlay(Circle().stroke(AppColor.border, lineWidth: 1))
+            }
+            .padding(10)
+            .accessibilityLabel(mapFullscreen ? "Karte verkleinern" : "Karte auf Vollbild")
         }
         // Zentrier-Button: zurück zur eigenen Position (Fallback: Routenstart)
         .overlay(alignment: .bottomTrailing) {
