@@ -16,6 +16,7 @@ struct TourDetailView: View {
     @State private var error: String?
     @State private var showRecord = false
     @State private var gpxURL: URL?
+    @State private var showMapFullscreen = false
 
     /// OSM-Tour aus der Discovery (Detail wird nachgeladen).
     init(tour: Tour) {
@@ -68,13 +69,20 @@ struct TourDetailView: View {
             // T3: Route in den Recorder übergeben (Overlay + Off-Route-Hinweis)
             RecordWorkoutView(tour: detail?.asRoute)
         }
+        .fullScreenCover(isPresented: $showMapFullscreen) {
+            if let detail {
+                TourMapFullscreenView(detail: detail)
+            }
+        }
     }
 
     private func content(_ d: TourDetail) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.stack) {
 
-                // Karte mit allen Routen-Segmenten
+                // Karte mit allen Routen-Segmenten — statisch (sonst
+                // kollidieren Karten-Gesten mit dem Seiten-Scrollen);
+                // Tap oder Button öffnet die interaktive Vollbild-Ansicht
                 Map {
                     ForEach(d.segments.indices, id: \.self) { i in
                         MapPolyline(coordinates: d.segments[i])
@@ -84,6 +92,22 @@ struct TourDetailView: View {
                 .frame(height: 280)
                 .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
                 .allowsHitTesting(false)
+                .overlay(alignment: .topTrailing) {
+                    Button {
+                        showMapFullscreen = true
+                    } label: {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .font(.app(14, weight: .semibold))
+                            .foregroundStyle(AppColor.muted)
+                            .frame(width: 40, height: 40)
+                            .background(AppColor.surface, in: Circle())
+                            .overlay(Circle().stroke(AppColor.border, lineWidth: 1))
+                    }
+                    .padding(10)
+                    .accessibilityLabel("Karte im Vollbild ansehen")
+                }
+                .contentShape(RoundedRectangle(cornerRadius: AppRadius.card))
+                .onTapGesture { showMapFullscreen = true }
                 .padding(.top, AppSpacing.stack)
 
                 // Kennzahlen
@@ -254,5 +278,94 @@ struct TourDetailView: View {
     private func prepareGPX() {
         guard let d = detail, !d.segments.isEmpty else { return }
         gpxURL = GPXFile.write(name: d.name, segments: d.segments, elevations: d.elevations)
+    }
+}
+
+// MARK: - TourMapFullscreenView
+
+/// Interaktive Vollbild-Karte der Route — zum Erkunden vor dem Start
+/// (zoomen, verschieben), mit Start-/Ziel-Markern und Kennzahlen-Pille.
+private struct TourMapFullscreenView: View {
+    @Environment(\.dismiss) private var dismiss
+    let detail: TourDetail
+
+    /// Start und Ziel liegen (fast) aufeinander → Rundtour.
+    private var routeEndsMeet: Bool {
+        guard let a = detail.segments.first?.first,
+              let b = detail.segments.last?.last else { return true }
+        return CLLocation(latitude: a.latitude, longitude: a.longitude)
+            .distance(from: CLLocation(latitude: b.latitude, longitude: b.longitude)) < 50
+    }
+
+    var body: some View {
+        ZStack {
+            Map {
+                ForEach(detail.segments.indices, id: \.self) { i in
+                    MapPolyline(coordinates: detail.segments[i])
+                        .stroke(AppColor.track, lineWidth: 4)
+                }
+                if let start = detail.segments.first?.first {
+                    Annotation(routeEndsMeet ? "Start/Ziel" : "Start", coordinate: start) { flag }
+                }
+                if !routeEndsMeet, let end = detail.segments.last?.last {
+                    Annotation("Ziel", coordinate: end) { flag }
+                }
+            }
+            .mapStyle(.standard)
+            .ignoresSafeArea()
+
+            VStack {
+                HStack(alignment: .top) {
+                    // Kennzahlen-Pille
+                    HStack(spacing: 8) {
+                        Text(detail.name)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(AppColor.text)
+                            .lineLimit(1)
+                        if let km = detail.distanceKm {
+                            Text("·").foregroundStyle(AppColor.muted)
+                            Text(TourFormat.distance(km))
+                                .font(.footnote)
+                                .foregroundStyle(AppColor.muted)
+                        }
+                        if let gain = detail.elevationGain {
+                            Text("·").foregroundStyle(AppColor.muted)
+                            Text("\(gain) m")
+                                .font(.footnote)
+                                .foregroundStyle(AppColor.muted)
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 9)
+                    .background(AppColor.surface.opacity(0.95), in: Capsule())
+                    .overlay(Capsule().stroke(AppColor.border, lineWidth: 1))
+
+                    Spacer(minLength: 8)
+
+                    Button { dismiss() } label: {
+                        Image(systemName: "arrow.down.right.and.arrow.up.left")
+                            .font(.app(14, weight: .semibold))
+                            .foregroundStyle(AppColor.muted)
+                            .frame(width: 40, height: 40)
+                            .background(AppColor.surface, in: Circle())
+                            .overlay(Circle().stroke(AppColor.border, lineWidth: 1))
+                    }
+                    .accessibilityLabel("Vollbild schliessen")
+                }
+                .padding(.horizontal, AppSpacing.screen)
+                .padding(.top, AppSpacing.stack)
+
+                Spacer()
+            }
+        }
+    }
+
+    private var flag: some View {
+        Image(systemName: "flag.fill")
+            .font(.app(11, weight: .semibold))
+            .foregroundStyle(AppColor.white)
+            .frame(width: 24, height: 24)
+            .background(AppColor.blue, in: Circle())
+            .overlay(Circle().stroke(.white, lineWidth: 1.5))
     }
 }
