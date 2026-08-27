@@ -36,10 +36,20 @@ struct WorkoutGalleryView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 24)
             } else if photos.isEmpty {
-                Text("Nach dem Training ein Foto aufnehmen — es erscheint hier.")
-                    .font(.footnote)
-                    .foregroundStyle(AppColor.muted)
-                    .padding(.vertical, 12)
+                // Platzhalter im selben Format: zeigt, wie die Galerie
+                // aussehen wird, statt einer leeren Fläche
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: AppSpacing.stack) {
+                        PlaceholderCard(activity: activity, showsHint: true)
+                        PlaceholderCard(activity: activity, showsHint: false)
+                            .opacity(0.6)
+                        PlaceholderCard(activity: activity, showsHint: false)
+                            .opacity(0.3)
+                    }
+                    .padding(.horizontal, AppSpacing.screen)
+                }
+                .padding(.horizontal, -AppSpacing.screen)
+                .allowsHitTesting(false)
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: AppSpacing.stack) {
@@ -73,6 +83,35 @@ struct WorkoutGalleryView: View {
         photos = (try? await WorkoutPhotoService.shared.list(
             clientId: clientId, activity: activity)) ?? []
         isLoading = false
+    }
+}
+
+// MARK: - Platzhalter, solange keine Fotos da sind
+
+private struct PlaceholderCard: View {
+    let activity: WorkoutActivity
+    let showsHint: Bool
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(systemName: showsHint ? "camera" : activity.icon)
+                .font(.app(26))
+                .foregroundStyle(AppColor.muted.opacity(0.55))
+            if showsHint {
+                Text("Nach dem Training\nein Foto aufnehmen")
+                    .font(.caption2)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(AppColor.muted)
+                    .padding(.horizontal, 10)
+            }
+        }
+        .frame(width: 150, height: 265)
+        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppRadius.card)
+                .strokeBorder(AppColor.border,
+                              style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
+        )
     }
 }
 
