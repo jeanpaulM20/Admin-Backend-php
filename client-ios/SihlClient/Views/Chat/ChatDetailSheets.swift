@@ -432,9 +432,7 @@ struct MetricDetailSheet: View {
     }
 
     private func load() async {
-        if let json = try? await APIClient.shared.getJSONObject("api/client/profile/\(clientId)") {
-            metric = json
-        }
+        metric = try? await ProfileService().getProfileMetrics(clientId: clientId)
         isLoading = false
     }
 

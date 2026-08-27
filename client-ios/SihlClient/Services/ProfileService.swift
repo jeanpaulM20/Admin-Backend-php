@@ -13,6 +13,15 @@ struct ProfileService {
         return ProfileData(json: json)
     }
 
+    /// Roh-Profil (Gewicht, BMI, Körperfett, Ruhepuls) für das Metrik-Sheet
+    /// im Chat — die Felder werden dort dynamisch eingeblendet.
+    func getProfileMetrics(clientId: String) async throws -> [String: Any] {
+        guard let json = try await APIClient.shared.getJSONObject("api/client/profile/\(clientId)") else {
+            throw APIError(statusCode: 500, message: "Ungültige Profildaten")
+        }
+        return json
+    }
+
     func getInvoices(clientId: String) async throws -> [Invoice] {
         let data = try await APIClient.shared.get("api/client/invoices/\(clientId)")
         guard let list = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {

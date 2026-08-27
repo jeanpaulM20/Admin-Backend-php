@@ -22,7 +22,7 @@ struct ProfileView: View {
             AppColor.background.ignoresSafeArea()
 
             if auth.clientId == "demo" {
-                DemoUnavailableView(message: "Das Profil zeigt deine Konto- und Vertragsdaten.")
+                demoContent
             } else if vm.isLoading {
                 LoadingView(message: "Lade Profil…")
             } else if let err = vm.error {
@@ -71,6 +71,33 @@ struct ProfileView: View {
             Text("Polar-Verbindung wirklich trennen?")
         }
         .appToast($polarToast)
+    }
+
+    // MARK: - Demo-Modus
+
+    /// Im Demo fehlen nur Konto- und Vertragsdaten — die funktionalen
+    /// Bereiche (Trainingspläne, Sensoren) bleiben erreichbar.
+    private var demoContent: some View {
+        ScrollView {
+            VStack(spacing: AppSpacing.stack) {
+                EmptyStateView(
+                    icon: "person.crop.circle.badge.questionmark",
+                    message: "Konto- und Vertragsdaten sind im Demo-Modus nicht verfügbar."
+                )
+                .padding(.vertical, 12)
+
+                trainingPlansRow
+
+                sensorsRow
+
+                Spacer(minLength: 24)
+                logoutButton
+                    .padding(.bottom, 8)
+            }
+            .padding(.horizontal, AppSpacing.screen)
+            .padding(.top, 16)
+            .padding(.bottom, AppSpacing.bottomInset)
+        }
     }
 
     // MARK: - Content
@@ -159,136 +186,36 @@ struct ProfileView: View {
     // MARK: - Credits kaufen Row
 
     private var creditsBuyRow: some View {
-        NavigationLink(destination: CreditsView()) {
-            HStack(spacing: 12) {
-                RoundedRectangle(cornerRadius: AppRadius.control)
-                    .fill(AppColor.primary.opacity(0.12))
-                    .frame(width: 36, height: 36)
-                    .overlay(Image(systemName: "cart")
-                        .font(.app(16))
-                        .foregroundStyle(AppColor.primary))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Credits kaufen")
-                        .font(.app(15, weight: .bold))
-                        .foregroundStyle(AppColor.text)
-                    Text("Abos & Pakete ansehen")
-                        .font(.app(12))
-                        .foregroundStyle(AppColor.muted)
-                }
-
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.app(14))
-                    .foregroundStyle(AppColor.muted)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(AppColor.surface)
-            .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
-            .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
+        ProfileNavRow(icon: "cart", tint: AppColor.primary,
+                      title: "Credits kaufen", subtitle: "Abos & Pakete ansehen") {
+            CreditsView()
         }
     }
 
     // MARK: - Blutzucker Row (CGM — ehemals Tab 6; max. 5 Tabs, s. MainTabView)
 
     private var glucoseRow: some View {
-        NavigationLink(destination: GlucoseView().navigationTitle("Blutzucker")) {
-            HStack(spacing: 12) {
-                RoundedRectangle(cornerRadius: AppRadius.control)
-                    .fill(AppColor.red.opacity(0.12))
-                    .frame(width: 36, height: 36)
-                    .overlay(Image(systemName: "waveform.path.ecg")
-                        .font(.app(16))
-                        .foregroundStyle(AppColor.red))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Blutzucker")
-                        .font(.app(15, weight: .bold))
-                        .foregroundStyle(AppColor.text)
-                    Text("FreeStyle Libre CGM-Daten")
-                        .font(.app(12))
-                        .foregroundStyle(AppColor.muted)
-                }
-
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.app(14))
-                    .foregroundStyle(AppColor.muted)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(AppColor.surface)
-            .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
-            .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
+        ProfileNavRow(icon: "waveform.path.ecg", tint: AppColor.red,
+                      title: "Blutzucker", subtitle: "FreeStyle Libre CGM-Daten") {
+            GlucoseView().navigationTitle("Blutzucker")
         }
     }
 
     // MARK: - Trainingspläne (aus dem Touren-Tab hierher verschoben)
 
     private var trainingPlansRow: some View {
-        NavigationLink(destination: TrainingView().navigationTitle("Trainingspläne")) {
-            HStack(spacing: 12) {
-                RoundedRectangle(cornerRadius: AppRadius.control)
-                    .fill(AppColor.cta.opacity(0.15))
-                    .frame(width: 36, height: 36)
-                    .overlay(Image(systemName: "list.clipboard")
-                        .font(.app(16))
-                        .foregroundStyle(AppColor.cta))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Trainingspläne")
-                        .font(.app(15, weight: .bold))
-                        .foregroundStyle(AppColor.text)
-                    Text("Deine Pläne und das Coaching-Abo")
-                        .font(.app(12))
-                        .foregroundStyle(AppColor.muted)
-                }
-
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.app(14))
-                    .foregroundStyle(AppColor.muted)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(AppColor.surface)
-            .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
-            .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
+        ProfileNavRow(icon: "list.clipboard", tint: AppColor.brass,
+                      title: "Trainingspläne", subtitle: "Deine Pläne und das Coaching-Abo") {
+            TrainingView().navigationTitle("Trainingspläne")
         }
     }
 
     // MARK: - Sensoren (aus dem Aufzeichnungs-Screen hierher verschoben)
 
     private var sensorsRow: some View {
-        NavigationLink(destination: SensorSettingsView()) {
-            HStack(spacing: 12) {
-                RoundedRectangle(cornerRadius: AppRadius.control)
-                    .fill(AppColor.primary.opacity(0.15))
-                    .frame(width: 36, height: 36)
-                    .overlay(Image(systemName: "sensor.tag.radiowaves.forward")
-                        .font(.app(16))
-                        .foregroundStyle(AppColor.primary))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Sensoren")
-                        .font(.app(15, weight: .bold))
-                        .foregroundStyle(AppColor.text)
-                    Text("Herzfrequenz-Gurt und Standort")
-                        .font(.app(12))
-                        .foregroundStyle(AppColor.muted)
-                }
-
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.app(14))
-                    .foregroundStyle(AppColor.muted)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(AppColor.surface)
-            .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
-            .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
+        ProfileNavRow(icon: "sensor.tag.radiowaves.forward", tint: AppColor.primary,
+                      title: "Sensoren", subtitle: "Herzfrequenz-Gurt und Standort") {
+            SensorSettingsView()
         }
     }
 
@@ -793,5 +720,49 @@ private struct PushNotificationCard: View {
             }
         }
         .padding(.vertical, 8)
+    }
+}
+
+// MARK: - ProfileNavRow
+
+/// Einheitliche Navigations-Zeile der Profilseite (Icon-Kachel, Titel,
+/// Untertitel, Chevron) — eine Definition statt vier Kopien.
+private struct ProfileNavRow<Destination: View>: View {
+    let icon: String
+    let tint: Color
+    let title: String
+    let subtitle: String
+    @ViewBuilder let destination: () -> Destination
+
+    var body: some View {
+        NavigationLink(destination: destination()) {
+            HStack(spacing: 12) {
+                RoundedRectangle(cornerRadius: AppRadius.control)
+                    .fill(tint.opacity(0.14))
+                    .frame(width: 36, height: 36)
+                    .overlay(Image(systemName: icon)
+                        .font(.app(16))
+                        .foregroundStyle(tint))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.app(15, weight: .bold))
+                        .foregroundStyle(AppColor.text)
+                    Text(subtitle)
+                        .font(.app(12))
+                        .foregroundStyle(AppColor.muted)
+                }
+
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.app(14))
+                    .foregroundStyle(AppColor.muted)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(AppColor.surface)
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
+        }
     }
 }

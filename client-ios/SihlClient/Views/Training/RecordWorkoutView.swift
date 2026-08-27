@@ -1,5 +1,4 @@
 import SwiftUI
-import MapKit
 
 // MARK: - RecordWorkoutView (Einstieg: Aktivität wählen und starten)
 
