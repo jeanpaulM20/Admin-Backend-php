@@ -5,19 +5,23 @@ import Observation
 // MARK: - Aktivitäten
 
 enum WorkoutActivity: String, CaseIterable, Identifiable, Codable {
-    case kraft   = "Krafttraining"
-    case joggen  = "Joggen"
-    case rad     = "Radfahren"
-    case wandern = "Wandern"
+    case kraft    = "Krafttraining"
+    case joggen   = "Joggen"
+    case rad      = "Radfahren"
+    case mtb      = "Mountainbike"
+    case wandern  = "Wandern"
+    case bergtour = "Bergtour"
 
     var id: String { rawValue }
 
     var icon: String {
         switch self {
-        case .kraft:   return "dumbbell.fill"
-        case .joggen:  return "figure.run"
-        case .rad:     return "figure.outdoor.cycle"
-        case .wandern: return "figure.hiking"
+        case .kraft:    return "dumbbell.fill"
+        case .joggen:   return "figure.run"
+        case .rad:      return "bicycle"
+        case .mtb:      return "figure.outdoor.cycle"
+        case .wandern:  return "figure.hiking"
+        case .bergtour: return "mountain.2.fill"
         }
     }
 
@@ -25,7 +29,8 @@ enum WorkoutActivity: String, CaseIterable, Identifiable, Codable {
     var usesGPS: Bool { self != .kraft }
 
     /// Plausibilitätsgrenze für Punkt-zu-Punkt-Geschwindigkeit (m/s).
-    var maxSpeed: Double { self == .rad ? 25 : 12 }
+    /// Auf dem Rad (auch bergab im Gelände) sind höhere Spitzen normal.
+    var maxSpeed: Double { (self == .rad || self == .mtb) ? 25 : 12 }
 
     // MARK: Zuletzt genutzte Aktivität
 

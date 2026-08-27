@@ -6,13 +6,14 @@ import CoreLocation
 /// Aktivitäten der Touren-Discovery. Der Rohwert ist zugleich der
 /// API-Parameter des Backend-Proxys (dort auf Overpass-Selektoren gemappt).
 enum TourActivity: String, CaseIterable, Identifiable {
-    case wandern, joggen, rennrad, mtb, vitaparcours, finnenbahn
+    case wandern, bergtour, joggen, rennrad, mtb, vitaparcours, finnenbahn
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
         case .wandern:      return "Wandern"
+        case .bergtour:     return "Bergtour"
         case .joggen:       return "Joggen"
         case .rennrad:      return "Rennrad"
         case .mtb:          return "MTB"
@@ -24,6 +25,7 @@ enum TourActivity: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .wandern:      return "figure.hiking"
+        case .bergtour:     return "mountain.2.fill"
         case .joggen:       return "figure.run"
         case .rennrad:      return "bicycle"
         case .mtb:          return "figure.outdoor.cycle"
@@ -36,8 +38,10 @@ enum TourActivity: String, CaseIterable, Identifiable {
     var workoutActivity: WorkoutActivity {
         switch self {
         case .wandern, .vitaparcours: return .wandern
+        case .bergtour:               return .bergtour
         case .joggen, .finnenbahn:    return .joggen
-        case .rennrad, .mtb:          return .rad
+        case .rennrad:                return .rad
+        case .mtb:                    return .mtb
         }
     }
 
@@ -45,6 +49,7 @@ enum TourActivity: String, CaseIterable, Identifiable {
     var roundtrip: RoundtripActivity {
         switch self {
         case .wandern, .vitaparcours: return .wandern
+        case .bergtour:               return .bergtour
         case .joggen, .finnenbahn:    return .joggen
         case .rennrad:                return .rennrad
         case .mtb:                    return .mtb
@@ -56,6 +61,7 @@ enum TourActivity: String, CaseIterable, Identifiable {
         switch backendValue {
         case "bicycle":       self = .rennrad
         case "mtb":           self = .mtb
+        case "alpine_hiking": self = .bergtour
         case "running":       self = .joggen
         case "fitness_trail": self = .vitaparcours
         case "finnenbahn":    self = .finnenbahn
@@ -68,15 +74,16 @@ enum TourActivity: String, CaseIterable, Identifiable {
 /// routen kann. Vita Parcours und Finnenbahnen sind feste Anlagen und
 /// darum bewusst nicht generierbar. Rohwert = API-Parameter.
 enum RoundtripActivity: String, CaseIterable, Identifiable {
-    case wandern, joggen, rennrad, gravel, mtb
+    case wandern, bergtour, joggen, rennrad, gravel, mtb
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
-        case .wandern: return "Wandern"
-        case .joggen:  return "Joggen"
-        case .rennrad: return "Rennrad"
+        case .wandern:  return "Wandern"
+        case .bergtour: return "Bergtour"
+        case .joggen:   return "Joggen"
+        case .rennrad:  return "Rennrad"
         case .gravel:  return "Gravel"
         case .mtb:     return "MTB"
         }
@@ -84,9 +91,10 @@ enum RoundtripActivity: String, CaseIterable, Identifiable {
 
     var icon: String {
         switch self {
-        case .wandern: return "figure.hiking"
-        case .joggen:  return "figure.run"
-        case .rennrad: return "bicycle"
+        case .wandern:  return "figure.hiking"
+        case .bergtour: return "mountain.2.fill"
+        case .joggen:   return "figure.run"
+        case .rennrad:  return "bicycle"
         case .gravel:  return "bicycle.circle"
         case .mtb:     return "figure.outdoor.cycle"
         }
@@ -95,8 +103,9 @@ enum RoundtripActivity: String, CaseIterable, Identifiable {
     /// Richtgeschwindigkeit für die Demo-Dauerberechnung (km/h).
     var kmh: Double {
         switch self {
-        case .wandern: return 4.2
-        case .joggen:  return 8
+        case .wandern:  return 4.2
+        case .bergtour: return 3
+        case .joggen:   return 8
         case .rennrad: return 20
         case .gravel:  return 16
         case .mtb:     return 12
@@ -106,8 +115,9 @@ enum RoundtripActivity: String, CaseIterable, Identifiable {
     /// Backend-Aktivitätswert der generierten Route (Icons/Recorder-Mapping).
     var osmValue: String {
         switch self {
-        case .wandern: return "hiking"
-        case .joggen:  return "running"
+        case .wandern:  return "hiking"
+        case .bergtour: return "alpine_hiking"
+        case .joggen:   return "running"
         case .rennrad, .gravel: return "bicycle"
         case .mtb:     return "mtb"
         }
@@ -335,6 +345,10 @@ struct TourService {
             ["id": "demo-t2", "name": "Uetliberg Panoramaweg", "activity": "hiking",
              "network": "rwn", "distanceKm": 12.4, "durationMin": 177, "difficulty": "Mittel",
              "lat": 47.35, "lon": 8.49]]
+        case .bergtour: return [
+            ["id": "demo-b1", "name": "Rigi Kaltbad – Rigi Kulm", "activity": "alpine_hiking",
+             "network": "rwn", "distanceKm": 2.6, "durationMin": 62, "difficulty": "Mittel",
+             "lat": 47.045, "lon": 8.466]]
         case .joggen: return [
             ["id": "demo-j1", "name": "Helsana Trail Adliswil blau", "activity": "running",
              "distanceKm": 5.4, "durationMin": 41, "difficulty": "Leicht",

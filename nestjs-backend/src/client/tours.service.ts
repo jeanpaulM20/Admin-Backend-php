@@ -73,6 +73,13 @@ export class ToursService {
         return { selectors: ['relation["route"="bicycle"]["name"]'], osm: 'bicycle' };
       case 'mtb':
         return { selectors: ['relation["route"="mtb"]["name"]'], osm: 'mtb' };
+      case 'bergtour':
+        // Bergwanderwege: SAC-Stufe T2 und höher (weiss-rot-weiss markiert);
+        // "hiking" allein wäre T1 und damit eine normale Wanderung
+        return {
+          selectors: ['relation["route"="hiking"]["name"]["sac_scale"~"mountain_hiking|alpine_hiking"]'],
+          osm: 'alpine_hiking',
+        };
       case 'joggen':
         return { selectors: ['relation["route"="running"]["name"]'], osm: 'running' };
       case 'vitaparcours':
@@ -252,11 +259,14 @@ out geom 80;`;
 
     const distKm = distanceM / 1000;
     const routeTag = rel.tags?.route;
+    const sac = String(rel.tags?.sac_scale ?? '');
     const osmRoute = isWay
       ? 'finnenbahn'
       : ['bicycle', 'mtb', 'running', 'fitness_trail'].includes(routeTag)
         ? routeTag
-        : 'hiking';
+        : /mountain_hiking|alpine_hiking/.test(sac)
+          ? 'alpine_hiking'
+          : 'hiking';
     const detail = {
       id,
       name: rel.tags?.name ?? (isWay ? 'Finnenbahn' : 'Route'),
@@ -339,6 +349,8 @@ out geom 80;`;
       case 'rennrad': return { profile: 'fastbike',    kmh: 20,  climbPerH: 800, osm: 'bicycle' };
       case 'gravel':  return { profile: 'gravel',      kmh: 16,  climbPerH: 600, osm: 'bicycle' };
       case 'mtb':     return { profile: 'mtb',         kmh: 12,  climbPerH: 500, osm: 'mtb' };
+      // Bergtour: eigenes BRouter-Profil, langsameres Tempo, weniger Steigleistung
+      case 'bergtour': return { profile: 'hiking-mountain', kmh: 3, climbPerH: 350, osm: 'alpine_hiking' };
       case 'joggen':  return { profile: 'hiking-beta', kmh: 8,   climbPerH: 500, osm: 'running' };
       default:        return { profile: 'hiking-beta', kmh: 4.2, climbPerH: 400, osm: 'hiking' };
     }
@@ -360,6 +372,7 @@ out geom 80;`;
       osmRoute === 'bicycle' ? 15 :
       osmRoute === 'mtb' ? 12 :
       osmRoute === 'running' || osmRoute === 'finnenbahn' ? 8 :
+      osmRoute === 'alpine_hiking' ? 3 :
       4.2; // hiking, fitness_trail
     return Math.round((distKm / kmh) * 60);
   }
