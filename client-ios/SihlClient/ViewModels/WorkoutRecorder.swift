@@ -26,6 +26,28 @@ enum WorkoutActivity: String, CaseIterable, Identifiable, Codable {
 
     /// Plausibilitätsgrenze für Punkt-zu-Punkt-Geschwindigkeit (m/s).
     var maxSpeed: Double { self == .rad ? 25 : 12 }
+
+    // MARK: Zuletzt genutzte Aktivität
+
+    private static let lastUsedKey = "lastWorkoutActivity"
+
+    /// Zuletzt tatsächlich gestartete Aktivität (überlebt App-Neustarts).
+    static var lastUsed: WorkoutActivity? {
+        UserDefaults.standard.string(forKey: lastUsedKey).flatMap(WorkoutActivity.init(rawValue:))
+    }
+
+    /// Beim Start einer Aufzeichnung merken — nicht schon beim Antippen,
+    /// sonst würde blosses Durchblättern die Reihenfolge verändern.
+    static func rememberUsed(_ activity: WorkoutActivity) {
+        UserDefaults.standard.set(activity.rawValue, forKey: lastUsedKey)
+    }
+
+    /// Auswahlreihenfolge: die zuletzt genutzte Aktivität zuerst,
+    /// danach die übrigen in ihrer festen Reihenfolge.
+    static func orderedByRecency(preferring first: WorkoutActivity? = nil) -> [WorkoutActivity] {
+        guard let first = first ?? lastUsed else { return allCases }
+        return [first] + allCases.filter { $0 != first }
+    }
 }
 
 // MARK: - WorkoutRecorder

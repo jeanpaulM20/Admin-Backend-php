@@ -12,7 +12,10 @@ struct RecordWorkoutView: View {
     /// Optional: Tour, der gefolgt wird (T3 — Overlay + Off-Route-Hinweis).
     var tour: TourRoute? = nil
 
-    @State private var activity: WorkoutActivity = .joggen
+    @State private var activity: WorkoutActivity = WorkoutActivity.lastUsed ?? .joggen
+    /// Einmal beim Erscheinen festgelegt — sonst würden die Chips während
+    /// der Auswahl unter dem Finger die Plätze tauschen.
+    @State private var activityOrder: [WorkoutActivity] = WorkoutActivity.orderedByRecency()
     @State private var recorder: WorkoutRecorder?
     @State private var showSession = false
     @State private var recovered: WorkoutRecorder.Snapshot?
@@ -41,6 +44,7 @@ struct RecordWorkoutView: View {
                     if activity.usesGPS { gpsCard }
 
                     Button("Training starten") {
+                        WorkoutActivity.rememberUsed(activity)
                         recorder?.startRecording(activity)
                         showSession = true
                     }
@@ -71,6 +75,8 @@ struct RecordWorkoutView: View {
                     recorder?.setRoute(tour)
                     activity = tour.workoutActivity
                 }
+                // Gewählte Aktivität nach vorne (bei Tour deren Aktivität)
+                activityOrder = WorkoutActivity.orderedByRecency(preferring: activity)
             }
             if activity.usesGPS { recorder?.prepareGPS() }
             recovered = WorkoutRecorder.pendingSnapshot()
@@ -157,7 +163,7 @@ struct RecordWorkoutView: View {
     private var activityGrid: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(WorkoutActivity.allCases) { a in
+                ForEach(activityOrder) { a in
                     let selected = a == activity
                     HStack(spacing: 6) {
                         Image(systemName: a.icon).font(.app(13))
