@@ -23,9 +23,6 @@ final class StartViewModel {
         isLoading = true
         error     = nil
 
-        // Zitat unabhängig & non-blocking starten (analog zu Flutter: quote.load())
-        loadQuote()
-
         do {
             startData = try await service.getStartData(clientId: clientId)
         } catch {

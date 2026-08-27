@@ -13,22 +13,22 @@ struct MainTabView: View {
     @Environment(ChatViewModel.self)  private var chat
     @State private var selection = 0
 
-    private enum TabIndex: Int { case start, training, kalender, chat, analytics }
+    private enum TabIndex: Int { case start, touren, kalender, chat, analytics }
+
+    @Environment(StartViewModel.self) private var start
 
     var body: some View {
         TabView(selection: $selection) {
 
-            // ── Tab 0: Start ─────────────────────────────────────────────
-            TabRoot(title: "Start") {
-                StartView(onGoToCalendar: { selection = TabIndex.kalender.rawValue })
-            }
-            .tabItem { Label("Start", systemImage: "house.fill") }
-            .tag(TabIndex.start.rawValue)
+            // ── Tab 0: Start — Training aufzeichnen ──────────────────────
+            TabRoot(title: "Training aufzeichnen") { RecordWorkoutView() }
+                .tabItem { Label("Start", systemImage: "record.circle") }
+                .tag(TabIndex.start.rawValue)
 
-            // ── Tab 1: Training ──────────────────────────────────────────
-            TabRoot(title: "Training") { TrainingView() }
-                .tabItem { Label("Training", systemImage: "dumbbell.fill") }
-                .tag(TabIndex.training.rawValue)
+            // ── Tab 1: Touren — entdecken + Trainingspläne ───────────────
+            TabRoot(title: "Touren") { TrainingView() }
+                .tabItem { Label("Touren", systemImage: "map.fill") }
+                .tag(TabIndex.touren.rawValue)
 
             // ── Tab 2: Kalender ──────────────────────────────────────────
             TabRoot(title: "Kalender") { CalendarView() }
@@ -55,6 +55,10 @@ struct MainTabView: View {
             }
             // Offline aufgezeichnete Trainings nachreichen
             await WorkoutUploadService.shared.retryPending()
+            // Stammdaten für die Avatar-Initialen (kam bisher aus der Startseite)
+            if start.startData == nil, let id = auth.clientId {
+                await start.load(clientId: id)
+            }
         }
     }
 }

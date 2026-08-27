@@ -10,7 +10,6 @@ struct TrainingView: View {
     @State private var showExpiryAlert  = false
     @State private var expiryGuard      = false
     @State private var showCreditsSheet = false
-    @State private var showRecord       = false
     @State private var showTours        = false
 
     var body: some View {
@@ -72,8 +71,6 @@ struct TrainingView: View {
     private var content: some View {
         ScrollView {
             LazyVStack(spacing: 0, pinnedViews: []) {
-                recordCard
-
                 toursCard
 
                 subscriptionBanner
@@ -99,9 +96,6 @@ struct TrainingView: View {
                 }
             }
         }
-        .navigationDestination(isPresented: $showRecord) {
-            RecordWorkoutView()
-        }
         .navigationDestination(isPresented: $showTours) {
             TourDiscoveryView()
         }
@@ -118,43 +112,6 @@ struct TrainingView: View {
                 )
             }
         }
-    }
-
-    // MARK: - Training aufzeichnen (Phase-1-Tracking, s. KONZEPT-TRAINING-TRACKING.md)
-
-    private var recordCard: some View {
-        HStack(spacing: 12) {
-            // Dominanter CTA des Screens → exklusives Erdton-Orange
-            ZStack {
-                RoundedRectangle(cornerRadius: AppRadius.control)
-                    .fill(AppColor.cta)
-                    .frame(width: 40, height: 40)
-                Image(systemName: "record.circle")
-                    .font(.app(20))
-                    .foregroundStyle(AppColor.text)
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Training aufzeichnen")
-                    .font(.subheadline.bold())
-                    .foregroundStyle(AppColor.text)
-                Text("Herzfrequenz live mit dem Brustgurt tracken")
-                    .font(.caption)
-                    .foregroundStyle(AppColor.muted)
-            }
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundStyle(AppColor.cta)
-        }
-        .padding(AppSpacing.card)
-        .background(AppColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
-        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.cta, lineWidth: 1))
-        .contentShape(Rectangle())
-        .onTapGesture { showRecord = true }
-        .padding(.horizontal, AppSpacing.screen)
-        .padding(.top, 12)
-        .padding(.bottom, AppSpacing.stack)
     }
 
     // MARK: - Touren entdecken (T1, s. KONZEPT-TOUREN.md)
@@ -189,6 +146,7 @@ struct TrainingView: View {
         .contentShape(Rectangle())
         .onTapGesture { showTours = true }
         .padding(.horizontal, AppSpacing.screen)
+        .padding(.top, 12)
         .padding(.bottom, AppSpacing.stack)
     }
 
