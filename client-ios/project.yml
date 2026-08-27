@@ -24,6 +24,7 @@ targets:
           - location
         NSBluetoothAlwaysUsageDescription: "SihlClient verbindet sich mit deinem Herzfrequenz-Brustgurt (z.B. Polar H10), um dein Training aufzuzeichnen."
         NSLocationWhenInUseUsageDescription: "SihlClient zeichnet deine Route bei Outdoor-Trainings auf (Joggen, Radfahren, Wandern)."
+        ITSAppUsesNonExemptEncryption: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ch.sihltraining.SihlClient
