@@ -57,6 +57,15 @@ struct RecordWorkoutView: View {
                             .foregroundStyle(AppColor.muted)
                             .frame(maxWidth: .infinity, alignment: .center)
                     }
+
+                    // Trainings-Galerie (F1): Fotos der gewählten Aktivität
+                    WorkoutGalleryView(activity: activity) { photo in
+                        activity = photo.workoutActivity
+                        recorder?.startRecording(photo.workoutActivity)
+                        WorkoutActivity.rememberUsed(photo.workoutActivity)
+                        showSession = true
+                    }
+                    .padding(.top, AppSpacing.card)
                 }
                 .padding(.horizontal, AppSpacing.screen)
                 .padding(.top, 16)

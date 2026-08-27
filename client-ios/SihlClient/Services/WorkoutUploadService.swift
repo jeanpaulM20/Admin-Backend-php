@@ -24,7 +24,9 @@ struct WorkoutUploadService {
     // MARK: - Upload
 
     /// Wirft bei Fehlschlag — Aufrufer entscheidet über Queue (`queue(_:)`).
-    func upload(_ p: Payload) async throws {
+    /// Rückgabe: die ID der angelegten Aufzeichnung (für das Galerie-Foto).
+    @discardableResult
+    func upload(_ p: Payload) async throws -> Int? {
         var body: [String: Any] = [
             "trainingType": p.trainingType,
             "startedAt": Self.iso.string(from: p.startedAt),
@@ -50,6 +52,7 @@ struct WorkoutUploadService {
         guard result?["success"] as? Bool == true else {
             throw APIError(statusCode: -3, message: "Training konnte nicht gespeichert werden")
         }
+        return (result?["id"] as? Int) ?? Int("\(result?["id"] ?? "")")
     }
 
     // MARK: - Offline-Warteschlange

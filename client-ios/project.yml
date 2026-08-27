@@ -25,6 +25,8 @@ targets:
         NSBluetoothAlwaysUsageDescription: "SihlClient verbindet sich mit deinem Herzfrequenz-Brustgurt (z.B. Polar H10), um dein Training aufzuzeichnen."
         NSLocationWhenInUseUsageDescription: "SihlClient zeichnet deine Route bei Outdoor-Trainings auf (Joggen, Radfahren, Wandern)."
         ITSAppUsesNonExemptEncryption: false
+        NSCameraUsageDescription: "SihlClient nimmt nach dem Training auf Wunsch ein Foto auf, das in deiner Trainings-Galerie erscheint."
+        NSPhotoLibraryUsageDescription: "SihlClient wählt auf Wunsch ein Foto aus deiner Mediathek für deine Trainings-Galerie."
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ch.sihltraining.SihlClient

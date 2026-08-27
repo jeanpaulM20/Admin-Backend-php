@@ -1,5 +1,6 @@
 import SwiftUI
 import MapKit
+import PhotosUI
 
 // MARK: - WorkoutSessionView (Live-Aufnahme + Zusammenfassung)
 
@@ -52,6 +53,10 @@ struct WorkoutSessionView: View {
     @State private var followDistance: Double = 1400
     /// Optionales Karten-Vollbild (per Button auf der Karte).
     @State private var mapFullscreen = false
+    // Trainings-Galerie (F1): optionales Foto zur Einheit
+    @State private var photoItem: PhotosPickerItem?
+    @State private var photo: UIImage?
+    @State private var showCamera = false
 
     /// Für die Kartendarstellung reduzierte Koordinaten (Render-Kosten).
     private var displayCoordinates: [CLLocationCoordinate2D] {
@@ -392,6 +397,74 @@ struct WorkoutSessionView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { programmaticMove = false }
     }
 
+    /// Optionales Foto zur Einheit — erscheint später in der Galerie.
+    private var photoPicker: some View {
+        VStack(spacing: AppSpacing.stack) {
+            if let photo {
+                ZStack(alignment: .topTrailing) {
+                    // Vorschau im späteren Reel-Zuschnitt (9:16), damit
+                    // sichtbar ist, was in der Galerie erscheint
+                    Image(uiImage: photo)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 124, height: 220)
+                        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+                    Button {
+                        self.photo = nil
+                        photoItem = nil
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.app(12, weight: .bold))
+                            .foregroundStyle(AppColor.white)
+                            .frame(width: 28, height: 28)
+                            .background(AppColor.black.opacity(0.5), in: Circle())
+                    }
+                    .padding(8)
+                    .accessibilityLabel("Foto entfernen")
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+            } else {
+                HStack(spacing: AppSpacing.stack) {
+                    Button {
+                        showCamera = true
+                    } label: {
+                        Label("Foto aufnehmen", systemImage: "camera")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(AppColor.text)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.control))
+                            .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
+                                .stroke(AppColor.border, lineWidth: 1))
+                    }
+                    PhotosPicker(selection: $photoItem, matching: .images) {
+                        Label("Auswählen", systemImage: "photo")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(AppColor.text)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.control))
+                            .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
+                                .stroke(AppColor.border, lineWidth: 1))
+                    }
+                }
+            }
+        }
+        .onChange(of: photoItem) { _, item in
+            guard let item else { return }
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self),
+                   let image = UIImage(data: data) {
+                    photo = image
+                }
+            }
+        }
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraPicker { image in photo = image }
+                .ignoresSafeArea()
+        }
+    }
+
     private func liveStat(_ label: String, _ value: String) -> some View {
         VStack(spacing: 2) {
             Text(value)
@@ -500,6 +573,8 @@ struct WorkoutSessionView: View {
                     InlineErrorBanner(message: err)
                 }
 
+                photoPicker
+
                 Button(isSaving ? "Speichern…" : "Training speichern") { save() }
                     .buttonStyle(PrimaryButtonStyle())
                     .disabled(isSaving)
@@ -572,7 +647,12 @@ struct WorkoutSessionView: View {
         )
         Task {
             do {
-                try await WorkoutUploadService.shared.upload(payload)
+                let reviewId = try await WorkoutUploadService.shared.upload(payload)
+                // Foto (optional) an die frisch angelegte Aufzeichnung hängen
+                if let photo, let reviewId, let clientId = auth.clientId {
+                    try? await WorkoutPhotoService.shared.upload(
+                        clientId: clientId, reviewId: reviewId, image: photo)
+                }
                 WorkoutRecorder.clearSnapshot()
                 onDone()
             } catch {
