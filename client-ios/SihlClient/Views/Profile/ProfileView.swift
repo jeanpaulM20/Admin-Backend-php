@@ -87,6 +87,8 @@ struct ProfileView: View {
                 filesSection
                 connectionsSection
                 glucoseRow
+
+                sensorsRow
                 notificationsSection
 
                 Spacer(minLength: 24)
@@ -203,6 +205,40 @@ struct ProfileView: View {
                         .font(.app(15, weight: .bold))
                         .foregroundStyle(AppColor.text)
                     Text("FreeStyle Libre CGM-Daten")
+                        .font(.app(12))
+                        .foregroundStyle(AppColor.muted)
+                }
+
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.app(14))
+                    .foregroundStyle(AppColor.muted)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(AppColor.surface)
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
+        }
+    }
+
+    // MARK: - Sensoren (aus dem Aufzeichnungs-Screen hierher verschoben)
+
+    private var sensorsRow: some View {
+        NavigationLink(destination: SensorSettingsView()) {
+            HStack(spacing: 12) {
+                RoundedRectangle(cornerRadius: AppRadius.control)
+                    .fill(AppColor.primary.opacity(0.15))
+                    .frame(width: 36, height: 36)
+                    .overlay(Image(systemName: "sensor.tag.radiowaves.forward")
+                        .font(.app(16))
+                        .foregroundStyle(AppColor.primary))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Sensoren")
+                        .font(.app(15, weight: .bold))
+                        .foregroundStyle(AppColor.text)
+                    Text("Herzfrequenz-Gurt und Standort")
                         .font(.app(12))
                         .foregroundStyle(AppColor.muted)
                 }

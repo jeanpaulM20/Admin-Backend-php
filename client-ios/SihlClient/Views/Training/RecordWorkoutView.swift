@@ -1,10 +1,11 @@
 import SwiftUI
 import MapKit
 
-// MARK: - RecordWorkoutView (Einstieg: Aktivität wählen + Sensoren)
+// MARK: - RecordWorkoutView (Einstieg: Aktivität wählen und starten)
 
 /// Training-Tracking: Herzfrequenz (Polar H10 / BLE-Gurt) + GPS-Route
-/// bei Outdoor-Aktivitäten. Wird aus dem Training-Tab gepusht.
+/// bei Outdoor-Aktivitäten. Die Sensor-Einrichtung liegt im Profil
+/// (Profil → Sensoren) — hier wird nur gewählt und gestartet.
 struct RecordWorkoutView: View {
     @Environment(AuthViewModel.self) private var auth
     @Environment(\.dismiss) private var dismiss
@@ -34,14 +35,6 @@ struct RecordWorkoutView: View {
                         .foregroundStyle(AppColor.text)
 
                     activityGrid
-
-                    Text("Sensoren")
-                        .font(.subheadline.bold())
-                        .foregroundStyle(AppColor.text)
-                        .padding(.top, 8)
-
-                    sensorCard
-                    if activity.usesGPS { gpsCard }
 
                     Button("Training starten") {
                         WorkoutActivity.rememberUsed(activity)
@@ -192,62 +185,6 @@ struct RecordWorkoutView: View {
             .padding(.horizontal, AppSpacing.screen)
         }
         .padding(.horizontal, -AppSpacing.screen)
-    }
-
-    private var sensorCard: some View {
-        let state = recorder?.hrState ?? .idle
-        return HStack(spacing: 12) {
-            Image(systemName: state.isConnected ? "heart.fill" : "heart")
-                .font(.app(20))
-                .foregroundStyle(state.isConnected ? AppColor.red : AppColor.muted)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(state.label)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(AppColor.text)
-                if state.isConnected, let hr = recorder?.currentHR {
-                    Text("\(hr) bpm")
-                        .font(.caption)
-                        .foregroundStyle(AppColor.red)
-                } else if !state.isConnected {
-                    Text("Polar H10 anlegen und Elektroden anfeuchten")
-                        .font(.caption)
-                        .foregroundStyle(AppColor.muted)
-                }
-            }
-            Spacer()
-            if !state.isConnected {
-                Button("Verbinden") { recorder?.connectSensor() }
-                    .buttonStyle(OutlineButtonStyle())
-            }
-        }
-        .padding(AppSpacing.card)
-        .background(AppColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
-        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
-    }
-
-    private var gpsCard: some View {
-        let state = recorder?.gpsState ?? .idle
-        return HStack(spacing: 12) {
-            Image(systemName: state.isActive ? "location.fill" : "location")
-                .font(.app(20))
-                .foregroundStyle(state.isActive ? AppColor.green : AppColor.muted)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(state.label)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(AppColor.text)
-                if case .denied = state {
-                    Text("Standort in den iOS-Einstellungen erlauben")
-                        .font(.caption)
-                        .foregroundStyle(AppColor.muted)
-                }
-            }
-            Spacer()
-        }
-        .padding(AppSpacing.card)
-        .background(AppColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
-        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
     }
 
     // MARK: Helfer
