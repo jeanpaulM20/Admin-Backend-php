@@ -10,7 +10,6 @@ struct TrainingView: View {
     @State private var showExpiryAlert  = false
     @State private var expiryGuard      = false
     @State private var showCreditsSheet = false
-    @State private var showTours        = false
 
     var body: some View {
         @Bindable var vm = vm
@@ -71,9 +70,8 @@ struct TrainingView: View {
     private var content: some View {
         ScrollView {
             LazyVStack(spacing: 0, pinnedViews: []) {
-                toursCard
-
                 subscriptionBanner
+                    .padding(.top, 12)
 
                 if let err = vm.error {
                     InlineErrorBanner(message: err)
@@ -96,9 +94,6 @@ struct TrainingView: View {
                 }
             }
         }
-        .navigationDestination(isPresented: $showTours) {
-            TourDiscoveryView()
-        }
         .navigationDestination(for: ClientTrainingPlan.self) { plan in
             if plan.locked {
                 // Gesperrter Plan → Coaching-Paywall (wie Flutter CoachingPaywallScreen)
@@ -112,42 +107,6 @@ struct TrainingView: View {
                 )
             }
         }
-    }
-
-    // MARK: - Touren entdecken (T1, s. KONZEPT-TOUREN.md)
-
-    private var toursCard: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: AppRadius.control)
-                    .fill(AppColor.primary.opacity(0.15))
-                    .frame(width: 40, height: 40)
-                Image(systemName: "map")
-                    .font(.app(18))
-                    .foregroundStyle(AppColor.primary)
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Touren entdecken")
-                    .font(.subheadline.bold())
-                    .foregroundStyle(AppColor.text)
-                Text("Wander-, Lauf- und Velorouten, Vita Parcours und Finnenbahnen in deiner Nähe")
-                    .font(.caption)
-                    .foregroundStyle(AppColor.muted)
-            }
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundStyle(AppColor.muted)
-        }
-        .padding(AppSpacing.card)
-        .background(AppColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
-        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
-        .contentShape(Rectangle())
-        .onTapGesture { showTours = true }
-        .padding(.horizontal, AppSpacing.screen)
-        .padding(.top, 12)
-        .padding(.bottom, AppSpacing.stack)
     }
 
     // MARK: - Subscription Banner

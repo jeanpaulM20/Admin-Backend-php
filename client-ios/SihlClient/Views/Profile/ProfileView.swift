@@ -88,6 +88,8 @@ struct ProfileView: View {
                 connectionsSection
                 glucoseRow
 
+                trainingPlansRow
+
                 sensorsRow
                 notificationsSection
 
@@ -205,6 +207,40 @@ struct ProfileView: View {
                         .font(.app(15, weight: .bold))
                         .foregroundStyle(AppColor.text)
                     Text("FreeStyle Libre CGM-Daten")
+                        .font(.app(12))
+                        .foregroundStyle(AppColor.muted)
+                }
+
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.app(14))
+                    .foregroundStyle(AppColor.muted)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(AppColor.surface)
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
+        }
+    }
+
+    // MARK: - Trainingspläne (aus dem Touren-Tab hierher verschoben)
+
+    private var trainingPlansRow: some View {
+        NavigationLink(destination: TrainingView().navigationTitle("Trainingspläne")) {
+            HStack(spacing: 12) {
+                RoundedRectangle(cornerRadius: AppRadius.control)
+                    .fill(AppColor.cta.opacity(0.15))
+                    .frame(width: 36, height: 36)
+                    .overlay(Image(systemName: "list.clipboard")
+                        .font(.app(16))
+                        .foregroundStyle(AppColor.cta))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Trainingspläne")
+                        .font(.app(15, weight: .bold))
+                        .foregroundStyle(AppColor.text)
+                    Text("Deine Pläne und das Coaching-Abo")
                         .font(.app(12))
                         .foregroundStyle(AppColor.muted)
                 }

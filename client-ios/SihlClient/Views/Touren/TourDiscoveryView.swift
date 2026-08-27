@@ -71,7 +71,6 @@ struct TourDiscoveryView: View {
                 bottomCards
             }
         }
-        .navigationTitle("Touren")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             // Touren-Assistent (C1): Wunschtour beschreiben → Route

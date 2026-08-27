@@ -25,8 +25,8 @@ struct MainTabView: View {
                 .tabItem { Label("Start", systemImage: "record.circle") }
                 .tag(TabIndex.start.rawValue)
 
-            // ── Tab 1: Touren — entdecken + Trainingspläne ───────────────
-            TabRoot(title: "Touren") { TrainingView() }
+            // ── Tab 1: Touren — direkt die Karte (Pläne liegen im Profil)
+            TabRoot(title: "") { TourDiscoveryView() }
                 .tabItem { Label("Touren", systemImage: "map.fill") }
                 .tag(TabIndex.touren.rawValue)
 
