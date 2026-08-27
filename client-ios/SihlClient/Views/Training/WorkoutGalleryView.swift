@@ -2,6 +2,13 @@ import SwiftUI
 
 // MARK: - WorkoutGalleryView (Trainings-Galerie, F1)
 
+/// Kartenmass der Galerie: 9:16 wie ein Reel, so gross wie die Fläche
+/// unter dem Startknopf es hergibt.
+private enum GalleryCardSize {
+    static let width: CGFloat = 200
+    static let height: CGFloat = 356
+}
+
 /// Fotokarten der absolvierten Einheiten im Reel-Format (9:16),
 /// gefiltert nach der oben gewählten Aktivität. Ein Tipp öffnet die
 /// Details samt „Nochmal starten".
@@ -95,17 +102,17 @@ private struct PlaceholderCard: View {
     var body: some View {
         VStack(spacing: 10) {
             Image(systemName: showsHint ? "camera" : activity.icon)
-                .font(.app(26))
+                .font(.app(34))
                 .foregroundStyle(AppColor.muted.opacity(0.55))
             if showsHint {
                 Text("Nach dem Training\nein Foto aufnehmen")
-                    .font(.caption2)
+                    .font(.caption)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(AppColor.muted)
                     .padding(.horizontal, 10)
             }
         }
-        .frame(width: 150, height: 265)
+        .frame(width: GalleryCardSize.width, height: GalleryCardSize.height)
         .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
         .overlay(
             RoundedRectangle(cornerRadius: AppRadius.card)
@@ -136,17 +143,17 @@ private struct GalleryCard: View {
             VStack(alignment: .leading, spacing: 2) {
                 Label(photo.distanceText ?? photo.durationText ?? "",
                       systemImage: photo.workoutActivity.icon)
-                    .font(.caption.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(AppColor.white)
                 if let date = photo.date {
                     Text(date, format: .dateTime.day().month(.abbreviated))
-                        .font(.caption2)
+                        .font(.caption)
                         .foregroundStyle(AppColor.white.opacity(0.75))
                 }
             }
-            .padding(8)
+            .padding(10)
         }
-        .frame(width: 150, height: 265)
+        .frame(width: GalleryCardSize.width, height: GalleryCardSize.height)
         .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
         .contentShape(RoundedRectangle(cornerRadius: AppRadius.card))
         .task {
