@@ -7,6 +7,7 @@ import { TrainerAvailability } from '../entities/trainer-availability.entity';
 import { Trainer } from '../entities/trainer.entity';
 import { ClientCredits, TrainingType, PerformanceTest, File as ClientFile } from '../entities/remaining.entities';
 import { Metric } from '../entities/metric.entity';
+import { ReviewPhoto } from '../entities/review-photo.entity';
 import { Location } from '../entities/location.entity';
 import { ReviewService } from '../review/review.service';
 import { InvoiceService } from '../invoice/invoice.service';
@@ -25,6 +26,7 @@ export class ClientAppService {
     @InjectRepository(PerformanceTest) private readonly perfTestRepo: Repository<PerformanceTest>,
     @InjectRepository(ClientFile) private readonly fileRepo: Repository<ClientFile>,
     @InjectRepository(Metric) private readonly metricRepo: Repository<Metric>,
+    @InjectRepository(ReviewPhoto) private readonly photoRepo: Repository<ReviewPhoto>,
     private readonly dataSource: DataSource,
     private readonly reviewService: ReviewService,
     private readonly invoiceService: InvoiceService,
@@ -1034,6 +1036,67 @@ export class ClientAppService {
   // ── Touren-Discovery (T1, s. client-ios/KONZEPT-TOUREN.md) ────────
   // Proxy + Cache vor der Overpass API: markierte OSM-Routen-Relationen
   // (Wanderland/Veloland etc.). Cache ist Pflicht (Overpass fair use).
+
+  // ── Trainings-Galerie (F1) ───────────────────────────────────────────
+
+  /** Foto zu einer Aufzeichnung speichern (ein Bild je Training). */
+  async saveWorkoutPhoto(clientId: number, reviewId: number, base64: string, mime: string) {
+    const owns = await this.dataSource.query(
+      'SELECT id FROM review WHERE id = ? AND client_id = ? LIMIT 1', [reviewId, clientId]);
+    if (!owns.length) throw new Error('Aufzeichnung nicht gefunden');
+
+    const bytes = Buffer.from(String(base64).replace(/^data:[^,]+,/, ''), 'base64');
+    if (!bytes.length) throw new Error('Leeres Bild');
+    if (bytes.length > 3 * 1024 * 1024) throw new Error('Bild zu gross (max. 3 MB)');
+
+    // Ein Foto je Training: ein vorhandenes wird ersetzt
+    await this.photoRepo.delete({ reviewId });
+    const saved = await this.photoRepo.save({
+      reviewId, clientId,
+      mime: mime === 'image/png' ? 'image/png' : 'image/jpeg',
+      bytes, createdAt: new Date(),
+    });
+    return { success: true, photoId: saved.id };
+  }
+
+  /** Galerie-Einträge des Kunden — Metadaten inkl. Trainingswerte. */
+  async getWorkoutPhotos(clientId: number, activity?: string) {
+    const rows = await this.dataSource.query(
+      `SELECT p.id AS photoId, p.review_id AS reviewId,
+              r.training_type AS activity, r.date AS date, r.duration AS duration,
+              r.distance AS distance, r.elevation_gain AS elevationGain,
+              r.heart_rate AS avgHr
+         FROM review_photo p
+         JOIN review r ON r.id = p.review_id
+        WHERE p.client_id = ?
+        ORDER BY r.date DESC
+        LIMIT 60`, [clientId]);
+
+    return rows
+      .filter((r: any) => !activity || String(r.activity ?? '').toLowerCase() === activity.toLowerCase())
+      .map((r: any) => ({
+        photoId: r.photoId,
+        reviewId: r.reviewId,
+        activity: r.activity,
+        date: r.date,
+        duration: r.duration,
+        distanceMeters: r.distance ? Math.round(Number(r.distance)) : null,
+        elevationGain: r.elevationGain ?? null,
+        avgHr: r.avgHr ? Math.round(Number(r.avgHr)) : null,
+      }));
+  }
+
+  /** Bilddaten eines Fotos (Ownership geprüft). */
+  async getWorkoutPhotoBytes(clientId: number, photoId: number) {
+    const photo = await this.photoRepo.findOne({ where: { id: photoId, clientId } });
+    if (!photo) throw new Error('Foto nicht gefunden');
+    return { mime: photo.mime, bytes: photo.bytes };
+  }
+
+  async deleteWorkoutPhoto(clientId: number, photoId: number) {
+    const res = await this.photoRepo.delete({ id: photoId, clientId });
+    return { success: (res.affected ?? 0) > 0 };
+  }
 
   /** Polar status (stub – Polar integration to be migrated) */
   getPolarStatus(_clientId: number) {

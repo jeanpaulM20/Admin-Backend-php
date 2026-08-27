@@ -85,6 +85,19 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       // NOT NULL ohne Default und liessen den INSERT scheitern (ER_NO_DEFAULT)
       `ALTER TABLE review MODIFY COLUMN exerciseset_id INT DEFAULT NULL`,
       `ALTER TABLE review MODIFY COLUMN training_id INT DEFAULT NULL`,
+      // Trainings-Galerie (F1): ein Foto je Aufzeichnung, Bild als BLOB
+      `CREATE TABLE IF NOT EXISTS review_photo (
+         id INT AUTO_INCREMENT PRIMARY KEY,
+         review_id INT NOT NULL,
+         client_id INT NOT NULL,
+         mime VARCHAR(40) NOT NULL DEFAULT 'image/jpeg',
+         bytes MEDIUMBLOB NOT NULL,
+         created_at DATETIME NOT NULL,
+         UNIQUE KEY uniq_review_photo (review_id),
+         KEY idx_review_photo_client (client_id),
+         CONSTRAINT fk_review_photo_review FOREIGN KEY (review_id)
+           REFERENCES review(id) ON DELETE CASCADE
+       )`,
       // GPS-Tracking (Phase 2): Höhenmeter am Review + Track-Punkte-Tabelle
       `ALTER TABLE review ADD COLUMN elevation_gain INT DEFAULT NULL`,
       `CREATE TABLE IF NOT EXISTS review_gps_track (

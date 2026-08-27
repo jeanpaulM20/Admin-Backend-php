@@ -1,5 +1,6 @@
 import {
-  Controller, Get, Post, Put, Delete, Param, Body, Query, Res, Req,
+  Controller,
+  Get, Post, Put, Delete, Param, Body, Query, Res, Req,
   HttpException, HttpStatus,
   ParseIntPipe, NotFoundException, ForbiddenException,
 } from '@nestjs/common';
@@ -218,6 +219,61 @@ export class ClientAppController {
   ) {
     this.assertClientAccess(req, clientId);
     return this.toursService.getTourDetail(tourId);
+  }
+
+  // ── Trainings-Galerie (F1) ───────────────────────────────────────────
+
+  @Post('workouts/:clientId/:reviewId/photo')
+  saveWorkoutPhoto(
+    @Req() req: Request,
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Param('reviewId', ParseIntPipe) reviewId: number,
+    @Body() body: any,
+  ) {
+    this.assertClientAccess(req, clientId);
+    if (typeof body?.image !== 'string' || !body.image.length) {
+      throw new HttpException({ message: 'Bild fehlt' }, HttpStatus.BAD_REQUEST);
+    }
+    return this.appService.saveWorkoutPhoto(
+      clientId, reviewId, body.image, String(body.mime ?? 'image/jpeg'));
+  }
+
+  @Get('workouts/:clientId/photos')
+  workoutPhotos(
+    @Req() req: Request,
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Query('activity') activity?: string,
+  ) {
+    this.assertClientAccess(req, clientId);
+    return this.appService.getWorkoutPhotos(clientId, activity);
+  }
+
+  @Get('workouts/:clientId/photo/:photoId')
+  async workoutPhoto(
+    @Req() req: Request,
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Param('photoId', ParseIntPipe) photoId: number,
+    @Res() res: Response,
+  ) {
+    this.assertClientAccess(req, clientId);
+    try {
+      const { mime, bytes } = await this.appService.getWorkoutPhotoBytes(clientId, photoId);
+      res.setHeader('Content-Type', mime);
+      res.setHeader('Cache-Control', 'private, max-age=86400');
+      return res.send(bytes);
+    } catch {
+      return res.status(HttpStatus.NOT_FOUND).json({ message: 'Foto nicht gefunden' });
+    }
+  }
+
+  @Delete('workouts/:clientId/photo/:photoId')
+  deleteWorkoutPhoto(
+    @Req() req: Request,
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Param('photoId', ParseIntPipe) photoId: number,
+  ) {
+    this.assertClientAccess(req, clientId);
+    return this.appService.deleteWorkoutPhoto(clientId, photoId);
   }
 
   /** Touren-Assistent (C1): natürliche Sprache → berechnete Route. */

@@ -20,6 +20,7 @@ import { ClientService } from './client.service';
 import { ClientAppService } from './client-app.service';
 import { ToursAssistantService } from './tours-assistant.service';
 import { ToursService } from './tours.service';
+import { ReviewPhoto } from '../entities/review-photo.entity';
 import { ClientChatService } from './client-chat.service';
 import { ClientController } from './client.controller';
 import { ClientAppController } from './client-php-proxy.controller';
@@ -39,6 +40,7 @@ import { ClientAppController } from './client-php-proxy.controller';
       ClientFile,
       Feedback,
       Metric,
+      ReviewPhoto,
     ]),
     ReviewModule,
     FileModule,
