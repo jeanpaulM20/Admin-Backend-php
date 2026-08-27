@@ -324,7 +324,7 @@ struct LibreLoginView: View {
                         Task { await doLogin() }
                     } label: {
                         if libre.isLoading {
-                            ProgressView().tint(.white)
+                            ProgressView().tint(AppColor.white)
                         } else {
                             Text("Verbinden")
                         }
@@ -406,6 +406,7 @@ private struct LibreSecureField: View {
                     .font(.app(14))
                     .foregroundStyle(AppColor.muted)
             }
+            .accessibilityLabel(visible ? "Wert verbergen" : "Wert anzeigen")
         }
         .padding(.horizontal, AppSpacing.card)
         .padding(.vertical, 14)

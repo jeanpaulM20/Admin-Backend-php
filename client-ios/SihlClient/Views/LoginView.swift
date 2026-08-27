@@ -40,6 +40,7 @@ struct LoginView: View {
                             Image(systemName: obscurePassword ? "eye.slash" : "eye")
                                 .foregroundStyle(AppColor.muted)
                         }
+                        .accessibilityLabel(obscurePassword ? "Passwort anzeigen" : "Passwort verbergen")
                     })
                     .padding(.top, 16)
                     .onSubmit(submit)

@@ -102,7 +102,7 @@ private struct ConversationTile: View {
                 if conversation.unreadCount > 0 {
                     Text("\(conversation.unreadCount)")
                         .font(.caption2.bold())
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AppColor.white)
                         .padding(4)
                         .background(Color.red, in: Circle())
                         .offset(x: 4, y: -4)

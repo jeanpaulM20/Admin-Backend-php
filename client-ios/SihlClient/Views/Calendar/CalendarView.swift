@@ -97,7 +97,7 @@ struct CalendarView: View {
         .overlay {
             if vm.isBooking || vm.isCancelling {
                 ZStack {
-                    Color.black.opacity(0.35).ignoresSafeArea()
+                    AppColor.black.opacity(0.35).ignoresSafeArea()
                     VStack(spacing: 12) {
                         ProgressView().tint(AppColor.primary).scaleEffect(1.4)
                         Text(vm.isBooking ? "Termin wird gebucht…" : "Termin wird abgesagt…")
@@ -255,6 +255,7 @@ private struct MonthCalendarView: View {
                 } label: {
                     Image(systemName: "chevron.left").foregroundStyle(AppColor.muted).padding(8)
                 }
+                .accessibilityLabel("Voriger Monat")
                 Spacer()
                 Text(monthTitle)
                     .font(.app(16, weight: .bold))
@@ -265,6 +266,7 @@ private struct MonthCalendarView: View {
                 } label: {
                     Image(systemName: "chevron.right").foregroundStyle(AppColor.muted).padding(8)
                 }
+                .accessibilityLabel("Nächster Monat")
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 10)
@@ -344,7 +346,7 @@ private struct DayCell: View {
                         .font(.app(14, weight: isSelected ? .bold : .regular))
                         .foregroundStyle(
                             isOutOfRange ? AppColor.muted.opacity(0.35)
-                            : isSelected ? Color.white
+                            : isSelected ? AppColor.white
                             : AppColor.text
                         )
                 }
@@ -376,7 +378,7 @@ private struct DayCell: View {
     private func countDot(_ color: Color, _ n: Int) -> some View {
         Text("\(n)")
             .font(.app(7, weight: .bold))
-            .foregroundStyle(.white)
+            .foregroundStyle(AppColor.white)
             .padding(.horizontal, 3)
             .frame(height: 10)
             .background(color)

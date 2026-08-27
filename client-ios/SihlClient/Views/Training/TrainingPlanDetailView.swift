@@ -232,6 +232,7 @@ struct TrainingPlanDetailView: View {
                     .font(.app(18)).foregroundStyle(AppColor.muted)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Timer zurücksetzen")
         }
         .padding(.horizontal, 16).padding(.vertical, 12)
         .background(AppColor.surface)

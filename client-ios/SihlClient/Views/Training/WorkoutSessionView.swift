@@ -333,7 +333,7 @@ struct WorkoutSessionView: View {
     private var positionMarker: some View {
         ZStack {
             Circle().fill(RadialGradient(
-                colors: [.white.opacity(0.20), .white.opacity(0)],
+                colors: [AppColor.white.opacity(0.20), AppColor.white.opacity(0)],
                 center: .center, startRadius: 10, endRadius: 38))
                 .frame(width: 76, height: 76)
             if let heading = recorder.headingDegrees {
@@ -343,14 +343,14 @@ struct WorkoutSessionView: View {
                         .stroke(AppColor.text,
                                 style: StrokeStyle(lineWidth: 5, lineJoin: .round)))
                     .frame(width: 17, height: 19)
-                    .shadow(color: .black.opacity(0.3), radius: 1.5, y: 1)
+                    .shadow(color: AppColor.black.opacity(0.3), radius: 1.5, y: 1)
                     .offset(y: -27)
                     .rotationEffect(.degrees(heading - cameraHeading))
                     .animation(.easeOut(duration: 0.25),
                                value: recorder.headingDegrees)
             }
             Circle().fill(AppColor.green).frame(width: 20, height: 20)
-                .overlay(Circle().stroke(.white, lineWidth: 4))
+                .overlay(Circle().stroke(AppColor.white, lineWidth: 4))
         }
     }
 
@@ -373,7 +373,7 @@ struct WorkoutSessionView: View {
             .foregroundStyle(AppColor.white)
             .frame(width: 24, height: 24)
             .background(AppColor.blue, in: Circle())
-            .overlay(Circle().stroke(.white, lineWidth: 1.5))
+            .overlay(Circle().stroke(AppColor.white, lineWidth: 1.5))
     }
 
     /// Kamera auf eine Koordinate setzen — Laufrichtung-oben (course-up),

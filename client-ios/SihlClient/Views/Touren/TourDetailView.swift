@@ -366,6 +366,6 @@ private struct TourMapFullscreenView: View {
             .foregroundStyle(AppColor.white)
             .frame(width: 24, height: 24)
             .background(AppColor.blue, in: Circle())
-            .overlay(Circle().stroke(.white, lineWidth: 1.5))
+            .overlay(Circle().stroke(AppColor.white, lineWidth: 1.5))
     }
 }

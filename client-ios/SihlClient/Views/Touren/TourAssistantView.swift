@@ -221,6 +221,7 @@ struct TourAssistantView: View {
                     .frame(width: 40, height: 40)
                     .background(canSend ? AppColor.cta : AppColor.surface2, in: Circle())
             }
+            .accessibilityLabel("Frage senden")
             .disabled(!canSend)
         }
         .padding(.horizontal, AppSpacing.screen)

@@ -177,7 +177,7 @@ struct InvoiceDetailSheet: View {
                     .resizable()
                     .scaledToFit()
                     .frame(maxWidth: .infinity)
-                    .background(Color.white)
+                    .background(AppColor.white)
                     .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
                     .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
                         .stroke(AppColor.border, lineWidth: 1))

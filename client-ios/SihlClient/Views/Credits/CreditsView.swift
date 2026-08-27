@@ -289,7 +289,7 @@ private struct PackageCard: View {
             Button(action: onBuy) {
                 if purchasing {
                     HStack(spacing: 8) {
-                        ProgressView().tint(.white).scaleEffect(0.8)
+                        ProgressView().tint(AppColor.white).scaleEffect(0.8)
                         Text("Wird verarbeitet…")
                     }
                 } else {
@@ -359,7 +359,7 @@ private struct AGBSheet: View {
                                     RoundedRectangle(cornerRadius: 4)
                                         .fill(AppColor.primary).frame(width: 22, height: 22)
                                     Image(systemName: "checkmark")
-                                        .font(.caption.bold()).foregroundStyle(.white)
+                                        .font(.caption.bold()).foregroundStyle(AppColor.white)
                                 }
                             }
                         }
@@ -372,7 +372,7 @@ private struct AGBSheet: View {
                         onDismiss(true)
                     } label: {
                         Text("AGB akzeptieren")
-                            .font(.callout.bold()).foregroundStyle(.white)
+                            .font(.callout.bold()).foregroundStyle(AppColor.white)
                             .frame(maxWidth: .infinity).padding(.vertical, 14)
                     }
                     .background(accepted ? AppColor.primary : AppColor.muted.opacity(0.3),
@@ -561,7 +561,7 @@ private struct PaymentPendingSheet: View {
                             Task { await checkManually() }
                         } label: {
                             if isChecking {
-                                ProgressView().tint(.white).scaleEffect(0.8)
+                                ProgressView().tint(AppColor.white).scaleEffect(0.8)
                                     .frame(width: 80)
                             } else {
                                 Text("Status prüfen")

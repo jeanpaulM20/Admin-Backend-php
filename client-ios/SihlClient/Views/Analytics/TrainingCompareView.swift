@@ -8,14 +8,8 @@ struct TrainingCompareView: View {
     let reviews: [TrainingReview]
     @Environment(\.dismiss) private var dismiss
 
-    // Farben für die einzelnen Linien (wie Flutter `_lineColors`)
-    private static let lineColors: [Color] = [
-        Color(red: 0.94, green: 0.33, blue: 0.31),   // #EF5350 rot
-        Color(red: 0.26, green: 0.65, blue: 0.96),   // #42A5F5 blau
-        Color(red: 0.40, green: 0.73, blue: 0.41),   // #66BB6A grün
-        Color(red: 1.00, green: 0.44, blue: 0.26),   // #FF7043 orange
-        Color(red: 0.67, green: 0.28, blue: 0.74),   // #AB47BC lila
-    ]
+    // Farben für die einzelnen Linien (zentral in AppColor.chartSeries)
+    private static let lineColors: [Color] = AppColor.chartSeries
 
     // Reviews die tatsächlich Chart-Daten haben
     private var withChart: [TrainingReview] { reviews.filter(\.hasChartData) }

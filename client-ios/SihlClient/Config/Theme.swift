@@ -48,6 +48,16 @@ enum AppColor {
     static let zoneModerate  = Color(hex: 0x839C4D)
     static let zoneLight     = Color(hex: 0x03A4B6)
     static let zoneVeryLight = Color(hex: 0x9E9E9E)
+
+    /// Serienfarben für Vergleichsdiagramme — kategorial, bewusst ausserhalb
+    /// der Marken-Palette: die Kurven müssen klar unterscheidbar bleiben.
+    static let chartSeries: [Color] = [
+        Color(hex: 0xEF5350),   // rot
+        Color(hex: 0x42A5F5),   // blau
+        Color(hex: 0x66BB6A),   // grün
+        Color(hex: 0xFF7043),   // orange
+        Color(hex: 0xAB47BC),   // lila
+    ]
 }
 
 /// Abstands-Raster (4er-Grid) — Designsystem-Tokens statt Literale in den Views.

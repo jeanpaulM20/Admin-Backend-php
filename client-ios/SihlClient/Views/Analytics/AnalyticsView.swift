@@ -380,7 +380,7 @@ private struct ReviewRowView: View {
                             .fill(AppColor.primary)
                             .frame(width: 22, height: 22)
                         Image(systemName: "checkmark")
-                            .font(.caption.bold()).foregroundStyle(.white)
+                            .font(.caption.bold()).foregroundStyle(AppColor.white)
                     }
                 }
             }

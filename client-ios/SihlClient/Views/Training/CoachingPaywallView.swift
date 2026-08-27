@@ -146,7 +146,7 @@ struct CoachingPaywallView: View {
             Task { await startPayment() }
         } label: {
             if isPaying {
-                ProgressView().tint(.white)
+                ProgressView().tint(AppColor.white)
             } else {
                 Text("Jetzt freischalten")
             }

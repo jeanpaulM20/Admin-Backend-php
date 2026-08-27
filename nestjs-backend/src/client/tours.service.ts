@@ -111,6 +111,7 @@ export class ToursService {
     const around = `(around:${Math.round(r * 1000)},${lat},${lon})`;
     if (spec.osm === 'finnenbahn') {
       const bahnen = await this.finnenbahnList(lat, lon, spec.selectors, around);
+      if (this.tourListCache.size > 200) this.tourListCache.clear();
       this.tourListCache.set(key, { at: Date.now(), data: bahnen });
       return bahnen;
     }
@@ -149,6 +150,7 @@ out tags center 80;`;
       return true;
     });
 
+    if (this.tourListCache.size > 200) this.tourListCache.clear();
     this.tourListCache.set(key, { at: Date.now(), data: deduped });
     return deduped;
   }
@@ -283,6 +285,8 @@ out geom 80;`;
       difficulty: isWay ? null : ToursService.tourDifficulty(distKm),
       segments: slim,
     };
+    // Detailgeometrien sind gross (bis 4000 Punkte) — Anzahl begrenzen
+    if (this.tourDetailCache.size > 100) this.tourDetailCache.clear();
     this.tourDetailCache.set(id, { at: Date.now(), data: detail });
     return detail;
   }

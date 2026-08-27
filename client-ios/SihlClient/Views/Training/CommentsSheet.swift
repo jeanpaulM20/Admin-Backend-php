@@ -97,10 +97,10 @@ struct CommentsSheet: View {
                 ZStack {
                     Circle().fill(AppColor.primary).frame(width: 44, height: 44)
                     if isSending {
-                        ProgressView().tint(.white).scaleEffect(0.8)
+                        ProgressView().tint(AppColor.white).scaleEffect(0.8)
                     } else {
                         Image(systemName: "paperplane.fill")
-                            .font(.app(16)).foregroundStyle(.white)
+                            .font(.app(16)).foregroundStyle(AppColor.white)
                     }
                 }
             }
@@ -149,6 +149,7 @@ struct CommentsSheet: View {
                         } label: {
                             Image(systemName: "xmark").font(.app(11)).foregroundStyle(AppColor.muted)
                         }
+                        .accessibilityLabel("Kommentar löschen")
                     }
                 }
 
