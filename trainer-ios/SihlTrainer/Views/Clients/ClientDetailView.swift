@@ -6,6 +6,7 @@ import SwiftUI
 struct ClientDetailView: View {
     let client: Client
     @EnvironmentObject private var store: TrainerStore
+    @EnvironmentObject private var auth: AuthViewModel
 
     private var appointments: [Training] {
         store.upcoming.filter { $0.clientId == client.id }
@@ -15,6 +16,7 @@ struct ClientDetailView: View {
         ScrollView {
             VStack(spacing: AppSpacing.stack) {
                 header
+                planLink
                 contactCard
                 appointmentsCard
             }
@@ -48,6 +50,30 @@ struct ClientDetailView: View {
                 Spacer(minLength: 0)
             }
         }
+    }
+
+    /// Einstieg in die Trainingspläne dieses Kunden.
+    private var planLink: some View {
+        NavigationLink {
+            TrainingPlanListView(client: client, isPreview: auth.previewFlag)
+        } label: {
+            Card {
+                HStack(spacing: 12) {
+                    Image(systemName: "list.bullet.rectangle")
+                        .font(.app(15))
+                        .foregroundStyle(AppColor.primary)
+                        .frame(width: 22)
+                    Text("Trainingspläne")
+                        .font(.app(15, weight: .semibold))
+                        .foregroundStyle(AppColor.text)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.app(13))
+                        .foregroundStyle(AppColor.muted)
+                }
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     private var contactCard: some View {

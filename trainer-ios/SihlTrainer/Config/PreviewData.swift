@@ -87,6 +87,45 @@ enum PreviewData {
         ]
     }
 
+    static var plans: [TrainingPlan] {
+        func row(_ exercise: String, _ sets: String, _ weight: String,
+                 _ device: String = "", _ position: String = "") -> [String: Any] {
+            ["exercise": exercise, "sets": sets, "weight": weight,
+             "device": device, "position": position]
+        }
+
+        let values: [String: Any] = [
+            "sonsomo": [
+                row("Mobilisation Schulter", "2×15", "", "Band"),
+                row("Aktivierung Rumpf", "3×30 s", "", "Matte"),
+            ],
+            "main": [
+                row("Kniebeuge", "4×8", "60 kg", "Langhantel", "Rack 2"),
+                row("Bankdrücken", "4×10", "45 kg", "Langhantel", "Bank 1"),
+                row("Rudern vorgebeugt", "3×12", "35 kg", "Langhantel"),
+            ],
+            "core": [row("Plank", "3×45 s", "", "Matte")],
+            "mobility": [row("Hüftöffner", "2×60 s", "", "Matte")],
+            "dates": Array(repeating: "", count: 8),
+        ]
+
+        let encoded = String(data: (try? JSONSerialization.data(withJSONObject: values)) ?? Data(),
+                             encoding: .utf8) ?? "{}"
+
+        return [
+            TrainingPlan(json: [
+                "id": 501, "client_id": 12, "name": "Aufbau August",
+                "status": "published", "created_at": "2026-08-03 09:00:00",
+                "values": encoded,
+            ]),
+            TrainingPlan(json: [
+                "id": 502, "client_id": 12, "name": "Regeneration",
+                "status": "draft", "created_at": "2026-08-20 14:30:00",
+                "values": encoded,
+            ]),
+        ]
+    }
+
     static var trainings: [Training] {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
