@@ -27,3 +27,5 @@ xcuserdata/
 *.xcuserstate
 client-ios/SihlClient.xcodeproj/
 client-ios/build/
+trainer-ios/SihlTrainer.xcodeproj/
+trainer-ios/build/
