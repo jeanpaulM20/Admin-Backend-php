@@ -113,6 +113,15 @@ enum PreviewData {
          "group": ["id": 4, "name": "Körpergewicht"], "primary_muscle_group": "Bauch"],
     ].map(Exercise.init(json:))
 
+    static let ratings: [FeedbackItem] = [
+        ["id": 1, "client_name": "Anna Bühler", "rating": 5, "date": "26.08.2026",
+         "message": "Sehr gutes Training, die Progression stimmt.", "read": 0],
+        ["id": 2, "client_name": "Marco Steiner", "rating": 4, "date": "24.08.2026",
+         "message": "Hat Spass gemacht, war aber streng.", "read": 0],
+        ["id": 3, "client_name": "Lena Achermann", "rating": 5, "date": "20.08.2026",
+         "message": "Top betreut.", "read": 1],
+    ].map(FeedbackItem.init(json:))
+
     static let files: [ClientFile] = [
         ["id": 1, "name": "Anamnesebogen.pdf", "file": "/api/file/1", "date": "2026-03-14"],
         ["id": 2, "name": "Trainingsplan Juli.pdf", "file": "/api/file/2", "date": "2026-07-02"],

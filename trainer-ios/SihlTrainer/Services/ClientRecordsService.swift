@@ -79,6 +79,21 @@ struct SchedulingService {
         _ = try await APIClient.shared.post(APIConfig.training, body: body)
     }
 
+    /// Termin absagen. Er bleibt im Kalender und wird als abgesagt geführt.
+    func cancelTraining(id: Int) async throws {
+        _ = try await APIClient.shared.post("\(APIConfig.training)/\(id)/cancel")
+    }
+
+    /// Plan als Online-Coaching in den Kundenkalender legen.
+    func schedulePlan(planId: Int, clientId: Int, date: Date) async throws {
+        _ = try await APIClient.shared.post("\(APIConfig.training)/schedule-plan", body: [
+            "client_id": clientId,
+            "training_plan_id": planId,
+            "date": Self.dayFormatter.string(from: date),
+            "starttime": Self.timeFormatter.string(from: date),
+        ])
+    }
+
     func deleteAvailability(slotId: Int) async throws {
         _ = try await APIClient.shared.delete("\(APIConfig.availability)/\(slotId)")
     }

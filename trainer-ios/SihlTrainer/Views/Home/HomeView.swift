@@ -14,6 +14,7 @@ struct HomeView: View {
                 }
                 statsRow
                 nextAppointment
+                feedbackLink
             }
             .padding(.horizontal, AppSpacing.screen)
             .padding(.bottom, AppSpacing.bottomInset)
@@ -43,6 +44,30 @@ struct HomeView: View {
                 Spacer(minLength: 0)
             }
         }
+    }
+
+    /// Bewertungen der Kunden — Pendant zum Feedback-Screen der Flutter-App.
+    private var feedbackLink: some View {
+        NavigationLink {
+            FeedbackView(isPreview: auth.previewFlag)
+        } label: {
+            Card {
+                HStack(spacing: 12) {
+                    Image(systemName: "star")
+                        .font(.app(15))
+                        .foregroundStyle(AppColor.brass)
+                        .frame(width: 22)
+                    Text("Bewertungen")
+                        .font(.app(15, weight: .semibold))
+                        .foregroundStyle(AppColor.text)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.app(13))
+                        .foregroundStyle(AppColor.muted)
+                }
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     private var statsRow: some View {

@@ -7,6 +7,7 @@ import SwiftUI
 struct TrainingPlanDetailView: View {
     @StateObject private var model: TrainingPlanEditorViewModel
     private let isPreview: Bool
+    @State private var showSchedule = false
     /// Meldet den gespeicherten Stand an die Liste zurück.
     private let onChange: (TrainingPlan) -> Void
 
@@ -30,6 +31,9 @@ struct TrainingPlanDetailView: View {
         .navigationTitle(model.plan.name?.isEmpty == false ? model.plan.name! : "Trainingsplan")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbarContent }
+        .sheet(isPresented: $showSchedule) {
+            SchedulePlanSheet(plan: model.plan, isPreview: isPreview)
+        }
         .alert("Fehler", isPresented: .constant(model.error != nil)) {
             Button("OK") { model.error = nil }
         } message: {
@@ -139,7 +143,15 @@ struct TrainingPlanDetailView: View {
                 .disabled(model.isSaving)
             }
         } else {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button {
+                    showSchedule = true
+                } label: {
+                    Image(systemName: "calendar.badge.plus")
+                }
+                .accessibilityLabel("Plan einplanen")
+                .disabled(model.plan.id == nil)
+
                 Button("Bearbeiten") { model.isEditing = true }
             }
         }

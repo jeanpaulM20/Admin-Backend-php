@@ -152,7 +152,15 @@ struct CalendarView: View {
                         .font(.app(12, weight: .semibold))
                         .foregroundStyle(AppColor.muted)
                     ForEach(trainingsOfDay) { training in
-                        TrainingRow(training: training, showsDay: false)
+                        NavigationLink {
+                            TrainingDetailView(training: training,
+                                               isPreview: auth.previewFlag) {
+                                Task { await reload() }
+                            }
+                        } label: {
+                            TrainingRow(training: training, showsDay: false)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
 

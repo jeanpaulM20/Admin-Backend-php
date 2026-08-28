@@ -40,6 +40,8 @@ struct TrainingStats {
     /// 1 = Montag … 7 = Sonntag.
     let byWeekday: [Int: Int]
     let topClients: [(name: String, count: Int)]
+    /// Anteil je Trainingsart, absteigend.
+    let byType: [(name: String, count: Int, share: Double)]
 
     var cancelRate: Double { total > 0 ? Double(cancelled) / Double(total) * 100 : 0 }
 
@@ -119,6 +121,15 @@ struct TrainingStats {
             let name = training.clientName ?? "Unbekannt"
             counts[name, default: 0] += 1
         }
+        var typeCounts: [String: Int] = [:]
+        for training in filtered where isActive(training) {
+            typeCounts[training.trainingType ?? "Ohne Angabe", default: 0] += 1
+        }
+        let typeTotal = max(typeCounts.values.reduce(0, +), 1)
+        byType = typeCounts
+            .sorted { $0.value == $1.value ? $0.key < $1.key : $0.value > $1.value }
+            .map { (name: $0.key, count: $0.value, share: Double($0.value) / Double(typeTotal)) }
+
         topClients = counts
             .sorted { $0.value == $1.value ? $0.key < $1.key : $0.value > $1.value }
             .prefix(5)

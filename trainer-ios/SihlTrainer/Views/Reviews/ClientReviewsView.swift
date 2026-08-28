@@ -7,6 +7,8 @@ struct ClientReviewsView: View {
 
     @StateObject private var model: ClientReviewsViewModel
     private let isPreview: Bool
+    @State private var isSelecting = false
+    @State private var selection: Set<Int> = []
 
     init(client: Client, isPreview: Bool) {
         self.client = client
@@ -29,25 +31,23 @@ struct ClientReviewsView: View {
                              title: "Keine Aufzeichnungen",
                              message: "Sobald \(client.name) ein Training aufzeichnet, erscheint es hier.")
             } else {
-                List(model.reviews) { review in
-                    NavigationLink {
-                        ReviewDetailView(review: review,
-                                         hrMax: client.maxHeartRate ?? 190,
-                                         isPreview: isPreview)
-                    } label: {
-                        ReviewRow(review: review)
-                    }
-                    .listRowBackground(AppColor.background)
-                    .listRowSeparatorTint(AppColor.border)
-                }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-                .refreshable { await model.load() }
+                list
             }
         }
         .background(AppColor.background)
         .navigationTitle("Aufzeichnungen")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                if model.reviews.count > 1 {
+                    Button(isSelecting ? "Fertig" : "Vergleichen") {
+                        isSelecting.toggle()
+                        selection.removeAll()
+                    }
+                    .font(.app(15))
+                }
+            }
+        }
         .task { await model.load() }
     }
 }
@@ -93,6 +93,73 @@ private struct ReviewRow: View {
             parts.append(String(format: "%.1f km", distance / 1000))
         }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+}
+
+private extension ClientReviewsView {
+
+    var list: some View {
+        VStack(spacing: 0) {
+            List(model.reviews) { review in
+                row(review)
+                    .listRowBackground(AppColor.background)
+                    .listRowSeparatorTint(AppColor.border)
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .refreshable { await model.load() }
+
+            if isSelecting {
+                compareBar
+            }
+        }
+    }
+
+    @ViewBuilder func row(_ review: Review) -> some View {
+        if isSelecting {
+            // Im Auswahlmodus wählt der Tipp aus, statt ins Detail zu springen.
+            Button {
+                if selection.contains(review.id) {
+                    selection.remove(review.id)
+                } else {
+                    selection.insert(review.id)
+                }
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: selection.contains(review.id) ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(selection.contains(review.id) ? AppColor.primary : AppColor.muted)
+                    ReviewRow(review: review)
+                }
+            }
+            .buttonStyle(.plain)
+        } else {
+            NavigationLink {
+                ReviewDetailView(review: review,
+                                 hrMax: client.maxHeartRate ?? 190,
+                                 isPreview: isPreview)
+            } label: {
+                ReviewRow(review: review)
+            }
+        }
+    }
+
+    var compareBar: some View {
+        NavigationLink {
+            ReviewCompareView(reviews: model.reviews.filter { selection.contains($0.id) },
+                              client: client,
+                              isPreview: isPreview)
+        } label: {
+            Text(selection.count < 2 ? "Mindestens zwei wählen" : "\(selection.count) vergleichen")
+                .font(.app(15, weight: .semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .background(selection.count < 2 ? AppColor.surface2 : AppColor.cta)
+                .foregroundStyle(selection.count < 2 ? AppColor.muted : AppColor.white)
+                .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
+        }
+        .disabled(selection.count < 2)
+        .padding(.horizontal, AppSpacing.screen)
+        .padding(.bottom, 10)
     }
 }
 

@@ -42,3 +42,25 @@ struct ChatService {
         return []
     }
 }
+
+/// Sternebewertungen liegen auf derselben feedback-Ressource wie der Chat,
+/// tragen aber ein rating — darum ein eigener kleiner Service.
+struct FeedbackRatingService {
+
+    func ratings() async throws -> [FeedbackItem] {
+        let data = try await APIClient.shared.get(APIConfig.feedback)
+        let json = try? JSONSerialization.jsonObject(with: data)
+        var list: [[String: Any]] = []
+        if let array = json as? [[String: Any]] {
+            list = array
+        } else if let object = json as? [String: Any], let array = object["data"] as? [[String: Any]] {
+            list = array
+        }
+        // Nur Einträge mit Sternen — der Rest sind Chatnachrichten.
+        return list.map(FeedbackItem.init(json:)).filter { $0.rating > 0 }
+    }
+
+    func markRead(id: Int) async throws {
+        _ = try await APIClient.shared.post("\(APIConfig.feedback)/\(id)/read")
+    }
+}

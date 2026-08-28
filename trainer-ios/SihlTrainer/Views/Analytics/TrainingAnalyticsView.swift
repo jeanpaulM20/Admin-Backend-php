@@ -19,6 +19,7 @@ struct TrainingAnalyticsView: View {
                 kpiGrid
                 weeklyCard
                 weekdayCard
+                typeCard
                 topClientsCard
             }
             .padding(.horizontal, AppSpacing.screen)
@@ -114,6 +115,43 @@ struct TrainingAnalyticsView: View {
                     }
                 }
                 .frame(height: 130)
+            }
+        }
+    }
+
+    /// Verteilung nach Trainingsart — der eigenständige Teil des
+    /// Flutter-Screens `review_screen.dart`; die übrigen Auswertungen dort
+    /// zeigen dieselben Zahlen wie diese Seite.
+    @ViewBuilder private var typeCard: some View {
+        let types = stats.byType
+        if !types.isEmpty {
+            Card {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Trainingsarten")
+                        .font(.app(13, weight: .semibold))
+                        .foregroundStyle(AppColor.muted)
+                    ForEach(types, id: \.name) { entry in
+                        HStack(spacing: 10) {
+                            Text(entry.name)
+                                .font(.app(14))
+                                .foregroundStyle(AppColor.text)
+                                .lineLimit(1)
+                            Spacer(minLength: 0)
+                            // Balkenanteil statt Tortenstück: im Dunkeln
+                            // besser lesbar und ohne Legende verständlich.
+                            GeometryReader { geometry in
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(AppColor.primary)
+                                    .frame(width: geometry.size.width * entry.share)
+                            }
+                            .frame(width: 90, height: 8)
+                            Text("\(entry.count)")
+                                .font(.app(13, weight: .semibold))
+                                .foregroundStyle(AppColor.primary)
+                                .frame(width: 26, alignment: .trailing)
+                        }
+                    }
+                }
             }
         }
     }
