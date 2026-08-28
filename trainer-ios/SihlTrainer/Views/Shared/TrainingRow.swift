@@ -6,18 +6,22 @@ struct TrainingRow: View {
     /// Im Kundendetail steht der Name schon im Kopf — dort wäre er in jeder
     /// Zeile nur Wiederholung.
     var showsClient = true
+    /// Im Tagesdetail des Kalenders steht das Datum schon in der Überschrift.
+    var showsDay = true
 
     var body: some View {
         HStack(spacing: 12) {
             VStack(spacing: 2) {
-                Text(Self.dayFormatter.string(from: training.startTime ?? Date()))
-                    .font(.app(11, weight: .semibold))
-                    .foregroundStyle(AppColor.muted)
+                if showsDay {
+                    Text(Self.dayFormatter.string(from: training.startTime ?? Date()))
+                        .font(.app(11, weight: .semibold))
+                        .foregroundStyle(AppColor.muted)
+                }
                 Text(Self.timeFormatter.string(from: training.startTime ?? Date()))
                     .font(.app(15, weight: .semibold))
                     .foregroundStyle(AppColor.text)
             }
-            .frame(width: 56)
+            .frame(width: showsDay ? 56 : 44)
 
             Rectangle()
                 .fill(training.isCancelled ? AppColor.red : AppColor.primary)

@@ -12,6 +12,15 @@ final class AuthViewModel: ObservableObject {
 
     var isLoggedIn: Bool { trainer != nil }
 
+    /// In Release-Builds gibt es keinen Vorschaumodus — dann immer false.
+    var previewFlag: Bool {
+        #if DEBUG
+        return isPreview
+        #else
+        return false
+        #endif
+    }
+
     /// Beim Start: Token aus der Keychain holen und gegen `trainer/me` prüfen.
     /// Ein abgelaufener oder geänderter Passcode führt zurück zum Login.
     func restoreSession() async {

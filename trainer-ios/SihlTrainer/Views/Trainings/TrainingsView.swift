@@ -51,7 +51,7 @@ struct TrainingsView: View {
                     Card {
                         VStack(spacing: 14) {
                             ForEach(group.trainings) { training in
-                                TrainingRow(training: training)
+                                TrainingRow(training: training, showsDay: false)
                             }
                         }
                     }

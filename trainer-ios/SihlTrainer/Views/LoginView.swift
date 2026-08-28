@@ -118,7 +118,7 @@ struct LoginView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
-            .background(AppColor.primary)
+            .background(AppColor.cta)
             .foregroundStyle(AppColor.white)
             .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
         }

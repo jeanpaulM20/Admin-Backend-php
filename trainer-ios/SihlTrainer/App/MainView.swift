@@ -60,6 +60,8 @@ struct MainView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     @EnvironmentObject private var auth: AuthViewModel
     @EnvironmentObject private var store: TrainerStore
+    @EnvironmentObject private var chat: ChatStore
+    @EnvironmentObject private var calendarStore: CalendarStore
 
     var body: some View {
         Group {
@@ -74,10 +76,15 @@ struct MainView: View {
             #if DEBUG
             if auth.isPreview {
                 store.loadPreviewData()
+                chat.loadPreviewData()
+                calendarStore.loadPreviewData()
                 return
             }
             #endif
             await store.load(trainerId: trainer.id)
+            async let conversations: Void = chat.load(trainerId: trainer.id)
+            async let availability: Void = calendarStore.load(trainerId: trainer.id)
+            _ = await (conversations, availability)
         }
     }
 }
