@@ -6,11 +6,13 @@ import SwiftUI
 /// Kommentar-Zähler und die Termin-Spalten.
 struct TrainingPlanDetailView: View {
     @StateObject private var model: TrainingPlanEditorViewModel
+    private let isPreview: Bool
     /// Meldet den gespeicherten Stand an die Liste zurück.
     private let onChange: (TrainingPlan) -> Void
 
     init(plan: TrainingPlan, isPreview: Bool, onChange: @escaping (TrainingPlan) -> Void) {
         _model = StateObject(wrappedValue: TrainingPlanEditorViewModel(plan: plan, isPreview: isPreview))
+        self.isPreview = isPreview
         self.onChange = onChange
     }
 
@@ -87,7 +89,7 @@ struct TrainingPlanDetailView: View {
                         RowEditor(row: Binding(
                             get: { model.plan.values[section][index] },
                             set: { model.plan.values[section][index] = $0 }
-                        ))
+                        ), isPreview: isPreview)
                     } else {
                         RowDisplay(row: row)
                     }
@@ -189,10 +191,27 @@ private struct RowDisplay: View {
 /// auf dem iPhone bleibt so alles ohne Querscrollen erreichbar.
 private struct RowEditor: View {
     @Binding var row: TrainingPlanRow
+    let isPreview: Bool
+    @State private var showCatalog = false
 
     var body: some View {
         VStack(spacing: 6) {
-            field("Übung", text: $row.exercise, weight: .semibold)
+            HStack(spacing: 8) {
+                field("Übung", text: $row.exercise, weight: .semibold)
+                // Auswahl aus dem Katalog statt Tippen — füllt Übung und Gerät.
+                Button {
+                    showCatalog = true
+                } label: {
+                    Image(systemName: "magnifyingglass")
+                        .font(.app(14))
+                        .foregroundStyle(AppColor.primary)
+                        .frame(width: 34, height: 34)
+                        .background(AppColor.surface2)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Übung aus dem Katalog wählen")
+            }
             HStack(spacing: 8) {
                 field("Sätze × Wdh.", text: $row.sets)
                 field("Gewicht", text: $row.weight)
@@ -203,6 +222,14 @@ private struct RowEditor: View {
             }
         }
         .padding(.vertical, 4)
+        .sheet(isPresented: $showCatalog) {
+            ExerciseCatalogSheet(isPreview: isPreview) { selection in
+                row.exercise = selection.name
+                // Gerät nur setzen, wenn der Katalog eines kennt — sonst
+                // bliebe eine vom Trainer getippte Angabe auf der Strecke.
+                if !selection.device.isEmpty { row.device = selection.device }
+            }
+        }
     }
 
     private func field(_ placeholder: String, text: Binding<String>,

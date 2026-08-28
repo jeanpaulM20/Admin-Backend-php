@@ -87,6 +87,32 @@ enum PreviewData {
         ]
     }
 
+    static let exerciseGroups: [ExerciseGroup] = [
+        ["id": 1, "name": "Langhantel"],
+        ["id": 2, "name": "Kurzhantel"],
+        ["id": 3, "name": "Maschine"],
+        ["id": 4, "name": "Körpergewicht"],
+    ].map(ExerciseGroup.init(json:))
+
+    static let exercises: [Exercise] = [
+        ["id": 1, "name": "Kniebeuge", "group_id": 1, "body_region": "Unterkörper",
+         "group": ["id": 1, "name": "Langhantel"], "primary_muscle_group": "Quadrizeps"],
+        ["id": 2, "name": "Kreuzheben", "group_id": 1, "body_region": "Ganzkörper",
+         "group": ["id": 1, "name": "Langhantel"], "primary_muscle_group": "Rückenstrecker"],
+        ["id": 3, "name": "Bankdrücken", "group_id": 1, "body_region": "Oberkörper",
+         "group": ["id": 1, "name": "Langhantel"], "primary_muscle_group": "Brust"],
+        ["id": 4, "name": "Schulterdrücken", "group_id": 2, "body_region": "Oberkörper",
+         "group": ["id": 2, "name": "Kurzhantel"], "primary_muscle_group": "Schulter"],
+        ["id": 5, "name": "Latzug", "group_id": 3, "body_region": "Oberkörper",
+         "group": ["id": 3, "name": "Maschine"], "primary_muscle_group": "Latissimus"],
+        ["id": 6, "name": "Beinpresse", "group_id": 3, "body_region": "Unterkörper",
+         "group": ["id": 3, "name": "Maschine"], "primary_muscle_group": "Quadrizeps"],
+        ["id": 7, "name": "Klimmzug", "group_id": 4, "body_region": "Oberkörper",
+         "group": ["id": 4, "name": "Körpergewicht"], "primary_muscle_group": "Latissimus"],
+        ["id": 8, "name": "Plank", "group_id": 4, "body_region": "Rumpf",
+         "group": ["id": 4, "name": "Körpergewicht"], "primary_muscle_group": "Bauch"],
+    ].map(Exercise.init(json:))
+
     static var plans: [TrainingPlan] {
         func row(_ exercise: String, _ sets: String, _ weight: String,
                  _ device: String = "", _ position: String = "") -> [String: Any] {
