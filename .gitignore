@@ -10,9 +10,6 @@ vendor/
 protected/runtime/
 /assets/
 
-# Include Flutter web build assets
-!trainer-app/assets/
-
 # Environment & secrets
 .env
 nestjs-backend/.env
