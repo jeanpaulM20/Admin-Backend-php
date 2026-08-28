@@ -38,6 +38,16 @@ struct TrainingsView: View {
         }
         .background(AppColor.background)
         .sectionChrome("Trainings")
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                NavigationLink {
+                    TrainingAnalyticsView()
+                } label: {
+                    Image(systemName: "chart.bar")
+                }
+                .accessibilityLabel("Auswertung")
+            }
+        }
     }
 
     private var list: some View {

@@ -113,6 +113,47 @@ enum PreviewData {
          "group": ["id": 4, "name": "Körpergewicht"], "primary_muscle_group": "Bauch"],
     ].map(Exercise.init(json:))
 
+    static var reviews: [Review] {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        let calendar = Calendar.current
+        let today = Date()
+
+        func entry(_ id: Int, _ type: String, dayOffset: Int, duration: String,
+                   hr: Double, kcal: Int, distance: Double? = nil) -> Review {
+            let day = calendar.date(byAdding: .day, value: dayOffset, to: today) ?? today
+            var json: [String: Any] = [
+                "id": id, "client_id": 12, "training_type": type,
+                "duration": duration, "heart_rate": hr, "kcal": kcal,
+                "date": formatter.string(from: day), "source": "app",
+                "feedback_client": "Hat sich gut angefühlt.",
+            ]
+            if let distance { json["distance"] = distance }
+            return Review(json: json)
+        }
+
+        return [
+            entry(901, "Joggen", dayOffset: -2, duration: "00:48:12", hr: 148, kcal: 512, distance: 8200),
+            entry(902, "Kraft", dayOffset: -5, duration: "01:05:00", hr: 121, kcal: 430),
+            entry(903, "Rad", dayOffset: -9, duration: "01:52:30", hr: 139, kcal: 890, distance: 41300),
+        ]
+    }
+
+    /// Ein plausibler Pulsverlauf: Aufwärmen, Belastung mit Intervallen, Auslauf.
+    static var heartRateSeries: [HeartRatePoint] {
+        (0..<180).map { index in
+            let progress = Double(index) / 180
+            let base: Double
+            switch progress {
+            case ..<0.15:  base = 95 + progress / 0.15 * 45
+            case ..<0.85:  base = 140 + sin(progress * 22) * 18
+            default:       base = 150 - (progress - 0.85) / 0.15 * 45
+            }
+            return HeartRatePoint(json: ["id": index, "value": base, "sort": index])
+        }
+    }
+
     static var plans: [TrainingPlan] {
         func row(_ exercise: String, _ sets: String, _ weight: String,
                  _ device: String = "", _ position: String = "") -> [String: Any] {

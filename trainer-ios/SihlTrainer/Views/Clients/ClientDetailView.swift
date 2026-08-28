@@ -17,6 +17,7 @@ struct ClientDetailView: View {
             VStack(spacing: AppSpacing.stack) {
                 header
                 planLink
+                reviewsLink
                 contactCard
                 appointmentsCard
             }
@@ -64,6 +65,30 @@ struct ClientDetailView: View {
                         .foregroundStyle(AppColor.primary)
                         .frame(width: 22)
                     Text("Trainingspläne")
+                        .font(.app(15, weight: .semibold))
+                        .foregroundStyle(AppColor.text)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.app(13))
+                        .foregroundStyle(AppColor.muted)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Einstieg in die Trainingsaufzeichnungen dieses Kunden.
+    private var reviewsLink: some View {
+        NavigationLink {
+            ClientReviewsView(client: client, isPreview: auth.previewFlag)
+        } label: {
+            Card {
+                HStack(spacing: 12) {
+                    Image(systemName: "waveform.path.ecg")
+                        .font(.app(15))
+                        .foregroundStyle(AppColor.primary)
+                        .frame(width: 22)
+                    Text("Aufzeichnungen")
                         .font(.app(15, weight: .semibold))
                         .foregroundStyle(AppColor.text)
                     Spacer(minLength: 0)

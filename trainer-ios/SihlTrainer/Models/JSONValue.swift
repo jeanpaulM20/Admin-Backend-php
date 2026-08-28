@@ -41,6 +41,17 @@ enum JSON {
         return nil
     }
 
+    /// Double unter den angegebenen Schlüsseln; akzeptiert auch Strings.
+    static func double(_ json: [String: Any], _ keys: String...) -> Double? {
+        for key in keys {
+            guard let value = json[key], !(value is NSNull) else { continue }
+            if let number = value as? Double { return number }
+            if let number = value as? Int { return Double(number) }
+            if let text = value as? String, let number = Double(text) { return number }
+        }
+        return nil
+    }
+
     /// Bool unter den angegebenen Schlüsseln; akzeptiert true/1/"1".
     static func bool(_ json: [String: Any], _ keys: String...) -> Bool {
         for key in keys {
