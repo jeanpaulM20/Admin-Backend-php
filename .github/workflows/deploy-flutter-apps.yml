@@ -79,7 +79,24 @@ jobs:
           echo "::error::Push des Build-Outputs nach 3 Versuchen fehlgeschlagen."
           exit 1
 
+      # Der SSH-Schritt zielt auf den alten PHP-Server. Produktiv laeuft alles
+      # ueber Railway (aus nestjs-backend/public*) und GitHub Pages. Sind die
+      # Server-Secrets nicht gesetzt, wird uebersprungen statt den Job rot zu
+      # faerben -- sonst verdeckt ein toter Alt-Deploy echte Build-Fehler.
+      - name: Check server secrets
+        id: server
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+        run: |
+          if [ -n "$SERVER_HOST" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::SERVER_HOST ist nicht gesetzt - SSH-Deploy wird uebersprungen."
+          fi
+
       - name: Deploy to server via SSH
+        if: steps.server.outputs.configured == 'true'
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
