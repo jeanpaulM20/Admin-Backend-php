@@ -9,7 +9,9 @@ class LibreProvider extends ChangeNotifier {
   final LibreRepository _repo;
 
   LibreProvider({LibreRepository? repository})
-      : _repo = repository ?? LibreRepository();
+      : _repo = repository ?? LibreRepository() {
+    _init();
+  }
 
   List<GlucoseReading> _readings = [];
   bool _isLoading = false;
@@ -27,10 +29,6 @@ class LibreProvider extends ChangeNotifier {
 
   GlucoseReading? get latestReading =>
       _readings.isEmpty ? null : _readings.last;
-
-  LibreProvider() : _repo = LibreRepository() {
-    _init();
-  }
 
   Future<void> _init() async {
     _isLoggedIn = await _repo.isLoggedIn;
