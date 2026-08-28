@@ -16,7 +16,7 @@ targets:
     info:
       path: SihlClient/Info.plist
       properties:
-        CFBundleDisplayName: SihlClient
+        CFBundleDisplayName: SIHLMOVE
         UILaunchScreen: {}
         UIBackgroundModes:
           - remote-notification
