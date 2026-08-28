@@ -82,7 +82,7 @@ struct TrainingView: View {
                     emptyState
                 } else {
                     ForEach(vm.plans) { plan in
-                        NavigationLink(value: plan) {
+                        NavigationLink(destination: planDestination(plan)) {
                             PlanCard(plan: plan, exerciseIdMap: vm.exerciseIdMap)
                         }
                         .buttonStyle(.plain)
@@ -94,18 +94,25 @@ struct TrainingView: View {
                 }
             }
         }
-        .navigationDestination(for: ClientTrainingPlan.self) { plan in
-            if plan.locked {
-                // Gesperrter Plan → Coaching-Paywall (wie Flutter CoachingPaywallScreen)
-                CoachingPaywallView(plan: plan)
-                    .onDisappear { reload() }
-            } else if let id = plan.id {
-                TrainingPlanDetailView(
-                    planId: id,
-                    planName: plan.name,
-                    exerciseIdMap: vm.exerciseIdMap
-                )
-            }
+    }
+
+    /// Ziel je Plan — direkte Destination statt wertbasierter Navigation:
+    /// Seit die Liste selbst als NavigationLink-Destination gepusht wird
+    /// (Profil → Trainingspläne), findet SwiftUI ein hier registriertes
+    /// `navigationDestination(for:)` nicht mehr zuverlässig — der Tipp
+    /// auf einen Plan verpuffte dann kommentarlos.
+    @ViewBuilder
+    private func planDestination(_ plan: ClientTrainingPlan) -> some View {
+        if plan.locked {
+            // Gesperrter Plan → Coaching-Paywall (wie Flutter CoachingPaywallScreen)
+            CoachingPaywallView(plan: plan)
+                .onDisappear { reload() }
+        } else if let id = plan.id {
+            TrainingPlanDetailView(
+                planId: id,
+                planName: plan.name,
+                exerciseIdMap: vm.exerciseIdMap
+            )
         }
     }
 
