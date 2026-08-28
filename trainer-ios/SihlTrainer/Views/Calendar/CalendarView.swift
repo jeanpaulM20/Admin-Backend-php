@@ -8,6 +8,8 @@ struct CalendarView: View {
     @EnvironmentObject private var store: TrainerStore
     @EnvironmentObject private var calendarStore: CalendarStore
 
+    @State private var showBooking = false
+    @State private var showSerial = false
     @State private var visibleMonth = Date()
     @State private var selectedDay = Calendar.sihl.startOfDay(for: Date())
 
@@ -23,6 +25,35 @@ struct CalendarView: View {
         .background(AppColor.background)
         .refreshable { await reload() }
         .sectionChrome("Kalender")
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarLeading) {
+                Button {
+                    showBooking = true
+                } label: {
+                    Image(systemName: "calendar.badge.plus")
+                }
+                .accessibilityLabel("Training buchen")
+
+                Button {
+                    showSerial = true
+                } label: {
+                    Image(systemName: "clock.badge.checkmark")
+                }
+                .accessibilityLabel("Serienverfügbarkeit anlegen")
+            }
+        }
+        .sheet(isPresented: $showBooking) {
+            BookTrainingSheet(initialDate: selectedDay, isPreview: auth.previewFlag) {
+                Task { await reload() }
+            }
+        }
+        .sheet(isPresented: $showSerial) {
+            if let trainer = auth.trainer {
+                AvailabilitySerialSheet(trainerId: trainer.id, isPreview: auth.previewFlag) {
+                    Task { await reload() }
+                }
+            }
+        }
     }
 
     // MARK: - Monatsraster
@@ -133,10 +164,28 @@ struct CalendarView: View {
                         .padding(.top, 4)
                     ForEach(slots) { slot in
                         SlotRow(slot: slot)
+                            .contextMenu {
+                                // Belegte Fenster nicht löschen — daran hängt
+                                // ein gebuchter Termin.
+                                if !slot.isBooked {
+                                    Button(role: .destructive) {
+                                        Task { await deleteSlot(slot) }
+                                    } label: {
+                                        Label("Verfügbarkeit löschen", systemImage: "trash")
+                                    }
+                                }
+                            }
                     }
                 }
             }
         }
+    }
+
+    private func deleteSlot(_ slot: AvailabilitySlot) async {
+        if !auth.previewFlag {
+            try? await SchedulingService().deleteAvailability(slotId: slot.id)
+        }
+        await reload()
     }
 
     private func reload() async {

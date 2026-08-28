@@ -13,6 +13,7 @@ struct SettingsView: View {
                     if let trainer = auth.trainer {
                         trainerCard(trainer)
                     }
+                    qrSection
                     accountSection
                 }
                 .padding(.horizontal, AppSpacing.screen)
@@ -47,6 +48,31 @@ struct SettingsView: View {
                 }
                 Spacer(minLength: 0)
             }
+        }
+    }
+
+    @ViewBuilder private var qrSection: some View {
+        if let trainer = auth.trainer {
+            NavigationLink {
+                QRCodeView(trainerId: trainer.id, isPreview: auth.previewFlag)
+            } label: {
+                Card {
+                    HStack(spacing: 12) {
+                        Image(systemName: "qrcode")
+                            .font(.app(15))
+                            .foregroundStyle(AppColor.primary)
+                            .frame(width: 22)
+                        Text("Mein QR-Code")
+                            .font(.app(15, weight: .semibold))
+                            .foregroundStyle(AppColor.text)
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right")
+                            .font(.app(13))
+                            .foregroundStyle(AppColor.muted)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
         }
     }
 

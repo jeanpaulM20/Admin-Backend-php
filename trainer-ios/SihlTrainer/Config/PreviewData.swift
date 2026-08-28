@@ -113,6 +113,46 @@ enum PreviewData {
          "group": ["id": 4, "name": "Körpergewicht"], "primary_muscle_group": "Bauch"],
     ].map(Exercise.init(json:))
 
+    static let files: [ClientFile] = [
+        ["id": 1, "name": "Anamnesebogen.pdf", "file": "/api/file/1", "date": "2026-03-14"],
+        ["id": 2, "name": "Trainingsplan Juli.pdf", "file": "/api/file/2", "date": "2026-07-02"],
+    ].map(ClientFile.init(json:))
+
+    static let anamnese = Anamnese(json: [
+        "profession": "Physiotherapeutin",
+        "activities": 1,
+        "sportarts": "Laufen, Klettern",
+        "sportarts_scope": "3× pro Woche",
+        "sleep_week": 7,
+        "sleep_weekend": 8,
+        "goals": "Rückenbeschwerden loswerden, Grundlagenausdauer aufbauen.",
+        "injury": true,
+        "injury_type": "Bandscheibenvorfall",
+        "injury_bodypart": "LWS",
+        "disease_circulatory_disorder": true,
+        "taking_drugs": false,
+    ])
+
+    static var performanceTests: [PerformanceTest] {
+        [PerformanceTest(json: [
+            "id": 1, "recorded_at": "2026-08-10", "points": 78,
+            "hamstrings": 12, "calfs": 9, "adductors": 14,
+            "pullups": 6, "pushups": 22, "forearm_support": 95,
+            "sensomotoric": 7.4, "reaction": 0.28,
+            "sprint10": 2.1, "sprint20": 3.6,
+        ])]
+    }
+
+    static var metrics: [MetricEntry] {
+        [
+            MetricEntry(json: ["id": 1, "recorded_at": "2026-08-15", "weight": 64.2,
+                               "body_fat_perc": 22.4, "calm_pulse": 58,
+                               "sys": 118, "dia": 74, "waist_circumference": 71]),
+            MetricEntry(json: ["id": 2, "recorded_at": "2026-06-20", "weight": 66.1,
+                               "body_fat_perc": 24.1, "calm_pulse": 62]),
+        ]
+    }
+
     static var reviews: [Review] {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")

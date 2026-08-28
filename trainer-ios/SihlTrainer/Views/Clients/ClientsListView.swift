@@ -3,7 +3,9 @@ import SwiftUI
 /// Pendant zu `screens/clients_screen.dart`: Suchfeld, Liste, Sprung ins Detail.
 struct ClientsListView: View {
     @EnvironmentObject private var store: TrainerStore
+    @EnvironmentObject private var auth: AuthViewModel
     @State private var query = ""
+    @State private var showNewClient = false
 
     private var filtered: [Client] {
         store.clients.filter { $0.matches(query) }
@@ -19,6 +21,21 @@ struct ClientsListView: View {
         }
         .background(AppColor.background)
         .sectionChrome("Kunden")
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    showNewClient = true
+                } label: {
+                    Image(systemName: "person.badge.plus")
+                }
+                .accessibilityLabel("Neuer Kunde")
+            }
+        }
+        .sheet(isPresented: $showNewClient) {
+            NewClientView(isPreview: auth.previewFlag) {
+                Task { await store.loadClients() }
+            }
+        }
     }
 
     @ViewBuilder private var content: some View {

@@ -18,6 +18,7 @@ struct ClientDetailView: View {
                 header
                 planLink
                 reviewsLink
+                dossierLinks
                 contactCard
                 appointmentsCard
             }
@@ -97,6 +98,46 @@ struct ClientDetailView: View {
                         .foregroundStyle(AppColor.muted)
                 }
             }
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Anamnese, Leistung und Dateien — die Einsichtsteile des Dossiers.
+    private var dossierLinks: some View {
+        Card(padding: 0) {
+            VStack(spacing: 0) {
+                dossierRow("Anamnese", icon: "list.clipboard") {
+                    AnamneseView(client: client, isPreview: auth.previewFlag)
+                }
+                Divider().overlay(AppColor.border)
+                dossierRow("Leistung", icon: "chart.line.uptrend.xyaxis") {
+                    PerformanceView(client: client, isPreview: auth.previewFlag)
+                }
+                Divider().overlay(AppColor.border)
+                dossierRow("Dateien", icon: "doc.text") {
+                    ClientFilesView(client: client, isPreview: auth.previewFlag)
+                }
+            }
+        }
+    }
+
+    private func dossierRow<Destination: View>(_ title: String, icon: String,
+                                               @ViewBuilder destination: @escaping () -> Destination) -> some View {
+        NavigationLink(destination: destination) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.app(15))
+                    .foregroundStyle(AppColor.primary)
+                    .frame(width: 22)
+                Text(title)
+                    .font(.app(15, weight: .semibold))
+                    .foregroundStyle(AppColor.text)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.app(13))
+                    .foregroundStyle(AppColor.muted)
+            }
+            .padding(AppSpacing.card)
         }
         .buttonStyle(.plain)
     }
