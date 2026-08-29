@@ -10,6 +10,7 @@ import '../config/app_colors.dart';
 import 'training_detail_screen.dart';
 import 'availability_serial_screen.dart';
 import 'book_training_dialog.dart';
+import 'single_slot_dialog.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -371,161 +372,28 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   // ── Day detail list (trainings + availability) ─────────────────────────────
 
-  /// Einzelnes Zeitfenster für den gewählten Tag — Ergänzung zur
-  /// Serienverfügbarkeit (spontane Zusatztermine).
+  /// Einzelnes Zeitfenster für den gewählten Tag (geteilter Dialog,
+  /// im Trainerprofil ohne vorgegebenes Datum genutzt).
   Future<void> _openSingleSlotDialog() async {
     final day = _selectedDay;
     final trainer = context.read<AuthProvider>().trainer;
     if (day == null || trainer == null) return;
 
-    var from = const TimeOfDay(hour: 9, minute: 0);
-    var to = const TimeOfDay(hour: 10, minute: 0);
-    var saving = false;
-
-    Future<TimeOfDay?> pickTime(BuildContext ctx, TimeOfDay initial) {
-      return showTimePicker(
-        context: ctx,
-        initialTime: initial,
-        builder: (ctx, child) => Theme(
-          data: Theme.of(ctx).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppColors.primary,
-              onPrimary: Colors.white,
-              surface: AppColors.surface,
-              onSurface: Colors.white,
-            ),
-          ),
-          child: child!,
-        ),
-      );
-    }
-
-    String fmt(TimeOfDay t) =>
-        '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-
-    final created = await showDialog<bool>(
+    final created = await showSingleSlotDialog(
       context: context,
-      builder: (dialogCtx) => StatefulBuilder(
-        builder: (dialogCtx, setLocal) {
-          Widget timeField(String label, TimeOfDay value, VoidCallback onTap) {
-            return Expanded(
-              child: InkWell(
-                onTap: onTap,
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: AppColors.background,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(label,
-                          style: const TextStyle(
-                              color: AppColors.muted, fontSize: 11)),
-                      const SizedBox(height: 2),
-                      Text(fmt(value),
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          }
+      trainerId: trainer.id,
+      day: day,
+    );
+    if (!mounted || created == null) return;
 
-          return AlertDialog(
-            backgroundColor: AppColors.surface,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14)),
-            title: const Text(
-              'Zeitfenster hinzufügen',
-              style:
-                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  DateFormat('EEEE, d. MMMM yyyy', 'de_DE').format(day),
-                  style: const TextStyle(color: AppColors.text, fontSize: 14),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    timeField('Von', from, () async {
-                      final picked = await pickTime(dialogCtx, from);
-                      if (picked != null) setLocal(() => from = picked);
-                    }),
-                    const SizedBox(width: 10),
-                    timeField('Bis', to, () async {
-                      final picked = await pickTime(dialogCtx, to);
-                      if (picked != null) setLocal(() => to = picked);
-                    }),
-                  ],
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed:
-                    saving ? null : () => Navigator.pop(dialogCtx, false),
-                child: const Text('Abbrechen',
-                    style: TextStyle(color: AppColors.muted)),
-              ),
-              TextButton(
-                onPressed: saving
-                    ? null
-                    : () async {
-                        final startMin = from.hour * 60 + from.minute;
-                        final endMin = to.hour * 60 + to.minute;
-                        if (endMin <= startMin) {
-                          ScaffoldMessenger.of(dialogCtx).showSnackBar(
-                            const SnackBar(
-                              content:
-                                  Text('Endzeit muss nach der Startzeit liegen'),
-                            ),
-                          );
-                          return;
-                        }
-                        setLocal(() => saving = true);
-                        final ok = await context
-                            .read<TrainerProvider>()
-                            .createAvailability(
-                              trainerId: trainer.id,
-                              date: DateFormat('yyyy-MM-dd').format(day),
-                              from: fmt(from),
-                              to: fmt(to),
-                            );
-                        if (dialogCtx.mounted) Navigator.pop(dialogCtx, ok);
-                      },
-                child: Text(
-                  saving ? 'Speichern…' : 'Speichern',
-                  style: const TextStyle(color: AppColors.primary),
-                ),
-              ),
-            ],
-          );
-        },
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(created
+            ? 'Zeitfenster hinzugefügt'
+            : 'Zeitfenster konnte nicht gespeichert werden'),
       ),
     );
-
-    if (created == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Zeitfenster hinzugefügt')),
-      );
-      await _refresh();
-    } else if (created == false && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Zeitfenster konnte nicht gespeichert werden')),
-      );
-    }
+    if (created) await _refresh();
   }
 
   Widget _buildDayDetail(

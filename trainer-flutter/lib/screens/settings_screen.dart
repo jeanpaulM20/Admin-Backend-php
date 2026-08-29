@@ -7,6 +7,7 @@ import '../config/api_config.dart';
 import '../config/app_colors.dart';
 import 'qr_code_screen.dart';
 import 'availability_serial_screen.dart';
+import 'single_slot_dialog.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -49,6 +50,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } finally {
       setState(() => _isLoadingPrefs = false);
     }
+  }
+
+  /// Einzelnes Zeitfenster ohne Umweg über den Kalender — das Datum
+  /// wählt der Dialog selbst.
+  Future<void> _addSingleSlot(int trainerId) async {
+    final created = await showSingleSlotDialog(
+      context: context,
+      trainerId: trainerId,
+    );
+    if (!mounted || created == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(created
+            ? 'Zeitfenster hinzugefügt'
+            : 'Zeitfenster konnte nicht gespeichert werden'),
+      ),
+    );
   }
 
   void _showChangePasswordDialog() {
@@ -140,14 +158,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 10),
             _SettingsTile(
               icon: Icons.event_available,
-              title: 'Verfügbarkeit eintragen',
-              subtitle: 'Zeiten festlegen, zu denen Kunden buchen können',
+              title: 'Wiederkehrende Zeiten',
+              subtitle: 'Wochentage und Zeitraum als Serie festlegen',
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => AvailabilitySerialScreen(trainerId: trainer.id),
                 ),
               ),
+            ),
+            _SettingsTile(
+              icon: Icons.more_time,
+              title: 'Einzelnes Zeitfenster',
+              subtitle: 'Zusatztermin an einem bestimmten Tag',
+              onTap: () => _addSingleSlot(trainer.id),
             ),
             const SizedBox(height: 24),
           ],
