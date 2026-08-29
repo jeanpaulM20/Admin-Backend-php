@@ -198,13 +198,15 @@ private struct WorkoutPhotoDetailView: View {
                                 AppColor.surface2
                             }
                         }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 320)
+                        // Breite UND Höhe in EINEM frame: zwei getrennte Aufrufe
+                        // geben die Breite wieder frei — ein Querformat-Bild
+                        // wurde bei 320 pt Höhe ~427 pt breit und schob die
+                        // ganze Seite über den Bildschirmrand hinaus
+                        .frame(maxWidth: .infinity, minHeight: 320, maxHeight: 320)
                         .clipped()
                         LinearGradient(colors: [AppColor.black.opacity(0.8), .clear],
                                        startPoint: .bottom, endPoint: .center)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 320)
+                            .frame(maxWidth: .infinity, minHeight: 320, maxHeight: 320)
                         VStack(alignment: .leading, spacing: 3) {
                             Text(photo.activity)
                                 .font(.headline)
