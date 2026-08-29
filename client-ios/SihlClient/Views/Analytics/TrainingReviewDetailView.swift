@@ -1,6 +1,7 @@
 import SwiftUI
 import Charts
 import MapKit
+import PhotosUI
 
 // MARK: - TrainingReviewDetailView
 
@@ -12,6 +13,17 @@ struct TrainingReviewDetailView: View {
 
     @State private var showFullscreen = false
     @State private var track: [GeoPoint] = []
+
+    // Nachträgliches Trainings-Foto (F1-Galerie)
+    @State private var showRouteFullscreen = false
+    @State private var existingPhoto: WorkoutPhoto?
+    @State private var photoImage: UIImage?
+    @State private var photoItem: PhotosPickerItem?
+    @State private var showCamera = false
+    @State private var isUploadingPhoto = false
+    @State private var photoError: String?
+
+    private var isDemo: Bool { auth.clientId == "demo" }
 
     var body: some View {
         ZStack {
@@ -42,6 +54,11 @@ struct TrainingReviewDetailView: View {
                     // ── HR-Chart ───────────────────────────────────────────────
                     hrChartCard
 
+                    // ── Trainings-Foto (nachträglich hinzufügbar) ─────────────
+                    if !isDemo, Int(review.id) != nil {
+                        photoCard
+                    }
+
                     Spacer(minLength: 24)
                 }
                 .padding(.horizontal, 16)
@@ -53,6 +70,10 @@ struct TrainingReviewDetailView: View {
             guard let clientId = auth.clientId else { return }
             track = (try? await PerformanceService.shared.getTrack(
                 clientId: clientId, reviewId: review.id)) ?? []
+            await loadPhoto()
+        }
+        .fullScreenCover(isPresented: $showRouteFullscreen) {
+            RouteFullscreenView(coordinates: displayCoordinates)
         }
         .navigationTitle(review.trainingType)
         .navigationBarTitleDisplayMode(.inline)
@@ -103,6 +124,98 @@ struct TrainingReviewDetailView: View {
         }
     }
 
+    // MARK: - Trainings-Foto
+
+    /// Foto zur Einheit — nachträglich aufnehmen/auswählen; erscheint in
+    /// der Galerie auf der Startseite. Ein Bild pro Training (Server
+    /// ersetzt ein bestehendes).
+    private var photoCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Trainings-Foto")
+                .font(.callout.bold()).foregroundStyle(AppColor.text)
+
+            if let img = photoImage {
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 124, height: 220)
+                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+                    .frame(maxWidth: .infinity, alignment: .center)
+            } else if isUploadingPhoto {
+                ProgressView().tint(AppColor.primary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 16)
+            } else {
+                HStack(spacing: AppSpacing.stack) {
+                    Button {
+                        showCamera = true
+                    } label: {
+                        Label("Foto aufnehmen", systemImage: "camera")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(AppColor.text)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(AppColor.background, in: RoundedRectangle(cornerRadius: AppRadius.control))
+                            .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
+                                .stroke(AppColor.border, lineWidth: 1))
+                    }
+                    PhotosPicker(selection: $photoItem, matching: .images) {
+                        Label("Auswählen", systemImage: "photo")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(AppColor.text)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(AppColor.background, in: RoundedRectangle(cornerRadius: AppRadius.control))
+                            .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
+                                .stroke(AppColor.border, lineWidth: 1))
+                    }
+                }
+            }
+
+            if let err = photoError {
+                Text(err).font(.caption).foregroundStyle(AppColor.red)
+            }
+        }
+        .padding(AppSpacing.card)
+        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
+        .onChange(of: photoItem) { _, item in
+            guard let item else { return }
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self),
+                   let image = UIImage(data: data) {
+                    await uploadPhoto(image)
+                }
+                photoItem = nil
+            }
+        }
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraPicker { image in Task { await uploadPhoto(image) } }
+                .ignoresSafeArea()
+        }
+    }
+
+    private func loadPhoto() async {
+        guard !isDemo, let clientId = auth.clientId, let rid = Int(review.id) else { return }
+        let photos = (try? await WorkoutPhotoService.shared.list(clientId: clientId, activity: nil)) ?? []
+        guard let photo = photos.first(where: { $0.reviewId == rid }) else { return }
+        existingPhoto = photo
+        photoImage = await WorkoutPhotoService.shared.image(clientId: clientId, photoId: photo.id)
+    }
+
+    private func uploadPhoto(_ image: UIImage) async {
+        guard let clientId = auth.clientId, let rid = Int(review.id) else { return }
+        isUploadingPhoto = true
+        photoError = nil
+        do {
+            try await WorkoutPhotoService.shared.upload(clientId: clientId, reviewId: rid, image: image)
+            await loadPhoto()
+        } catch {
+            photoError = "Foto konnte nicht gespeichert werden — bitte erneut versuchen."
+        }
+        isUploadingPhoto = false
+    }
+
     // MARK: - Route
 
     private var displayCoordinates: [CLLocationCoordinate2D] {
@@ -117,12 +230,29 @@ struct TrainingReviewDetailView: View {
             Text("Route")
                 .font(.callout.bold()).foregroundStyle(AppColor.text)
                 .padding(.horizontal, AppSpacing.card).padding(.top, AppSpacing.card).padding(.bottom, 12)
-            Map {
-                MapPolyline(coordinates: displayCoordinates)
-                    .stroke(AppColor.track, lineWidth: 4)
+            ZStack(alignment: .topTrailing) {
+                Map {
+                    MapPolyline(coordinates: displayCoordinates)
+                        .stroke(AppColor.track, lineWidth: 4)
+                }
+                .allowsHitTesting(false)
+
+                Button {
+                    showRouteFullscreen = true
+                } label: {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.app(14, weight: .semibold))
+                        .foregroundStyle(AppColor.muted)
+                        .frame(width: 40, height: 40)
+                        .background(AppColor.surface, in: Circle())
+                        .overlay(Circle().stroke(AppColor.border, lineWidth: 1))
+                }
+                .padding(10)
+                .accessibilityLabel("Route im Vollbild ansehen")
             }
             .frame(height: 220)
-            .allowsHitTesting(false)
+            .contentShape(Rectangle())
+            .onTapGesture { showRouteFullscreen = true }
         }
         .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
         .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))

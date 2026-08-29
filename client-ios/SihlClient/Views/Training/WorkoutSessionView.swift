@@ -46,6 +46,7 @@ struct WorkoutSessionView: View {
     // die Karte selbst bewegt; der Zentrier-Button holt ihn zurück.
     @State private var followUser = true
     @State private var liveCamera: MapCameraPosition = .automatic
+    @State private var showRouteFullscreen = false
     @State private var programmaticMove = false
     @State private var cameraHeading: Double = 0
     /// Kamera-Distanz in Metern — beim Folgen bleibt der vom User gewählte
@@ -463,6 +464,10 @@ struct WorkoutSessionView: View {
             CameraPicker { image in photo = image }
                 .ignoresSafeArea()
         }
+        .fullScreenCover(isPresented: $showRouteFullscreen) {
+            RouteFullscreenView(plannedSegments: recorder.routeSegments,
+                                coordinates: displayCoordinates)
+        }
     }
 
     private func liveStat(_ label: String, _ value: String) -> some View {
@@ -527,18 +532,37 @@ struct WorkoutSessionView: View {
 
                 // Route (nur Outdoor mit Track); Tour-Route als gedeckte Linie dahinter
                 if recorder.activity.usesGPS, displayCoordinates.count >= 2 {
-                    Map {
-                        ForEach(recorder.routeSegments.indices, id: \.self) { i in
-                            MapPolyline(coordinates: recorder.routeSegments[i])
-                                .stroke(AppColor.blue.opacity(0.85),
-                                        style: StrokeStyle(lineWidth: 3, dash: [6, 4]))
+                    // Inline statisch (Kartengesten vs. Scrollen) — Tipp
+                    // oder Vollbild-Knopf öffnet die zoombare Ansicht
+                    ZStack(alignment: .topTrailing) {
+                        Map {
+                            ForEach(recorder.routeSegments.indices, id: \.self) { i in
+                                MapPolyline(coordinates: recorder.routeSegments[i])
+                                    .stroke(AppColor.blue.opacity(0.85),
+                                            style: StrokeStyle(lineWidth: 3, dash: [6, 4]))
+                            }
+                            MapPolyline(coordinates: displayCoordinates)
+                                .stroke(AppColor.track, lineWidth: 4)
                         }
-                        MapPolyline(coordinates: displayCoordinates)
-                            .stroke(AppColor.track, lineWidth: 4)
+                        .allowsHitTesting(false)
+
+                        Button {
+                            showRouteFullscreen = true
+                        } label: {
+                            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                .font(.app(14, weight: .semibold))
+                                .foregroundStyle(AppColor.muted)
+                                .frame(width: 40, height: 40)
+                                .background(AppColor.surface, in: Circle())
+                                .overlay(Circle().stroke(AppColor.border, lineWidth: 1))
+                        }
+                        .padding(10)
+                        .accessibilityLabel("Route im Vollbild ansehen")
                     }
                     .frame(height: 220)
                     .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
-                    .allowsHitTesting(false)
+                    .contentShape(RoundedRectangle(cornerRadius: AppRadius.card))
+                    .onTapGesture { showRouteFullscreen = true }
                 }
 
                 // Statistiken
