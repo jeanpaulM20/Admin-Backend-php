@@ -21,6 +21,20 @@ struct WorkoutUploadService {
 
     private static let iso = ISO8601DateFormatter()
 
+    /// HF-Serie fürs Backend auf ≤ 7'200 Punkte deckeln (1 Punkt/5 s bei
+    /// 10 h). Der Gurt liefert ~1 Sample/s — bei Trekking-Längen würden
+    /// sonst zehntausende Zeilen pro Training gespeichert, ohne dass die
+    /// Auswertung feiner würde. Avg/Max sind davon unberührt (App-seitig
+    /// aus der vollen Serie berechnet).
+    static func thinned(_ samples: [HrSample]) -> [HrSample] {
+        let cap = 7_200
+        guard samples.count > cap else { return samples }
+        let stride = (samples.count + cap - 1) / cap
+        return samples.enumerated()
+            .filter { $0.offset % stride == 0 }
+            .map(\.element)
+    }
+
     // MARK: - Upload
 
     /// Wirft bei Fehlschlag — Aufrufer entscheidet über Queue (`queue(_:)`).
@@ -31,7 +45,7 @@ struct WorkoutUploadService {
             "trainingType": p.trainingType,
             "startedAt": Self.iso.string(from: p.startedAt),
             "duration": p.duration,
-            "hrSeries": p.samples.map { ["t": Self.iso.string(from: $0.t), "v": $0.bpm] },
+            "hrSeries": Self.thinned(p.samples).map { ["t": Self.iso.string(from: $0.t), "v": $0.bpm] },
         ]
         if let track = p.track, !track.isEmpty {
             body["gpsTrack"] = track.map { pt -> [String: Any] in
@@ -47,8 +61,10 @@ struct WorkoutUploadService {
         }
         if let d = p.distanceMeters { body["distanceMeters"] = d }
         if let e = p.elevationGain  { body["elevationGain"]  = e }
+        // Grosszügiger Timeout: mehrstündige Touren ergeben 1–3 MB Payload,
+        // die auch über langsames Mobilfunknetz durchkommen sollen
         let result = try await APIClient.shared.postJSONObject(
-            "/api/client/workouts/\(p.clientId)", body: body)
+            "/api/client/workouts/\(p.clientId)", body: body, timeout: 120)
         guard result?["success"] as? Bool == true else {
             throw APIError(statusCode: -3, message: "Training konnte nicht gespeichert werden")
         }

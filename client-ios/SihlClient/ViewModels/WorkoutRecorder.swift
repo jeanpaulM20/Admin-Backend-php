@@ -144,9 +144,15 @@ final class WorkoutRecorder {
     }
 
     /// HF-Kurve für das bestehende `HrLineChart` in der Zusammenfassung.
+    /// Auf ≤ 720 Punkte ausgedünnt: Bei Langzeit-Trainings (10 h ≈ 36'000
+    /// Samples) würde sonst jede Sekunde die komplette Serie neu formatiert
+    /// und gezeichnet — mehr Punkte als Pixel zeigt das Chart ohnehin nicht.
     var hrPoints: [HrPoint] {
         let fmt = ISO8601DateFormatter()
-        return samples.map { HrPoint(time: fmt.string(from: $0.t), value: Double($0.bpm)) }
+        let stride = max(1, samples.count / 720)
+        return samples.enumerated()
+            .filter { $0.offset % stride == 0 }
+            .map { HrPoint(time: fmt.string(from: $0.element.t), value: Double($0.element.bpm)) }
     }
 
     var trackCoordinates: [CLLocationCoordinate2D] {
