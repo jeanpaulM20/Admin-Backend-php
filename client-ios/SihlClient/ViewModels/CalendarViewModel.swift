@@ -7,6 +7,9 @@ struct CalTimeSlot: Identifiable {
     let startMin: Int
     var timeStr:    String { CalTimeSlot.fmt(startMin) }
     var endTimeStr: String { CalTimeSlot.fmt(startMin + 60) }
+    /// „06:00–07:00" — Start und Ende in einer Zeile, damit die Endzeit
+    /// nicht wie die Startzeit des nächsten Slots gelesen wird.
+    var rangeStr:   String { "\(timeStr)–\(endTimeStr)" }
 
     static func fmt(_ min: Int) -> String {
         String(format: "%02d:%02d", min / 60, min % 60)

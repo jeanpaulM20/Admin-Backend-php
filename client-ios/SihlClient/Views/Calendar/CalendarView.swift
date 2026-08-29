@@ -200,7 +200,7 @@ struct CalendarView: View {
             if !slots.isEmpty {
                 HStack(spacing: 4) {
                     Circle().fill(AppColor.green).frame(width: 6, height: 6)
-                    Text("\(slots.count) Slots frei")
+                    Text(slots.count == 1 ? "1 Startzeit" : "\(slots.count) Startzeiten")
                         .font(.app(11, weight: .medium))
                         .foregroundStyle(AppColor.green)
                 }
@@ -427,16 +427,13 @@ private struct SlotChip: View {
 
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 1) {
-                Text(slot.timeStr)
-                    .font(.app(13, weight: .bold))
-                    .foregroundStyle(AppColor.green)
-                Text(slot.endTimeStr)
-                    .font(.app(10))
-                    .foregroundStyle(AppColor.green.opacity(0.6))
-            }
-            .frame(width: 80)
-            .padding(.vertical, 8)
+            Text(slot.rangeStr)
+                .font(.app(13, weight: .semibold))
+                .foregroundStyle(AppColor.green)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .frame(width: 106)
+                .padding(.vertical, 10)
             .background(AppColor.green.opacity(0.06))
             .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
             .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
