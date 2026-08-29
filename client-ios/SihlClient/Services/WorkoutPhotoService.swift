@@ -99,6 +99,16 @@ actor WorkoutPhotoService {
     /// Auf 9:16 zuschneiden (Reel-Format), auf 1080×1920 begrenzen und
     /// als JPEG komprimieren — hält den Upload klein (~300 KB).
     nonisolated static func prepare(_ image: UIImage) -> Data? {
+        // EXIF-Rotation zuerst auflösen: `cgImage` liefert die UNROTIERTEN
+        // Pixel, während `size` bereits gedreht ist. Ein aus `size`
+        // berechneter Crop trifft sonst die falsche Region oder ragt aus
+        // dem Puffer — `cropping(to:)` gibt dann nil zurück und der
+        // Fallback lud das Foto ungeschnitten in Originalgrösse hoch.
+        let image = image.imageOrientation == .up ? image
+            : UIGraphicsImageRenderer(size: image.size).image { _ in
+                image.draw(in: CGRect(origin: .zero, size: image.size))
+            }
+
         let target: CGFloat = 9.0 / 16.0
         let size = image.size
         var crop = CGRect(origin: .zero, size: size)

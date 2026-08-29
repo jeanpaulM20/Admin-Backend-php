@@ -132,15 +132,24 @@ private struct GalleryCard: View {
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
-            if let image {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } else {
-                AppColor.surface2
+            Group {
+                if let image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } else {
+                    AppColor.surface2
+                }
             }
+            // Fest aufs Kartenmass: ein Bild mit abweichendem Verhältnis
+            // machte den ZStack sonst grösser als die Karte — Verlauf und
+            // Beschriftung lagen dann ausserhalb des sichtbaren Bereichs
+            .frame(width: GalleryCardSize.width, height: GalleryCardSize.height)
+            .clipped()
+
             LinearGradient(colors: [AppColor.black.opacity(0.75), .clear],
                            startPoint: .bottom, endPoint: .center)
+                .frame(width: GalleryCardSize.width, height: GalleryCardSize.height)
             VStack(alignment: .leading, spacing: 2) {
                 Label(photo.distanceText ?? photo.durationText ?? "",
                       systemImage: photo.workoutActivity.icon)
@@ -189,10 +198,12 @@ private struct WorkoutPhotoDetailView: View {
                                 AppColor.surface2
                             }
                         }
+                        .frame(maxWidth: .infinity)
                         .frame(height: 320)
                         .clipped()
                         LinearGradient(colors: [AppColor.black.opacity(0.8), .clear],
                                        startPoint: .bottom, endPoint: .center)
+                            .frame(maxWidth: .infinity)
                             .frame(height: 320)
                         VStack(alignment: .leading, spacing: 3) {
                             Text(photo.activity)

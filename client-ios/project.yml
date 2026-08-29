@@ -17,6 +17,10 @@ targets:
       path: SihlClient/Info.plist
       properties:
         CFBundleDisplayName: SIHLMOVE
+        # Ohne diese Angaben gilt die App als englisch: SwiftUIs
+        # .dateTime-Formate schrieben dann "Saturday, 29 August 2026"
+        CFBundleDevelopmentRegion: de_CH
+        CFBundleLocalizations: [de]
         UILaunchScreen: {}
         UIBackgroundModes:
           - remote-notification
