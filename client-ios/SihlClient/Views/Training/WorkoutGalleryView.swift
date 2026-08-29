@@ -5,8 +5,9 @@ import SwiftUI
 /// Kartenmass der Galerie: 9:16 wie ein Reel, so gross wie die Fläche
 /// unter dem Startknopf es hergibt.
 private enum GalleryCardSize {
-    static let width: CGFloat = 200
-    static let height: CGFloat = 356
+    // NZZ-Kurzvideo-Mass: Karte ≈ 58 % der Screenbreite, 9:16
+    static let width: CGFloat = 235
+    static let height: CGFloat = 418
 }
 
 /// Fotokarten der absolvierten Einheiten im Reel-Format (9:16),
