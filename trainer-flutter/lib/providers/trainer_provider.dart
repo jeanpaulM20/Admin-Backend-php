@@ -268,6 +268,29 @@ class TrainerProvider extends ChangeNotifier {
     }
   }
 
+  /// Create a single availability slot. Returns true on success.
+  /// Ergänzt die Serienverfügbarkeit für spontane Einzeltermine.
+  Future<bool> createAvailability({
+    required int trainerId,
+    required String date,
+    required String from,
+    required String to,
+    int locationId = 1,
+  }) async {
+    try {
+      await _apiService.post(ApiConfig.availability, body: {
+        'trainerId': trainerId,
+        'date': date,
+        'from': from,
+        'to': to,
+        'locationId': locationId,
+      });
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   /// Delete an availability slot by ID. Returns true on success.
   Future<bool> deleteAvailability(int slotId) async {
     try {

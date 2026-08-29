@@ -40,8 +40,13 @@ export class AvailabilityController {
   }
 
   @Post()
-  create(@Body() body: Partial<TrainerAvailability>) {
-    return this.service.create(body);
+  create(
+    @CurrentTrainer() trainer: Trainer,
+    @Body() body: Partial<TrainerAvailability>,
+  ) {
+    // Trainer aus dem Token gewinnt — sonst könnte ein eingeloggter
+    // Trainer Slots auf fremde Kalender schreiben (wie bei createSerial)
+    return this.service.create({ ...body, trainerId: trainer?.id ?? body.trainerId });
   }
 
   @Put(':id')
