@@ -117,6 +117,117 @@ struct BookTrainingSheet: View {
     }
 }
 
+/// Einzelnes Zeitfenster anlegen — Ergänzung zur Serie für spontane
+/// Zusatztermine. Mit `day` (Kalender) steht das Datum fest, ohne `day`
+/// (Einstellungen) wählt man es im Sheet.
+struct SingleSlotSheet: View {
+    let trainerId: Int
+    let isPreview: Bool
+    var day: Date? = nil
+    let onCreated: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var date: Date
+    @State private var from: Date
+    @State private var to: Date
+    @State private var isSaving = false
+    @State private var error: String?
+
+    private let datePickable: Bool
+
+    init(trainerId: Int, isPreview: Bool, day: Date? = nil, onCreated: @escaping () -> Void) {
+        self.trainerId = trainerId
+        self.isPreview = isPreview
+        self.day = day
+        self.onCreated = onCreated
+        let base = day ?? Date()
+        _date = State(initialValue: base)
+        _from = State(initialValue: Calendar.sihl.date(bySettingHour: 9, minute: 0, second: 0, of: base) ?? base)
+        _to   = State(initialValue: Calendar.sihl.date(bySettingHour: 10, minute: 0, second: 0, of: base) ?? base)
+        datePickable = (day == nil)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Tag") {
+                    if datePickable {
+                        DatePicker("Datum", selection: $date, displayedComponents: .date)
+                            .listRowBackground(AppColor.surface)
+                    } else {
+                        Text(date.formatted(.dateTime.weekday(.wide).day().month(.wide).year()))
+                            .font(.app(15))
+                            .foregroundStyle(AppColor.text)
+                            .listRowBackground(AppColor.surface)
+                    }
+                }
+                Section("Uhrzeit") {
+                    DatePicker("Von", selection: $from, displayedComponents: .hourAndMinute)
+                        .listRowBackground(AppColor.surface)
+                    DatePicker("Bis", selection: $to, displayedComponents: .hourAndMinute)
+                        .listRowBackground(AppColor.surface)
+                }
+                if let error {
+                    Section {
+                        Text(error).font(.app(13)).foregroundStyle(AppColor.red)
+                    }
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(AppColor.background)
+            .navigationTitle("Zeitfenster")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Abbrechen") { dismiss() }.foregroundStyle(AppColor.muted)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        Task { await save() }
+                    } label: {
+                        if isSaving {
+                            ProgressView().tint(AppColor.primary)
+                        } else {
+                            Text("Anlegen").font(.app(15, weight: .semibold))
+                        }
+                    }
+                    .disabled(isSaving || !endAfterStart)
+                }
+            }
+        }
+    }
+
+    /// Nur die Uhrzeit zählt — die Datumsanteile der Picker können differieren.
+    private var endAfterStart: Bool {
+        let cal = Calendar.sihl
+        let f = cal.dateComponents([.hour, .minute], from: from)
+        let t = cal.dateComponents([.hour, .minute], from: to)
+        return (t.hour ?? 0) * 60 + (t.minute ?? 0) > (f.hour ?? 0) * 60 + (f.minute ?? 0)
+    }
+
+    private func save() async {
+        isSaving = true
+        defer { isSaving = false }
+        #if DEBUG
+        if isPreview {
+            onCreated()
+            dismiss()
+            return
+        }
+        #endif
+        do {
+            try await SchedulingService().createAvailability(
+                trainerId: trainerId, day: date, from: from, to: to)
+            onCreated()
+            dismiss()
+        } catch let apiError as APIError {
+            error = apiError.message
+        } catch {
+            self.error = "Zeitfenster konnte nicht angelegt werden"
+        }
+    }
+}
+
 /// Serienverfügbarkeit anlegen.
 /// Pendant zu `screens/availability_serial_screen.dart`.
 struct AvailabilitySerialSheet: View {

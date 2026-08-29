@@ -5,6 +5,9 @@ struct SettingsView: View {
     @EnvironmentObject private var auth: AuthViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var showLogoutConfirm = false
+    @State private var showSerialSheet = false
+    @State private var showSingleSlotSheet = false
+    @State private var slotToast: String?
 
     var body: some View {
         NavigationStack {
@@ -13,7 +16,11 @@ struct SettingsView: View {
                     if let trainer = auth.trainer {
                         trainerCard(trainer)
                     }
+                    availabilitySection
                     qrSection
+                    #if DEBUG
+                    diagnosticsSection
+                    #endif
                     accountSection
                 }
                 .padding(.horizontal, AppSpacing.screen)
@@ -21,6 +28,27 @@ struct SettingsView: View {
                 .padding(.bottom, AppSpacing.bottomInset)
             }
             .background(AppColor.background)
+            .sheet(isPresented: $showSerialSheet) {
+                if let trainer = auth.trainer {
+                    AvailabilitySerialSheet(trainerId: trainer.id, isPreview: auth.previewFlag) {
+                        slotToast = "Serie angelegt"
+                    }
+                }
+            }
+            .sheet(isPresented: $showSingleSlotSheet) {
+                if let trainer = auth.trainer {
+                    SingleSlotSheet(trainerId: trainer.id, isPreview: auth.previewFlag) {
+                        slotToast = "Zeitfenster hinzugefügt"
+                    }
+                }
+            }
+            .alert("Gespeichert", isPresented: Binding(
+                get: { slotToast != nil }, set: { if !$0 { slotToast = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(slotToast ?? "")
+            }
             .navigationTitle("Einstellungen")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -51,6 +79,51 @@ struct SettingsView: View {
         }
     }
 
+    /// Verfügbarkeit — war bisher nur im Kalender erreichbar.
+    @ViewBuilder private var availabilitySection: some View {
+        if auth.trainer != nil {
+            VStack(spacing: AppSpacing.stack) {
+                availabilityRow(icon: "calendar.badge.clock",
+                                title: "Wiederkehrende Zeiten",
+                                subtitle: "Wochentage und Zeitraum als Serie") {
+                    showSerialSheet = true
+                }
+                availabilityRow(icon: "clock.badge.plus",
+                                title: "Einzelnes Zeitfenster",
+                                subtitle: "Zusatztermin an einem bestimmten Tag") {
+                    showSingleSlotSheet = true
+                }
+            }
+        }
+    }
+
+    private func availabilityRow(icon: String, title: String, subtitle: String,
+                                 action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Card {
+                HStack(spacing: 12) {
+                    Image(systemName: icon)
+                        .font(.app(15))
+                        .foregroundStyle(AppColor.primary)
+                        .frame(width: 22)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(title)
+                            .font(.app(15, weight: .semibold))
+                            .foregroundStyle(AppColor.text)
+                        Text(subtitle)
+                            .font(.app(12))
+                            .foregroundStyle(AppColor.muted)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.app(13))
+                        .foregroundStyle(AppColor.muted)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
     @ViewBuilder private var qrSection: some View {
         if let trainer = auth.trainer {
             NavigationLink {
@@ -75,6 +148,34 @@ struct SettingsView: View {
             .buttonStyle(.plain)
         }
     }
+
+    #if DEBUG
+    /// Nur in Debug-Builds: zeigt, was die Endpunkte tatsächlich antworten.
+    @ViewBuilder private var diagnosticsSection: some View {
+        if let trainer = auth.trainer {
+            NavigationLink {
+                DiagnosticsView(trainerId: trainer.id)
+            } label: {
+                Card {
+                    HStack(spacing: 12) {
+                        Image(systemName: "stethoscope")
+                            .font(.app(15))
+                            .foregroundStyle(AppColor.orange)
+                            .frame(width: 22)
+                        Text("Verbindungstest")
+                            .font(.app(15, weight: .semibold))
+                            .foregroundStyle(AppColor.text)
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right")
+                            .font(.app(13))
+                            .foregroundStyle(AppColor.muted)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+        }
+    }
+    #endif
 
     private var accountSection: some View {
         Card(padding: 0) {

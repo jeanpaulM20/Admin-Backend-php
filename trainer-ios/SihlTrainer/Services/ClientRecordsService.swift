@@ -98,6 +98,17 @@ struct SchedulingService {
         _ = try await APIClient.shared.delete("\(APIConfig.availability)/\(slotId)")
     }
 
+    /// Einzelnes Zeitfenster an einem Tag — Ergänzung zur Serie für
+    /// spontane Zusatztermine.
+    func createAvailability(trainerId: Int, day: Date, from: Date, to: Date) async throws {
+        _ = try await APIClient.shared.post(APIConfig.availability, body: [
+            "trainerId": trainerId,
+            "date": Self.dayFormatter.string(from: day),
+            "from": Self.timeFormatter.string(from: from),
+            "to": Self.timeFormatter.string(from: to),
+        ])
+    }
+
     /// Serienverfügbarkeit: Wochentage (1 = Montag) über einen Zeitraum.
     func createSerialAvailability(trainerId: Int, from: Date, to: Date,
                                   rangeStart: Date, rangeEnd: Date,
