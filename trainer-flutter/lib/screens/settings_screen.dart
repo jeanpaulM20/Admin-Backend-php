@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 import '../config/api_config.dart';
 import '../config/app_colors.dart';
 import 'qr_code_screen.dart';
+import 'availability_serial_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -127,6 +128,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+
+          // Verfügbarkeit — war bisher nur über das Kalender-Symbol
+          // erreichbar und damit im Profil nicht auffindbar
+          if (trainer != null) ...[
+            _SectionHeader(label: 'Verfügbarkeit'),
+            const SizedBox(height: 10),
+            _SettingsTile(
+              icon: Icons.event_available,
+              title: 'Verfügbarkeit eintragen',
+              subtitle: 'Zeiten festlegen, zu denen Kunden buchen können',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AvailabilitySerialScreen(trainerId: trainer.id),
+                ),
               ),
             ),
             const SizedBox(height: 24),
