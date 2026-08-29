@@ -26,12 +26,12 @@ const RESOURCES = {"version.json": "df3b1bd3d5cffcfead453e6c90187824",
 "assets/AssetManifest.json": "f534791734053e8f0aa77523db0292d0",
 "assets/AssetManifest.bin.json": "a9d7f1aae082b0360280a3ff6c4373e4",
 "assets/NOTICES": "aea4e56391eee4ff3f0c88325c39ecbf",
-"assets/fonts/MaterialIcons-Regular.otf": "517f0fb58706e12697cfb0614be21a3d",
+"assets/fonts/MaterialIcons-Regular.otf": "6904292da22c8009cb9e04176e05f424",
 "assets/FontManifest.json": "7b2a36307916a9721811788013e65289",
 "assets/AssetManifest.bin": "f300c3530514fb2ae777a511970215a6",
 "assets/shaders/ink_sparkle.frag": "ecc85a2e95f5e9f53123dcaf8cb9b6ce",
-"main.dart.js": "e7542f8ef913a819ccbe04279944e7fe",
-"flutter_bootstrap.js": "484b3af951af276eca156fdb3e068b4f",
+"main.dart.js": "5816e91a5f8fbbb1b062744efe77b8e3",
+"flutter_bootstrap.js": "4a7e79075f14ef014c9d78517c4ff6e3",
 "manifest.json": "e68ae8afcae584e181eea11ce5c4b9fe"};
 // The application shell files that are downloaded before a service worker can
 // start.
