@@ -1,10 +1,16 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // GPS-Tracks (mehrstündige Touren) und Trainingsfotos kommen als JSON —
+  // das Express-Standardlimit von 100 kb wirft dafür PayloadTooLargeError.
+  app.use(json({ limit: '10mb' }));
+  app.use(urlencoded({ extended: true, limit: '10mb' }));
 
   // Health check for Railway
   app.getHttpAdapter().get('/api/health', (_req, res) => res.json({ status: 'ok' }));
