@@ -53,6 +53,10 @@ struct GlucoseView: View {
                     ReadingsHistoryCard(readings: libre.readings)
                 }
 
+                // Kein-Medizinprodukt-Hinweis (Abgrenzung nach MDR/MepV:
+                // reine Anzeige, keine Therapiegrundlage)
+                medicalDisclaimer
+
                 // Abmelden
                 logoutButton
                     .padding(.top, 8)
@@ -68,6 +72,26 @@ struct GlucoseView: View {
                 await libre.loadReadings()
             }
         }
+    }
+
+    // MARK: - Hinweis
+
+    private var medicalDisclaimer: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "info.circle")
+                .font(.app(14))
+                .foregroundStyle(AppColor.muted)
+                .padding(.top, 1)
+            Text("SIHLMOVE ist kein Medizinprodukt. Die Blutzucker-Anzeige dient ausschliesslich als Kontext für dein Training. Triff keine Therapieentscheidungen (z. B. Insulindosierung) auf Basis dieser App — massgeblich sind die offiziellen FreeStyle-Libre-Apps und dein Arzt.")
+                .font(.app(12))
+                .foregroundStyle(AppColor.muted)
+                .lineSpacing(3)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(AppSpacing.card)
+        .background(AppColor.surface)
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
     }
 
     // MARK: - Logout
