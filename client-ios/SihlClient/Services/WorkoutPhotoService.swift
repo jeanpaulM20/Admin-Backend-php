@@ -33,6 +33,15 @@ struct WorkoutPhoto: Identifiable, Hashable {
         WorkoutActivity(rawValue: activity) ?? .joggen
     }
 
+    /// Startzeit „09:04" — nil, wenn nur ein Datum ohne echte Uhrzeit
+    /// vorliegt (Mitternacht würde sonst „00:00" vortäuschen).
+    var startTimeText: String? {
+        guard let date else { return nil }
+        let c = Calendar.current.dateComponents([.hour, .minute, .second], from: date)
+        if (c.hour ?? 0) == 0, (c.minute ?? 0) == 0, (c.second ?? 0) == 0 { return nil }
+        return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
+    }
+
     var distanceText: String? {
         guard let m = distanceMeters, m > 0 else { return nil }
         return m >= 1000 ? String(format: "%.1f km", Double(m) / 1000) : "\(m) m"

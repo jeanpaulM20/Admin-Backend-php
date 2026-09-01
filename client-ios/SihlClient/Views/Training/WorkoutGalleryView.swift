@@ -264,6 +264,15 @@ private struct WorkoutPhotoDetailView: View {
         }
     }
 
+    /// „Dienstag, 1. September 2026 · 09:04" — Zeit nur, wenn vorhanden.
+    private func dateLine(_ date: Date, time: String?) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "de_CH")
+        f.dateFormat = "EEEE, d. MMMM yyyy"
+        let day = f.string(from: date)
+        return time.map { "\(day) · \($0)" } ?? day
+    }
+
     private func stat(_ value: String, _ label: String, color: Color = AppColor.text) -> some View {
         VStack(spacing: 3) {
             Text(value)
