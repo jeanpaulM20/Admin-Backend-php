@@ -212,7 +212,7 @@ private struct WorkoutPhotoDetailView: View {
                                 .font(.headline)
                                 .foregroundStyle(AppColor.white)
                             if let date = photo.date {
-                                Text(date, format: .dateTime.weekday(.wide).day().month(.wide).year())
+                                Text(dateLine(date, time: photo.startTimeText))
                                     .font(.caption)
                                     .foregroundStyle(AppColor.white.opacity(0.8))
                             }
