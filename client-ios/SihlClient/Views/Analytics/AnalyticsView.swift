@@ -388,7 +388,7 @@ private struct ReviewRowView: View {
                 Text(review.trainingType)
                     .font(.callout.bold())
                     .foregroundStyle(AppColor.text)
-                Text(review.formattedDate())
+                Text(review.formattedDateTime())
                     .font(.caption)
                     .foregroundStyle(AppColor.muted)
             }

@@ -84,7 +84,7 @@ struct TrainingReviewDetailView: View {
                     Text(review.trainingType)
                         .font(.app(15, weight: .bold))
                         .foregroundStyle(AppColor.text)
-                    Text(review.formattedDate())
+                    Text(review.formattedDateTime())
                         .font(.app(11))
                         .foregroundStyle(AppColor.muted)
                 }

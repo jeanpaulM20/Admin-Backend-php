@@ -198,6 +198,24 @@ struct TrainingReview: Identifiable, Hashable {
         let y = c.component(.year,  from: date)
         return "\(d). \(months[m]) \(y)"
     }
+
+    /// Startzeit der Aufzeichnung („07:04") — leer, wenn nur ein Datum
+    /// ohne Uhrzeit vorliegt (Termine ohne echte Startzeit stehen auf
+    /// Mitternacht und würden sonst „00:00" vortäuschen).
+    func formattedStartTime() -> String? {
+        let c = Calendar.current
+        let comps = c.dateComponents([.hour, .minute, .second], from: date)
+        if (comps.hour ?? 0) == 0, (comps.minute ?? 0) == 0, (comps.second ?? 0) == 0 {
+            return nil
+        }
+        return String(format: "%02d:%02d", comps.hour ?? 0, comps.minute ?? 0)
+    }
+
+    /// Datum mit Startzeit, sofern vorhanden: „1. Sep 2026 · 07:04".
+    func formattedDateTime() -> String {
+        if let t = formattedStartTime() { return "\(formattedDate()) · \(t)" }
+        return formattedDate()
+    }
 }
 
 // MARK: - PerformanceNavTarget (NavigationLink Wrapper)
