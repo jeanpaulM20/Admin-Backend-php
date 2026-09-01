@@ -33,7 +33,7 @@ const dbConfig: any = isSqlite
   ? {
       type: 'better-sqlite3',
       database: process.env.DB_SQLITE_PATH ?? 'dev.sqlite',
-      entities: [__dirname + '/entities/*.{entity,entities}{.ts,.js}'],
+      entities: [__dirname + '/**/*.{entity,entities}{.ts,.js}'],
       synchronize: true,
       logging: false,
     }
@@ -44,7 +44,10 @@ const dbConfig: any = isSqlite
       username: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
-      entities: [__dirname + '/entities/*.{entity,entities}{.ts,.js}'],
+      // '**' statt nur '/entities': Module mit eigenem entities-Ordner
+      // (calendar, garmin) müssen mit erfasst werden, sonst fehlen TypeORM
+      // die Metadaten und jeder Zugriff wirft EntityMetadataNotFoundError
+      entities: [__dirname + '/**/*.{entity,entities}{.ts,.js}'],
       synchronize: false,
       logging: process.env.NODE_ENV === 'development',
     };

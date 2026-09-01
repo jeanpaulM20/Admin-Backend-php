@@ -96,43 +96,48 @@ actor WorkoutPhotoService {
 
     // MARK: Intern
 
-    /// Auf 9:16 zuschneiden (Reel-Format), auf 1080×1920 begrenzen und
-    /// als JPEG komprimieren — hält den Upload klein (~300 KB).
+    /// Bereitet ein Foto fürs Reel-Format auf: 9:16 zugeschnitten,
+    /// höchstens 1080×1920, als JPEG unter der Serverschwelle.
+    ///
+    /// Bewusst über `UIGraphicsImageRenderer` statt über `cgImage`:
+    /// `draw(in:)` löst die EXIF-Drehung von selbst auf und funktioniert
+    /// auch bei Bildern ohne direkten Pixelzugriff (bearbeitete Fotos,
+    /// manche HEIC aus der Mediathek). Der frühere Weg fiel dort auf das
+    /// ungeschnittene Original in voller Auflösung zurück — der Server
+    /// wies es dann als „Bild zu gross" ab.
     nonisolated static func prepare(_ image: UIImage) -> Data? {
-        // EXIF-Rotation zuerst auflösen: `cgImage` liefert die UNROTIERTEN
-        // Pixel, während `size` bereits gedreht ist. Ein aus `size`
-        // berechneter Crop trifft sonst die falsche Region oder ragt aus
-        // dem Puffer — `cropping(to:)` gibt dann nil zurück und der
-        // Fallback lud das Foto ungeschnitten in Originalgrösse hoch.
-        let image = image.imageOrientation == .up ? image
-            : UIGraphicsImageRenderer(size: image.size).image { _ in
-                image.draw(in: CGRect(origin: .zero, size: image.size))
-            }
+        guard image.size.width > 0, image.size.height > 0 else { return nil }
 
-        let target: CGFloat = 9.0 / 16.0
-        let size = image.size
-        var crop = CGRect(origin: .zero, size: size)
-        if size.width / size.height > target {          // zu breit → Seiten weg
-            let w = size.height * target
-            crop = CGRect(x: (size.width - w) / 2, y: 0, width: w, height: size.height)
-        } else {                                         // zu hoch → oben/unten weg
-            let h = size.width / target
-            crop = CGRect(x: 0, y: (size.height - h) / 2, width: size.width, height: h)
-        }
-        guard let cg = image.cgImage?.cropping(to: crop) else { return image.jpegData(compressionQuality: 0.8) }
-        let cropped = UIImage(cgImage: cg, scale: image.scale, orientation: image.imageOrientation)
+        let ratio: CGFloat = 9.0 / 16.0
+        let maxW: CGFloat = 1080, maxH: CGFloat = 1920
 
-        let maxSize = CGSize(width: 1080, height: 1920)
-        let scale = min(maxSize.width / cropped.size.width, maxSize.height / cropped.size.height, 1)
-        let final: UIImage
-        if scale < 1 {
-            let newSize = CGSize(width: cropped.size.width * scale, height: cropped.size.height * scale)
-            final = UIGraphicsImageRenderer(size: newSize).image { _ in
-                cropped.draw(in: CGRect(origin: .zero, size: newSize))
-            }
-        } else {
-            final = cropped
+        // Zielrahmen im 9:16-Format, begrenzt auf 1080×1920
+        var w = min(image.size.width, maxW)
+        var h = w / ratio
+        if h > maxH { h = maxH; w = h * ratio }
+        let canvas = CGSize(width: w.rounded(), height: h.rounded())
+
+        // Formatfüllend zeichnen, Überstand fällt an den Rändern weg
+        let scale = max(canvas.width / image.size.width, canvas.height / image.size.height)
+        let drawn = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let origin = CGPoint(x: (canvas.width - drawn.width) / 2,
+                             y: (canvas.height - drawn.height) / 2)
+
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1        // Punkte = Pixel; sonst wird das Bild 2–3× so gross
+        format.opaque = true
+        let rendered = UIGraphicsImageRenderer(size: canvas, format: format).image { _ in
+            image.draw(in: CGRect(origin: origin, size: drawn))
         }
-        return final.jpegData(compressionQuality: 0.8)
+
+        // Qualität senken, bis das Bild sicher unter die Serverschwelle passt
+        for quality in [0.8, 0.65, 0.5, 0.35] as [CGFloat] {
+            if let data = rendered.jpegData(compressionQuality: quality),
+               data.count <= maxUploadBytes { return data }
+        }
+        return rendered.jpegData(compressionQuality: 0.3)
     }
+
+    /// Der Server nimmt bis 3 MB an — mit Abstand, damit nichts knapp scheitert.
+    private static let maxUploadBytes = 2_500_000
 }
