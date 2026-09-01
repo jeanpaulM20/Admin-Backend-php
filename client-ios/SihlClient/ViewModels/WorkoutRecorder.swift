@@ -182,9 +182,10 @@ final class WorkoutRecorder {
         routeCheckPoints = all.enumerated().compactMap { $0.offset % stride == 0 ? $0.element : nil }
     }
 
-    /// GPS-Berechtigung/Fix schon im Setup anstoßen (Outdoor-Aktivität gewählt).
-    func prepareGPS() { gpsSource.start() }
-    func stopGPSPreparation() { if phase == .setup { gpsSource.stop() } }
+    // GPS läuft bewusst NICHT im Setup „warm": Der Start-Tab ist die
+    // Landeseite der App — ein Warmlauf dort hiesse Dauer-GPS ab App-Start.
+    // startRecording() schaltet es ein, stop()/teardown() wieder aus; die
+    // ersten Sekunden bis zum Fix fängt der Genauigkeitsfilter (≤30 m) ab.
 
     func pause() {
         guard phase == .recording else { return }

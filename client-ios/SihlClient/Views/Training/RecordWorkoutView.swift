@@ -79,11 +79,7 @@ struct RecordWorkoutView: View {
                 // Gewählte Aktivität nach vorne (bei Tour deren Aktivität)
                 activityOrder = WorkoutActivity.orderedByRecency(preferring: activity)
             }
-            if activity.usesGPS { recorder?.prepareGPS() }
             recovered = WorkoutRecorder.pendingSnapshot()
-        }
-        .onChange(of: activity) { _, newActivity in
-            newActivity.usesGPS ? recorder?.prepareGPS() : recorder?.stopGPSPreparation()
         }
         .onDisappear {
             // Nur aufräumen, wenn keine Session läuft
