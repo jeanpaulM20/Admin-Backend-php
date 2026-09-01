@@ -5,29 +5,8 @@ import { IcalService } from './ical.service';
 import { Training } from '../entities/training.entity';
 import { CurrentTrainer } from '../auth/decorators/current-user.decorator';
 import { CurrentClient } from '../auth/decorators/current-user.decorator';
-import { Public } from '../auth/decorators/public.decorator';
 import { Trainer } from '../entities/trainer.entity';
 import { Client } from '../entities/client.entity';
-
-// Legacy PHP-compatible endpoint: GET /api/getIcal?id=...
-@Controller('api/getIcal')
-export class IcalLegacyController {
-  constructor(private readonly icalService: IcalService) {}
-
-  @Public()
-  @Get()
-  async getIcal(
-    @Query('id', ParseIntPipe) id: number,
-    @Res() res: Response,
-  ) {
-    const ical = await this.icalService.generateIcal(id);
-    res.set({
-      'Content-Type': 'text/calendar; charset=utf-8',
-      'Content-Disposition': `attachment; filename="Appointment.ics"`,
-    });
-    res.send(ical);
-  }
-}
 
 @Controller('api/training')
 export class TrainingController {
@@ -54,10 +33,15 @@ export class TrainingController {
   // Auth via query param is supported: GET /api/training/:id/ical?token=...
   @Get(':id/ical')
   async getIcal(
+    @CurrentClient() client: Client,
+    @CurrentTrainer() trainer: Trainer,
     @Param('id', ParseIntPipe) id: number,
     @Res() res: Response,
   ) {
-    const ical = await this.icalService.generateIcal(id);
+    const ical = await this.icalService.generateIcal(id, {
+      clientId: client?.id,
+      trainerId: trainer?.id,
+    });
     res.set({
       'Content-Type': 'text/calendar; charset=utf-8',
       'Content-Disposition': `attachment; filename="training-${id}.ics"`,

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Training } from '../entities/training.entity';
@@ -20,7 +20,16 @@ export class IcalService {
    * Generate a .ics file for a single training.
    * Returns the raw iCalendar string.
    */
-  async generateIcal(trainingId: number): Promise<string> {
+  /**
+   * @param owner Prüfsatz: nur ein am Termin Beteiligter (Kunde oder Trainer)
+   *   darf die Datei mit Name, Ort und E-Mail beziehen. Termin-IDs sind
+   *   fortlaufend und damit ratbar — ohne diese Prüfung liesse sich jeder
+   *   fremde Termin abgreifen.
+   */
+  async generateIcal(
+    trainingId: number,
+    owner?: { clientId?: number; trainerId?: number },
+  ): Promise<string> {
     const training = await this.trainingRepo.findOne({
       where: { id: trainingId },
       relations: ['trainer', 'client', 'trainingType', 'location', 'trainingPlan'],
@@ -28,6 +37,15 @@ export class IcalService {
 
     if (!training) {
       throw new NotFoundException(`Training ${trainingId} not found`);
+    }
+
+    if (owner) {
+      const isOwner =
+        (owner.clientId != null && training.clientId === owner.clientId) ||
+        (owner.trainerId != null && training.trainerId === owner.trainerId);
+      if (!isOwner) {
+        throw new ForbiddenException('Kein Zugriff auf diesen Termin.');
+      }
     }
 
     const event = this.buildEvent(training);
