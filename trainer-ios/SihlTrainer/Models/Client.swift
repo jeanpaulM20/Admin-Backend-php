@@ -23,7 +23,8 @@ struct Client: Identifiable, Equatable {
         id = JSON.int(json, "id", "client_id") ?? 0
         clientCode = JSON.string(json, "clientid", "client_id_code")
         name = Client.buildName(json)
-        email = JSON.string(json, "email")
+        // Entity-Property "email", Legacy-PHP-Spalte "e_mail".
+        email = JSON.string(json, "email", "e_mail")
         phone = JSON.string(json, "phone", "mobile", "telephone")
         photo = JSON.string(json, "photo", "picture", "image", "avatar", "foto")
         address = Client.buildAddress(json)
@@ -55,10 +56,11 @@ struct Client: Identifiable, Equatable {
 
     private static func buildAddress(_ json: [String: Any]) -> String? {
         if let address = JSON.string(json, "address") { return address }
+        // Das Backend führt keinen Strassennamen: nur zip + domicile (Ort).
         let parts = [
             JSON.string(json, "street"),
             JSON.string(json, "zip", "postal_code"),
-            JSON.string(json, "city"),
+            JSON.string(json, "city", "domicile"),
         ].compactMap { $0 }
         return parts.isEmpty ? nil : parts.joined(separator: ", ")
     }

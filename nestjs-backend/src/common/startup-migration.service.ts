@@ -98,6 +98,21 @@ export class StartupMigrationService implements OnApplicationBootstrap {
          CONSTRAINT fk_review_photo_review FOREIGN KEY (review_id)
            REFERENCES review(id) ON DELETE CASCADE
        )`,
+      // Kalender-Zusammenführung Phase 1: Zugänge zu Google/Outlook je Trainer
+      `CREATE TABLE IF NOT EXISTS calendar_connection (
+         id INT AUTO_INCREMENT PRIMARY KEY,
+         trainer_id INT NOT NULL,
+         provider VARCHAR(16) NOT NULL,
+         access_token TEXT NOT NULL,
+         refresh_token TEXT DEFAULT NULL,
+         expires_at DATETIME DEFAULT NULL,
+         account_email VARCHAR(190) DEFAULT NULL,
+         calendar_id VARCHAR(190) DEFAULT NULL,
+         connected_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         last_sync_at DATETIME DEFAULT NULL,
+         last_sync_error VARCHAR(255) DEFAULT NULL,
+         UNIQUE KEY uniq_calendar_connection (trainer_id, provider)
+       )`,
       // GPS-Tracking (Phase 2): Höhenmeter am Review + Track-Punkte-Tabelle
       `ALTER TABLE review ADD COLUMN elevation_gain INT DEFAULT NULL`,
       `CREATE TABLE IF NOT EXISTS review_gps_track (

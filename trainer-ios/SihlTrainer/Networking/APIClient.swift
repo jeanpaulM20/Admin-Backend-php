@@ -76,6 +76,36 @@ actor APIClient {
         return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
     }
 
+    #if DEBUG
+    /// Roher Aufruf für den Verbindungstest: liefert Status, Grösse und einen
+    /// Ausschnitt der Antwort, statt Fehler in Meldungen zu übersetzen.
+    /// Nur in Debug-Builds vorhanden.
+    func probe(_ path: String) async -> (status: Int, bytes: Int, snippet: String) {
+        var request = URLRequest(url: buildURL(path))
+        request.httpMethod = "GET"
+        request.timeoutInterval = APIConfig.timeout
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let token, !token.isEmpty {
+            request.setValue(token, forHTTPHeaderField: APIConfig.authHeader)
+        } else {
+            return (-1, 0, "kein Token gesetzt")
+        }
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+            var snippet = String(data: data.prefix(200), encoding: .utf8) ?? "nicht lesbar"
+            if let array = try? JSONSerialization.jsonObject(with: data) as? [Any] {
+                snippet = "Array mit \(array.count) Einträgen"
+            }
+            return (status, data.count, snippet)
+        } catch let error as URLError {
+            return (-2, 0, Self.describe(error))
+        } catch {
+            return (-2, 0, error.localizedDescription)
+        }
+    }
+    #endif
+
     // MARK: - Intern
 
     private func send(path: String, method: String, body: [String: Any]?,
@@ -92,7 +122,16 @@ actor APIClient {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
         }
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch let error as URLError {
+            // Ohne diese Übersetzung landet jeder Netzwerkfehler im generischen
+            // "konnte nicht geladen werden" der Views — dann ist nicht mehr
+            // erkennbar, ob es am Netz, am Zeitlimit oder am Server lag.
+            throw APIError(statusCode: -3, message: Self.describe(error))
+        }
         guard let http = response as? HTTPURLResponse else {
             throw APIError(statusCode: -1, message: "Ungültige Serverantwort")
         }
@@ -100,6 +139,26 @@ actor APIClient {
             throw decodeError(statusCode: http.statusCode, data: data)
         }
         return data
+    }
+
+    /// Klartext für die häufigen Netzwerkfehler.
+    private static func describe(_ error: URLError) -> String {
+        switch error.code {
+        case .timedOut:
+            return "Zeitüberschreitung — der Server hat nicht rechtzeitig geantwortet."
+        case .notConnectedToInternet:
+            return "Keine Internetverbindung."
+        case .networkConnectionLost:
+            return "Verbindung unterbrochen."
+        case .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed:
+            return "Server nicht erreichbar."
+        case .secureConnectionFailed, .serverCertificateUntrusted:
+            return "Gesicherte Verbindung fehlgeschlagen."
+        case .cancelled:
+            return "Anfrage abgebrochen."
+        default:
+            return "Netzwerkfehler (\(error.code.rawValue))."
+        }
     }
 
     private func buildURL(_ path: String) -> URL {

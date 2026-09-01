@@ -93,7 +93,39 @@ struct SettingsView: View {
                                 subtitle: "Zusatztermin an einem bestimmten Tag") {
                     showSingleSlotSheet = true
                 }
+                calendarRow
             }
+        }
+    }
+
+    /// Kalender-Zusammenführung (Phase 1): Outlook der Klinik sperrt die Website.
+    @ViewBuilder private var calendarRow: some View {
+        if let trainer = auth.trainer {
+            NavigationLink {
+                CalendarSyncView(trainerId: trainer.id)
+            } label: {
+                Card {
+                    HStack(spacing: 12) {
+                        Image(systemName: "calendar.badge.exclamationmark")
+                            .font(.app(15))
+                            .foregroundStyle(AppColor.primary)
+                            .frame(width: 22)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Kalender verbinden")
+                                .font(.app(15, weight: .semibold))
+                                .foregroundStyle(AppColor.text)
+                            Text("Outlook und Google gegen Doppelbuchung")
+                                .font(.app(12))
+                                .foregroundStyle(AppColor.muted)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right")
+                            .font(.app(13))
+                            .foregroundStyle(AppColor.muted)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
         }
     }
 
