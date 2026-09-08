@@ -15,6 +15,7 @@ struct WorkoutSessionView: View {
     @State private var saveError: String?
     @State private var confirmDiscard = false
     @State private var routeToast: AppToast?
+    @State private var photoToast: AppToast?
     @State private var wasOffRoute = false
 
     var body: some View {
@@ -40,6 +41,18 @@ struct WorkoutSessionView: View {
             }
         }
         .appToast($routeToast, bottomPadding: 100)
+        // Kamera in jeder Phase erreichbar (auch während der Aufzeichnung
+        // und in der Pause), nicht nur in der Zusammenfassung
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraPicker { image in
+                photo = image
+                if recorder.phase != .finished {
+                    photoToast = AppToast(message: "Foto gespeichert", style: .success)
+                }
+            }
+            .ignoresSafeArea()
+        }
+        .appToast($photoToast, bottomPadding: 100)
     }
 
     // Kamera-Führung der Live-Karte: folgt der Position, bis der User
@@ -158,17 +171,8 @@ struct WorkoutSessionView: View {
                     liveStat("Höhenmeter", "\(Int(recorder.elevationGain)) m")
                 }
 
-                HStack(spacing: AppSpacing.stack) {
-                    Button(recorder.phase == .paused ? "Weiter" : "Pause") {
-                        recorder.phase == .paused ? recorder.resume() : recorder.pause()
-                    }
-                    .buttonStyle(OutlineButtonStyle())
-                    .frame(maxWidth: .infinity)
-
-                    Button("Beenden") { confirmStop = true }
-                        .buttonStyle(PrimaryButtonStyle(fill: AppColor.red))
-                }
-                .padding(.bottom, AppSpacing.bottomInset)
+                controlRow
+                    .padding(.bottom, AppSpacing.bottomInset)
             }
             .padding(.horizontal, AppSpacing.screen)
         }
@@ -234,19 +238,39 @@ struct WorkoutSessionView: View {
 
                 Spacer(minLength: 4)
 
-                HStack(spacing: AppSpacing.stack) {
-                    Button(recorder.phase == .paused ? "Weiter" : "Pause") {
-                        recorder.phase == .paused ? recorder.resume() : recorder.pause()
-                    }
-                    .buttonStyle(OutlineButtonStyle())
-                    .frame(maxWidth: .infinity)
-
-                    Button("Beenden") { confirmStop = true }
-                        .buttonStyle(PrimaryButtonStyle(fill: AppColor.red))
-                }
-                .padding(.bottom, 24)
+                controlRow
+                    .padding(.bottom, 24)
             }
             .padding(.horizontal, AppSpacing.screen)
+        }
+    }
+
+    /// Steuerleiste der Live-Aufzeichnung: Foto, Pause/Weiter, Beenden.
+    /// Die Kamera ist bewusst hier — so lässt sich unterwegs (oder in der
+    /// Pause) ein Foto aufnehmen, das am Ende zur Einheit gespeichert wird.
+    private var controlRow: some View {
+        HStack(spacing: AppSpacing.stack) {
+            Button {
+                showCamera = true
+            } label: {
+                Image(systemName: photo == nil ? "camera" : "camera.fill")
+                    .font(.app(18, weight: .semibold))
+                    .foregroundStyle(photo == nil ? AppColor.text : AppColor.primary)
+                    .frame(width: 52, height: 52)
+                    .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.control))
+                    .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
+                        .stroke(photo == nil ? AppColor.border : AppColor.primary, lineWidth: 1))
+            }
+            .accessibilityLabel(photo == nil ? "Foto aufnehmen" : "Foto ersetzt — erneut aufnehmen")
+
+            Button(recorder.phase == .paused ? "Weiter" : "Pause") {
+                recorder.phase == .paused ? recorder.resume() : recorder.pause()
+            }
+            .buttonStyle(OutlineButtonStyle())
+            .frame(maxWidth: .infinity)
+
+            Button("Beenden") { confirmStop = true }
+                .buttonStyle(PrimaryButtonStyle(fill: AppColor.red))
         }
     }
 
@@ -459,10 +483,6 @@ struct WorkoutSessionView: View {
                     photo = image
                 }
             }
-        }
-        .fullScreenCover(isPresented: $showCamera) {
-            CameraPicker { image in photo = image }
-                .ignoresSafeArea()
         }
         .fullScreenCover(isPresented: $showRouteFullscreen) {
             RouteFullscreenView(plannedSegments: recorder.routeSegments,
