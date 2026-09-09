@@ -26,6 +26,10 @@ interface BusySlot {
 export class CalendarSyncService {
   private readonly log = new Logger('CalendarSync');
 
+  /** Trainer, deren Abgleich gerade läuft — verhindert überlappende Läufe
+   *  (Cron alle 15 Min UND manueller syncNow) und damit Doppel-Sperren. */
+  private readonly running = new Set<number>();
+
   constructor(
     @InjectRepository(CalendarConnection)
     private readonly repo: Repository<CalendarConnection>,
@@ -56,7 +60,28 @@ export class CalendarSyncService {
    * Gleicht einen Trainer ab: Outlook lesen, Google-Sperreinträge anpassen.
    * Idempotent — mehrfaches Ausführen ändert nichts am Ergebnis.
    */
+  /** Gleicher Zeitpunkt trotz unterschiedlicher Schreibweise
+   *  („…Z" vs. „…+02:00", bzw. Datum bei Ganztag). */
+  private sameInstant(a: string, b: string): boolean {
+    const ta = Date.parse(a), tb = Date.parse(b);
+    if (Number.isNaN(ta) || Number.isNaN(tb)) return a === b;
+    return ta === tb;
+  }
+
   async syncTrainer(outlook: CalendarConnection, google: CalendarConnection): Promise<number> {
+    if (this.running.has(outlook.trainerId)) {
+      this.log.log(`Trainer ${outlook.trainerId}: Abgleich läuft bereits, übersprungen`);
+      return 0;
+    }
+    this.running.add(outlook.trainerId);
+    try {
+      return await this.runSync(outlook, google);
+    } finally {
+      this.running.delete(outlook.trainerId);
+    }
+  }
+
+  private async runSync(outlook: CalendarConnection, google: CalendarConnection): Promise<number> {
     const from = new Date();
     const to = new Date(Date.now() + CalendarConfig.syncDays * 86_400_000);
 
@@ -72,7 +97,7 @@ export class CalendarSyncService {
       if (!current) {
         await this.createGoogleBlocker(google, slot);
         touched++;
-      } else if (current.start !== slot.start || current.end !== slot.end) {
+      } else if (!this.sameInstant(current.start, slot.start) || !this.sameInstant(current.end, slot.end)) {
         await this.updateGoogleBlocker(google, current.googleId, slot);
         touched++;
       }
@@ -110,7 +135,11 @@ export class CalendarSyncService {
     const res = await fetch(`${CalendarConfig.microsoft.apiBase}${path}?${params}`, {
       headers: {
         Authorization: `Bearer ${token}`,
-        Prefer: 'outlook.timezone="Europe/Zurich"',
+        // UTC anfordern: Graph liefert die Zeit dann als echte UTC-Wanduhr,
+        // die graphTimeToIso mit "Z" korrekt zum Instant macht. Mit einer
+        // benannten Zone käme die Lokalzeit OHNE Offset zurück und würde
+        // fälschlich als UTC gelesen (Sperren 1–2 h verschoben).
+        Prefer: 'outlook.timezone="UTC"',
       },
     });
     if (!res.ok) throw new Error(`Outlook antwortet ${res.status}: ${(await res.text()).slice(0, 160)}`);
@@ -181,8 +210,10 @@ export class CalendarSyncService {
       transparency: 'opaque',   // zählt als belegt
       visibility: 'private',
       reminders: { useDefault: false },
-      start: slot.allDay ? { date: slot.start.slice(0, 10) } : { dateTime: slot.start, timeZone: 'Europe/Zurich' },
-      end:   slot.allDay ? { date: slot.end.slice(0, 10) }   : { dateTime: slot.end,   timeZone: 'Europe/Zurich' },
+      // Zeit-Termine als UTC-Instant (Z); die Zone steckt bereits im Offset,
+      // eine zusätzliche timeZone würde nur zu Widersprüchen führen
+      start: slot.allDay ? { date: slot.start.slice(0, 10) } : { dateTime: slot.start },
+      end:   slot.allDay ? { date: slot.end.slice(0, 10) }   : { dateTime: slot.end },
       extendedProperties: {
         private: { [CalendarConfig.markerKey]: '1', sihlmoveSource: slot.sourceId },
       },

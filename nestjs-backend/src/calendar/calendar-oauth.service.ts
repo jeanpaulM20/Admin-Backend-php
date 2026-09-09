@@ -65,6 +65,10 @@ export class CalendarOAuthService {
     const entry = this.pendingStates.get(state);
     if (!entry) throw new BadRequestException('Die Verbindung ist abgelaufen. Bitte erneut starten.');
     this.pendingStates.delete(state);
+    // Alter auch hier prüfen — prunePendingStates läuft nur bei neuem Connect
+    if (Date.now() - entry.at > 15 * 60 * 1000) {
+      throw new BadRequestException('Die Verbindung ist abgelaufen. Bitte erneut starten.');
+    }
     return { trainerId: entry.trainerId, provider: entry.provider };
   }
 

@@ -1,5 +1,6 @@
 import {
-  Controller, Get, Post, Delete, Param, Query, Res, ParseIntPipe, BadRequestException,
+  Controller, Get, Post, Delete, Param, Query, Res, ParseIntPipe,
+  BadRequestException, ForbiddenException,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -9,6 +10,8 @@ import { CalendarOAuthService } from './calendar-oauth.service';
 import { CalendarSyncService } from './calendar-sync.service';
 import { CalendarConfig } from './calendar.config';
 import { Public } from '../auth/decorators/public.decorator';
+import { CurrentTrainer } from '../auth/decorators/current-user.decorator';
+import { Trainer } from '../entities/trainer.entity';
 
 const PROVIDERS: CalendarProvider[] = ['google', 'microsoft'];
 
@@ -17,6 +20,15 @@ function assertProvider(p: string): CalendarProvider {
     throw new BadRequestException(`Unbekannter Anbieter: ${p}`);
   }
   return p as CalendarProvider;
+}
+
+/** Nur der angemeldete Trainer selbst darf seine Kalender-Verbindungen
+ *  sehen/ändern. Ohne diese Prüfung könnte jeder gültige Token (auch ein
+ *  Client-Token) fremde trainerId aus der URL bedienen. */
+function assertOwnTrainer(trainer: Trainer | null | undefined, trainerId: number): void {
+  if (!trainer || trainer.id !== trainerId) {
+    throw new ForbiddenException('Kein Zugriff auf diesen Trainer-Kalender.');
+  }
 }
 
 @Controller('api/calendar')
@@ -30,7 +42,11 @@ export class CalendarController {
 
   /** Welche Kalender sind verbunden — für die Anzeige im Trainerprofil. */
   @Get('status/:trainerId')
-  async status(@Param('trainerId', ParseIntPipe) trainerId: number) {
+  async status(
+    @CurrentTrainer() trainer: Trainer,
+    @Param('trainerId', ParseIntPipe) trainerId: number,
+  ) {
+    assertOwnTrainer(trainer, trainerId);
     const conns = await this.repo.find({ where: { trainerId } });
     const of = (p: CalendarProvider) => {
       const c = conns.find((x) => x.provider === p);
@@ -48,9 +64,11 @@ export class CalendarController {
   /** Liefert die Anmeldeadresse des Anbieters — im Browser zu öffnen. */
   @Get('connect/:provider/:trainerId')
   connect(
+    @CurrentTrainer() trainer: Trainer,
     @Param('provider') provider: string,
     @Param('trainerId', ParseIntPipe) trainerId: number,
   ) {
+    assertOwnTrainer(trainer, trainerId);
     const p = assertProvider(provider);
     return { url: this.oauth.buildAuthUrl(trainerId, p) };
   }
@@ -96,7 +114,11 @@ export class CalendarController {
 
   /** Abgleich sofort auslösen, ohne auf den Zeitplan zu warten. */
   @Post('sync/:trainerId')
-  async syncNow(@Param('trainerId', ParseIntPipe) trainerId: number) {
+  async syncNow(
+    @CurrentTrainer() trainer: Trainer,
+    @Param('trainerId', ParseIntPipe) trainerId: number,
+  ) {
+    assertOwnTrainer(trainer, trainerId);
     const outlook = await this.repo.findOne({ where: { trainerId, provider: 'microsoft' } });
     const google = await this.repo.findOne({ where: { trainerId, provider: 'google' } });
     if (!outlook || !google) {
@@ -108,9 +130,11 @@ export class CalendarController {
 
   @Delete(':provider/:trainerId')
   async disconnect(
+    @CurrentTrainer() trainer: Trainer,
     @Param('provider') provider: string,
     @Param('trainerId', ParseIntPipe) trainerId: number,
   ) {
+    assertOwnTrainer(trainer, trainerId);
     const p = assertProvider(provider);
     await this.repo.delete({ trainerId, provider: p });
     return { success: true };
@@ -118,6 +142,11 @@ export class CalendarController {
 
   /** Schlichte Rückmeldeseite für den Browser nach dem Rückruf. */
   private page(title: string, message: string, ok: boolean): string {
+    const esc = (t: string) =>
+      String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    title = esc(title);
+    message = esc(message);
     const accent = ok ? '#636B2F' : '#C8532B';
     return `<!doctype html><html lang="de"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>
