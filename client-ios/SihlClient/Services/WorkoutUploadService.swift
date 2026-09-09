@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 /// Lädt aufgezeichnete Trainings als Batch hoch
 /// (`POST /api/client/workouts/{clientId}` → Review + HF-Timeseries).
@@ -17,6 +18,17 @@ struct WorkoutUploadService {
         var track: [TrackPoint]? = nil
         var distanceMeters: Double? = nil
         var elevationGain: Double? = nil
+        /// Optionales Trainingsfoto: Dateiname der beigelegten JPEG in der
+        /// Warteschlange. So überlebt das Foto Offline-Speicherung und App-Kill.
+        var photoFile: String? = nil
+    }
+
+    /// Wartender Foto-Upload für den Fall, dass das Training online gespeichert
+    /// wurde (reviewId bekannt), der Foto-Upload aber scheiterte.
+    struct PhotoRetry: Codable {
+        let clientId: String
+        let reviewId: Int
+        let photoFile: String
     }
 
     private static let iso = ISO8601DateFormatter()
@@ -87,19 +99,93 @@ struct WorkoutUploadService {
         }
     }
 
+    /// Foto-JPEG in die Warteschlange legen, gibt den Dateinamen zurück.
+    func stashPhoto(_ data: Data) -> String {
+        let name = "\(UUID().uuidString).jpg"
+        try? data.write(to: queueDir.appendingPathComponent(name), options: .atomic)
+        return name
+    }
+
+    /// Foto-only-Nachlieferung einreihen (Training bereits gespeichert).
+    func queuePhoto(clientId: String, reviewId: Int, photoFile: String) {
+        let retry = PhotoRetry(clientId: clientId, reviewId: reviewId, photoFile: photoFile)
+        let url = queueDir.appendingPathComponent("photo-\(UUID().uuidString).json")
+        if let data = try? JSONEncoder().encode(retry) {
+            try? data.write(to: url, options: .atomic)
+        }
+    }
+
+    private func photoData(_ name: String) -> Data? {
+        try? Data(contentsOf: queueDir.appendingPathComponent(name))
+    }
+    private func removePhotoFile(_ name: String?) {
+        guard let name else { return }
+        try? FileManager.default.removeItem(at: queueDir.appendingPathComponent(name))
+    }
+
     /// Nachreichen liegen gebliebener Trainings (Aufruf beim App-Start).
     func retryPending() async {
         let files = (try? FileManager.default.contentsOfDirectory(
             at: queueDir, includingPropertiesForKeys: nil)) ?? []
         for file in files where file.pathExtension == "json" {
-            guard let data = try? Data(contentsOf: file),
-                  let payload = try? JSONDecoder().decode(Payload.self, from: data) else {
+            let data = (try? Data(contentsOf: file)) ?? Data()
+
+            // Reine Foto-Nachlieferung (Training war schon gespeichert)
+            if file.lastPathComponent.hasPrefix("photo-") {
+                if let retry = try? JSONDecoder().decode(PhotoRetry.self, from: data) {
+                    await retryPhoto(retry, jsonFile: file)
+                } else {
+                    try? FileManager.default.removeItem(at: file)
+                }
+                continue
+            }
+
+            // Vollständiges Training (ggf. mit beigelegtem Foto)
+            guard let payload = try? JSONDecoder().decode(Payload.self, from: data) else {
                 try? FileManager.default.removeItem(at: file)
                 continue
             }
-            if (try? await upload(payload)) != nil {
-                try? FileManager.default.removeItem(at: file)
+            let reviewId: Int?
+            do {
+                reviewId = try await upload(payload)
+            } catch {
+                continue  // offline o. Ä. — bleibt für den nächsten Start liegen
             }
+
+            // Training ist hochgeladen. Beigelegtes Foto nachreichen.
+            if let name = payload.photoFile {
+                if let rid = reviewId, let bytes = photoData(name),
+                   let image = UIImage(data: bytes) {
+                    do {
+                        try await WorkoutPhotoService.shared.upload(
+                            clientId: payload.clientId, reviewId: rid, image: image)
+                        removePhotoFile(name)
+                    } catch {
+                        // Foto scheiterte: als Foto-only-Nachlieferung behalten
+                        queuePhoto(clientId: payload.clientId, reviewId: rid, photoFile: name)
+                    }
+                } else {
+                    // Kein reviewId oder JPEG kaputt — nicht zuordenbar
+                    removePhotoFile(name)
+                }
+            }
+            try? FileManager.default.removeItem(at: file)
+        }
+    }
+
+    private func retryPhoto(_ retry: PhotoRetry, jsonFile: URL) async {
+        guard let bytes = photoData(retry.photoFile), let image = UIImage(data: bytes) else {
+            try? FileManager.default.removeItem(at: jsonFile)
+            removePhotoFile(retry.photoFile)
+            return
+        }
+        do {
+            try await WorkoutPhotoService.shared.upload(
+                clientId: retry.clientId, reviewId: retry.reviewId, image: image)
+            removePhotoFile(retry.photoFile)
+            try? FileManager.default.removeItem(at: jsonFile)
+        } catch {
+            // bleibt liegen, nächster App-Start versucht es erneut
         }
     }
 }

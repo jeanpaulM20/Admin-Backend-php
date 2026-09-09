@@ -15,7 +15,6 @@ struct WorkoutSessionView: View {
     @State private var saveError: String?
     @State private var confirmDiscard = false
     @State private var routeToast: AppToast?
-    @State private var photoToast: AppToast?
     @State private var wasOffRoute = false
 
     var body: some View {
@@ -45,14 +44,13 @@ struct WorkoutSessionView: View {
         // und in der Pause), nicht nur in der Zusammenfassung
         .fullScreenCover(isPresented: $showCamera) {
             CameraPicker { image in
-                photo = image
+                attachPhoto(image)
                 if recorder.phase != .finished {
-                    photoToast = AppToast(message: "Foto gespeichert", style: .success)
+                    routeToast = AppToast(message: "Foto gespeichert", style: .success)
                 }
             }
             .ignoresSafeArea()
         }
-        .appToast($photoToast, bottomPadding: 100)
     }
 
     // Kamera-Führung der Live-Karte: folgt der Position, bis der User
@@ -437,6 +435,7 @@ struct WorkoutSessionView: View {
                     Button {
                         self.photo = nil
                         photoItem = nil
+                        WorkoutPhotoService.clearActivePhoto()
                     } label: {
                         Image(systemName: "xmark")
                             .font(.app(12, weight: .bold))
@@ -480,7 +479,7 @@ struct WorkoutSessionView: View {
             Task {
                 if let data = try? await item.loadTransferable(type: Data.self),
                    let image = UIImage(data: data) {
-                    photo = image
+                    attachPhoto(image)
                 }
             }
         }
@@ -668,6 +667,19 @@ struct WorkoutSessionView: View {
         .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
     }
 
+    /// Foto übernehmen: einmal zuschneiden (klein), als Vorschau halten und
+    /// sofort persistieren. Spart Speicher (kein 12-MP-Original im RAM) und
+    /// übersteht einen App-Kill während der Aufzeichnung.
+    private func attachPhoto(_ image: UIImage) {
+        if let data = WorkoutPhotoService.prepare(image) {
+            photo = UIImage(data: data) ?? image
+            WorkoutPhotoService.saveActivePhotoData(data)
+        } else {
+            photo = image
+            WorkoutPhotoService.saveActivePhoto(image)
+        }
+    }
+
     // MARK: Speichern
 
     private func save() {
@@ -689,20 +701,42 @@ struct WorkoutSessionView: View {
             distanceMeters: recorder.distanceMeters > 0 ? recorder.distanceMeters : nil,
             elevationGain: recorder.elevationGain > 0 ? recorder.elevationGain : nil
         )
+        // Zugeschnittenes Foto (falls vorhanden) — aus dem State oder der
+        // beim Aufnehmen persistierten Datei
+        // Bevorzugt die schon beim Aufnehmen zugeschnittenen Bytes; nur als
+        // Rückfall (z. B. Schreibfehler) wird erneut aus dem State zugeschnitten
+        let photoData: Data? = WorkoutPhotoService.activePhotoData()
+            ?? photo.flatMap { WorkoutPhotoService.prepare($0) }
+        let clientId = auth.clientId ?? ""
+
         Task {
             do {
                 let reviewId = try await WorkoutUploadService.shared.upload(payload)
-                // Foto (optional) an die frisch angelegte Aufzeichnung hängen
-                if let photo, let reviewId, let clientId = auth.clientId {
-                    try? await WorkoutPhotoService.shared.upload(
-                        clientId: clientId, reviewId: reviewId, image: photo)
+                // Foto an die frisch angelegte Aufzeichnung hängen
+                if let photoData, let image = UIImage(data: photoData), let reviewId {
+                    do {
+                        try await WorkoutPhotoService.shared.upload(
+                            clientId: clientId, reviewId: reviewId, image: image)
+                    } catch {
+                        // Training ist gespeichert, nur das Foto scheiterte:
+                        // als Foto-only-Nachlieferung einreihen statt verwerfen
+                        let name = WorkoutUploadService.shared.stashPhoto(photoData)
+                        WorkoutUploadService.shared.queuePhoto(
+                            clientId: clientId, reviewId: reviewId, photoFile: name)
+                    }
                 }
+                WorkoutPhotoService.clearActivePhoto()
                 WorkoutRecorder.clearSnapshot()
                 onDone()
             } catch {
-                // Offline o. Ä.: in die Warteschlange — wird beim nächsten
-                // App-Start nachgereicht, nichts geht verloren.
-                WorkoutUploadService.shared.queue(payload)
+                // Offline o. Ä.: Training UND Foto in die Warteschlange —
+                // beides wird beim nächsten App-Start nachgereicht.
+                var queued = payload
+                if let photoData {
+                    queued.photoFile = WorkoutUploadService.shared.stashPhoto(photoData)
+                }
+                WorkoutUploadService.shared.queue(queued)
+                WorkoutPhotoService.clearActivePhoto()
                 WorkoutRecorder.clearSnapshot()
                 saveError = "Kein Netz — Training gespeichert und wird automatisch nachgereicht."
                 isSaving = false

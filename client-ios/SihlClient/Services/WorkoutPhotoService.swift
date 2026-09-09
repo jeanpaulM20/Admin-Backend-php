@@ -114,6 +114,32 @@ actor WorkoutPhotoService {
     /// manche HEIC aus der Mediathek). Der frühere Weg fiel dort auf das
     /// ungeschnittene Original in voller Auflösung zurück — der Server
     /// wies es dann als „Bild zu gross" ab.
+    // MARK: - Aktives Foto (überlebt App-Kill während der Aufzeichnung)
+
+    private nonisolated static var activePhotoURL: URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("active-workout-photo.jpg")
+    }
+
+    /// Foto sofort beim Aufnehmen sichern (zugeschnitten, klein).
+    nonisolated static func saveActivePhoto(_ image: UIImage) {
+        guard let data = prepare(image) else { return }
+        saveActivePhotoData(data)
+    }
+
+    /// Bereits zugeschnittene JPEG-Daten sichern (spart doppeltes Zuschneiden).
+    nonisolated static func saveActivePhotoData(_ data: Data) {
+        try? data.write(to: activePhotoURL, options: .atomic)
+    }
+
+    nonisolated static func activePhotoData() -> Data? {
+        try? Data(contentsOf: activePhotoURL)
+    }
+
+    nonisolated static func clearActivePhoto() {
+        try? FileManager.default.removeItem(at: activePhotoURL)
+    }
+
     nonisolated static func prepare(_ image: UIImage) -> Data? {
         guard image.size.width > 0, image.size.height > 0 else { return nil }
 

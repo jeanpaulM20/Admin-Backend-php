@@ -98,7 +98,7 @@ struct RecordWorkoutView: View {
             get: { recovered != nil }, set: { if !$0 { recovered = nil } }
         ), presenting: recovered) { snap in
             Button("Speichern") {
-                let payload = WorkoutUploadService.Payload(
+                var payload = WorkoutUploadService.Payload(
                     clientId: auth.clientId ?? "",
                     trainingType: snap.activity.rawValue,
                     startedAt: snap.startedAt,
@@ -108,16 +108,41 @@ struct RecordWorkoutView: View {
                     distanceMeters: snap.distanceMeters,
                     elevationGain: snap.elevationGain
                 )
+                // Foto, das vor dem App-Kill aufgenommen wurde, mitnehmen
+                let photoData = WorkoutPhotoService.activePhotoData()
+                let clientId = auth.clientId ?? ""
                 WorkoutRecorder.clearSnapshot()
                 recovered = nil
                 Task {
-                    if (try? await WorkoutUploadService.shared.upload(payload)) == nil {
+                    let reviewId: Int?
+                    do {
+                        reviewId = try await WorkoutUploadService.shared.upload(payload)
+                    } catch {
+                        // Offline: Training UND Foto in die Warteschlange
+                        if let photoData {
+                            payload.photoFile = WorkoutUploadService.shared.stashPhoto(photoData)
+                        }
                         WorkoutUploadService.shared.queue(payload)
+                        WorkoutPhotoService.clearActivePhoto()
+                        return
                     }
+                    // Training gespeichert — Foto nachreichen
+                    if let photoData, let image = UIImage(data: photoData), let rid = reviewId {
+                        do {
+                            try await WorkoutPhotoService.shared.upload(
+                                clientId: clientId, reviewId: rid, image: image)
+                        } catch {
+                            let name = WorkoutUploadService.shared.stashPhoto(photoData)
+                            WorkoutUploadService.shared.queuePhoto(
+                                clientId: clientId, reviewId: rid, photoFile: name)
+                        }
+                    }
+                    WorkoutPhotoService.clearActivePhoto()
                 }
             }
             Button("Verwerfen", role: .destructive) {
                 WorkoutRecorder.clearSnapshot()
+                WorkoutPhotoService.clearActivePhoto()
                 recovered = nil
             }
             Button("Abbrechen", role: .cancel) {}
