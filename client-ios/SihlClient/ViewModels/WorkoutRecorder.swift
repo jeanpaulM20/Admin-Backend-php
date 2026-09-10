@@ -161,11 +161,14 @@ final class WorkoutRecorder {
 
     // MARK: Steuerung
 
-    func connectSensor() { source.start() }
 
     func startRecording(_ activity: WorkoutActivity) {
         guard phase == .setup else { return }
         self.activity = activity
+        // Gurt-Empfang gehört zum Start wie das GPS: Die Sensor-Einrichtung
+        // im Profil nutzt eine eigene, beim Verlassen freigegebene Instanz —
+        // ohne diesen Aufruf käme hier nie ein Puls an (0 Messwerte).
+        source.start()
         if activity.usesGPS { gpsSource.start() }
         startedAt = Date()
         phase = .recording
