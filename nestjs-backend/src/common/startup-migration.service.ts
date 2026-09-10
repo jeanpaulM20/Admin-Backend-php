@@ -113,6 +113,32 @@ export class StartupMigrationService implements OnApplicationBootstrap {
          last_sync_error VARCHAR(255) DEFAULT NULL,
          UNIQUE KEY uniq_calendar_connection (trainer_id, provider)
        )`,
+      // Kalender Phase 2: abonnierte Fremdkalender und ihre Belegzeiten
+      `CREATE TABLE IF NOT EXISTS calendar_feed (
+         id INT AUTO_INCREMENT PRIMARY KEY,
+         trainer_id INT NOT NULL,
+         label VARCHAR(120) NOT NULL,
+         url TEXT NOT NULL,
+         active TINYINT(1) NOT NULL DEFAULT 1,
+         last_fetch_at DATETIME DEFAULT NULL,
+         last_error VARCHAR(255) DEFAULT NULL,
+         event_count INT NOT NULL DEFAULT 0,
+         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         KEY idx_calendar_feed_trainer (trainer_id)
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+      `CREATE TABLE IF NOT EXISTS external_busy (
+         id INT AUTO_INCREMENT PRIMARY KEY,
+         trainer_id INT NOT NULL,
+         feed_id INT NOT NULL,
+         uid VARCHAR(190) NOT NULL,
+         starts_at DATETIME NOT NULL,
+         ends_at DATETIME NOT NULL,
+         all_day TINYINT(1) NOT NULL DEFAULT 0,
+         KEY idx_external_busy_trainer (trainer_id, starts_at),
+         KEY idx_external_busy_feed (feed_id),
+         CONSTRAINT fk_external_busy_feed FOREIGN KEY (feed_id)
+           REFERENCES calendar_feed(id) ON DELETE CASCADE
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
       // GPS-Tracking (Phase 2): Höhenmeter am Review + Track-Punkte-Tabelle
       `ALTER TABLE review ADD COLUMN elevation_gain INT DEFAULT NULL`,
       `CREATE TABLE IF NOT EXISTS review_gps_track (

@@ -5,6 +5,7 @@ import { Cron } from '@nestjs/schedule';
 import { CalendarConnection } from './entities/calendar-connection.entity';
 import { CalendarConfig } from './calendar.config';
 import { CalendarOAuthService } from './calendar-oauth.service';
+import { CalendarFeedService } from './calendar-feed.service';
 
 /** Ein Termin, wie er für den Abgleich gebraucht wird — ohne Inhalte. */
 interface BusySlot {
@@ -34,25 +35,53 @@ export class CalendarSyncService {
     @InjectRepository(CalendarConnection)
     private readonly repo: Repository<CalendarConnection>,
     private readonly oauth: CalendarOAuthService,
+    private readonly feeds: CalendarFeedService,
   ) {}
 
-  /** Alle 15 Minuten — kurzfristige Klinik-Termine sollen zügig greifen. */
+  /** Alle 15 Minuten — kurzfristige Fremdtermine sollen zügig greifen. */
   @Cron('*/15 * * * *', { timeZone: 'Europe/Zurich' })
   async syncAll() {
-    const outlookConns = await this.repo.find({ where: { provider: 'microsoft' } });
-    for (const outlook of outlookConns) {
-      const google = await this.repo.findOne({
-        where: { trainerId: outlook.trainerId, provider: 'google' },
-      });
-      if (!google) continue; // ohne Google-Ziel gibt es nichts zu spiegeln
+    // Quellen sind Outlook UND abonnierte Fremdkalender; ein Trainer kann
+    // nur das eine, nur das andere oder beides haben.
+    const trainerIds = new Set<number>();
+    for (const c of await this.repo.find({ where: { provider: 'microsoft' } })) {
+      trainerIds.add(c.trainerId);
+    }
+    for (const id of await this.feeds.activeTrainerIds()) trainerIds.add(id);
+
+    for (const trainerId of trainerIds) {
       try {
-        const n = await this.syncTrainer(outlook, google);
-        this.log.log(`Trainer ${outlook.trainerId}: ${n} Sperrzeiten abgeglichen`);
+        const n = await this.syncTrainerId(trainerId);
+        this.log.log(`Trainer ${trainerId}: ${n} Sperrzeiten abgeglichen`);
       } catch (e: any) {
-        this.log.error(`Trainer ${outlook.trainerId}: ${e?.message ?? e}`);
-        outlook.lastSyncError = String(e?.message ?? e).slice(0, 250);
-        await this.repo.save(outlook);
+        this.log.error(`Trainer ${trainerId}: ${e?.message ?? e}`);
       }
+    }
+  }
+
+  /**
+   * Vollständiger Abgleich eines Trainers: Abos einlesen, danach Outlook und
+   * Abos gemeinsam als Sperreinträge nach Google spiegeln.
+   *
+   * Ohne Google-Verbindung endet es nach dem Einlesen — die Zeiten stehen dann
+   * trotzdem in `external_busy` und wirken in App und Konfliktprüfung.
+   */
+  async syncTrainerId(trainerId: number): Promise<number> {
+    if (this.running.has(trainerId)) {
+      this.log.log(`Trainer ${trainerId}: Abgleich läuft bereits, übersprungen`);
+      return 0;
+    }
+    this.running.add(trainerId);
+    try {
+      await this.feeds.refreshTrainer(trainerId);
+
+      const google = await this.repo.findOne({ where: { trainerId, provider: 'google' } });
+      if (!google) return 0;
+
+      const outlook = await this.repo.findOne({ where: { trainerId, provider: 'microsoft' } });
+      return await this.runSync(outlook, google, trainerId);
+    } finally {
+      this.running.delete(trainerId);
     }
   }
 
@@ -68,24 +97,28 @@ export class CalendarSyncService {
     return ta === tb;
   }
 
-  async syncTrainer(outlook: CalendarConnection, google: CalendarConnection): Promise<number> {
-    if (this.running.has(outlook.trainerId)) {
-      this.log.log(`Trainer ${outlook.trainerId}: Abgleich läuft bereits, übersprungen`);
-      return 0;
-    }
-    this.running.add(outlook.trainerId);
-    try {
-      return await this.runSync(outlook, google);
-    } finally {
-      this.running.delete(outlook.trainerId);
-    }
-  }
-
-  private async runSync(outlook: CalendarConnection, google: CalendarConnection): Promise<number> {
+  private async runSync(
+    outlook: CalendarConnection | null,
+    google: CalendarConnection,
+    trainerId: number,
+  ): Promise<number> {
     const from = new Date();
     const to = new Date(Date.now() + CalendarConfig.syncDays * 86_400_000);
 
-    const busy = await this.readOutlookBusy(outlook, from, to);
+    // Beide Quellen zusammenführen. Outlook-Kennungen bleiben unverändert,
+    // damit bereits angelegte Sperreinträge weiter wiedererkannt werden;
+    // Abo-Zeiten bekommen ein eigenes Präfix.
+    const busy: BusySlot[] = [];
+    if (outlook) busy.push(...(await this.readOutlookBusy(outlook, from, to)));
+    for (const slot of await this.feeds.busyFor(trainerId, from, to)) {
+      busy.push({
+        sourceId: `ics:${slot.feedId}:${slot.uid}@${slot.startsAt.getTime()}`,
+        start: slot.startsAt.toISOString(),
+        end: slot.endsAt.toISOString(),
+        allDay: !!slot.allDay,
+      });
+    }
+
     const existing = await this.readGoogleBlockers(google, from, to);
 
     const seen = new Set<string>();
@@ -111,9 +144,14 @@ export class CalendarSyncService {
       }
     }
 
-    outlook.lastSyncAt = new Date();
-    outlook.lastSyncError = null;
-    await this.repo.save(outlook);
+    if (outlook) {
+      outlook.lastSyncAt = new Date();
+      outlook.lastSyncError = null;
+      await this.repo.save(outlook);
+    }
+    google.lastSyncAt = new Date();
+    google.lastSyncError = null;
+    await this.repo.save(google);
     return touched;
   }
 

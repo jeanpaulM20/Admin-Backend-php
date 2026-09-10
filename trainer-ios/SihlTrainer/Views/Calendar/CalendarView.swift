@@ -66,7 +66,8 @@ struct CalendarView: View {
                 MonthGrid(month: visibleMonth,
                           selectedDay: selectedDay,
                           trainingDays: trainingDays,
-                          availabilityDays: Set(calendarStore.slotsByDay.keys)) { day in
+                          availabilityDays: Set(calendarStore.slotsByDay.keys),
+                          externalDays: calendarStore.externalBusyDays) { day in
                     selectedDay = day
                 }
             }
@@ -141,7 +142,9 @@ struct CalendarView: View {
                     .font(.app(14, weight: .semibold))
                     .foregroundStyle(AppColor.text)
 
-                if trainingsOfDay.isEmpty && calendarStore.slots(on: selectedDay).isEmpty {
+                let external = calendarStore.externalBusy(on: selectedDay)
+
+                if trainingsOfDay.isEmpty && calendarStore.slots(on: selectedDay).isEmpty && external.isEmpty {
                     Text("Keine Einträge an diesem Tag")
                         .font(.app(14))
                         .foregroundStyle(AppColor.muted)
@@ -161,6 +164,16 @@ struct CalendarView: View {
                             TrainingRow(training: training, showsDay: false)
                         }
                         .buttonStyle(.plain)
+                    }
+                }
+
+                if !external.isEmpty {
+                    Text("Extern belegt")
+                        .font(.app(12, weight: .semibold))
+                        .foregroundStyle(AppColor.muted)
+                        .padding(.top, 4)
+                    ForEach(external) { entry in
+                        ExternalBusyRow(entry: entry)
                     }
                 }
 
@@ -224,6 +237,8 @@ private struct MonthGrid: View {
     let selectedDay: Date
     let trainingDays: Set<Date>
     let availabilityDays: Set<Date>
+    /// Tage mit Terminen aus abonnierten Fremdkalendern.
+    let externalDays: Set<Date>
     let onSelect: (Date) -> Void
 
     private var days: [Date?] {
@@ -262,6 +277,10 @@ private struct MonthGrid: View {
                         Circle().fill(isSelected ? AppColor.white : AppColor.brass)
                             .frame(width: 4, height: 4)
                     }
+                    if externalDays.contains(day) {
+                        Circle().fill(isSelected ? AppColor.white : AppColor.muted)
+                            .frame(width: 4, height: 4)
+                    }
                 }
                 .frame(height: 4)
             }
@@ -271,6 +290,34 @@ private struct MonthGrid: View {
             .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
         }
         .buttonStyle(.plain)
+    }
+}
+
+/// Fremdtermin: bewusst ohne Titel — übernommen wird nur die Zeit.
+private struct ExternalBusyRow: View {
+    let entry: ExternalBusy
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "lock.rectangle")
+                .font(.app(12))
+                .foregroundStyle(AppColor.muted)
+                .frame(width: 18)
+            Text(timeRange)
+                .font(.app(14))
+                .foregroundStyle(AppColor.text)
+            Text("· \(entry.source)")
+                .font(.app(13))
+                .foregroundStyle(AppColor.muted)
+                .lineLimit(1)
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var timeRange: String {
+        if entry.allDay { return "ganztägig" }
+        let f = TrainingRow.timeFormatter
+        return "\(f.string(from: entry.start))–\(f.string(from: entry.end))"
     }
 }
 

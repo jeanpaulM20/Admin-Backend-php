@@ -1,9 +1,11 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, MoreThanOrEqual, LessThanOrEqual, In } from 'typeorm';
+import { Repository, Between, MoreThanOrEqual, LessThanOrEqual, LessThan, MoreThan, In } from 'typeorm';
 import { Training, TrainingStatus } from '../entities/training.entity';
 import { Location } from '../entities/location.entity';
 import { PushService } from '../push/push.service';
+import { ExternalBusy } from '../calendar/entities/external-busy.entity';
+import { wallClockToInstant } from '../calendar/ics-parser';
 
 @Injectable()
 export class TrainingService {
@@ -14,6 +16,8 @@ export class TrainingService {
     private readonly repo: Repository<Training>,
     @InjectRepository(Location)
     private readonly locationRepo: Repository<Location>,
+    @InjectRepository(ExternalBusy)
+    private readonly externalBusyRepo: Repository<ExternalBusy>,
     private readonly pushService: PushService,
   ) {}
 
@@ -159,6 +163,28 @@ export class TrainingService {
           }
           throw new BadRequestException('Trainer ist zu dieser Zeit bereits gebucht.');
         }
+      }
+
+      // ── 4b. Fremdkalender (Phase 2) ─────────────────────────────
+      // Termine aus abonnierten Kalendern anderer Studios belegen den Trainer
+      // genauso. Sie liegen in UTC, die Buchung kommt als lokale Wanduhrzeit —
+      // darum wird sie erst umgerechnet, sonst verschiebt sich der Vergleich
+      // je nach Sommer- oder Winterzeit um ein bis zwei Stunden.
+      const [yy, mm, dd] = date.split('-').map(Number);
+      const reqStartAt = wallClockToInstant(yy, mm, dd, Math.floor(reqStart / 60), reqStart % 60);
+      const reqEndAt = new Date(reqStartAt.getTime() + (reqEnd - reqStart) * 60_000);
+
+      const external = await this.externalBusyRepo.findOne({
+        where: {
+          trainerId,
+          startsAt: LessThan(reqEndAt),
+          endsAt: MoreThan(reqStartAt),
+        },
+      });
+      if (external) {
+        throw new BadRequestException(
+          'Zu dieser Zeit ist bereits ein Termin aus einem verbundenen Kalender eingetragen.',
+        );
       }
     }
 

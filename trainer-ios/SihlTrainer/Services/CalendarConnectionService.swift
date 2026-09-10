@@ -76,3 +76,88 @@ struct CalendarConnectionService {
         return json?["changed"] as? Int ?? 0
     }
 }
+
+// MARK: - Phase 2: abonnierte Fremdkalender
+
+/// Ein abonnierter Kalender. Die Adresse selbst gibt das Backend nie heraus —
+/// sie ist ein Generalschlüssel zu diesem Kalender; `source` ist eine
+/// maskierte Fassung nur zur Wiedererkennung.
+struct CalendarFeed: Identifiable, Equatable {
+    let id: Int
+    let label: String
+    let source: String
+    let active: Bool
+    let lastFetchAt: Date?
+    let lastError: String?
+    let eventCount: Int
+
+    init(json: [String: Any]) {
+        id = JSON.int(json, "id") ?? 0
+        label = JSON.string(json, "label") ?? "Externer Kalender"
+        source = JSON.string(json, "source") ?? ""
+        active = JSON.bool(json, "active")
+        lastError = JSON.string(json, "lastError")
+        eventCount = JSON.int(json, "eventCount") ?? 0
+        lastFetchAt = JSON.date(JSON.string(json, "lastFetchAt"))
+    }
+}
+
+/// Eine belegte Zeit aus einem Fremdkalender — ohne Betreff, nur Zeitfenster.
+struct ExternalBusy: Identifiable, Equatable {
+    let id: Int
+    let source: String
+    let start: Date
+    let end: Date
+    let allDay: Bool
+
+    init?(json: [String: Any]) {
+        guard let start = JSON.date(JSON.string(json, "start")),
+              let end = JSON.date(JSON.string(json, "end")) else { return nil }
+        id = JSON.int(json, "id") ?? 0
+        source = JSON.string(json, "source") ?? "Externer Kalender"
+        self.start = start
+        self.end = end
+        allDay = JSON.bool(json, "allDay")
+    }
+}
+
+struct CalendarFeedService {
+
+    func feeds(trainerId: Int) async throws -> [CalendarFeed] {
+        let data = try await APIClient.shared.get("calendar/feeds/\(trainerId)")
+        guard let list = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+            return []
+        }
+        return list.map(CalendarFeed.init(json:))
+    }
+
+    /// Legt das Abo an. Das Backend liest es sofort einmal ein — ein Tippfehler
+    /// in der Adresse fällt damit direkt auf und nicht erst 15 Minuten später.
+    @discardableResult
+    func add(trainerId: Int, label: String, url: String) async throws -> CalendarFeed {
+        let data = try await APIClient.shared.post("calendar/feeds/\(trainerId)", body: [
+            "label": label,
+            "url": url,
+        ])
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw APIError(statusCode: 500, message: "Unerwartete Antwort")
+        }
+        return CalendarFeed(json: json)
+    }
+
+    func remove(trainerId: Int, feedId: Int) async throws {
+        _ = try await APIClient.shared.delete("calendar/feeds/\(trainerId)/\(feedId)")
+    }
+
+    /// Belegte Zeiten für die Kalenderanzeige.
+    func busy(trainerId: Int, from: Date, to: Date) async throws -> [ExternalBusy] {
+        let formatter = ISO8601DateFormatter()
+        let path = "calendar/busy/\(trainerId)"
+            + "?from=\(formatter.string(from: from))&to=\(formatter.string(from: to))"
+        let data = try await APIClient.shared.get(path)
+        guard let list = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+            return []
+        }
+        return list.compactMap(ExternalBusy.init(json:))
+    }
+}

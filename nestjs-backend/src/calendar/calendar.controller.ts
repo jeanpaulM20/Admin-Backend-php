@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Delete, Param, Query, Res, ParseIntPipe,
+  Controller, Get, Post, Delete, Body, Param, Query, Res, ParseIntPipe,
   BadRequestException, ForbiddenException,
 } from '@nestjs/common';
 import { Response } from 'express';
@@ -8,6 +8,7 @@ import { Repository } from 'typeorm';
 import { CalendarConnection, CalendarProvider } from './entities/calendar-connection.entity';
 import { CalendarOAuthService } from './calendar-oauth.service';
 import { CalendarSyncService } from './calendar-sync.service';
+import { CalendarFeedService } from './calendar-feed.service';
 import { CalendarConfig } from './calendar.config';
 import { Public } from '../auth/decorators/public.decorator';
 import { CurrentTrainer } from '../auth/decorators/current-user.decorator';
@@ -38,6 +39,7 @@ export class CalendarController {
     private readonly repo: Repository<CalendarConnection>,
     private readonly oauth: CalendarOAuthService,
     private readonly sync: CalendarSyncService,
+    private readonly feeds: CalendarFeedService,
   ) {}
 
   /** Welche Kalender sind verbunden — für die Anzeige im Trainerprofil. */
@@ -112,7 +114,10 @@ export class CalendarController {
     }
   }
 
-  /** Abgleich sofort auslösen, ohne auf den Zeitplan zu warten. */
+  /**
+   * Abgleich sofort auslösen, ohne auf den Zeitplan zu warten.
+   * Seit Phase 2 genügt eine Quelle: Outlook ODER ein abonnierter Kalender.
+   */
   @Post('sync/:trainerId')
   async syncNow(
     @CurrentTrainer() trainer: Trainer,
@@ -120,12 +125,75 @@ export class CalendarController {
   ) {
     assertOwnTrainer(trainer, trainerId);
     const outlook = await this.repo.findOne({ where: { trainerId, provider: 'microsoft' } });
-    const google = await this.repo.findOne({ where: { trainerId, provider: 'google' } });
-    if (!outlook || !google) {
-      throw new BadRequestException('Für den Abgleich müssen Outlook und Google verbunden sein.');
+    const feeds = await this.feeds.list(trainerId);
+    if (!outlook && feeds.length === 0) {
+      throw new BadRequestException('Es ist keine Quelle verbunden — Outlook oder ein Kalender-Abo.');
     }
-    const changed = await this.sync.syncTrainer(outlook, google);
+    const changed = await this.sync.syncTrainerId(trainerId);
     return { success: true, changed };
+  }
+
+  // ── Abonnierte Fremdkalender (Phase 2) ──────────────────────────────────
+
+  /** Abos des Trainers. Die Adressen kommen nur maskiert zurück. */
+  @Get('feeds/:trainerId')
+  async listFeeds(
+    @CurrentTrainer() trainer: Trainer,
+    @Param('trainerId', ParseIntPipe) trainerId: number,
+  ) {
+    assertOwnTrainer(trainer, trainerId);
+    return this.feeds.list(trainerId);
+  }
+
+  /** Neues Abo anlegen; wird sofort einmal eingelesen. */
+  @Post('feeds/:trainerId')
+  async addFeed(
+    @CurrentTrainer() trainer: Trainer,
+    @Param('trainerId', ParseIntPipe) trainerId: number,
+    @Body() body: { label?: string; url?: string },
+  ) {
+    assertOwnTrainer(trainer, trainerId);
+    if (!body?.url) throw new BadRequestException('Es fehlt die Kalender-Adresse.');
+    const feed = await this.feeds.add(trainerId, body.label ?? '', body.url);
+    // Direkt spiegeln, damit die Zeit auch in Google sofort gesperrt ist.
+    this.sync.syncTrainerId(trainerId).catch(() => undefined);
+    return feed;
+  }
+
+  @Delete('feeds/:trainerId/:feedId')
+  async removeFeed(
+    @CurrentTrainer() trainer: Trainer,
+    @Param('trainerId', ParseIntPipe) trainerId: number,
+    @Param('feedId', ParseIntPipe) feedId: number,
+  ) {
+    assertOwnTrainer(trainer, trainerId);
+    await this.feeds.remove(trainerId, feedId);
+    return { success: true };
+  }
+
+  /** Belegte Zeiten aus allen Abos — für den Kalender in der Trainer-App. */
+  @Get('busy/:trainerId')
+  async busy(
+    @CurrentTrainer() trainer: Trainer,
+    @Param('trainerId', ParseIntPipe) trainerId: number,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    assertOwnTrainer(trainer, trainerId);
+    const start = from ? new Date(from) : new Date();
+    const end = to ? new Date(to) : new Date(Date.now() + CalendarConfig.syncDays * 86_400_000);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      throw new BadRequestException('Ungültiger Zeitraum.');
+    }
+    const labels = await this.feeds.labels(trainerId);
+    const rows = await this.feeds.busyFor(trainerId, start, end);
+    return rows.map((r) => ({
+      id: r.id,
+      source: labels.get(r.feedId) ?? 'Externer Kalender',
+      start: r.startsAt.toISOString(),
+      end: r.endsAt.toISOString(),
+      allDay: !!r.allDay,
+    }));
   }
 
   @Delete(':provider/:trainerId')

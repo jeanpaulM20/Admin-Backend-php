@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ExternalBusy } from '../calendar/entities/external-busy.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Training } from '../entities/training.entity';
 import { TrainingType } from '../entities/training-type.entity';
@@ -11,7 +12,8 @@ import { PushModule } from '../push/push.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Training, TrainingType, Location, TrainingPlan]),
+    // ExternalBusy: Buchungen prüfen seit Phase 2 auch gegen Fremdkalender
+    TypeOrmModule.forFeature([Training, TrainingType, Location, TrainingPlan, ExternalBusy]),
     PushModule,
   ],
   providers: [TrainingService, IcalService],

@@ -162,6 +162,25 @@ enum PreviewData {
         ]
     }
 
+    static var externalBusy: [ExternalBusy] {
+        let calendar = Calendar.current
+        func entry(_ id: Int, dayOffset: Int, from: Int, to: Int, source: String) -> ExternalBusy? {
+            let day = calendar.date(byAdding: .day, value: dayOffset, to: Date()) ?? Date()
+            let start = calendar.date(bySettingHour: from, minute: 0, second: 0, of: day) ?? day
+            let end = calendar.date(bySettingHour: to, minute: 0, second: 0, of: day) ?? day
+            return ExternalBusy(json: [
+                "id": id, "source": source,
+                "start": ISO8601DateFormatter().string(from: start),
+                "end": ISO8601DateFormatter().string(from: end),
+                "allDay": false,
+            ])
+        }
+        return [
+            entry(1, dayOffset: 0, from: 9, to: 12, source: "Studio Enge"),
+            entry(2, dayOffset: 2, from: 14, to: 16, source: "Studio Enge"),
+        ].compactMap { $0 }
+    }
+
     static var reviews: [Review] {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")

@@ -19,6 +19,11 @@ struct CalendarSyncView: View {
     @State private var messageIsError = false
     @State private var confirmDisconnect: String?
 
+    // Phase 2: abonnierte Fremdkalender
+    @State private var feeds: [CalendarFeed] = []
+    @State private var showAddFeed = false
+    @State private var confirmRemoveFeed: CalendarFeed?
+
     @Environment(\.openURL) private var openURL
 
     private let service = CalendarConnectionService()
@@ -57,6 +62,8 @@ struct CalendarSyncView: View {
                         if bothConnected { syncCard }
                     }
 
+                    feedsSection
+
                     Spacer(minLength: 12)
                 }
                 .padding(.horizontal, AppSpacing.screen)
@@ -68,6 +75,22 @@ struct CalendarSyncView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task { await load() }
         .refreshable { await load() }
+        .sheet(isPresented: $showAddFeed) {
+            AddCalendarFeedSheet(trainerId: trainerId) {
+                Task { await load() }
+            }
+        }
+        .alert("Abo entfernen?", isPresented: Binding(
+            get: { confirmRemoveFeed != nil },
+            set: { if !$0 { confirmRemoveFeed = nil } }
+        ), presenting: confirmRemoveFeed) { feed in
+            Button("Abbrechen", role: .cancel) {}
+            Button("Entfernen", role: .destructive) {
+                Task { await removeFeed(feed) }
+            }
+        } message: { feed in
+            Text("„\(feed.label)“ wird nicht mehr gelesen. Bereits gespiegelte Sperreinträge verschwinden beim nächsten Abgleich.")
+        }
         .alert(messageIsError ? "Fehlgeschlagen" : "Erledigt",
                isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
             Button("OK", role: .cancel) {}
@@ -86,6 +109,97 @@ struct CalendarSyncView: View {
             Text(provider == "google"
                  ? "Bereits angelegte Sperreinträge bleiben im Kalender stehen und müssen dort von Hand entfernt werden."
                  : "Die Termine der Klinik sperren danach keine Zeiten mehr.")
+        }
+    }
+
+    // MARK: Abonnierte Kalender
+
+    /// Fremdkalender per iCal-Adresse — unabhängig davon, ob das andere
+    /// Studio Google, Outlook oder etwas ganz anderes benutzt.
+    private var feedsSection: some View {
+        Card {
+            VStack(alignment: .leading, spacing: AppSpacing.stack) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Abonnierte Kalender")
+                            .font(.app(15, weight: .semibold))
+                            .foregroundStyle(AppColor.text)
+                        Text("Termine anderer Studios sperren deine Zeit")
+                            .font(.app(12))
+                            .foregroundStyle(AppColor.muted)
+                    }
+                    Spacer(minLength: 0)
+                    Button {
+                        showAddFeed = true
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.app(20))
+                            .foregroundStyle(AppColor.primary)
+                    }
+                    .accessibilityLabel("Kalender abonnieren")
+                }
+
+                if feeds.isEmpty {
+                    Text("Noch kein Kalender abonniert. Du brauchst dafür die iCal-Adresse des anderen Studios.")
+                        .font(.app(13))
+                        .foregroundStyle(AppColor.muted)
+                } else {
+                    ForEach(feeds) { feed in
+                        feedRow(feed)
+                        if feed.id != feeds.last?.id {
+                            Divider().overlay(AppColor.border)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func feedRow(_ feed: CalendarFeed) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: feed.lastError == nil ? "calendar.badge.checkmark" : "exclamationmark.triangle")
+                .font(.app(15))
+                .foregroundStyle(feed.lastError == nil ? AppColor.green : AppColor.orange)
+                .frame(width: 22)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(feed.label)
+                    .font(.app(14, weight: .semibold))
+                    .foregroundStyle(AppColor.text)
+                Text(feed.source)
+                    .font(.app(11))
+                    .foregroundStyle(AppColor.muted)
+                    .lineLimit(1)
+                if let error = feed.lastError {
+                    Text(error)
+                        .font(.app(11))
+                        .foregroundStyle(AppColor.orange)
+                } else {
+                    Text("\(feed.eventCount) Termine übernommen")
+                        .font(.app(11))
+                        .foregroundStyle(AppColor.brass)
+                }
+            }
+            Spacer(minLength: 0)
+            Button {
+                confirmRemoveFeed = feed
+            } label: {
+                Image(systemName: "trash")
+                    .font(.app(13))
+                    .foregroundStyle(AppColor.red)
+            }
+            .accessibilityLabel("Abo entfernen")
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func removeFeed(_ feed: CalendarFeed) async {
+        do {
+            try await CalendarFeedService().remove(trainerId: trainerId, feedId: feed.id)
+            await load()
+        } catch let error as APIError {
+            show(error.message, isError: true)
+        } catch {
+            show("Abo konnte nicht entfernt werden.", isError: true)
         }
     }
 
@@ -223,7 +337,11 @@ struct CalendarSyncView: View {
 
     private func load() async {
         isLoading = status == nil
-        status = try? await service.status(trainerId: trainerId)
+        // Verbindungen und Abos zusammen laden — beide gehören zur selben Seite.
+        async let link = service.status(trainerId: trainerId)
+        async let subscriptions = CalendarFeedService().feeds(trainerId: trainerId)
+        status = try? await link
+        feeds = (try? await subscriptions) ?? []
         isLoading = false
     }
 
