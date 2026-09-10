@@ -21,6 +21,13 @@ struct WorkoutUploadService {
         /// Optionales Trainingsfoto: Dateiname der beigelegten JPEG in der
         /// Warteschlange. So überlebt das Foto Offline-Speicherung und App-Kill.
         var photoFile: String? = nil
+        /// Idempotenz-Schlüssel (UUID der Aufzeichnung): Backend legt bei
+        /// erneutem Upload kein zweites Training an, sondern liefert die id.
+        var clientRecordingId: String? = nil
+        /// Fehlversuche beim Nachreichen — nach `maxAttempts` wird verworfen,
+        /// sonst würde ein dauerhaft abgelehnter Eintrag bei jedem Start erneut
+        /// hochgeladen (MB-Payloads, für immer).
+        var attempts: Int = 0
     }
 
     /// Wartender Foto-Upload für den Fall, dass das Training online gespeichert
@@ -29,7 +36,10 @@ struct WorkoutUploadService {
         let clientId: String
         let reviewId: Int
         let photoFile: String
+        var attempts: Int = 0
     }
+
+    static let maxAttempts = 20
 
     private static let iso = ISO8601DateFormatter()
 
@@ -59,6 +69,7 @@ struct WorkoutUploadService {
             "duration": p.duration,
             "hrSeries": Self.thinned(p.samples).map { ["t": Self.iso.string(from: $0.t), "v": $0.bpm] },
         ]
+        if let rid = p.clientRecordingId { body["clientRecordingId"] = rid }
         if let track = p.track, !track.isEmpty {
             body["gpsTrack"] = track.map { pt -> [String: Any] in
                 var row: [String: Any] = [
@@ -88,14 +99,40 @@ struct WorkoutUploadService {
     private var queueDir: URL {
         let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("pending-workouts", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        if !FileManager.default.fileExists(atPath: dir.path) {
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            var url = dir
+            var rv = URLResourceValues(); rv.isExcludedFromBackup = true
+            try? url.setResourceValues(rv)
+        }
         return dir
     }
 
+    /// Nur echte Konten kommen in die Warteschlange — ein Demo- oder leerer
+    /// clientId scheitert am Server dauerhaft und würde ewig wiederholt.
+    private func isQueueable(_ clientId: String) -> Bool {
+        !clientId.isEmpty && clientId != "demo"
+    }
+
     func queue(_ p: Payload) {
+        guard isQueueable(p.clientId) else { removePhotoFile(p.photoFile); return }
         let url = queueDir.appendingPathComponent("\(UUID().uuidString).json")
         if let data = try? JSONEncoder().encode(p) {
             try? data.write(to: url, options: .atomic)
+        }
+    }
+
+    /// Wartende Foto-Nachlieferung für ein Review verwerfen — z. B. wenn der
+    /// Nutzer inzwischen von Hand ein neueres Foto hochgeladen hat.
+    func cancelPendingPhoto(reviewId: Int) {
+        let files = (try? FileManager.default.contentsOfDirectory(
+            at: queueDir, includingPropertiesForKeys: nil)) ?? []
+        for file in files where file.lastPathComponent.hasPrefix("photo-") {
+            guard let data = try? Data(contentsOf: file),
+                  let retry = try? JSONDecoder().decode(PhotoRetry.self, from: data),
+                  retry.reviewId == reviewId else { continue }
+            removePhotoFile(retry.photoFile)
+            try? FileManager.default.removeItem(at: file)
         }
     }
 
@@ -108,6 +145,7 @@ struct WorkoutUploadService {
 
     /// Foto-only-Nachlieferung einreihen (Training bereits gespeichert).
     func queuePhoto(clientId: String, reviewId: Int, photoFile: String) {
+        guard isQueueable(clientId) else { removePhotoFile(photoFile); return }
         let retry = PhotoRetry(clientId: clientId, reviewId: reviewId, photoFile: photoFile)
         let url = queueDir.appendingPathComponent("photo-\(UUID().uuidString).json")
         if let data = try? JSONEncoder().encode(retry) {
@@ -123,8 +161,17 @@ struct WorkoutUploadService {
         try? FileManager.default.removeItem(at: queueDir.appendingPathComponent(name))
     }
 
+    /// Läuft gerade ein Nachreichen? Verhindert, dass zwei überlappende Läufe
+    /// (Re-Login, View-Neuaufbau) dieselbe Datei doppelt verarbeiten.
+    @MainActor private static var retryInFlight = false
+
     /// Nachreichen liegen gebliebener Trainings (Aufruf beim App-Start).
+    @MainActor
     func retryPending() async {
+        guard !Self.retryInFlight else { return }
+        Self.retryInFlight = true
+        defer { Self.retryInFlight = false }
+
         let files = (try? FileManager.default.contentsOfDirectory(
             at: queueDir, includingPropertiesForKeys: nil)) ?? []
         for file in files where file.pathExtension == "json" {
@@ -141,40 +188,69 @@ struct WorkoutUploadService {
             }
 
             // Vollständiges Training (ggf. mit beigelegtem Foto)
-            guard let payload = try? JSONDecoder().decode(Payload.self, from: data) else {
+            guard var payload = try? JSONDecoder().decode(Payload.self, from: data) else {
                 try? FileManager.default.removeItem(at: file)
                 continue
             }
+            if !isQueueable(payload.clientId) || payload.attempts >= Self.maxAttempts {
+                removePhotoFile(payload.photoFile)
+                try? FileManager.default.removeItem(at: file)
+                continue
+            }
+
             let reviewId: Int?
             do {
                 reviewId = try await upload(payload)
             } catch {
-                continue  // offline o. Ä. — bleibt für den nächsten Start liegen
+                payload.attempts += 1
+                if let d = try? JSONEncoder().encode(payload) { try? d.write(to: file, options: .atomic) }
+                continue  // offline o. Ä. — nächster Start
+            }
+            // Ohne id ist das Foto nicht zuordenbar: Eintrag behalten, das
+            // Backend dedupliziert über clientRecordingId beim nächsten Versuch
+            guard let rid = reviewId else {
+                payload.attempts += 1
+                if let d = try? JSONEncoder().encode(payload) { try? d.write(to: file, options: .atomic) }
+                continue
             }
 
             // Training ist hochgeladen. Beigelegtes Foto nachreichen.
             if let name = payload.photoFile {
-                if let rid = reviewId, let bytes = photoData(name),
-                   let image = UIImage(data: bytes) {
+                if let bytes = photoData(name), let image = UIImage(data: bytes) {
                     do {
                         try await WorkoutPhotoService.shared.upload(
                             clientId: payload.clientId, reviewId: rid, image: image)
                         removePhotoFile(name)
                     } catch {
-                        // Foto scheiterte: als Foto-only-Nachlieferung behalten
                         queuePhoto(clientId: payload.clientId, reviewId: rid, photoFile: name)
                     }
                 } else {
-                    // Kein reviewId oder JPEG kaputt — nicht zuordenbar
-                    removePhotoFile(name)
+                    removePhotoFile(name)  // JPEG kaputt
                 }
             }
             try? FileManager.default.removeItem(at: file)
         }
+        sweepOrphanPhotos()
+    }
+
+    /// JPEGs ohne referenzierende JSON entfernen (Schreibfehler, kaputte Einträge).
+    private func sweepOrphanPhotos() {
+        let files = (try? FileManager.default.contentsOfDirectory(
+            at: queueDir, includingPropertiesForKeys: nil)) ?? []
+        var referenced = Set<String>()
+        for f in files where f.pathExtension == "json" {
+            guard let d = try? Data(contentsOf: f) else { continue }
+            if let p = try? JSONDecoder().decode(Payload.self, from: d), let n = p.photoFile { referenced.insert(n) }
+            if let r = try? JSONDecoder().decode(PhotoRetry.self, from: d) { referenced.insert(r.photoFile) }
+        }
+        for f in files where f.pathExtension == "jpg" && !referenced.contains(f.lastPathComponent) {
+            try? FileManager.default.removeItem(at: f)
+        }
     }
 
     private func retryPhoto(_ retry: PhotoRetry, jsonFile: URL) async {
-        guard let bytes = photoData(retry.photoFile), let image = UIImage(data: bytes) else {
+        guard retry.attempts < Self.maxAttempts,
+              let bytes = photoData(retry.photoFile), let image = UIImage(data: bytes) else {
             try? FileManager.default.removeItem(at: jsonFile)
             removePhotoFile(retry.photoFile)
             return
@@ -185,7 +261,8 @@ struct WorkoutUploadService {
             removePhotoFile(retry.photoFile)
             try? FileManager.default.removeItem(at: jsonFile)
         } catch {
-            // bleibt liegen, nächster App-Start versucht es erneut
+            var next = retry; next.attempts += 1
+            if let d = try? JSONEncoder().encode(next) { try? d.write(to: jsonFile, options: .atomic) }
         }
     }
 }

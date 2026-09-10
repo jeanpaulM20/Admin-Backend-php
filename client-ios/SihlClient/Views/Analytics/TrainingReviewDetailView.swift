@@ -197,7 +197,9 @@ struct TrainingReviewDetailView: View {
 
     private func loadPhoto() async {
         guard !isDemo, let clientId = auth.clientId, let rid = Int(review.id) else { return }
-        let photos = (try? await WorkoutPhotoService.shared.list(clientId: clientId, activity: nil)) ?? []
+        // Gezielt nach diesem Review — die Galerie-Liste ist gedeckelt, ältere
+        // Fotos fehlten darin und das Detail bot fälschlich „hochladen" an
+        let photos = (try? await WorkoutPhotoService.shared.list(clientId: clientId, activity: nil, reviewId: rid)) ?? []
         guard let photo = photos.first(where: { $0.reviewId == rid }) else { return }
         existingPhoto = photo
         photoImage = await WorkoutPhotoService.shared.image(clientId: clientId, photoId: photo.id)
@@ -207,6 +209,9 @@ struct TrainingReviewDetailView: View {
         guard let clientId = auth.clientId, let rid = Int(review.id) else { return }
         isUploadingPhoto = true
         photoError = nil
+        // Ein evtl. noch wartendes älteres Foto aus der Warteschlange würde
+        // dieses neuere sonst beim nächsten App-Start überschreiben
+        WorkoutUploadService.shared.cancelPendingPhoto(reviewId: rid)
         do {
             try await WorkoutPhotoService.shared.upload(clientId: clientId, reviewId: rid, image: image)
             await loadPhoto()

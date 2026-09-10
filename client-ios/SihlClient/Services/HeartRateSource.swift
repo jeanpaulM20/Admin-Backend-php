@@ -62,6 +62,11 @@ final class BleHeartRateSource: NSObject, HeartRateSource {
     private var central: CBCentralManager?
     private var peripheral: CBPeripheral?
     private var stopped = false
+    /// Wächter für den Direktverbindungsversuch zum gemerkten Gurt:
+    /// CBCentralManager.connect hat KEIN Timeout — liegt der Gurt in der
+    /// Schublade, bliebe der Zustand sonst ewig auf „Verbinde…".
+    private var connectTimeout: DispatchWorkItem?
+    private static let connectTimeoutSeconds: Double = 10
 
     func start() {
         stopped = false
@@ -74,6 +79,7 @@ final class BleHeartRateSource: NSObject, HeartRateSource {
 
     func stop() {
         stopped = true
+        connectTimeout?.cancel(); connectTimeout = nil
         central?.stopScan()
         if let p = peripheral { central?.cancelPeripheralConnection(p) }
         peripheral = nil
@@ -102,6 +108,22 @@ final class BleHeartRateSource: NSObject, HeartRateSource {
         p.delegate = self
         emit(.connecting)
         central?.connect(p)
+        armConnectTimeout(for: p)
+    }
+
+    /// Kommt der gemerkte Gurt nicht binnen 10 s, Versuch abbrechen und auf
+    /// den Scan zurückfallen (findet auch einen anderen/neuen Gurt).
+    private func armConnectTimeout(for p: CBPeripheral) {
+        connectTimeout?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, !self.stopped, self.peripheral === p, p.state != .connected else { return }
+            self.central?.cancelPeripheralConnection(p)
+            self.peripheral = nil
+            self.emit(.scanning)
+            self.central?.scanForPeripherals(withServices: [Self.hrService])
+        }
+        connectTimeout = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.connectTimeoutSeconds, execute: work)
     }
 }
 
@@ -122,6 +144,7 @@ extension BleHeartRateSource: CBCentralManagerDelegate {
     }
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+        connectTimeout?.cancel(); connectTimeout = nil
         UserDefaults.standard.set(peripheral.identifier.uuidString, forKey: Self.rememberedKey)
         peripheral.discoverServices([Self.hrService])
     }
@@ -129,8 +152,14 @@ extension BleHeartRateSource: CBCentralManagerDelegate {
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral,
                         error: Error?) {
         guard !stopped else { return }
-        emit(.disconnected)
-        central.connect(peripheral)   // erneut versuchen
+        // Kurz warten statt ungedrosselt sofort erneut: direkt nach dem Verlassen
+        // der Sensoren-Seite baut iOS die alte Verbindung noch ab
+        emit(.connecting)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            guard let self, !self.stopped, self.peripheral === peripheral else { return }
+            central.connect(peripheral)
+            self.armConnectTimeout(for: peripheral)
+        }
     }
 
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral,

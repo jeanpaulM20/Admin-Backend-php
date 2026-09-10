@@ -77,12 +77,15 @@ actor WorkoutPhotoService {
     }
 
     /// Galerie-Einträge, optional auf eine Aktivität gefiltert.
-    func list(clientId: String, activity: WorkoutActivity?) async throws -> [WorkoutPhoto] {
+    func list(clientId: String, activity: WorkoutActivity?, reviewId: Int? = nil) async throws -> [WorkoutPhoto] {
         var path = "/api/client/workouts/\(clientId)/photos"
+        var query: [String] = []
         if let activity,
            let esc = activity.rawValue.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
-            path += "?activity=\(esc)"
+            query.append("activity=\(esc)")
         }
+        if let reviewId { query.append("reviewId=\(reviewId)") }
+        if !query.isEmpty { path += "?" + query.joined(separator: "&") }
         return try await APIClient.shared.getJSONArray(path, timeout: 30)
             .compactMap { WorkoutPhoto(json: $0) }
     }
@@ -114,30 +117,42 @@ actor WorkoutPhotoService {
     /// manche HEIC aus der Mediathek). Der frühere Weg fiel dort auf das
     /// ungeschnittene Original in voller Auflösung zurück — der Server
     /// wies es dann als „Bild zu gross" ab.
-    // MARK: - Aktives Foto (überlebt App-Kill während der Aufzeichnung)
+    // MARK: - Aktives Foto (überlebt App-Kill, an die Aufzeichnungs-ID gebunden)
 
-    private nonisolated static var activePhotoURL: URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("active-workout-photo.jpg")
+    private nonisolated static var photoDir: URL {
+        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("active-photos", isDirectory: true)
+        if !FileManager.default.fileExists(atPath: dir.path) {
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            var url = dir
+            var rv = URLResourceValues(); rv.isExcludedFromBackup = true
+            try? url.setResourceValues(rv)
+        }
+        return dir
     }
 
-    /// Foto sofort beim Aufnehmen sichern (zugeschnitten, klein).
-    nonisolated static func saveActivePhoto(_ image: UIImage) {
-        guard let data = prepare(image) else { return }
-        saveActivePhotoData(data)
+    private nonisolated static func activePhotoURL(_ recordingId: String) -> URL {
+        photoDir.appendingPathComponent("photo-\(recordingId).jpg")
     }
 
-    /// Bereits zugeschnittene JPEG-Daten sichern (spart doppeltes Zuschneiden).
-    nonisolated static func saveActivePhotoData(_ data: Data) {
-        try? data.write(to: activePhotoURL, options: .atomic)
+    /// Bereits zugeschnittene JPEG-Daten unter der Aufzeichnungs-ID sichern.
+    nonisolated static func saveActivePhotoData(_ data: Data, recordingId: String) {
+        try? data.write(to: activePhotoURL(recordingId), options: .atomic)
     }
 
-    nonisolated static func activePhotoData() -> Data? {
-        try? Data(contentsOf: activePhotoURL)
+    nonisolated static func activePhotoData(recordingId: String?) -> Data? {
+        guard let recordingId else { return nil }
+        return try? Data(contentsOf: activePhotoURL(recordingId))
     }
 
-    nonisolated static func clearActivePhoto() {
-        try? FileManager.default.removeItem(at: activePhotoURL)
+    /// Foto einer Aufzeichnung löschen; `nil` räumt ALLE Altlasten weg
+    /// (beim Start einer neuen Aufzeichnung).
+    nonisolated static func clearActivePhoto(recordingId: String?) {
+        if let recordingId {
+            try? FileManager.default.removeItem(at: activePhotoURL(recordingId))
+        } else {
+            try? FileManager.default.removeItem(at: photoDir)
+        }
     }
 
     nonisolated static func prepare(_ image: UIImage) -> Data? {

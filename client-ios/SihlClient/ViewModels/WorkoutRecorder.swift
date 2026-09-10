@@ -79,6 +79,16 @@ final class WorkoutRecorder {
     private(set) var elevationGain: Double = 0
     private(set) var startedAt: Date?
     private(set) var elapsed: TimeInterval = 0
+    /// Eindeutige ID dieser Aufzeichnung (UUID beim Start). Backend dedupliziert
+    /// darüber (kein doppeltes Training bei erneutem Upload), das Foto wird
+    /// unter dieser ID gesichert (kann nie am falschen Training landen).
+    private(set) var recordingId: String?
+    /// Konto, unter dem die Aufzeichnung läuft — die Recovery reicht sie nur
+    /// unter demselben Konto nach (kein Demo-Lauf auf ein echtes Konto).
+    private(set) var ownerClientId: String?
+    /// Nach einer Pause wird der erste Punkt ohne Distanz übernommen — sonst
+    /// zählt die Luftlinie der Pause (z. B. Autofahrt) als gelaufene Strecke.
+    private var skipDistanceOnce = false
 
     // Tour folgen (T3): Route-Overlay + Off-Route-Erkennung
     private(set) var routeName: String?
@@ -162,9 +172,12 @@ final class WorkoutRecorder {
     // MARK: Steuerung
 
 
-    func startRecording(_ activity: WorkoutActivity) {
+    func startRecording(_ activity: WorkoutActivity, clientId: String? = nil) {
         guard phase == .setup else { return }
         self.activity = activity
+        recordingId = UUID().uuidString
+        ownerClientId = clientId
+        WorkoutPhotoService.clearActivePhoto(recordingId: nil)   // keine Altlast anhängen
         // Gurt-Empfang gehört zum Start wie das GPS: Die Sensor-Einrichtung
         // im Profil nutzt eine eigene, beim Verlassen freigegebene Instanz —
         // ohne diesen Aufruf käme hier nie ein Puls an (0 Messwerte).
@@ -199,6 +212,7 @@ final class WorkoutRecorder {
     func resume() {
         guard phase == .paused, let began = pauseBegan else { return }
         pausedTotal += Date().timeIntervalSince(began)
+        skipDistanceOnce = true
         pauseBegan = nil
         phase = .recording
     }
@@ -226,7 +240,10 @@ final class WorkoutRecorder {
     /// nächste Start zeigte erneut die alte Zusammenfassung.
     func reset() {
         teardown()
+        Self.clearSnapshot()
         phase = .setup
+        hrState = .idle
+        gpsState = .idle
         currentHR = nil
         samples = []
         track = []
@@ -234,13 +251,18 @@ final class WorkoutRecorder {
         elevationGain = 0
         startedAt = nil
         elapsed = 0
+        recordingId = nil
+        ownerClientId = nil
+        skipDistanceOnce = false
         pausedTotal = 0
         pauseBegan = nil
         lastSnapshot = .distantPast
         lastSmoothedEle = nil
-        routeName = nil
-        routeSegments = []
-        routeCheckPoints = []
+        lastKnownCoordinate = nil
+        headingDegrees = nil
+        // Route bewusst NICHT löschen: Sie gehört zur Tour-Ansicht und wird nur
+        // beim ersten Erscheinen gesetzt — ein erneuter Start derselben Tour
+        // braucht sie noch. Nur der Off-Route-Zustand wird zurückgesetzt.
         pointsSinceRouteCheck = 0
         isOffRoute = false
         offRouteDistance = 0
@@ -266,7 +288,7 @@ final class WorkoutRecorder {
         // Qualitäts-Schwelle für die Aufzeichnung (vorher in der Quelle)
         guard (point.acc ?? .infinity) <= 30 else { return }
 
-        if let last = track.last {
+        if let last = track.last, !skipDistanceOnce {
             let from = CLLocation(latitude: last.lat, longitude: last.lon)
             let to   = CLLocation(latitude: point.lat, longitude: point.lon)
             let d    = to.distance(from: from)
@@ -278,6 +300,7 @@ final class WorkoutRecorder {
 
             distanceMeters += d
         }
+        skipDistanceOnce = false
 
         // Höhenmeter mit 2-m-Glättung gegen Barometer-/GPS-Rauschen
         if let ele = point.ele {
@@ -351,6 +374,8 @@ final class WorkoutRecorder {
         var track: [TrackPoint]? = nil
         var distanceMeters: Double? = nil
         var elevationGain: Double? = nil
+        var recordingId: String? = nil
+        var ownerClientId: String? = nil
     }
 
     private static var snapshotURL: URL {
@@ -365,7 +390,8 @@ final class WorkoutRecorder {
                             elapsed: elapsed, samples: samples,
                             track: track.isEmpty ? nil : track,
                             distanceMeters: distanceMeters > 0 ? distanceMeters : nil,
-                            elevationGain: elevationGain > 0 ? elevationGain : nil)
+                            elevationGain: elevationGain > 0 ? elevationGain : nil,
+                            recordingId: recordingId, ownerClientId: ownerClientId)
         if let data = try? JSONEncoder().encode(snap) {
             try? data.write(to: Self.snapshotURL, options: .atomic)
         }

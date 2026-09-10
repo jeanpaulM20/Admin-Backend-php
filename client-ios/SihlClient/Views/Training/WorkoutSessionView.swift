@@ -51,6 +51,11 @@ struct WorkoutSessionView: View {
             }
             .ignoresSafeArea()
         }
+        // Das Präsentieren des Covers feuert onDisappear (Idle-Timer frei) —
+        // während der Aufzeichnung soll der Bildschirm aber wach bleiben
+        .onChange(of: showCamera) { _, open in
+            if !open { UIApplication.shared.isIdleTimerDisabled = true }
+        }
     }
 
     // Kamera-Führung der Live-Karte: folgt der Position, bis der User
@@ -435,7 +440,7 @@ struct WorkoutSessionView: View {
                     Button {
                         self.photo = nil
                         photoItem = nil
-                        WorkoutPhotoService.clearActivePhoto()
+                        WorkoutPhotoService.clearActivePhoto(recordingId: recorder.recordingId)
                     } label: {
                         Image(systemName: "xmark")
                             .font(.app(12, weight: .bold))
@@ -643,8 +648,8 @@ struct WorkoutSessionView: View {
             Button("Abbrechen", role: .cancel) {}
             Button("Verwerfen", role: .destructive) {
                 WorkoutRecorder.clearSnapshot()
-                WorkoutPhotoService.clearActivePhoto()
-                onDone()
+                WorkoutPhotoService.clearActivePhoto(recordingId: recorder.recordingId)
+                complete()
             }
         } message: {
             Text("Die Aufzeichnung wird endgültig gelöscht.")
@@ -672,27 +677,37 @@ struct WorkoutSessionView: View {
     /// sofort persistieren. Spart Speicher (kein 12-MP-Original im RAM) und
     /// übersteht einen App-Kill während der Aufzeichnung.
     private func attachPhoto(_ image: UIImage) {
-        if let data = WorkoutPhotoService.prepare(image) {
-            photo = UIImage(data: data) ?? image
-            WorkoutPhotoService.saveActivePhotoData(data)
-        } else {
-            photo = image
-            WorkoutPhotoService.saveActivePhoto(image)
+        guard let data = WorkoutPhotoService.prepare(image) else { photo = image; return }
+        photo = UIImage(data: data) ?? image
+        if let rid = recorder.recordingId {
+            WorkoutPhotoService.saveActivePhotoData(data, recordingId: rid)
         }
     }
 
     // MARK: Speichern
 
+    /// Verhindert doppelte Abschlüsse: Ein zweiter onDone() aus einem
+    /// verspäteten Task würde eine bereits neu gestartete Aufzeichnung löschen.
+    @State private var finished = false
+
+    private func complete() {
+        guard !finished else { return }
+        finished = true
+        onDone()
+    }
+
     private func save() {
-        guard let started = recorder.startedAt else { return }
+        guard let started = recorder.startedAt, !isSaving, !finished else { return }
+        let rid = recorder.recordingId
         if isDemo {
             WorkoutRecorder.clearSnapshot()
-            onDone()
+            WorkoutPhotoService.clearActivePhoto(recordingId: rid)
+            complete()
             return
         }
         isSaving = true
         saveError = nil
-        let payload = WorkoutUploadService.Payload(
+        var payload = WorkoutUploadService.Payload(
             clientId: auth.clientId ?? "",
             trainingType: recorder.activity.rawValue,
             startedAt: started,
@@ -702,48 +717,50 @@ struct WorkoutSessionView: View {
             distanceMeters: recorder.distanceMeters > 0 ? recorder.distanceMeters : nil,
             elevationGain: recorder.elevationGain > 0 ? recorder.elevationGain : nil
         )
-        // Zugeschnittenes Foto (falls vorhanden) — aus dem State oder der
-        // beim Aufnehmen persistierten Datei
-        // Bevorzugt die schon beim Aufnehmen zugeschnittenen Bytes; nur als
-        // Rückfall (z. B. Schreibfehler) wird erneut aus dem State zugeschnitten
-        let photoData: Data? = WorkoutPhotoService.activePhotoData()
+        payload.clientRecordingId = rid
+        // Nur das Foto DIESER Aufzeichnung — nie eine Altlast
+        let photoData: Data? = WorkoutPhotoService.activePhotoData(recordingId: rid)
             ?? photo.flatMap { WorkoutPhotoService.prepare($0) }
         let clientId = auth.clientId ?? ""
 
+        /// Offline o. Ä.: Training UND Foto in die Warteschlange — das Backend
+        /// dedupliziert über die Aufzeichnungs-ID, ein Nachreichen ist sicher.
+        func enqueueAndFinish() async {
+            var queued = payload
+            if let photoData { queued.photoFile = WorkoutUploadService.shared.stashPhoto(photoData) }
+            WorkoutUploadService.shared.queue(queued)
+            WorkoutPhotoService.clearActivePhoto(recordingId: rid)
+            WorkoutRecorder.clearSnapshot()
+            saveError = "Kein Netz — Training gespeichert und wird automatisch nachgereicht."
+            // isSaving bleibt gesetzt: kein zweiter Tipp im Wartefenster
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            complete()
+        }
+
         Task {
+            let reviewId: Int?
             do {
-                let reviewId = try await WorkoutUploadService.shared.upload(payload)
-                // Foto an die frisch angelegte Aufzeichnung hängen
-                if let photoData, let image = UIImage(data: photoData), let reviewId {
-                    do {
-                        try await WorkoutPhotoService.shared.upload(
-                            clientId: clientId, reviewId: reviewId, image: image)
-                    } catch {
-                        // Training ist gespeichert, nur das Foto scheiterte:
-                        // als Foto-only-Nachlieferung einreihen statt verwerfen
-                        let name = WorkoutUploadService.shared.stashPhoto(photoData)
-                        WorkoutUploadService.shared.queuePhoto(
-                            clientId: clientId, reviewId: reviewId, photoFile: name)
-                    }
-                }
-                WorkoutPhotoService.clearActivePhoto()
-                WorkoutRecorder.clearSnapshot()
-                onDone()
+                reviewId = try await WorkoutUploadService.shared.upload(payload)
             } catch {
-                // Offline o. Ä.: Training UND Foto in die Warteschlange —
-                // beides wird beim nächsten App-Start nachgereicht.
-                var queued = payload
-                if let photoData {
-                    queued.photoFile = WorkoutUploadService.shared.stashPhoto(photoData)
-                }
-                WorkoutUploadService.shared.queue(queued)
-                WorkoutPhotoService.clearActivePhoto()
-                WorkoutRecorder.clearSnapshot()
-                saveError = "Kein Netz — Training gespeichert und wird automatisch nachgereicht."
-                isSaving = false
-                try? await Task.sleep(nanoseconds: 2_000_000_000)
-                onDone()
+                await enqueueAndFinish(); return
             }
+            // Ohne id wäre das Foto nicht zuordenbar → wie Fehler behandeln,
+            // die Dedupe-ID macht den erneuten Upload gefahrlos
+            guard let reviewId else { await enqueueAndFinish(); return }
+
+            if let photoData, let image = UIImage(data: photoData) {
+                do {
+                    try await WorkoutPhotoService.shared.upload(
+                        clientId: clientId, reviewId: reviewId, image: image)
+                } catch {
+                    let name = WorkoutUploadService.shared.stashPhoto(photoData)
+                    WorkoutUploadService.shared.queuePhoto(
+                        clientId: clientId, reviewId: reviewId, photoFile: name)
+                }
+            }
+            WorkoutPhotoService.clearActivePhoto(recordingId: rid)
+            WorkoutRecorder.clearSnapshot()
+            complete()
         }
     }
 }
