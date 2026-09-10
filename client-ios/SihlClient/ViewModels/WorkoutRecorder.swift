@@ -220,6 +220,32 @@ final class WorkoutRecorder {
         gpsSource.stop()
     }
 
+    /// Nach Speichern/Verwerfen in den Ausgangszustand — die Instanz lebt im
+    /// Start-Tab weiter (Tab-Wurzel, `dismiss()` wirkt dort nicht). Ohne Reset
+    /// blieb `phase == .finished`, `startRecording()` lief ins Leere und der
+    /// nächste Start zeigte erneut die alte Zusammenfassung.
+    func reset() {
+        teardown()
+        phase = .setup
+        currentHR = nil
+        samples = []
+        track = []
+        distanceMeters = 0
+        elevationGain = 0
+        startedAt = nil
+        elapsed = 0
+        pausedTotal = 0
+        pauseBegan = nil
+        lastSnapshot = .distantPast
+        lastSmoothedEle = nil
+        routeName = nil
+        routeSegments = []
+        routeCheckPoints = []
+        pointsSinceRouteCheck = 0
+        isOffRoute = false
+        offRouteDistance = 0
+    }
+
     // MARK: Intern — Herzfrequenz
 
     private func ingest(_ bpm: Int) {

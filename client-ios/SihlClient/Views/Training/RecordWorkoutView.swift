@@ -89,6 +89,9 @@ struct RecordWorkoutView: View {
             if let recorder {
                 WorkoutSessionView(recorder: recorder, isDemo: isDemo) {
                     showSession = false
+                    // Frisch für die nächste Aufzeichnung — auf dem Start-Tab
+                    // bleibt dieselbe Instanz bestehen
+                    recorder.reset()
                     dismiss()
                 }
             }

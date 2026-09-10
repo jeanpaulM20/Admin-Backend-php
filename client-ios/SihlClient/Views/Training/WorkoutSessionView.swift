@@ -643,6 +643,7 @@ struct WorkoutSessionView: View {
             Button("Abbrechen", role: .cancel) {}
             Button("Verwerfen", role: .destructive) {
                 WorkoutRecorder.clearSnapshot()
+                WorkoutPhotoService.clearActivePhoto()
                 onDone()
             }
         } message: {
