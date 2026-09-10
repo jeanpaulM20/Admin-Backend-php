@@ -243,9 +243,11 @@ export class ClientAppController {
     @Req() req: Request,
     @Param('clientId', ParseIntPipe) clientId: number,
     @Query('activity') activity?: string,
+    @Query('reviewId') reviewId?: string,
   ) {
     this.assertClientAccess(req, clientId);
-    return this.appService.getWorkoutPhotos(clientId, activity);
+    const rid = reviewId && /^\d+$/.test(reviewId) ? Number(reviewId) : undefined;
+    return this.appService.getWorkoutPhotos(clientId, activity, rid);
   }
 
   @Get('workouts/:clientId/photo/:photoId')

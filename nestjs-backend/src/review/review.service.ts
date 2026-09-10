@@ -68,6 +68,7 @@ export class ReviewService {
    */
   async createWorkout(input: {
     clientId: number;
+    clientRecordingId?: string | null;
     date: string;
     trainingType: string;
     duration: string | null;
@@ -81,6 +82,7 @@ export class ReviewService {
     return this.reviewRepo.manager.transaction(async (manager) => {
       const review = await manager.getRepository(Review).save({
         client_id: input.clientId,
+        clientRecordingId: input.clientRecordingId ?? null,
         date: input.date,
         training_type: input.trainingType,
         type: 'workout',

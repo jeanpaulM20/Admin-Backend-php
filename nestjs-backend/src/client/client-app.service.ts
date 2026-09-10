@@ -941,6 +941,20 @@ export class ClientAppService {
 
   /** App-recorded workout upload: validates + persists review & HR series */
   async createWorkout(clientId: number, body: any) {
+    // Idempotenz: dieselbe Aufzeichnung (UUID vom Client) darf nur einmal
+    // entstehen — ein Nachreichen aus der Warteschlange nach Timeout/Abbruch
+    // liefert dann die bestehende id statt ein zweites Training anzulegen.
+    const rawRid = String(body?.clientRecordingId ?? '').trim();
+    const clientRecordingId = /^[A-Za-z0-9-]{8,36}$/.test(rawRid) ? rawRid : null;
+    if (clientRecordingId) {
+      const existing = await this.dataSource.query(
+        'SELECT id FROM review WHERE client_id = ? AND client_recording_id = ? LIMIT 1',
+        [clientId, clientRecordingId]);
+      if (existing.length) {
+        return { success: true, id: existing[0].id, duplicate: true };
+      }
+    }
+
     const trainingType = String(body?.trainingType ?? '').trim() || 'Training';
     const date = String(body?.startedAt ?? '').trim();
     if (!date || Number.isNaN(Date.parse(date))) {
@@ -999,18 +1013,32 @@ export class ClientAppService {
         ? Math.round(Number(body.elevationGain))
         : null;
 
-    const review = await this.reviewService.createWorkout({
-      clientId,
-      date: new Date(date).toISOString().slice(0, 19).replace('T', ' '),
-      trainingType,
-      duration,
-      heartRate,
-      kcal,
-      distanceMeters,
-      elevationGain,
-      hrSeries,
-      gpsTrack,
-    });
+    let review;
+    try {
+      review = await this.reviewService.createWorkout({
+        clientId,
+        clientRecordingId,
+        date: new Date(date).toISOString().slice(0, 19).replace('T', ' '),
+        trainingType,
+        duration,
+        heartRate,
+        kcal,
+        distanceMeters,
+        elevationGain,
+        hrSeries,
+        gpsTrack,
+      });
+    } catch (e: any) {
+      // Wettlauf zweier gleichzeitiger Uploads: der Unique-Index gewinnt,
+      // der Verlierer bekommt die bereits angelegte id zurück
+      if (clientRecordingId && String(e?.code ?? e?.message).includes('ER_DUP_ENTRY')) {
+        const existing = await this.dataSource.query(
+          'SELECT id FROM review WHERE client_id = ? AND client_recording_id = ? LIMIT 1',
+          [clientId, clientRecordingId]);
+        if (existing.length) return { success: true, id: existing[0].id, duplicate: true };
+      }
+      throw e;
+    }
 
     return {
       success: true,
@@ -1049,18 +1077,30 @@ export class ClientAppService {
     if (!bytes.length) throw new Error('Leeres Bild');
     if (bytes.length > 3 * 1024 * 1024) throw new Error('Bild zu gross (max. 3 MB)');
 
-    // Ein Foto je Training: ein vorhandenes wird ersetzt
-    await this.photoRepo.delete({ reviewId });
-    const saved = await this.photoRepo.save({
-      reviewId, clientId,
-      mime: mime === 'image/png' ? 'image/png' : 'image/jpeg',
-      bytes, createdAt: new Date(),
+    // Ein Foto je Training: ein vorhandenes wird ersetzt — in EINER
+    // Transaktion, damit ein fehlschlagender Insert das alte Foto nicht
+    // bereits gelöscht zurücklässt
+    const saved = await this.photoRepo.manager.transaction(async (m) => {
+      const repo = m.getRepository(ReviewPhoto);
+      await repo.delete({ reviewId });
+      return repo.save({
+        reviewId, clientId,
+        mime: mime === 'image/png' ? 'image/png' : 'image/jpeg',
+        bytes, createdAt: new Date(),
+      });
     });
     return { success: true, photoId: saved.id };
   }
 
   /** Galerie-Einträge des Kunden — Metadaten inkl. Trainingswerte. */
-  async getWorkoutPhotos(clientId: number, activity?: string) {
+  async getWorkoutPhotos(clientId: number, activity?: string, reviewId?: number) {
+    // Filter in SQL, nicht nach dem LIMIT — sonst zeigte die Galerie für
+    // seltene Aktivitäten fälschlich „leer" und das Detail fand ältere
+    // Fotos nicht mehr (und bot an, sie zu überschreiben)
+    const where: string[] = ['p.client_id = ?'];
+    const params: any[] = [clientId];
+    if (activity) { where.push('LOWER(r.training_type) = LOWER(?)'); params.push(activity); }
+    if (reviewId) { where.push('p.review_id = ?'); params.push(reviewId); }
     const rows = await this.dataSource.query(
       `SELECT p.id AS photoId, p.review_id AS reviewId,
               r.training_type AS activity, r.date AS date, r.duration AS duration,
@@ -1068,12 +1108,11 @@ export class ClientAppService {
               r.heart_rate AS avgHr
          FROM review_photo p
          JOIN review r ON r.id = p.review_id
-        WHERE p.client_id = ?
+        WHERE ${where.join(' AND ')}
         ORDER BY r.date DESC
-        LIMIT 60`, [clientId]);
+        LIMIT 60`, params);
 
     return rows
-      .filter((r: any) => !activity || String(r.activity ?? '').toLowerCase() === activity.toLowerCase())
       .map((r: any) => ({
         photoId: r.photoId,
         reviewId: r.reviewId,

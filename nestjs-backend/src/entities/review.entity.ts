@@ -81,6 +81,13 @@ export class Review {
   distance: number;
 
   /** Kumulierte Höhenmeter (App-Aufzeichnungen, Meter) */
+  /** Idempotenz-Schlüssel der App-Aufzeichnung (UUID, vom Client beim Start
+   *  erzeugt). Ein erneuter Upload derselben Aufzeichnung — z. B. wenn der
+   *  Client die erste Antwort als Fehler wertete und aus der Warteschlange
+   *  nachreicht — legt damit kein zweites Training an. */
+  @Column({ name: 'client_recording_id', type: 'varchar', length: 36, nullable: true })
+  clientRecordingId: string | null;
+
   @Column({ name: 'elevation_gain', nullable: true })
   elevation_gain: number;
 

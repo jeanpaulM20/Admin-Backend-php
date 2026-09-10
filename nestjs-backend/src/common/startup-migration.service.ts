@@ -80,6 +80,9 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       `ALTER TABLE review ADD COLUMN client_id INT DEFAULT NULL`,
       `ALTER TABLE review ADD COLUMN date DATETIME DEFAULT NULL`,
       `ALTER TABLE review ADD COLUMN source VARCHAR(20) DEFAULT NULL`,
+      // Idempotenz für App-Uploads: dieselbe Aufzeichnung darf nur einmal existieren
+      `ALTER TABLE review ADD COLUMN client_recording_id VARCHAR(36) DEFAULT NULL`,
+      `ALTER TABLE review ADD UNIQUE INDEX uniq_review_client_recording (client_id, client_recording_id)`,
       `ALTER TABLE review ADD INDEX idx_review_client_id (client_id)`,
       // App-Workouts haben kein Exerciseset/Training — Legacy-Spalten waren
       // NOT NULL ohne Default und liessen den INSERT scheitern (ER_NO_DEFAULT)
