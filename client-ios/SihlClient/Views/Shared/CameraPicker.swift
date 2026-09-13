@@ -34,6 +34,7 @@ struct CameraPicker: UIViewControllerRepresentable {
         picker.sourceType = UIImagePickerController.isSourceTypeAvailable(.camera) ? .camera : .photoLibrary
         #endif
         picker.delegate = context.coordinator
+        picker.modalPresentationStyle = .fullScreen
         return picker
     }
 

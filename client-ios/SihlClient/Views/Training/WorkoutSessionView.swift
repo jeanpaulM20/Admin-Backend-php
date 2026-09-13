@@ -86,10 +86,15 @@ struct WorkoutSessionView: View {
         }
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
-            showCamera = true
+            // Nicht synchron im Tipp-Handler präsentieren, sondern im nächsten
+            // Umlauf — sonst kann der Sucher schwarz bleiben
+            DispatchQueue.main.async { showCamera = true }
         case .notDetermined:
             AVCaptureDevice.requestAccess(for: .video) { granted in
-                Task { @MainActor in
+                // Frisch erteilte Freigabe braucht einen Moment, bis der
+                // Kamera-Stack sie kennt; sofortiges Präsentieren ergab einen
+                // schwarzen Sucher beim allerersten Aufruf
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     if granted { showCamera = true } else { cameraDenied = true }
                 }
             }
