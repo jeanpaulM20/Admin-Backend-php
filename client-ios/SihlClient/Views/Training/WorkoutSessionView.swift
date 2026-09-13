@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 import MapKit
 import PhotosUI
 
@@ -43,18 +44,57 @@ struct WorkoutSessionView: View {
         // Kamera in jeder Phase erreichbar (auch während der Aufzeichnung
         // und in der Pause), nicht nur in der Zusammenfassung
         .fullScreenCover(isPresented: $showCamera) {
-            CameraPicker { image in
-                attachPhoto(image)
-                if recorder.phase != .finished {
-                    routeToast = AppToast(message: "Foto gespeichert", style: .success)
-                }
-            }
+            CameraPicker(image: $capturedImage,
+                         onDismiss: { showCamera = false },
+                         onFailure: { routeToast = AppToast(message: "Kein Bild erhalten — bitte erneut versuchen", style: .error) })
             .ignoresSafeArea()
+        }
+        // Verarbeitung im View-Lebenszyklus (nicht im Picker-Closure), damit
+        // der State-Schreibzugriff garantiert die lebende View trifft
+        .onChange(of: capturedImage) { _, image in
+            guard let image else { return }
+            capturedImage = nil
+            attachPhoto(image)
+            if recorder.phase != .finished {
+                routeToast = AppToast(message: "Foto gespeichert", style: .success)
+            }
         }
         // Das Präsentieren des Covers feuert onDisappear (Idle-Timer frei) —
         // während der Aufzeichnung soll der Bildschirm aber wach bleiben
         .onChange(of: showCamera) { _, open in
             if !open { UIApplication.shared.isIdleTimerDisabled = true }
+        }
+        .alert("Kein Zugriff auf die Kamera", isPresented: $cameraDenied) {
+            Button("Einstellungen öffnen") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text("Erlaube SIHLMOVE in den Einstellungen den Zugriff auf die Kamera. Du kannst stattdessen auch ein Foto aus der Mediathek auswählen.")
+        }
+    }
+
+    /// Kamera erst nach geklärter Berechtigung öffnen: Ein abgelehnter
+    /// Zugriff zeigte sonst nur einen schwarzen Picker — ohne Hinweis und
+    /// ohne Weg zurück in die Einstellungen.
+    private func openCamera() {
+        // Ohne Kamera (Simulator) fällt der Picker auf die Mediathek zurück
+        guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
+            showCamera = true; return
+        }
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            showCamera = true
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                Task { @MainActor in
+                    if granted { showCamera = true } else { cameraDenied = true }
+                }
+            }
+        default:
+            cameraDenied = true
         }
     }
 
@@ -74,6 +114,10 @@ struct WorkoutSessionView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var photo: UIImage?
     @State private var showCamera = false
+    /// Vom Kamera-Picker geliefertes Bild (per Binding), verarbeitet in onChange
+    @State private var capturedImage: UIImage?
+    /// Kamera vom Nutzer abgelehnt oder per Einschränkung gesperrt
+    @State private var cameraDenied = false
 
     /// Für die Kartendarstellung reduzierte Koordinaten (Render-Kosten).
     private var displayCoordinates: [CLLocationCoordinate2D] {
@@ -254,7 +298,7 @@ struct WorkoutSessionView: View {
     private var controlRow: some View {
         HStack(spacing: AppSpacing.stack) {
             Button {
-                showCamera = true
+                openCamera()
             } label: {
                 Image(systemName: photo == nil ? "camera" : "camera.fill")
                     .font(.app(18, weight: .semibold))
@@ -455,7 +499,7 @@ struct WorkoutSessionView: View {
             } else {
                 HStack(spacing: AppSpacing.stack) {
                     Button {
-                        showCamera = true
+                        openCamera()
                     } label: {
                         Label("Foto aufnehmen", systemImage: "camera")
                             .font(.footnote.weight(.medium))

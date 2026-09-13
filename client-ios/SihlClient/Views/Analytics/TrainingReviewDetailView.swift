@@ -20,6 +20,7 @@ struct TrainingReviewDetailView: View {
     @State private var photoImage: UIImage?
     @State private var photoItem: PhotosPickerItem?
     @State private var showCamera = false
+    @State private var capturedImage: UIImage?
     @State private var isUploadingPhoto = false
     @State private var photoError: String?
 
@@ -189,8 +190,13 @@ struct TrainingReviewDetailView: View {
                 photoItem = nil
             }
         }
+        .onChange(of: capturedImage) { _, image in
+            guard let image else { return }
+            capturedImage = nil
+            Task { await uploadPhoto(image) }
+        }
         .fullScreenCover(isPresented: $showCamera) {
-            CameraPicker { image in Task { await uploadPhoto(image) } }
+            CameraPicker(image: $capturedImage, onDismiss: { showCamera = false })
                 .ignoresSafeArea()
         }
     }

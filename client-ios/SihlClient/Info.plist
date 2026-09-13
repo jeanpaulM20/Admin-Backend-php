@@ -27,13 +27,13 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>SihlClient verbindet sich mit deinem Herzfrequenz-Brustgurt (z.B. Polar H10), um dein Training aufzuzeichnen.</string>
+	<string>SIHLMOVE verbindet sich mit deinem Herzfrequenz-Brustgurt (z.B. Polar H10), um dein Training aufzuzeichnen.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>SihlClient nimmt nach dem Training auf Wunsch ein Foto auf, das in deiner Trainings-Galerie erscheint.</string>
+	<string>SIHLMOVE nimmt nach dem Training auf Wunsch ein Foto auf, das in deiner Trainings-Galerie erscheint.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>SihlClient zeichnet deine Route bei Outdoor-Trainings auf (Joggen, Radfahren, Wandern).</string>
+	<string>SIHLMOVE zeichnet deine Route bei Outdoor-Trainings auf (Joggen, Radfahren, Wandern).</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>SihlClient wählt auf Wunsch ein Foto aus deiner Mediathek für deine Trainings-Galerie.</string>
+	<string>SIHLMOVE wählt auf Wunsch ein Foto aus deiner Mediathek für deine Trainings-Galerie.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
