@@ -27,6 +27,9 @@ struct TourDiscoveryView: View {
     @State private var showImporter = false
     @State private var showAssistant = false
     @State private var searchModel = LocationSearchModel()
+    /// Einmal-Ortung für „Wo bin ich?" — kein Dauer-GPS beim Kartenbetrachten
+    @State private var locator = OneShotLocator()
+    @State private var locationDenied = false
     @FocusState private var searchFocused: Bool
 
     // Routen-Vorschau: die Route der gerade gewählten Tour-Karte wird auf
@@ -65,13 +68,28 @@ struct TourDiscoveryView: View {
             .padding(.horizontal, AppSpacing.screen)
             .padding(.top, AppSpacing.stack)
 
-            // Tour-Karten unten
-            VStack {
+            // Tour-Karten unten, darüber rechts der Lokalisieren-Knopf
+            VStack(spacing: 10) {
                 Spacer()
+                HStack {
+                    Spacer()
+                    locateButton
+                }
+                .padding(.horizontal, AppSpacing.screen)
                 bottomCards
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .alert("Kein Zugriff auf den Standort", isPresented: $locationDenied) {
+            Button("Einstellungen öffnen") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text("Erlaube SIHLMOVE in den Einstellungen den Standortzugriff, um Touren in deiner Nähe zu finden.")
+        }
         .toolbar {
             // Touren-Assistent (C1): Wunschtour beschreiben → Route
             ToolbarItem(placement: .topBarTrailing) {
@@ -94,7 +112,17 @@ struct TourDiscoveryView: View {
                 .accessibilityLabel("GPX importieren")
             }
         }
-        .task { if tours.isEmpty { reload() } }
+        .task {
+            guard tours.isEmpty else { return }
+            if locator.isAuthorized {
+                // Bereits erlaubt: still am eigenen Standort starten statt in Zürich
+                locator.locate { outcome in
+                    if case .located(let c) = outcome { moveTo(c) } else { reload() }
+                }
+            } else {
+                reload()
+            }
+        }
         .navigationDestination(item: $detailTour) { tour in
             TourDetailView(tour: tour)
         }
@@ -226,6 +254,8 @@ struct TourDiscoveryView: View {
 
     private var map: some View {
         Map(position: $camera) {
+            // Eigene Position (blauer Punkt), sobald die Ortung erlaubt ist
+            UserAnnotation()
             // Routenverlauf der gewählten Tour (blau = betrachtete Route)
             if let preview = previewDetail {
                 ForEach(preview.segments.indices, id: \.self) { i in
@@ -471,6 +501,39 @@ struct TourDiscoveryView: View {
                     return
                 }
                 moveTo(item.placemark.coordinate)
+            }
+        }
+    }
+
+    /// „Wo bin ich?" — fragt bei Bedarf die Berechtigung an, holt EINEN Fix,
+    /// zentriert die Karte dort und lädt die Touren der Umgebung.
+    private var locateButton: some View {
+        Button {
+            locateMe()
+        } label: {
+            Group {
+                if locator.isLocating {
+                    ProgressView().tint(AppColor.primary).scaleEffect(0.8)
+                } else {
+                    Image(systemName: locator.isAuthorized ? "location.fill" : "location")
+                        .font(.app(15, weight: .semibold))
+                        .foregroundStyle(locator.isAuthorized ? AppColor.primary : AppColor.muted)
+                }
+            }
+            .frame(width: 40, height: 40)
+            .background(AppColor.surface, in: Circle())
+            .overlay(Circle().stroke(AppColor.border, lineWidth: 1))
+        }
+        .disabled(locator.isLocating)
+        .accessibilityLabel("Eigenen Standort anzeigen")
+    }
+
+    private func locateMe() {
+        locator.locate { outcome in
+            switch outcome {
+            case .located(let c): moveTo(c)
+            case .denied:         locationDenied = true
+            case .failed:         error = "Standort gerade nicht verfügbar."
             }
         }
     }
