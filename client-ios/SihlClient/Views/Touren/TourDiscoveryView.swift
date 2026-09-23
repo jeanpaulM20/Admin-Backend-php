@@ -531,18 +531,23 @@ struct TourDiscoveryView: View {
     private func locateMe() {
         locator.locate { outcome in
             switch outcome {
-            case .located(let c): moveTo(c)
+            case .located(let c): moveTo(c, span: 0.02)
             case .denied:         locationDenied = true
             case .failed:         error = "Standort gerade nicht verfügbar."
             }
         }
     }
 
-    private func moveTo(_ c: CLLocationCoordinate2D) {
+    /// Karte zentrieren und Touren neu laden. `span` in Grad: 0.15 ≈ 15 km
+    /// (Ortssuche, zeigt den 10-km-Suchradius), 0.02 ≈ 2 km (eigener
+    /// Standort — „wo genau bin ich?").
+    private func moveTo(_ c: CLLocationCoordinate2D, span: Double = 0.15) {
         center = c
-        camera = .region(MKCoordinateRegion(
-            center: c,
-            span: MKCoordinateSpan(latitudeDelta: 0.15, longitudeDelta: 0.15)))
+        withAnimation(.easeInOut(duration: 0.6)) {
+            camera = .region(MKCoordinateRegion(
+                center: c,
+                span: MKCoordinateSpan(latitudeDelta: span, longitudeDelta: span)))
+        }
         reload()
     }
 }
