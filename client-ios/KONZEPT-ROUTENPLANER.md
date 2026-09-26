@@ -1,6 +1,6 @@
 # Konzept: Routenplaner — Start, Zwischenpunkte, Ziel
 
-Stand: 26. September 2026 · Status: Konzept zur Freigabe
+Stand: 26. September 2026 · Status: Phase 1 umgesetzt
 
 ## 1. Ziel
 
@@ -34,9 +34,11 @@ schmaler Endpunkt für Via-Punkte, die **Interaktion auf der Karte** und
 ## 3. Nutzerfluss
 
 ### 3.1 Einstieg
-- Neuer Chip **„Route planen"** in der Filterzeile der Touren-Karte, neben
-  „Hier suchen". Er ist ein Kontext-Chip (Surface-Stil), **kein zweiter
-  CTA** — der orange „Rundtour"-Knopf bleibt die einzige CTA-Fläche
+- Neuer Chip **„Route planen"** als Karten-Aktion **neben dem
+  Lokalisieren-Knopf** (rechts über den Tour-Karten). Umsetzungsnotiz:
+  In der Filterzeile war auf 402-pt-Geräten kein Platz für einen vierten
+  Chip. Er ist ein Kontext-Chip (Surface-Stil), **kein zweiter CTA** —
+  der orange „Rundtour"-Knopf bleibt die einzige CTA-Fläche
   (Ein-CTA-Prinzip).
 - Antippen wechselt die Karte in den **Planungsmodus**: Die Tour-Karten
   unten weichen dem **Planungspanel**, die Kopfzeile zeigt „Route planen ·
