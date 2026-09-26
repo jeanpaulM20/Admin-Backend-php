@@ -7,7 +7,7 @@ import {
 import { Request, Response } from 'express';
 import { ClientAppService } from './client-app.service';
 import { ToursAssistantService } from './tours-assistant.service';
-import { ToursService } from './tours.service';
+import { RouteNotFoundError, RoutePoint, RoutingUnavailableError, ToursService } from './tours.service';
 import { ClientChatService } from './client-chat.service';
 import { InvoiceService } from '../invoice/invoice.service';
 import { SaferpayService } from '../payment/saferpay.service';
@@ -212,17 +212,34 @@ export class ClientAppController {
 
   /** Routenplaner: Start → Zwischenpunkte → Ziel, Wegeführung je Aktivität */
   @Post('tours/route/:clientId')
-  plannedRoute(
+  async plannedRoute(
     @Req() req: Request,
     @Param('clientId', ParseIntPipe) clientId: number,
     @Body() body: any,
   ) {
     this.assertClientAccess(req, clientId);
-    return this.toursService.routeVia(
-      body?.points,
-      String(body?.activity ?? 'wandern'),
-      body?.roundtrip === true,
-    );
+    const raw = body?.points;
+    if (!Array.isArray(raw) || raw.length < 2 || raw.length > ToursService.MAX_VIA_POINTS) {
+      throw new HttpException(
+        { message: `2 bis ${ToursService.MAX_VIA_POINTS} Punkte erforderlich` }, HttpStatus.BAD_REQUEST);
+    }
+    const points: RoutePoint[] = raw.map((p: any) => ({ lat: Number(p?.lat), lon: Number(p?.lon) }));
+    if (points.some((p) => !Number.isFinite(p.lat) || !Number.isFinite(p.lon)
+        || Math.abs(p.lat) > 90 || Math.abs(p.lon) > 180)) {
+      throw new HttpException({ message: 'Ungültige Koordinaten' }, HttpStatus.BAD_REQUEST);
+    }
+    try {
+      return await this.toursService.routeVia(
+        points, String(body?.activity ?? 'wandern'), body?.roundtrip === true);
+    } catch (e) {
+      if (e instanceof RouteNotFoundError) {
+        throw new HttpException({ message: e.message }, HttpStatus.UNPROCESSABLE_ENTITY);
+      }
+      if (e instanceof RoutingUnavailableError) {
+        throw new HttpException({ message: e.message }, HttpStatus.SERVICE_UNAVAILABLE);
+      }
+      throw e;
+    }
   }
 
   /** Touren-Detail: Geometrie + berechnete Werte */

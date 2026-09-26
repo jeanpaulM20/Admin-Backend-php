@@ -3,6 +3,20 @@ import MapKit
 
 // MARK: - RoutePlannerModel (T5: Routenplaner)
 
+/// Ein gesetzter Punkt mit stabiler Identität — Pins und Menüs bleiben
+/// beim Löschen oder Umkehren an „ihrem" Punkt.
+struct PlannedPoint: Identifiable, Equatable {
+    let id: UUID
+    var coordinate: CLLocationCoordinate2D
+
+    init(_ coordinate: CLLocationCoordinate2D) {
+        self.id = UUID()
+        self.coordinate = coordinate
+    }
+
+    static func == (l: Self, r: Self) -> Bool { l.id == r.id }
+}
+
 /// Zustand des Routenplaners auf der Touren-Karte: gesetzte Punkte
 /// (erster = Start, letzter = Ziel, dazwischen Zwischenpunkte), Aktivität
 /// und die berechnete Route. Nach jeder Änderung wird nach 400 ms Ruhe
@@ -13,19 +27,24 @@ final class RoutePlannerModel {
 
     enum Role: Equatable { case start, via(Int), destination }
 
-    private(set) var points: [CLLocationCoordinate2D] = []
+    private(set) var points: [PlannedPoint] = []
     private(set) var activity: RoundtripActivity = .wandern
     private(set) var result: TourDetail?
     private(set) var isCalculating = false
     private(set) var error: String?
+    /// Fehler, bei dem ein erneuter Versuch mit denselben Punkten Sinn ergibt
+    /// (Netz, Auslastung) — im Gegensatz zu „Keine Route gefunden".
+    private(set) var canRetry = false
 
     @ObservationIgnored private var task: Task<Void, Never>?
     @ObservationIgnored var clientId: String?
     @ObservationIgnored var isDemo = false
 
     var isFull: Bool { points.count >= Self.maxPoints }
+    var coordinates: [CLLocationCoordinate2D] { points.map(\.coordinate) }
 
-    func role(at index: Int) -> Role {
+    func role(of point: PlannedPoint) -> Role {
+        guard let index = points.firstIndex(of: point) else { return .via(0) }
         if index == 0 { return .start }
         if index == points.count - 1 { return .destination }
         return .via(index)
@@ -44,13 +63,13 @@ final class RoutePlannerModel {
 
     func add(_ c: CLLocationCoordinate2D) {
         guard !isFull else { return }
-        points.append(c)
+        points.append(PlannedPoint(c))
         scheduleCalculation()
     }
 
     /// „Mein Standort als Start“: ersetzt den Start bzw. setzt ihn.
     func setStart(_ c: CLLocationCoordinate2D) {
-        if points.isEmpty { points = [c] } else { points[0] = c }
+        if points.isEmpty { points = [PlannedPoint(c)] } else { points[0].coordinate = c }
         scheduleCalculation()
     }
 
@@ -60,8 +79,8 @@ final class RoutePlannerModel {
         scheduleCalculation()
     }
 
-    func remove(at index: Int) {
-        guard points.indices.contains(index) else { return }
+    func remove(_ point: PlannedPoint) {
+        guard let index = points.firstIndex(of: point) else { return }
         points.remove(at: index)
         scheduleCalculation()
     }
@@ -78,12 +97,37 @@ final class RoutePlannerModel {
         points = []
         result = nil
         error = nil
+        canRetry = false
         isCalculating = false
     }
 
     func setActivity(_ a: RoundtripActivity) {
         guard a != activity else { return }
         activity = a
+        scheduleCalculation()
+    }
+
+    /// Gleiche Punkte nochmals rechnen (nach Netz-/Auslastungsfehler).
+    func retry() {
+        scheduleCalculation()
+    }
+
+    /// Fehler von aussen anzeigen (z. B. Ortung fehlgeschlagen).
+    func report(_ message: String) {
+        error = message
+        canRetry = false
+    }
+
+    /// Beim Verlassen des Bildschirms laufende Anfragen stoppen …
+    func cancelPending() {
+        task?.cancel()
+        task = nil
+        if isCalculating { isCalculating = false }
+    }
+
+    /// … und beim Zurückkommen eine fehlende Route nachholen.
+    func resumeIfNeeded() {
+        guard points.count >= 2, result == nil, error == nil, task == nil else { return }
         scheduleCalculation()
     }
 
@@ -108,26 +152,27 @@ final class RoutePlannerModel {
 
     private func scheduleCalculation() {
         task?.cancel()
+        task = nil
         error = nil
+        canRetry = false
         result = nil
         guard points.count >= 2 else { isCalculating = false; return }
         isCalculating = true
-        let pts = points, act = activity, demo = isDemo, cid = clientId
+        let coords = coordinates, act = activity, demo = isDemo, cid = clientId
         task = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(400))
             guard !Task.isCancelled, let self else { return }
+            defer { if !Task.isCancelled { isCalculating = false; task = nil } }
             if demo {
-                result = TourService.demoPlannedRoute(points: pts, activity: act)
-                isCalculating = false
+                result = TourService.demoPlannedRoute(points: coords, activity: act)
                 return
             }
             guard let cid else {
                 error = "Bitte zuerst anmelden."
-                isCalculating = false
                 return
             }
             do {
-                let detail = try await TourService.shared.plannedRoute(clientId: cid, points: pts, activity: act)
+                let detail = try await TourService.shared.plannedRoute(clientId: cid, points: coords, activity: act)
                 guard !Task.isCancelled else { return }
                 if let detail {
                     result = detail
@@ -136,21 +181,25 @@ final class RoutePlannerModel {
                 }
             } catch {
                 guard !Task.isCancelled else { return }
-                self.error = Self.message(for: error)
+                let (message, retryable) = Self.classify(error)
+                self.error = message
+                canRetry = retryable
             }
-            isCalculating = false
         }
     }
 
-    private static func message(for error: Error) -> String {
+    /// Fehler → Meldung und ob ein erneuter Versuch sinnvoll ist.
+    private static func classify(_ error: Error) -> (String, Bool) {
         if let url = error as? URLError,
-           [.notConnectedToInternet, .networkConnectionLost, .cannotConnectToHost, .timedOut].contains(url.code) {
-            return "Kein Netz — die Route wird berechnet, sobald du online bist."
+           [.notConnectedToInternet, .networkConnectionLost, .dataNotAllowed].contains(url.code) {
+            return ("Kein Netz — die Route kann gerade nicht berechnet werden.", true)
         }
-        if let api = error as? APIError, api.statusCode == 400, !api.message.isEmpty {
-            return api.message
+        if let api = error as? APIError {
+            // 400/422: fachliche Antwort des Servers (Punkte, keine Route) — kein Retry
+            if [400, 422].contains(api.statusCode), !api.message.isEmpty { return (api.message, false) }
+            if api.statusCode == 503 { return ("Routing gerade ausgelastet — bitte gleich nochmals versuchen.", true) }
         }
-        return "Routing vorübergehend nicht erreichbar — bitte gleich nochmals versuchen."
+        return ("Routing vorübergehend nicht erreichbar — bitte gleich nochmals versuchen.", true)
     }
 }
 
@@ -282,13 +331,21 @@ struct RoutePlannerPanel: View {
             }
             .frame(minHeight: 44)
         } else if let error = model.error {
-            InlineErrorBanner(message: error)
+            VStack(spacing: 8) {
+                InlineErrorBanner(message: error)
+                if model.canRetry {
+                    Button("Nochmals versuchen") { model.retry() }
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppColor.text)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
         } else if let r = model.result {
             VStack(spacing: 6) {
                 HStack(spacing: 8) {
                     stat("Distanz", r.distanceKm.map { TourFormat.distance($0) } ?? "–")
                     if let gain = r.elevationGain {
-                        stat("Höhenmeter", "↑\(gain) ↓\(r.elevationLoss ?? 0) m")
+                        stat("Höhenmeter", r.elevationLoss.map { "↑\(gain) ↓\($0) m" } ?? "↑\(gain) m")
                     } else {
                         stat("Höhenmeter", "–")
                     }

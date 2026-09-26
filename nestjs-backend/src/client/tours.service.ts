@@ -1,4 +1,22 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+
+/** Fachlicher Routing-Fehler: kein Weg zwischen den Punkten (→ 422 im Controller). */
+export class RouteNotFoundError extends Error {
+  constructor(message = 'Keine Route gefunden — Punkt verschieben oder löschen.') {
+    super(message);
+    this.name = 'RouteNotFoundError';
+  }
+}
+
+/** Routing-Engine gerade ausgelastet oder nicht erreichbar (→ 503 im Controller). */
+export class RoutingUnavailableError extends Error {
+  constructor(message = 'Routing vorübergehend nicht erreichbar.') {
+    super(message);
+    this.name = 'RoutingUnavailableError';
+  }
+}
+
+export interface RoutePoint { lat: number; lon: number }
 
 /**
  * Touren-Domäne: OSM-Discovery (Overpass), Rundtouren-Generator und
@@ -320,61 +338,62 @@ out geom 80;`;
     const lonlats = points.map((p) => `${p[0].toFixed(6)},${p[1].toFixed(6)}`).join('|');
     const routed = await ToursService.brouter(lonlats, profile);
     const distOut = routed.lengthM / 1000;
-    return ToursService.routedTour(`rt-${Date.now()}`, `Rundtour · ${distOut.toFixed(1)} km`, routed, spec);
+    return {
+      id: `rt-${Date.now()}`,
+      name: `Rundtour · ${distOut.toFixed(1)} km`,
+      ...ToursService.routedTour(routed, spec),
+    };
   }
 
   /**
    * Routenplaner: Start → Zwischenpunkte → Ziel in gegebener Reihenfolge,
    * Wegeführung je Aktivität über BRouter. Gleiche Antwortform wie
    * Rundtour/A→B, zusätzlich `elevationLoss` und die gesetzten Punkte.
-   * Ergebnisse werden 24 h gecacht (gleiche Punkte + Profil), damit das
-   * Hin- und Herschieben von Punkten die öffentliche Instanz schont.
+   * Die Eingabe ist bereits geprüft (Controller); hier nur die fachliche
+   * Grenze. Ergebnisse werden 24 h gecacht (gleiche Punkte + Profil) und
+   * laufende Anfragen geteilt, damit Wiederholungen (Richtung tauschen,
+   * Aktivität hin und her) die öffentliche Instanz nicht erneut treffen.
    */
-  async routeVia(
-    rawPoints: unknown, activity: string, roundtrip = false,
-  ): Promise<Record<string, unknown>> {
-    if (!Array.isArray(rawPoints)) throw new HttpException({ message: 'points fehlen' }, HttpStatus.BAD_REQUEST);
-    const points = rawPoints.map((p: any) => ({
-      lat: parseFloat(p?.lat), lon: parseFloat(p?.lon),
-    }));
+  async routeVia(points: RoutePoint[], activity: string, roundtrip = false) {
     if (points.length < 2 || points.length > ToursService.MAX_VIA_POINTS) {
-      throw new HttpException(
-        { message: `2 bis ${ToursService.MAX_VIA_POINTS} Punkte erforderlich` }, HttpStatus.BAD_REQUEST);
+      throw new RangeError(`2 bis ${ToursService.MAX_VIA_POINTS} Punkte erforderlich`);
     }
-    for (const p of points) {
-      if (!Number.isFinite(p.lat) || !Number.isFinite(p.lon)
-          || Math.abs(p.lat) > 90 || Math.abs(p.lon) > 180) {
-        throw new HttpException({ message: 'Ungültige Koordinaten' }, HttpStatus.BAD_REQUEST);
-      }
-    }
-    if (roundtrip) points.push(points[0]);
+    const chain = roundtrip ? [...points, points[0]] : points;
 
     const spec = ToursService.roundtripSpec(activity === 'velo' ? 'rad' : activity);
-    const lonlats = points.map((p) => `${p.lon.toFixed(5)},${p.lat.toFixed(5)}`).join('|');
+    const lonlats = chain.map((p) => `${p.lon.toFixed(5)},${p.lat.toFixed(5)}`).join('|');
     const key = `${spec.profile}|${lonlats}`;
     const now = Date.now();
-    const hit = this.viaCache.get(key);
-    const routed = hit && now - hit.at < ToursService.VIA_CACHE_TTL_MS
-      ? hit.data
-      : await ToursService.brouter(lonlats, spec.profile);
-    if (!hit || now - hit.at >= ToursService.VIA_CACHE_TTL_MS) {
-      if (this.viaCache.size >= 300) {
+
+    let entry = this.viaCache.get(key);
+    if (!entry || now - entry.at >= ToursService.VIA_CACHE_TTL_MS) {
+      const tour = ToursService.brouter(lonlats, spec.profile)
+        .then((routed) => ToursService.routedTour(routed, spec));
+      // Fehlschläge nicht 24 h festhalten
+      tour.catch(() => { if (this.viaCache.get(key)?.tour === tour) this.viaCache.delete(key); });
+      this.viaCache.delete(key); // frisch ans Ende der Einfügereihenfolge
+      if (this.viaCache.size >= ToursService.VIA_CACHE_MAX) {
         const oldest = this.viaCache.keys().next().value;
         if (oldest !== undefined) this.viaCache.delete(oldest);
       }
-      this.viaCache.set(key, { at: now, data: routed });
+      entry = { at: now, tour };
+      this.viaCache.set(key, entry);
     }
 
     return {
-      ...ToursService.routedTour(`plan-${now}`, 'Geplante Route', routed, spec),
-      waypoints: points.map((p) => ({ lat: p.lat, lon: p.lon })),
+      id: `plan-${now}`,
+      name: 'Geplante Route',
+      ...(await entry.tour),
+      waypoints: chain.map((p) => ({ lat: p.lat, lon: p.lon })),
     };
   }
 
   static readonly MAX_VIA_POINTS = 25;
   private static readonly VIA_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+  /** Ausgedünnte Touren (≤2000 Punkte) — bei 150 Einträgen wenige MB. */
+  private static readonly VIA_CACHE_MAX = 150;
   private readonly viaCache = new Map<string, {
-    at: number; data: { coords: number[][]; lengthM: number; ascend: number };
+    at: number; tour: Promise<ReturnType<typeof ToursService.routedTour>>;
   }>();
 
   /**
@@ -384,7 +403,6 @@ out geom 80;`;
    * Netto-Höhendifferenz — so passen ↑ und ↓ immer zusammen (Rundkurs: gleich).
    */
   private static routedTour(
-    id: string, name: string,
     routed: { coords: number[][]; lengthM: number; ascend: number },
     spec: { profile: string; kmh: number; climbPerH: number; osm: string },
   ) {
@@ -394,14 +412,14 @@ out geom 80;`;
       .filter((_, i) => i % stride === 0 || i === coords.length - 1)
       .map((c) => ({ lat: c[1], lon: c[0], ele: c[2] ?? null }));
 
+    // Ohne Höhe an Start oder Ziel ist der Abstieg nicht bestimmbar → null
     const firstEle = coords[0]?.[2], lastEle = coords[coords.length - 1]?.[2];
-    const net = Number.isFinite(firstEle) && Number.isFinite(lastEle) ? lastEle - firstEle : 0;
-    const loss = Math.max(0, Math.round(ascend - net));
+    const loss = Number.isFinite(firstEle) && Number.isFinite(lastEle)
+      ? Math.max(0, Math.round(ascend - (lastEle - firstEle)))
+      : null;
 
     const distKm = lengthM / 1000;
     return {
-      id,
-      name,
       activity: spec.osm,
       generated: true,
       distanceKm: Math.round(distKm * 10) / 10,
@@ -504,29 +522,53 @@ out geom 80;`;
     const spec = ToursService.roundtripSpec(aktivitaet === 'velo' ? 'rad' : aktivitaet);
     const lonlats = `${aLon.toFixed(6)},${aLat.toFixed(6)}|${bLon.toFixed(6)},${bLat.toFixed(6)}`;
     const routed = await ToursService.brouter(lonlats, spec.profile);
-    return ToursService.routedTour(`ab-${Date.now()}`, 'Route', routed, spec);
+    return { id: `ab-${Date.now()}`, name: 'Route', ...ToursService.routedTour(routed, spec) };
   }
 
-  /** Gemeinsamer BRouter-Aufruf (auch vom Rundtouren-Generator genutzt). */
+  /** Gleichzeitige Aufrufe an brouter.de — Schutz der öffentlichen Instanz. */
+  private static brouterInFlight = 0;
+  private static readonly BROUTER_MAX_IN_FLIGHT = 6;
+
+  /**
+   * Gemeinsamer BRouter-Aufruf (Rundtour, A→B, Planer). BRouter meldet
+   * unerreichbare Punkte als HTTP 400 mit Klartext („no track found",
+   * „datafile … not found") → RouteNotFoundError; Ausfälle/Überlast →
+   * RoutingUnavailableError.
+   */
   private static async brouter(lonlats: string, profile: string): Promise<{
     coords: number[][]; lengthM: number; ascend: number;
   }> {
-    const url = `https://brouter.de/brouter?lonlats=${lonlats}&profile=${profile}&alternativeidx=0&format=geojson`;
-    const res = await fetch(url, {
-      headers: { 'User-Agent': ToursService.OSM_UA },
-      signal: AbortSignal.timeout(30000),
-    });
-    if (!res.ok) throw new Error(`Routing fehlgeschlagen (${res.status})`);
-    const geo = await res.json();
-    const feature = geo?.features?.[0];
-    const coords: number[][] = feature?.geometry?.coordinates ?? [];
-    if (coords.length < 2) throw new Error('Keine Route gefunden');
-    const props = feature.properties ?? {};
-    return {
-      coords,
-      lengthM: parseFloat(props['track-length'] ?? '0') || 0,
-      ascend: parseInt(props['filtered ascend'] ?? '0', 10) || 0,
-    };
+    if (ToursService.brouterInFlight >= ToursService.BROUTER_MAX_IN_FLIGHT) {
+      throw new RoutingUnavailableError('Routing gerade ausgelastet — bitte gleich nochmals versuchen.');
+    }
+    ToursService.brouterInFlight++;
+    try {
+      const url = `https://brouter.de/brouter?lonlats=${lonlats}&profile=${profile}&alternativeidx=0&format=geojson`;
+      let res: Response;
+      try {
+        res = await fetch(url, {
+          headers: { 'User-Agent': ToursService.OSM_UA },
+          signal: AbortSignal.timeout(30000),
+        });
+      } catch {
+        throw new RoutingUnavailableError();
+      }
+      if (res.status >= 400 && res.status < 500) throw new RouteNotFoundError();
+      if (!res.ok) throw new RoutingUnavailableError(`Routing fehlgeschlagen (${res.status})`);
+      let geo: any;
+      try { geo = await res.json(); } catch { throw new RouteNotFoundError(); }
+      const feature = geo?.features?.[0];
+      const coords: number[][] = feature?.geometry?.coordinates ?? [];
+      if (coords.length < 2) throw new RouteNotFoundError();
+      const props = feature.properties ?? {};
+      return {
+        coords,
+        lengthM: parseFloat(props['track-length'] ?? '0') || 0,
+        ascend: parseInt(props['filtered ascend'] ?? '0', 10) || 0,
+      };
+    } finally {
+      ToursService.brouterInFlight--;
+    }
   }
 
   // ── Offizielle Anlagen-Infos der Stadt Zürich ────────────────────────

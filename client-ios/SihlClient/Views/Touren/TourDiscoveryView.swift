@@ -109,6 +109,12 @@ struct TourDiscoveryView: View {
             hasFittedRoute = true
             withAnimation(.easeInOut(duration: 0.6)) { camera = .region(region) }
         }
+        .onChange(of: planner.points.isEmpty) { _, empty in
+            // Nach „Alles löschen" darf die nächste Route wieder eingepasst werden
+            if empty { hasFittedRoute = false }
+        }
+        .onAppear { planner.resumeIfNeeded() }
+        .onDisappear { planner.cancelPending() }
         .alert("Kein Zugriff auf den Standort", isPresented: $locationDenied) {
             Button("Einstellungen öffnen") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -378,7 +384,7 @@ struct TourDiscoveryView: View {
                         center: c, span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)))
                 }
             case .denied: locationDenied = true
-            case .failed: error = "Standort gerade nicht verfügbar."
+            case .failed: planner.report("Standort gerade nicht verfügbar.")
             }
         }
     }
@@ -422,21 +428,21 @@ struct TourDiscoveryView: View {
                     .stroke(AppColor.track, lineWidth: 4)
             }
         } else if planner.points.count >= 2 {
-            MapPolyline(coordinates: planner.points)
+            MapPolyline(coordinates: planner.coordinates)
                 .stroke(AppColor.muted, style: StrokeStyle(lineWidth: 2, dash: [6, 6]))
         }
-        ForEach(planner.points.indices, id: \.self) { i in
-            Annotation("", coordinate: planner.points[i], anchor: .center) {
-                pinMenu(index: i)
+        ForEach(planner.points) { point in
+            Annotation("", coordinate: point.coordinate, anchor: .center) {
+                pinMenu(point)
             }
         }
     }
 
     /// Pin mit Kontextmenü: Löschen; am Start/Ziel zusätzlich Richtung tauschen.
-    private func pinMenu(index: Int) -> some View {
-        let role = planner.role(at: index)
+    private func pinMenu(_ point: PlannedPoint) -> some View {
+        let role = planner.role(of: point)
         return Menu {
-            Button(role: .destructive) { planner.remove(at: index) } label: {
+            Button(role: .destructive) { planner.remove(point) } label: {
                 Label("Punkt löschen", systemImage: "trash")
             }
             if case .destination = role {

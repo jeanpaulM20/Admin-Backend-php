@@ -20,16 +20,22 @@ struct ElevationProfileView: View {
         return false
     }
 
+    /// Distanz entlang der Strecke (äquirektangulare Näherung — für
+    /// Nachbarpunkte einer Route metergenau und ohne CLLocation-Objekte,
+    /// damit die Neuberechnung bei jedem Panel-Update nichts kostet).
     private var samples: [Sample] {
         var out: [Sample] = []
         var km = 0.0
-        var prev: CLLocation?
+        var prev: CLLocationCoordinate2D?
         for s in segments.indices {
             for i in segments[s].indices {
                 let c = segments[s][i]
-                let loc = CLLocation(latitude: c.latitude, longitude: c.longitude)
-                if let prev { km += loc.distance(from: prev) / 1000 }
-                prev = loc
+                if let p = prev {
+                    let dLat = (c.latitude - p.latitude) * 111.32
+                    let dLon = (c.longitude - p.longitude) * 111.32 * cos(p.latitude * .pi / 180)
+                    km += (dLat * dLat + dLon * dLon).squareRoot()
+                }
+                prev = c
                 if s < elevations.count, i < elevations[s].count, let e = elevations[s][i] {
                     out.append(Sample(km: km, ele: e))
                 }
