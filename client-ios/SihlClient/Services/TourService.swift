@@ -201,6 +201,8 @@ struct TourDetail: Identifiable, Hashable {
     let durationMin: Int?
     let difficulty: String?
     let elevationGain: Int?
+    /// Abstieg in Metern — nur bei gerouteten Strecken (Planer, Rundtour, A→B).
+    let elevationLoss: Int?
     let surface: String?
     let lit: Bool?
     let official: OfficialInfo?
@@ -211,7 +213,7 @@ struct TourDetail: Identifiable, Hashable {
     init(id: String, name: String, activity: String, network: String? = nil,
          operatorName: String? = nil, description: String? = nil,
          distanceKm: Double? = nil, durationMin: Int? = nil,
-         difficulty: String? = nil, elevationGain: Int? = nil,
+         difficulty: String? = nil, elevationGain: Int? = nil, elevationLoss: Int? = nil,
          surface: String? = nil, lit: Bool? = nil, official: OfficialInfo? = nil,
          segments: [[CLLocationCoordinate2D]], elevations: [[Double?]] = []) {
         self.id = id
@@ -224,6 +226,7 @@ struct TourDetail: Identifiable, Hashable {
         self.durationMin = durationMin
         self.difficulty = difficulty
         self.elevationGain = elevationGain
+        self.elevationLoss = elevationLoss
         self.surface = surface
         self.lit = lit
         self.official = official
@@ -257,6 +260,7 @@ struct TourDetail: Identifiable, Hashable {
             durationMin: Int("\(json["durationMin"] ?? "")"),
             difficulty: json["difficulty"] as? String,
             elevationGain: Int("\(json["elevationGain"] ?? "")"),
+            elevationLoss: Int("\(json["elevationLoss"] ?? "")"),
             surface: json["surface"] as? String,
             lit: json["lit"] as? Bool,
             official: OfficialInfo(json: json["official"] as? [String: Any]),
@@ -334,6 +338,19 @@ struct TourService {
         return TourDetail(json: json)
     }
 
+    /// Routenplaner: Start → Zwischenpunkte → Ziel in dieser Reihenfolge,
+    /// Wegeführung je Aktivität (BRouter, inkl. Höhen und Abstieg).
+    func plannedRoute(clientId: String, points: [CLLocationCoordinate2D],
+                      activity: RoundtripActivity) async throws -> TourDetail? {
+        let body: [String: Any] = [
+            "points": points.map { ["lat": $0.latitude, "lon": $0.longitude] },
+            "activity": activity.rawValue,
+        ]
+        guard let json = try await APIClient.shared
+            .postJSONObject("/api/client/tours/route/\(clientId)", body: body, timeout: 45) else { return nil }
+        return TourDetail(json: json)
+    }
+
     // MARK: - Demo-Daten (Demo-Modus: kein Backend-Zugriff)
 
     private static func demoCatalog(_ activity: TourActivity) -> [[String: Any]] {
@@ -403,6 +420,27 @@ struct TourService {
         json["description"] = "Demo-Route."
         json["segments"] = [seg]
         return TourDetail(json: json)
+    }
+
+    /// Demo-Planung: Luftlinien zwischen den Punkten — ohne Wegeführung und
+    /// Höhen, damit keine falschen Zahlen entstehen (Hinweis in `description`).
+    static func demoPlannedRoute(points: [CLLocationCoordinate2D],
+                                 activity: RoundtripActivity) -> TourDetail {
+        var km = 0.0
+        for i in points.indices.dropFirst() {
+            km += CLLocation(latitude: points[i - 1].latitude, longitude: points[i - 1].longitude)
+                .distance(from: CLLocation(latitude: points[i].latitude, longitude: points[i].longitude)) / 1000
+        }
+        let rounded = (km * 10).rounded() / 10
+        return TourDetail(
+            id: "plan-demo-\(points.count)-\(rounded)",
+            name: "Geplante Route",
+            activity: activity.osmValue,
+            description: "Demo: Luftlinie ohne Wegeführung und Höhen.",
+            distanceKm: rounded,
+            durationMin: Int(km / activity.kmh * 60),
+            difficulty: km < 8 ? "Leicht" : (km < 16 ? "Mittel" : "Schwer"),
+            segments: [points])
     }
 
     /// Demo-Rundtour: Kreis um den Startpunkt mit synthetischem Höhenprofil.

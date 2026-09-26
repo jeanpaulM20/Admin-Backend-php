@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 
 /**
  * Touren-Domäne: OSM-Discovery (Overpass), Rundtouren-Generator und
@@ -318,24 +318,97 @@ out geom 80;`;
     points.push([lon, lat]);
 
     const lonlats = points.map((p) => `${p[0].toFixed(6)},${p[1].toFixed(6)}`).join('|');
-    const { coords, lengthM, ascend } = await ToursService.brouter(lonlats, profile);
+    const routed = await ToursService.brouter(lonlats, profile);
+    const distOut = routed.lengthM / 1000;
+    return ToursService.routedTour(`rt-${Date.now()}`, `Rundtour · ${distOut.toFixed(1)} km`, routed, spec);
+  }
 
-    // Geordnete Route → ein Segment; auf ≤2000 Punkte ausdünnen
+  /**
+   * Routenplaner: Start → Zwischenpunkte → Ziel in gegebener Reihenfolge,
+   * Wegeführung je Aktivität über BRouter. Gleiche Antwortform wie
+   * Rundtour/A→B, zusätzlich `elevationLoss` und die gesetzten Punkte.
+   * Ergebnisse werden 24 h gecacht (gleiche Punkte + Profil), damit das
+   * Hin- und Herschieben von Punkten die öffentliche Instanz schont.
+   */
+  async routeVia(
+    rawPoints: unknown, activity: string, roundtrip = false,
+  ): Promise<Record<string, unknown>> {
+    if (!Array.isArray(rawPoints)) throw new HttpException({ message: 'points fehlen' }, HttpStatus.BAD_REQUEST);
+    const points = rawPoints.map((p: any) => ({
+      lat: parseFloat(p?.lat), lon: parseFloat(p?.lon),
+    }));
+    if (points.length < 2 || points.length > ToursService.MAX_VIA_POINTS) {
+      throw new HttpException(
+        { message: `2 bis ${ToursService.MAX_VIA_POINTS} Punkte erforderlich` }, HttpStatus.BAD_REQUEST);
+    }
+    for (const p of points) {
+      if (!Number.isFinite(p.lat) || !Number.isFinite(p.lon)
+          || Math.abs(p.lat) > 90 || Math.abs(p.lon) > 180) {
+        throw new HttpException({ message: 'Ungültige Koordinaten' }, HttpStatus.BAD_REQUEST);
+      }
+    }
+    if (roundtrip) points.push(points[0]);
+
+    const spec = ToursService.roundtripSpec(activity === 'velo' ? 'rad' : activity);
+    const lonlats = points.map((p) => `${p.lon.toFixed(5)},${p.lat.toFixed(5)}`).join('|');
+    const key = `${spec.profile}|${lonlats}`;
+    const now = Date.now();
+    const hit = this.viaCache.get(key);
+    const routed = hit && now - hit.at < ToursService.VIA_CACHE_TTL_MS
+      ? hit.data
+      : await ToursService.brouter(lonlats, spec.profile);
+    if (!hit || now - hit.at >= ToursService.VIA_CACHE_TTL_MS) {
+      if (this.viaCache.size >= 300) {
+        const oldest = this.viaCache.keys().next().value;
+        if (oldest !== undefined) this.viaCache.delete(oldest);
+      }
+      this.viaCache.set(key, { at: now, data: routed });
+    }
+
+    return {
+      ...ToursService.routedTour(`plan-${now}`, 'Geplante Route', routed, spec),
+      waypoints: points.map((p) => ({ lat: p.lat, lon: p.lon })),
+    };
+  }
+
+  static readonly MAX_VIA_POINTS = 25;
+  private static readonly VIA_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+  private readonly viaCache = new Map<string, {
+    at: number; data: { coords: number[][]; lengthM: number; ascend: number };
+  }>();
+
+  /**
+   * BRouter-Ergebnis → Tour-Detail-Form: ein geordnetes Segment (≤2000
+   * Punkte inkl. Höhe), Distanz, Auf-/Abstieg, Dauer, Schwierigkeit.
+   * Der Abstieg folgt exakt aus dem gefilterten Aufstieg und der
+   * Netto-Höhendifferenz — so passen ↑ und ↓ immer zusammen (Rundkurs: gleich).
+   */
+  private static routedTour(
+    id: string, name: string,
+    routed: { coords: number[][]; lengthM: number; ascend: number },
+    spec: { profile: string; kmh: number; climbPerH: number; osm: string },
+  ) {
+    const { coords, lengthM, ascend } = routed;
     const stride = Math.max(1, Math.ceil(coords.length / 2000));
     const segment = coords
       .filter((_, i) => i % stride === 0 || i === coords.length - 1)
       .map((c) => ({ lat: c[1], lon: c[0], ele: c[2] ?? null }));
 
-    const distOut = lengthM / 1000;
+    const firstEle = coords[0]?.[2], lastEle = coords[coords.length - 1]?.[2];
+    const net = Number.isFinite(firstEle) && Number.isFinite(lastEle) ? lastEle - firstEle : 0;
+    const loss = Math.max(0, Math.round(ascend - net));
+
+    const distKm = lengthM / 1000;
     return {
-      id: `rt-${Date.now()}`,
-      name: `Rundtour · ${distOut.toFixed(1)} km`,
+      id,
+      name,
       activity: spec.osm,
       generated: true,
-      distanceKm: Math.round(distOut * 10) / 10,
+      distanceKm: Math.round(distKm * 10) / 10,
       elevationGain: ascend,
-      durationMin: ToursService.tourDurationWithClimb(distOut, ascend, spec.kmh, spec.climbPerH),
-      difficulty: ToursService.tourDifficulty(distOut),
+      elevationLoss: loss,
+      durationMin: ToursService.tourDurationWithClimb(distKm, ascend, spec.kmh, spec.climbPerH),
+      difficulty: ToursService.tourDifficulty(distKm),
       segments: [segment],
     };
   }
@@ -430,25 +503,8 @@ out geom 80;`;
     if (![aLat, aLon, bLat, bLon].every(Number.isFinite)) throw new Error('Ungültige Koordinaten');
     const spec = ToursService.roundtripSpec(aktivitaet === 'velo' ? 'rad' : aktivitaet);
     const lonlats = `${aLon.toFixed(6)},${aLat.toFixed(6)}|${bLon.toFixed(6)},${bLat.toFixed(6)}`;
-    const { coords, lengthM, ascend } = await ToursService.brouter(lonlats, spec.profile);
-
-    const distKm = lengthM / 1000;
-    const stride = Math.max(1, Math.ceil(coords.length / 2000));
-    const segment = coords
-      .filter((_, i) => i % stride === 0 || i === coords.length - 1)
-      .map((c) => ({ lat: c[1], lon: c[0], ele: c[2] ?? null }));
-
-    return {
-      id: `ab-${Date.now()}`,
-      name: 'Route',
-      activity: spec.osm,
-      generated: true,
-      distanceKm: Math.round(distKm * 10) / 10,
-      elevationGain: ascend,
-      durationMin: ToursService.tourDurationWithClimb(distKm, ascend, spec.kmh, spec.climbPerH),
-      difficulty: ToursService.tourDifficulty(distKm),
-      segments: [segment],
-    };
+    const routed = await ToursService.brouter(lonlats, spec.profile);
+    return ToursService.routedTour(`ab-${Date.now()}`, 'Route', routed, spec);
   }
 
   /** Gemeinsamer BRouter-Aufruf (auch vom Rundtouren-Generator genutzt). */

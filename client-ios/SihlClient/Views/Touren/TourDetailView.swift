@@ -121,7 +121,11 @@ struct TourDetailView: View {
                         stat("Dauer ca.", TourFormat.duration(min), "")
                     }
                     if let gain = d.elevationGain {
-                        stat("Höhenmeter", "\(gain)", "m")
+                        if let loss = d.elevationLoss {
+                            stat("Höhenmeter", "↑\(gain) ↓\(loss)", "m")
+                        } else {
+                            stat("Höhenmeter", "\(gain)", "m")
+                        }
                     } else if let diff = d.difficulty {
                         stat("Schwierigkeit", diff, "")
                     }
@@ -133,6 +137,20 @@ struct TourDetailView: View {
                         Text("Schwierigkeit: \(diff)")
                             .font(.footnote).foregroundStyle(AppColor.muted)
                     }
+                }
+
+                // Höhenprofil — sobald die Quelle Höhen liefert (Planer,
+                // Rundtour, GPX mit <ele>)
+                if ElevationProfileView.hasProfile(d.elevations) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Höhenprofil")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(AppColor.muted)
+                        ElevationProfileView(segments: d.segments, elevations: d.elevations)
+                            .frame(height: 140)
+                    }
+                    .padding(AppSpacing.card)
+                    .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
                 }
 
                 // Fakten — offizielle Stadt-Zürich-Angaben haben Vorrang vor OSM

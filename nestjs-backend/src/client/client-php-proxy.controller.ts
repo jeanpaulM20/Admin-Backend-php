@@ -210,6 +210,21 @@ export class ClientAppController {
     );
   }
 
+  /** Routenplaner: Start → Zwischenpunkte → Ziel, Wegeführung je Aktivität */
+  @Post('tours/route/:clientId')
+  plannedRoute(
+    @Req() req: Request,
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Body() body: any,
+  ) {
+    this.assertClientAccess(req, clientId);
+    return this.toursService.routeVia(
+      body?.points,
+      String(body?.activity ?? 'wandern'),
+      body?.roundtrip === true,
+    );
+  }
+
   /** Touren-Detail: Geometrie + berechnete Werte */
   @Get('tours/:clientId/:tourId')
   tourDetail(

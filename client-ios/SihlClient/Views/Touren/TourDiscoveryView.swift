@@ -32,6 +32,13 @@ struct TourDiscoveryView: View {
     @State private var locationDenied = false
     @FocusState private var searchFocused: Bool
 
+    // Routenplaner (T5): Punkte antippen → Route wird automatisch berechnet
+    @State private var planner = RoutePlannerModel()
+    @State private var isPlanning = false
+    @State private var showDiscardAlert = false
+    @State private var hasFittedRoute = false
+    @State private var startRoute: TourDetail?
+
     // Routen-Vorschau: die Route der gerade gewählten Tour-Karte wird auf
     // der Karte gezeichnet (Details werden nachgeladen und gecacht)
     @State private var visibleTourId: String?
@@ -71,15 +78,37 @@ struct TourDiscoveryView: View {
             // Tour-Karten unten, darüber rechts der Lokalisieren-Knopf
             VStack(spacing: 10) {
                 Spacer()
-                HStack {
+                HStack(spacing: 10) {
                     Spacer()
+                    if !isPlanning { planRouteButton }
                     locateButton
                 }
                 .padding(.horizontal, AppSpacing.screen)
-                bottomCards
+                if isPlanning {
+                    RoutePlannerPanel(
+                        model: planner,
+                        onLocate: { locateAsStart() },
+                        onDetails: { generatedDetail = $0 },
+                        onStart: { startRoute = $0 })
+                } else {
+                    bottomCards
+                }
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .alert("Planung verwerfen?", isPresented: $showDiscardAlert) {
+            Button("Verwerfen", role: .destructive) { exitPlanning() }
+            Button("Weiter planen", role: .cancel) {}
+        } message: {
+            Text("Die gesetzten Punkte und die berechnete Route gehen verloren.")
+        }
+        .onChange(of: planner.result?.id) { _, id in
+            // Beim ersten Ergebnis die ganze Route zeigen — danach nicht mehr
+            // eingreifen, der Nutzer bewegt die Karte selbst
+            guard id != nil, !hasFittedRoute, let region = planner.fitRegion else { return }
+            hasFittedRoute = true
+            withAnimation(.easeInOut(duration: 0.6)) { camera = .region(region) }
+        }
         .alert("Kein Zugriff auf den Standort", isPresented: $locationDenied) {
             Button("Einstellungen öffnen") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -129,6 +158,10 @@ struct TourDiscoveryView: View {
         .navigationDestination(item: $generatedDetail) { detail in
             TourDetailView(detail: detail)
         }
+        .navigationDestination(item: $startRoute) { detail in
+            // T3: geplante Route in den Recorder übergeben (Leitlinie + Off-Route)
+            RecordWorkoutView(tour: detail.asRoute)
+        }
         .sheet(isPresented: $showAssistant) {
             TourAssistantView()
         }
@@ -174,6 +207,52 @@ struct TourDiscoveryView: View {
             .overlay(RoundedRectangle(cornerRadius: AppRadius.card)
                 .stroke(AppColor.border, lineWidth: 1))
 
+            if isPlanning {
+                planningBar
+            } else {
+                discoveryControls
+            }
+        }
+    }
+
+    /// Kopfzeile im Planungsmodus: Abbrechen · Titel + Hinweis · Punktezähler.
+    private var planningBar: some View {
+        HStack(spacing: 10) {
+            Button {
+                if planner.points.count >= 2 { showDiscardAlert = true } else { exitPlanning() }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.app(13, weight: .semibold))
+                    .foregroundStyle(AppColor.text)
+                    .frame(width: 36, height: 36)
+                    .background(AppColor.surface2, in: Circle())
+            }
+            .accessibilityLabel("Planung abbrechen")
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Route planen")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppColor.text)
+                Text(planner.hint)
+                    .font(.caption)
+                    .foregroundStyle(AppColor.muted)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 4)
+            Text("\(planner.points.count)/\(RoutePlannerModel.maxPoints)")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(AppColor.muted)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card)
+            .stroke(AppColor.border, lineWidth: 1))
+    }
+
+    /// Aktivität + Filterzeile der Touren-Suche.
+    private var discoveryControls: some View {
+        VStack(spacing: AppSpacing.stack) {
             // Aktivität (scrollbar — sechs Routentypen)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
@@ -189,42 +268,7 @@ struct TourDiscoveryView: View {
             // bewusst kompakter als die Standard-Masse, damit alle drei
             // Kacheln auf 402-pt-Geräten einzeilig bleiben
             HStack(spacing: 8) {
-                Menu {
-                    ForEach([5.0, 10, 25], id: \.self) { r in
-                        Button("in \(Int(r)) km Umkreis") { radiusKm = r; reload() }
-                    }
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "scope").font(.caption)
-                        Text("\(Int(radiusKm)) km").font(.footnote.weight(.medium))
-                        Image(systemName: "chevron.down").font(.app(9, weight: .semibold))
-                    }
-                    .foregroundStyle(AppColor.text)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.control))
-                    .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
-                        .stroke(AppColor.border, lineWidth: 1))
-                    .fixedSize()
-                }
-
-                // Kartenmitte übernehmen — ruhiger Kontext-Chip, kein zweiter CTA
-                Button {
-                    if let c = cameraCenter { center = c }
-                    reload()
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.counterclockwise").font(.caption)
-                        Text("Hier suchen").font(.footnote.weight(.medium))
-                    }
-                    .foregroundStyle(AppColor.text)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.control))
-                    .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
-                        .stroke(AppColor.border, lineWidth: 1))
-                    .fixedSize()
-                }
+                filterChips
 
                 Spacer(minLength: 0)
 
@@ -246,6 +290,99 @@ struct TourDiscoveryView: View {
         }
     }
 
+    @ViewBuilder
+    private var filterChips: some View {
+        Menu {
+            ForEach([5.0, 10, 25], id: \.self) { r in
+                Button("in \(Int(r)) km Umkreis") { radiusKm = r; reload() }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "scope").font(.caption)
+                Text("\(Int(radiusKm)) km").font(.footnote.weight(.medium))
+                Image(systemName: "chevron.down").font(.app(9, weight: .semibold))
+            }
+            .foregroundStyle(AppColor.text)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.control))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
+                .stroke(AppColor.border, lineWidth: 1))
+            .fixedSize()
+        }
+
+        // Kartenmitte übernehmen — ruhiger Kontext-Chip, kein zweiter CTA
+        Button {
+            if let c = cameraCenter { center = c }
+            reload()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.counterclockwise").font(.caption)
+                Text("Hier suchen").font(.footnote.weight(.medium))
+            }
+            .foregroundStyle(AppColor.text)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.control))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
+                .stroke(AppColor.border, lineWidth: 1))
+            .fixedSize()
+        }
+    }
+
+    /// Einstieg in den Routenplaner (T5): Karten-Aktion neben „Lokalisieren“ —
+    /// ruhiger Kontext-Chip, kein zweiter CTA neben der Rundtour.
+    private var planRouteButton: some View {
+        Button {
+            enterPlanning()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "point.3.connected.trianglepath.dotted")
+                    .font(.app(13, weight: .semibold))
+                Text("Route planen").font(.footnote.weight(.medium))
+            }
+            .foregroundStyle(AppColor.text)
+            .padding(.horizontal, 14)
+            .frame(height: 40)
+            .background(AppColor.surface, in: Capsule())
+            .overlay(Capsule().stroke(AppColor.border, lineWidth: 1))
+        }
+        .accessibilityLabel("Route planen: Start, Zwischenpunkte und Ziel auf der Karte setzen")
+    }
+
+    // MARK: Planungsmodus
+
+    private func enterPlanning() {
+        planner.clientId = auth.clientId
+        planner.isDemo = isDemo
+        planner.setActivity(activity.roundtrip)
+        hasFittedRoute = false
+        searchFocused = false
+        withAnimation(.easeInOut(duration: 0.25)) { isPlanning = true }
+    }
+
+    private func exitPlanning() {
+        planner.clear()
+        hasFittedRoute = false
+        withAnimation(.easeInOut(duration: 0.25)) { isPlanning = false }
+    }
+
+    /// „Mein Standort als Start“ — ein Fix, Karte dorthin, Start setzen.
+    private func locateAsStart() {
+        locator.locate { outcome in
+            switch outcome {
+            case .located(let c):
+                planner.setStart(c)
+                withAnimation(.easeInOut(duration: 0.6)) {
+                    camera = .region(MKCoordinateRegion(
+                        center: c, span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)))
+                }
+            case .denied: locationDenied = true
+            case .failed: error = "Standort gerade nicht verfügbar."
+            }
+        }
+    }
+
     // MARK: Karte
 
     private var previewDetail: TourDetail? {
@@ -253,9 +390,72 @@ struct TourDiscoveryView: View {
     }
 
     private var map: some View {
-        Map(position: $camera) {
-            // Eigene Position (blauer Punkt), sobald die Ortung erlaubt ist
-            UserAnnotation()
+        MapReader { proxy in
+            Map(position: $camera) {
+                // Eigene Position (blauer Punkt), sobald die Ortung erlaubt ist
+                UserAnnotation()
+                if isPlanning {
+                    plannerContent
+                } else {
+                    discoveryContent
+                }
+            }
+            .onTapGesture { position in
+                // Nur im Planungsmodus: Tipp auf die Karte setzt einen Punkt
+                guard isPlanning, let c = proxy.convert(position, from: .local) else { return }
+                planner.add(c)
+            }
+            .onMapCameraChange { context in
+                cameraCenter = context.region.center
+            }
+            .ignoresSafeArea(edges: .bottom)
+        }
+    }
+
+    /// Planungsmodus: Luftlinien (gestrichelt, solange keine Route da ist),
+    /// berechnete Route in der Track-Farbe, darüber die Pins.
+    @MapContentBuilder
+    private var plannerContent: some MapContent {
+        if let route = planner.result {
+            ForEach(route.segments.indices, id: \.self) { i in
+                MapPolyline(coordinates: route.segments[i])
+                    .stroke(AppColor.track, lineWidth: 4)
+            }
+        } else if planner.points.count >= 2 {
+            MapPolyline(coordinates: planner.points)
+                .stroke(AppColor.muted, style: StrokeStyle(lineWidth: 2, dash: [6, 6]))
+        }
+        ForEach(planner.points.indices, id: \.self) { i in
+            Annotation("", coordinate: planner.points[i], anchor: .center) {
+                pinMenu(index: i)
+            }
+        }
+    }
+
+    /// Pin mit Kontextmenü: Löschen; am Start/Ziel zusätzlich Richtung tauschen.
+    private func pinMenu(index: Int) -> some View {
+        let role = planner.role(at: index)
+        return Menu {
+            Button(role: .destructive) { planner.remove(at: index) } label: {
+                Label("Punkt löschen", systemImage: "trash")
+            }
+            if case .destination = role {
+                Button { planner.reverse() } label: {
+                    Label("Als Start setzen", systemImage: "arrow.left.arrow.right")
+                }
+            } else if case .start = role, planner.points.count >= 2 {
+                Button { planner.reverse() } label: {
+                    Label("Als Ziel setzen", systemImage: "arrow.left.arrow.right")
+                }
+            }
+        } label: {
+            RoutePinView(role: role)
+        }
+    }
+
+    /// Touren-Suche: Vorschau der gewählten Tour + Marker.
+    @MapContentBuilder
+    private var discoveryContent: some MapContent {
             // Routenverlauf der gewählten Tour (blau = betrachtete Route)
             if let preview = previewDetail {
                 ForEach(preview.segments.indices, id: \.self) { i in
@@ -279,11 +479,6 @@ struct TourDiscoveryView: View {
                     .onTapGesture { detailTour = tour }
                 }
             }
-        }
-        .onMapCameraChange { context in
-            cameraCenter = context.region.center
-        }
-        .ignoresSafeArea(edges: .bottom)
     }
 
     private func activityChip(_ a: TourActivity) -> some View {
