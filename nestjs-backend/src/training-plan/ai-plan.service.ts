@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
@@ -7,6 +8,10 @@ import {
 import { filterCatalogByModality, SECTION_LABELS, type PlanModality } from './domain/plan-modality';
 import { deriveConstraintKeys, excludeContraindicated } from './domain/contraindication-filter';
 import { fitnessPromptBlock } from './domain/strength-periodization';
+import {
+  admitsLevel, arrangeByOrder, buildReformerProgram, reformerPromptBlock, reformerRowDetails,
+  springCarryOvers, type ReformerCandidate, type ReformerLevel, type ReformerProgram,
+} from './domain/reformer-program';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import Anthropic from '@anthropic-ai/sdk';
@@ -29,6 +34,7 @@ import {
   AiExerciseCatalog,
   AiPromptContext,
   AiLlmResponse,
+  AiLlmExercise,
   AiTrainingType,
   AiAusdauerIntensity,
   AiHrZones,
@@ -210,8 +216,11 @@ export class AiPlanService {
       systolic: metric?.sys ?? null,
       diastolic: metric?.dia ?? null,
     });
+    const reformerLevel: ReformerLevel = request?.level ?? 'beginner';
     const { admitted: exercises, excluded } = excludeContraindicated(
-      filterCatalogByModality(allExercises, modality),
+      filterCatalogByModality(allExercises, modality).filter(
+        (e) => modality !== 'pilates_reformer' || admitsLevel(reformerLevel, e.level),
+      ),
       constraintKeys,
     );
     if (excluded.length) {
@@ -227,13 +236,27 @@ export class AiPlanService {
     let llmResponse: AiLlmResponse;
     let isRuleBased = false;
     let llmError: string | undefined;
+    // Ohne Repertoire gibt es keinen Rückfall, der etwas taugt — klare Meldung statt leerem Plan.
+    if (modality === 'pilates_reformer' && exercises.length === 0) {
+      throw new BadRequestException(
+        'Kein Reformer-Repertoire für dieses Level verfügbar — zuerst das Erfassungsblatt importieren (POST api/exercise/import/reformer).',
+      );
+    }
     try {
       llmResponse = await this.callLlm(context);
     } catch (err: any) {
       this.logger.warn(`LLM call failed, using rule-based fallback: ${err?.message ?? err}`);
-      llmResponse = this.ruleBasedFallback(weaknesses, exercises, contraindications);
+      llmResponse = modality === 'pilates_reformer'
+        ? this.reformerFallback(exercises, reformerLevel, request?.duration ?? null)
+        : this.ruleBasedFallback(weaknesses, exercises, contraindications);
       isRuleBased = true;
       llmError = err?.message ?? String(err);
+    }
+
+    // 5b. Reformer (Etappe 5): das Modell hat nur gewählt — Abschnitt,
+    //     Reihenfolge, Federn und Ausführung legt das Repertoire fest.
+    if (modality === 'pilates_reformer') {
+      return this.finishReformerPlan(clientId, llmResponse, exercises, test, contraindications, excluded, request, isRuleBased, llmError);
     }
 
     // 6. Match suggested exercises against DB
@@ -364,8 +387,122 @@ export class AiPlanService {
         modality: result.modality,
         sectionLabels: result.sectionLabels,
         excludedByContraindication: result.excludedByContraindication,
+        ...(result.springCarryOvers ? { springCarryOvers: result.springCarryOvers } : {}),
       },
     };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // REFORMER (Etappe 5)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  private static toReformerCandidate(e: AiExerciseCatalog): ReformerCandidate {
+    return { id: e.id, name: e.name, sourceRef: e.sourceRef, level: e.level, breathing: e.breathing, tempo: e.tempo, reformer: e.reformer };
+  }
+
+  /** Rückfall ohne Modell: das deterministische Programm aus dem Repertoire. */
+  private reformerFallback(exercises: AiExerciseCatalog[], level: ReformerLevel, duration: 30 | 45 | 60 | null): AiLlmResponse {
+    const program = buildReformerProgram(exercises.map(AiPlanService.toReformerCandidate), level, duration);
+    const rows = (list: ReformerCandidate[]): AiLlmExercise[] =>
+      list.map((c) => ({ exercise_name: c.name, exercise_id: c.id, device: '', position: '', weight: '' }));
+    return {
+      plan_name: 'Reformer-Programm',
+      sonsomo: rows(program.sonsomo), main: rows(program.main), core: rows(program.core), mobility: rows(program.mobility),
+      reasoning: 'Regelbasiertes Reformer-Programm (KI nicht verfügbar): klassische Reihenfolge, Umfang nach Dauer, Level-Filter. Bitte Auswahl und Federn prüfen.',
+    };
+  }
+
+  /**
+   * Aus der Auswahl des Modells (oder des Rückfalls) den fertigen Plan bauen:
+   * unbekannte Übungen fliegen raus (keine Federangabe → nicht unterrichtbar),
+   * Slots und Reihenfolge klassisch, Federn des Vorplans haben Vorrang.
+   */
+  private async finishReformerPlan(
+    clientId: number,
+    llm: AiLlmResponse,
+    exercises: AiExerciseCatalog[],
+    test: PerformanceTest | null,
+    contraindications: string[],
+    excluded: { name: string; reason: string }[],
+    request: AiPlanRequest | undefined,
+    isRuleBased: boolean,
+    llmError: string | undefined,
+  ): Promise<AiPlanResult> {
+    const byId = new Map(exercises.map((e) => [e.id, e]));
+    const byName = new Map(exercises.map((e) => [e.name.toLowerCase(), e]));
+    const chosen: ReformerCandidate[] = [];
+    const dropped: string[] = [];
+    for (const r of [...llm.sonsomo, ...llm.main, ...llm.core, ...llm.mobility ?? []]) {
+      const match = (r.exercise_id ? byId.get(r.exercise_id) : null) ?? byName.get(r.exercise_name.toLowerCase());
+      if (match) chosen.push(AiPlanService.toReformerCandidate(match));
+      else dropped.push(r.exercise_name);
+    }
+    if (dropped.length) this.logger.warn(`Reformer: ${dropped.length} Vorschläge ohne Repertoire-Eintrag verworfen: ${dropped.join(', ')}`);
+
+    let program: ReformerProgram = arrangeByOrder(chosen);
+    // Ohne Footwork ist es kein Reformer-Programm — der Rückfall liefert die Eröffnung.
+    if (program.sonsomo.length === 0) {
+      const level: ReformerLevel = request?.level ?? 'beginner';
+      program = { ...program, sonsomo: buildReformerProgram(exercises.map(AiPlanService.toReformerCandidate), level, request?.duration ?? null).sonsomo };
+    }
+
+    const previous = await this.loadPreviousPlanRows(clientId, 'pilates_reformer');
+    const all = [...program.sonsomo, ...program.main, ...program.core, ...program.mobility];
+    const carryOvers = springCarryOvers(previous, all);
+    const carried = new Map(carryOvers.map((c) => [c.exerciseId, c.springs]));
+
+    const toRows = (list: ReformerCandidate[]): AiPlanRow[] =>
+      list.map((c) => {
+        const d = reformerRowDetails(c);
+        return {
+          exercise: c.name, exerciseId: c.id, isNew: false,
+          device: d.device, position: d.position, weight: '', sets: d.sets,
+          dates: Array(8).fill(''),
+          springs: carried.get(c.id) ?? d.springs, breathing: d.breathing, tempo: d.tempo,
+        };
+      });
+
+    const hints = carryOvers.map((c) => c.hint).filter((h): h is string => !!h);
+    const reasoning = [
+      llm.reasoning,
+      carryOvers.length ? `Federn aus dem Vorplan übernommen für ${carryOvers.length} Übungen.` : '',
+      hints.length ? `Progression prüfen — ${hints.join('; ')}.` : '',
+      dropped.length ? `Nicht im Repertoire und darum weggelassen: ${dropped.join(', ')}.` : '',
+    ].filter(Boolean).join(' ');
+
+    return {
+      name: llm.plan_name,
+      sonsomo: toRows(program.sonsomo), main: toRows(program.main), core: toRows(program.core), mobility: toRows(program.mobility),
+      ai_reasoning: reasoning,
+      weaknesses: [],
+      basedOnTestId: test?.id ?? null,
+      basedOnTestDate: test?.date ?? null,
+      contraindications,
+      ...(isRuleBased ? { isRuleBased: true, llmError } : {}),
+      ...(request ? { request } : {}),
+      modality: 'pilates_reformer',
+      sectionLabels: SECTION_LABELS.pilates_reformer,
+      excludedByContraindication: excluded,
+      springCarryOvers: carryOvers,
+    };
+  }
+
+  /** Zeilen des jüngsten Plans dieser Modalität — für Kontinuität der Federn. */
+  private async loadPreviousPlanRows(clientId: number, modality: PlanModality) {
+    const plan = await this.planRepo.findOne({ where: { clientId, modality }, order: { id: 'DESC' } });
+    if (!plan?.values) return [];
+    try {
+      const values = JSON.parse(plan.values) as Record<string, any>;
+      return (['sonsomo', 'main', 'core', 'mobility'] as const).flatMap((s) =>
+        (Array.isArray(values[s]) ? values[s] : []).map((r: any) => ({
+          exerciseId: typeof r?.exerciseId === 'number' ? r.exerciseId : null,
+          springs: typeof r?.springs === 'string' ? r.springs : '',
+          dates: Array.isArray(r?.dates) ? r.dates.map((d: any) => String(d ?? '')) : [],
+        })),
+      );
+    } catch {
+      return [];
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -394,7 +531,7 @@ export class AiPlanService {
   private async loadExerciseCatalog(): Promise<AiExerciseCatalog[]> {
     const exercises = await this.exerciseRepo.find({
       where: { archive: 0 },
-      relations: ['group', 'subgroup'],
+      relations: ['group', 'subgroup', 'reformer'],
     });
     return exercises.map((e) => ({
       id: e.id,
@@ -409,6 +546,17 @@ export class AiPlanService {
       level: e.level ?? null,
       equipment: e.equipment ?? null,
       contraindications: e.contraindications ?? null,
+      sourceRef: e.sourceRef ?? null,
+      breathing: e.breathingDe ?? null,
+      tempo: e.tempo ?? null,
+      reformer: e.reformer
+        ? {
+            springs: e.reformer.springs, springLoad: e.reformer.springLoad,
+            footbar: e.reformer.footbar, headrest: e.reformer.headrest,
+            carriageStart: e.reformer.carriageStart, attachment: e.reformer.attachment,
+            position: e.reformer.position, classicalOrder: e.reformer.classicalOrder,
+          }
+        : null,
     }));
   }
 
@@ -737,6 +885,11 @@ WICHTIG: Nur für gut trainierte Kunden. Bei Anfängern → kürzere/weniger Int
     if (request.modality === 'fitness') {
       blocks.push(fitnessPromptBlock(request.strengthGoal ?? 'hypertrophie', request.duration));
     }
+    // Reformer (Etappe 5): eigener Block, kein Trainingstyp-/Geräteblock —
+    // beides ist im Repertoire festgelegt.
+    if (request.modality === 'pilates_reformer') {
+      return reformerPromptBlock(request.level ?? 'beginner', request.duration);
+    }
     const isRunningPlan = request.trainingType === 'ausdauer' && request.ausdauerIntensity;
 
     // 1. Training type block — running plans get intensity-specific prompt instead
@@ -958,8 +1111,12 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
       return obj;
     };
 
+    const isReformer = context.planRequest?.modality === 'pilates_reformer';
     const catalogLines = exerciseCatalog
       .map((e) => {
+        if (isReformer) {
+          return [String(e.id), e.name, e.level ?? '', String(e.reformer?.classicalOrder ?? ''), e.reformer?.springs ?? ''].join('|');
+        }
         const parts = [String(e.id), e.name];
         if (e.group) parts.push(e.group);
         if (e.muscle) parts.push(e.muscle);
@@ -1006,7 +1163,9 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
       JSON.stringify(stripNulls(rest), null, 2),
       testAgeWarning,
       requestSummary,
-      'VERFÜGBARE ÜBUNGEN (id|name|gruppe|muskel|gelenk|pattern):',
+      isReformer
+        ? 'REPERTOIRE (id|name|level|order|federn):'
+        : 'VERFÜGBARE ÜBUNGEN (id|name|gruppe|muskel|gelenk|pattern):',
       catalogLines,
       '',
       'Antworte NUR mit dem JSON-Objekt, kein Markdown, kein Kommentar.',
@@ -1427,6 +1586,9 @@ Antworte AUSSCHLIESSLICH mit validem JSON in genau diesem Format:
       sets: row.sets || '',
       dates: row.dates,
       ...(row.exerciseId ? { exerciseId: row.exerciseId } : {}),
+      ...(row.springs ? { springs: row.springs } : {}),
+      ...(row.breathing ? { breathing: row.breathing } : {}),
+      ...(row.tempo ? { tempo: row.tempo } : {}),
     };
   }
 }

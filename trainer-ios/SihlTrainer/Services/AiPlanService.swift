@@ -6,8 +6,28 @@ import Foundation
 struct AiPlanRequest {
     enum Modality: String, CaseIterable, Identifiable {
         case athletik, fitness
+        case reformer = "pilates_reformer"
         var id: String { rawValue }
-        var title: String { self == .athletik ? "Athletik" : "Fitness / Geräte" }
+        var title: String {
+            switch self {
+            case .athletik: return "Athletik"
+            case .fitness:  return "Fitness"
+            case .reformer: return "Reformer"
+            }
+        }
+    }
+
+    /// Repertoire-Level für Reformer-Pläne — Pendant zu `REFORMER_LEVELS`.
+    enum ReformerLevel: String, CaseIterable, Identifiable {
+        case beginner, intermediate, advanced
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .beginner:     return "Basic"
+            case .intermediate: return "Intermediate"
+            case .advanced:     return "Advanced"
+            }
+        }
     }
 
     enum TrainingType: String, CaseIterable, Identifiable {
@@ -71,9 +91,21 @@ struct AiPlanRequest {
     var equipment: Set<Equipment> = []
     var ausdauerIntensity: AusdauerIntensity = .allgemeine
     var strengthGoal: StrengthGoal = .hypertrophie
+    var level: ReformerLevel = .beginner
 
     /// Body wie ihn `validatePlanRequest` im Backend erwartet.
     var body: [String: Any] {
+        // Reformer: Trainingstyp und Geräte sind im Repertoire festgelegt —
+        // das Backend verlangt den Typ trotzdem, ignoriert ihn aber.
+        if modality == .reformer {
+            return [
+                "trainingType": TrainingType.kraft.rawValue,
+                "duration": duration as Any,
+                "equipment": NSNull(),
+                "modality": modality.rawValue,
+                "level": level.rawValue,
+            ]
+        }
         var result: [String: Any] = [
             "trainingType": trainingType.rawValue,
             "duration": duration as Any,

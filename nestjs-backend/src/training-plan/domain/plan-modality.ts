@@ -4,9 +4,9 @@
  */
 import type { Modality } from '../../exercise/domain/exercise-vocabulary';
 
-/** Modalitäten, die der Generator heute bedient. Pilates folgt mit Etappe 5. */
-export type PlanModality = 'athletik' | 'fitness';
-export const PLAN_MODALITIES: readonly PlanModality[] = ['athletik', 'fitness'];
+/** Modalitäten, die der Generator bedient. Matten-Pilates ist noch offen (Konzept, Entscheidung 3). */
+export type PlanModality = 'athletik' | 'fitness' | 'pilates_reformer';
+export const PLAN_MODALITIES: readonly PlanModality[] = ['athletik', 'fitness', 'pilates_reformer'];
 
 export type PlanSection = 'sonsomo' | 'main' | 'core' | 'mobility';
 
@@ -14,6 +14,10 @@ export type PlanSection = 'sonsomo' | 'main' | 'core' | 'mobility';
 export const SECTION_LABELS: Record<PlanModality, Record<PlanSection, string>> = {
   athletik: { sonsomo: 'Sonsomo', main: 'Haupttraining', core: 'Core', mobility: 'Mobilität' },
   fitness:  { sonsomo: 'Aufwärmen', main: 'Hauptteil', core: 'Core', mobility: 'Ausklang' },
+  // Die vier Slots folgen der klassischen Reihenfolge lückenlos — darum diese
+  // Beschriftung und nicht „Zug & Arme / Core" aus dem Konzept: Reihenfolge
+  // schlägt Benennung (Konzept, Abschnitt 7). Zuordnung: reformer-program.ts.
+  pilates_reformer: { sonsomo: 'Footwork & Hundred', main: 'Serie', core: 'Gurte & Knee Stretch', mobility: 'Abschluss' },
 };
 
 /** Minimale Sicht auf einen Katalogeintrag, die diese Regel braucht. */
@@ -45,6 +49,10 @@ export function admitsExercise(planModality: PlanModality, exercise: ModalityCan
     case 'fitness':
       return m === 'fitness' || m === 'cardio'
         || (m === 'athletik' && !!exercise.group && UNIVERSAL_GROUPS.has(exercise.group));
+    case 'pilates_reformer':
+      // Nur das Repertoire selbst: eine Reformer-Übung ohne Federangabe ist
+      // nicht definiert, also gibt es hier keine Aushilfe aus dem Bestand.
+      return m === 'pilates_reformer';
   }
 }
 

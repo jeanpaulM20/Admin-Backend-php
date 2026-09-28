@@ -3,8 +3,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import type { PlanModality, PlanSection } from './domain/plan-modality';
 import type { StrengthGoal } from './domain/strength-periodization';
+import type { ReformerLevel, ReformerSpecView } from './domain/reformer-program';
 export { PLAN_MODALITIES } from './domain/plan-modality';
 export { STRENGTH_GOALS } from './domain/strength-periodization';
+export { REFORMER_LEVELS } from './domain/reformer-program';
 
 // ── Training Type / Duration / Equipment selection ─────────────────────────
 
@@ -37,6 +39,8 @@ export interface AiPlanRequest {
   modality?: PlanModality;
   /** Belastungsschema für Fitness-Pläne; fehlt es, gilt Hypertrophie. */
   strengthGoal?: StrengthGoal;
+  /** Repertoire-Level für Reformer-Pläne; fehlt es, gilt Basic. */
+  level?: ReformerLevel;
 }
 
 /** Valid training types for runtime validation. */
@@ -67,6 +71,10 @@ export interface AiPlanRow {
   weight: string;
   sets?: string;         // e.g. "3×12"
   dates: string[];       // 8 empty slots
+  // Etappe 5: Reformer-Angaben, im values-Blob nur gesetzt, wenn vorhanden
+  springs?: string;      // "1 rot + 1 blau" bzw. "4 Federn (klassisch)"
+  breathing?: string;    // "5 ein / 5 aus"
+  tempo?: string;        // "3-1-1-0"
 }
 
 /** Full AI-generated plan payload returned to the frontend. */
@@ -92,6 +100,8 @@ export interface AiPlanResult {
   sectionLabels: Record<PlanSection, string>;
   /** Übungen, die wegen der Anamnese gar nicht erst angeboten wurden */
   excludedByContraindication: { name: string; reason: string }[];
+  /** Reformer: Federn aus dem Vorplan übernommen, mit Progressionshinweis wo fällig */
+  springCarryOvers?: { exerciseId: number; springs: string; completedSessions: number; hint: string | null }[];
 }
 
 /** Heart rate zones calculated via Karvonen formula (HRrest + %HRR). */
@@ -132,6 +142,11 @@ export interface AiExerciseCatalog {
   level: string | null;
   equipment: string | null;
   contraindications: string | null;
+  // Etappe 5: Reformer-Angaben und Ausführung — nur für Reformer-Übungen gesetzt
+  sourceRef: string | null;
+  breathing: string | null;
+  tempo: string | null;
+  reformer: ReformerSpecView | null;
 }
 
 /** The structured prompt context assembled for the LLM. Includes optional plan request. */

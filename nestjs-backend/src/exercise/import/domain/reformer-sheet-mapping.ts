@@ -63,7 +63,8 @@ export function mapReformerSheet(rows: Record<string, string>[]): SheetOutcome {
     if (bad.length) { problems.push(`Zeile ${line} (${nameDe}): unbekannte Kontraindikation ${bad.join(', ')}`); return; }
 
     const classical = blank(row.springs_classical);
-    const springs = blank(row.springs_studio) ?? (classical ? `${classical} Federn (klassisch)` : null);
+    const springs = blank(row.springs_studio)
+      ?? (classical ? `${classical} ${classical === '1' ? 'Feder' : 'Federn'} (klassisch)` : null);
 
     entries.push({
       source: REFORMER_SOURCE,

@@ -52,19 +52,29 @@ struct AiPlanSheet: View {
                     }
                     .listRowBackground(AppColor.surface)
                 }
+                if request.modality == .reformer {
+                    Picker("Level", selection: $request.level) {
+                        ForEach(AiPlanRequest.ReformerLevel.allCases) { Text($0.title).tag($0) }
+                    }
+                    .listRowBackground(AppColor.surface)
+                }
             }
 
             Section("Ausrichtung") {
-                Picker("Trainingstyp", selection: $request.trainingType) {
-                    ForEach(AiPlanRequest.TrainingType.allCases) { Text($0.title).tag($0) }
-                }
-                .listRowBackground(AppColor.surface)
-
-                if request.trainingType == .ausdauer {
-                    Picker("Intensität", selection: $request.ausdauerIntensity) {
-                        ForEach(AiPlanRequest.AusdauerIntensity.allCases) { Text($0.title).tag($0) }
+                // Reformer: Reihenfolge, Federn und Gerät kommen aus dem
+                // Repertoire — nur die Dauer bleibt zu wählen.
+                if request.modality != .reformer {
+                    Picker("Trainingstyp", selection: $request.trainingType) {
+                        ForEach(AiPlanRequest.TrainingType.allCases) { Text($0.title).tag($0) }
                     }
                     .listRowBackground(AppColor.surface)
+
+                    if request.trainingType == .ausdauer {
+                        Picker("Intensität", selection: $request.ausdauerIntensity) {
+                            ForEach(AiPlanRequest.AusdauerIntensity.allCases) { Text($0.title).tag($0) }
+                        }
+                        .listRowBackground(AppColor.surface)
+                    }
                 }
 
                 Picker("Dauer", selection: $request.duration) {
@@ -74,6 +84,7 @@ struct AiPlanSheet: View {
                 .listRowBackground(AppColor.surface)
             }
 
+            if request.modality != .reformer {
             Section("Geräte (leer = KI wählt)") {
                 // Fünf Kacheln passen nicht nebeneinander in eine Form-Zeile —
                 // scrollen statt Wörter umbrechen.
@@ -90,6 +101,7 @@ struct AiPlanSheet: View {
                     .padding(.vertical, 2)
                 }
                 .listRowBackground(AppColor.surface)
+            }
             }
 
             Section {

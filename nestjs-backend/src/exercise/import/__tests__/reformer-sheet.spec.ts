@@ -56,6 +56,8 @@ describe('mapReformerSheet', () => {
   it('bevorzugt die Studio-Federfarbe vor der klassischen Zahl', () => {
     const { entries } = mapReformerSheet([row({ springs_studio: '1 rot + 1 blau' })]);
     expect(entries[0].reformer?.springs).toBe('1 rot + 1 blau');
+    const { entries: one } = mapReformerSheet([row({ springs_classical: '1', spring_load: '1' })]);
+    expect(one[0].reformer?.springs).toBe('1 Feder (klassisch)');
   });
 
   it('lässt Zeilen mit unbekanntem Schlüssel oder ungültiger Federlast draussen', () => {

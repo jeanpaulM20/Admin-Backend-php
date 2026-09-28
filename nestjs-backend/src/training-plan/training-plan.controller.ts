@@ -7,7 +7,7 @@ import { CurrentClient } from '../auth/decorators/current-user.decorator';
 import { CurrentTrainer } from '../auth/decorators/current-user.decorator';
 import { Client } from '../entities/client.entity';
 import { Trainer } from '../entities/trainer.entity';
-import { AiPlanRequest, AI_TRAINING_TYPES, AI_DURATIONS, AI_EQUIPMENT_OPTIONS, AI_AUSDAUER_INTENSITIES, PLAN_MODALITIES, STRENGTH_GOALS } from './ai-plan.interfaces';
+import { AiPlanRequest, AI_TRAINING_TYPES, AI_DURATIONS, AI_EQUIPMENT_OPTIONS, AI_AUSDAUER_INTENSITIES, PLAN_MODALITIES, STRENGTH_GOALS, REFORMER_LEVELS } from './ai-plan.interfaces';
 import { EntitlementService } from '../entitlement/entitlement.service';
 
 @Controller('api/training-plan')
@@ -207,14 +207,22 @@ export class TrainingPlanController {
       throw new BadRequestException('Request body fehlt');
     }
 
-    const { trainingType, duration, equipment, ausdauerIntensity, modality, strengthGoal } = body;
+    const { trainingType, duration, equipment, ausdauerIntensity, modality, strengthGoal, level } = body;
 
     // modality — optional; fehlt sie, bleibt es beim Athletik-Verhalten des Bestands.
-    // Pilates-Modalitäten sind bewusst noch nicht wählbar (Etappe 5).
     if (modality !== undefined && modality !== null && !PLAN_MODALITIES.includes(modality)) {
       throw new BadRequestException(
-        `modality muss einer der Werte sein: ${PLAN_MODALITIES.join(', ')} (Pilates folgt)`,
+        `modality muss einer der Werte sein: ${PLAN_MODALITIES.join(', ')}`,
       );
+    }
+    // level — nur für Reformer-Pläne (Etappe 5); fehlt es, gilt Basic.
+    if (level !== undefined && level !== null) {
+      if (modality !== 'pilates_reformer') {
+        throw new BadRequestException('level ist nur für modality "pilates_reformer" erlaubt');
+      }
+      if (!REFORMER_LEVELS.includes(level)) {
+        throw new BadRequestException(`level muss einer der Werte sein: ${REFORMER_LEVELS.join(', ')}`);
+      }
     }
     if (strengthGoal !== undefined && strengthGoal !== null) {
       if (modality !== 'fitness') {
@@ -275,6 +283,7 @@ export class TrainingPlanController {
       ...(intensity ? { ausdauerIntensity: intensity } : {}),
       ...(modality ? { modality } : {}),
       ...(strengthGoal ? { strengthGoal } : {}),
+      ...(level ? { level } : {}),
     };
   }
 

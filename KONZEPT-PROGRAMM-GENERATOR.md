@@ -230,6 +230,12 @@ const SECTION_LABELS: Record<Modality, Record<PlanSection, string>> = {
 };
 ```
 
+**Umsetzungsnotiz (Etappe 5):** Die Beschriftung oben hätte die klassische
+Reihenfolge zerrissen (Core-Übungen stehen mitten in der Serie). Umgesetzt sind
+darum vier Slots, die die Ordnung lückenlos abbilden — *Footwork & Hundred ·
+Serie · Gurte & Knee Stretch · Abschluss* — zugeordnet über den Übungsnamen in
+`training-plan/domain/reformer-program.ts`. Reihenfolge schlägt Benennung.
+
 Das ist ehrlich eine Krücke — vier Slots sind für Pilates knapp. Aber es hält
 Backend, App und die bestehenden Pläne kompatibel. Wenn sich in der Praxis
 zeigt, dass fünf oder sechs Abschnitte gebraucht werden, ist der Umbau auf eine
