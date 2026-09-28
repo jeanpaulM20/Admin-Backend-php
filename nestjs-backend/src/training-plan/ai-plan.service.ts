@@ -4,6 +4,9 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { filterCatalogByModality, SECTION_LABELS, type PlanModality } from './domain/plan-modality';
+import { deriveConstraintKeys, excludeContraindicated } from './domain/contraindication-filter';
+import { fitnessPromptBlock } from './domain/strength-periodization';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import Anthropic from '@anthropic-ai/sdk';
@@ -177,7 +180,7 @@ export class AiPlanService {
 
   async generateAiPlan(clientId: number, request?: AiPlanRequest): Promise<AiPlanResult> {
     // 1. Load all required data in parallel
-    const [client, test, anamnese, exercises, metric, goals, recentReviews] = await Promise.all([
+    const [client, test, anamnese, allExercises, metric, goals, recentReviews] = await Promise.all([
       this.loadClient(clientId),
       this.loadLatestTest(clientId),
       this.loadAnamnese(clientId),
@@ -192,6 +195,28 @@ export class AiPlanService {
 
     // 3. Extract contraindications from anamnese
     const contraindications = this.extractContraindications(anamnese);
+
+    // 3b. Katalog vor dem Prompt eingrenzen (Etappe 3): erst auf die
+    //     Modalität des Plans, dann um Übungen, deren Kontraindikations-
+    //     schlüssel mit den Befunden kollidieren. Was das Modell nicht
+    //     kennt, kann es nicht vorschlagen.
+    const modality: PlanModality = request?.modality ?? 'athletik';
+    const constraintKeys = deriveConstraintKeys({
+      injuryType: anamnese?.injury_type ?? null,
+      injuryBodypart: anamnese?.injury_bodypart ?? null,
+      musculoskeletal: anamnese?.musculoskeletal_problems_description ?? null,
+      comments: anamnese?.comments ?? null,
+      heartCirculatory: anamnese?.disease_heart_circulatory === 1,
+      systolic: metric?.sys ?? null,
+      diastolic: metric?.dia ?? null,
+    });
+    const { admitted: exercises, excluded } = excludeContraindicated(
+      filterCatalogByModality(allExercises, modality),
+      constraintKeys,
+    );
+    if (excluded.length) {
+      this.logger.log(`Kontraindikationen (${[...constraintKeys].join(', ')}): ${excluded.length} Übungen ausgeschlossen`);
+    }
 
     // 4. Build prompt context (with optional plan request)
     const context = this.buildPromptContext(
@@ -266,6 +291,9 @@ export class AiPlanService {
       ...(isRuleBased ? { isRuleBased: true, llmError } : {}),
       ...(request ? { request } : {}),
       ...(hrZones ? { hrZones } : {}),
+      modality,
+      sectionLabels: SECTION_LABELS[modality],
+      excludedByContraindication: excluded,
     };
   }
 
@@ -321,6 +349,7 @@ export class AiPlanService {
         values,
         name: result.name || 'KI-Trainingsplan',
         goal: result.ai_reasoning.substring(0, 1000),
+        modality: result.modality,
       }),
     );
 
@@ -332,6 +361,9 @@ export class AiPlanService {
         basedOnTestId: result.basedOnTestId,
         basedOnTestDate: result.basedOnTestDate,
         contraindications: result.contraindications,
+        modality: result.modality,
+        sectionLabels: result.sectionLabels,
+        excludedByContraindication: result.excludedByContraindication,
       },
     };
   }
@@ -373,6 +405,10 @@ export class AiPlanService {
       muscle: e.primaryMuscleGroup ?? null,
       joint: e.targetJoint ?? null,
       pattern: e.movementPattern ?? null,
+      modality: e.modality ?? null,
+      level: e.level ?? null,
+      equipment: e.equipment ?? null,
+      contraindications: e.contraindications ?? null,
     }));
   }
 
@@ -695,6 +731,12 @@ WICHTIG: Nur für gut trainierte Kunden. Bei Anfängern → kürzere/weniger Int
     if (!request) return '';
 
     const blocks: string[] = [];
+
+    // 0. Modalität (Etappe 3): Fitness ersetzt die Athletik-Struktur und
+    //    legt das Belastungsschema deterministisch fest.
+    if (request.modality === 'fitness') {
+      blocks.push(fitnessPromptBlock(request.strengthGoal ?? 'hypertrophie', request.duration));
+    }
     const isRunningPlan = request.trainingType === 'ausdauer' && request.ausdauerIntensity;
 
     // 1. Training type block — running plans get intensity-specific prompt instead

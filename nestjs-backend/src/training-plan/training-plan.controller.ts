@@ -7,7 +7,7 @@ import { CurrentClient } from '../auth/decorators/current-user.decorator';
 import { CurrentTrainer } from '../auth/decorators/current-user.decorator';
 import { Client } from '../entities/client.entity';
 import { Trainer } from '../entities/trainer.entity';
-import { AiPlanRequest, AI_TRAINING_TYPES, AI_DURATIONS, AI_EQUIPMENT_OPTIONS, AI_AUSDAUER_INTENSITIES } from './ai-plan.interfaces';
+import { AiPlanRequest, AI_TRAINING_TYPES, AI_DURATIONS, AI_EQUIPMENT_OPTIONS, AI_AUSDAUER_INTENSITIES, PLAN_MODALITIES, STRENGTH_GOALS } from './ai-plan.interfaces';
 import { EntitlementService } from '../entitlement/entitlement.service';
 
 @Controller('api/training-plan')
@@ -207,7 +207,23 @@ export class TrainingPlanController {
       throw new BadRequestException('Request body fehlt');
     }
 
-    const { trainingType, duration, equipment, ausdauerIntensity } = body;
+    const { trainingType, duration, equipment, ausdauerIntensity, modality, strengthGoal } = body;
+
+    // modality — optional; fehlt sie, bleibt es beim Athletik-Verhalten des Bestands.
+    // Pilates-Modalitäten sind bewusst noch nicht wählbar (Etappe 5).
+    if (modality !== undefined && modality !== null && !PLAN_MODALITIES.includes(modality)) {
+      throw new BadRequestException(
+        `modality muss einer der Werte sein: ${PLAN_MODALITIES.join(', ')} (Pilates folgt)`,
+      );
+    }
+    if (strengthGoal !== undefined && strengthGoal !== null) {
+      if (modality !== 'fitness') {
+        throw new BadRequestException('strengthGoal ist nur für modality "fitness" erlaubt');
+      }
+      if (!STRENGTH_GOALS.includes(strengthGoal)) {
+        throw new BadRequestException(`strengthGoal muss einer der Werte sein: ${STRENGTH_GOALS.join(', ')}`);
+      }
+    }
 
     // trainingType — required, must be one of the allowed values
     if (!trainingType || !AI_TRAINING_TYPES.includes(trainingType)) {
@@ -257,6 +273,8 @@ export class TrainingPlanController {
       duration: dur,
       equipment: equip,
       ...(intensity ? { ausdauerIntensity: intensity } : {}),
+      ...(modality ? { modality } : {}),
+      ...(strengthGoal ? { strengthGoal } : {}),
     };
   }
 

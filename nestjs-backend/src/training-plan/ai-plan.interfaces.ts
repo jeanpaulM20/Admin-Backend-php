@@ -1,6 +1,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Interfaces for AI-powered training plan generation
 // ─────────────────────────────────────────────────────────────────────────────
+import type { PlanModality, PlanSection } from './domain/plan-modality';
+import type { StrengthGoal } from './domain/strength-periodization';
+export { PLAN_MODALITIES } from './domain/plan-modality';
+export { STRENGTH_GOALS } from './domain/strength-periodization';
 
 // ── Training Type / Duration / Equipment selection ─────────────────────────
 
@@ -29,6 +33,10 @@ export interface AiPlanRequest {
   duration: AiDuration;                       // null = frei
   equipment: AiEquipment[] | null;            // null = frei (KI wählt)
   ausdauerIntensity?: AiAusdauerIntensity;    // Only when trainingType = 'ausdauer'
+  /** Trainingswelt des Plans; fehlt sie, gilt Athletik (Bestand). */
+  modality?: PlanModality;
+  /** Belastungsschema für Fitness-Pläne; fehlt es, gilt Hypertrophie. */
+  strengthGoal?: StrengthGoal;
 }
 
 /** Valid training types for runtime validation. */
@@ -79,6 +87,11 @@ export interface AiPlanResult {
   request?: AiPlanRequest;
   // Calculated HR zones for running plans (Karvonen formula)
   hrZones?: AiHrZones;
+  /** Trainingswelt des Plans und die Beschriftung seiner vier Abschnitte */
+  modality: PlanModality;
+  sectionLabels: Record<PlanSection, string>;
+  /** Übungen, die wegen der Anamnese gar nicht erst angeboten wurden */
+  excludedByContraindication: { name: string; reason: string }[];
 }
 
 /** Heart rate zones calculated via Karvonen formula (HRrest + %HRR). */
@@ -114,6 +127,11 @@ export interface AiExerciseCatalog {
   muscle: string | null;
   joint: string | null;
   pattern: string | null;
+  // Etappe 3: Modalität, Level, Gerät und Kontraindikationsschlüssel
+  modality: string | null;
+  level: string | null;
+  equipment: string | null;
+  contraindications: string | null;
 }
 
 /** The structured prompt context assembled for the LLM. Includes optional plan request. */
