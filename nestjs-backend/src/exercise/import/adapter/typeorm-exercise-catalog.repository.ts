@@ -1,14 +1,16 @@
 import { Repository } from 'typeorm';
 import { Exercise } from '../../../entities/exercise.entity';
 import { Exercisegroup } from '../../../entities/exercise-group.entity';
+import { ExerciseReformer } from '../../../entities/exercise-reformer.entity';
 import type { ExerciseCatalogRepository } from '../application/ports';
-import type { CatalogEntry, ExistingExercise } from '../domain/catalog-entry';
+import type { CatalogEntry, ExistingExercise, ReformerSpec } from '../domain/catalog-entry';
 
 /** TypeORM-Adapter für den Katalog — die einzige Stelle mit Datenbankwissen. */
 export class TypeOrmExerciseCatalogRepository implements ExerciseCatalogRepository {
   constructor(
     private readonly exercises: Repository<Exercise>,
     private readonly groups: Repository<Exercisegroup>,
+    private readonly reformer: Repository<ExerciseReformer>,
   ) {}
 
   async listExisting(): Promise<ExistingExercise[]> {
@@ -26,6 +28,9 @@ export class TypeOrmExerciseCatalogRepository implements ExerciseCatalogReposito
       cuesDe: e.cuesDe ?? null,
       isUnilateral: e.isUnilateral ?? null,
       met: e.met ?? null,
+      breathingDe: e.breathingDe ?? null,
+      tempo: e.tempo ?? null,
+      contraindications: e.contraindications ?? null,
     }));
   }
 
@@ -53,11 +58,19 @@ export class TypeOrmExerciseCatalogRepository implements ExerciseCatalogReposito
         cuesDe: entry.cuesDe,
         isUnilateral: entry.isUnilateral,
         met: entry.met,
+        breathingDe: entry.breathingDe ?? null,
+        tempo: entry.tempo ?? null,
+        contraindications: entry.contraindications ?? null,
         source: entry.source,
         sourceRef: entry.sourceRef,
       }),
     );
     return saved.id;
+  }
+
+  async upsertReformer(exerciseId: number, spec: ReformerSpec): Promise<void> {
+    // save() mit gesetztem Primärschlüssel legt an oder ersetzt.
+    await this.reformer.save(this.reformer.create({ exerciseId, ...spec }));
   }
 
   async patch(id: number, fields: Partial<ExistingExercise>): Promise<void> {

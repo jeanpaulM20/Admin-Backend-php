@@ -20,6 +20,25 @@ export interface CatalogEntry {
   cuesDe: string | null;
   isUnilateral: boolean | null;
   met: number | null;
+  // Ausführung (Etappe 5) — optional, RepDB liefert sie nicht
+  breathingDe?: string | null;
+  tempo?: string | null;
+  /** Nur fachlich abgenommene Schlüssel — nie ein automatischer Vorschlag. */
+  contraindications?: string | null;
+  /** Nur bei modality = pilates_reformer */
+  reformer?: ReformerSpec | null;
+}
+
+/** Reformer-Angaben, Spiegel der Tabelle exercise_reformer. */
+export interface ReformerSpec {
+  springs: string | null;
+  springLoad: number | null;
+  footbar: string | null;
+  headrest: string | null;
+  carriageStart: string | null;
+  attachment: string | null;
+  position: string | null;
+  classicalOrder: number | null;
 }
 
 /** Was der Importer über einen bestehenden Katalogeintrag wissen muss. */
@@ -37,4 +56,7 @@ export interface ExistingExercise {
   cuesDe: string | null;
   isUnilateral: boolean | null;
   met: number | null;
+  breathingDe?: string | null;
+  tempo?: string | null;
+  contraindications?: string | null;
 }

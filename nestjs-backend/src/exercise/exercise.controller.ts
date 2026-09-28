@@ -8,7 +8,7 @@ import { Public } from '../auth/decorators/public.decorator';
 import { CurrentTrainer } from '../auth/decorators/current-user.decorator';
 import { Trainer } from '../entities/trainer.entity';
 import { ImportCatalogUseCase } from './import/application/import-catalog.usecase';
-import { REPDB_IMPORT } from './import/interface/catalog-import.provider';
+import { REPDB_IMPORT, REFORMER_IMPORT } from './import/interface/catalog-import.provider';
 
 @Controller('api/exercise')
 export class ExerciseController {
@@ -16,7 +16,24 @@ export class ExerciseController {
     private readonly service: ExerciseService,
     private readonly iconService: ExerciseIconService,
     @Inject(REPDB_IMPORT) private readonly repDbImport: ImportCatalogUseCase,
+    @Inject(REFORMER_IMPORT) private readonly reformerImport: ImportCatalogUseCase,
   ) {}
+
+  /**
+   * POST /api/exercise/import/reformer?dryRun=1 — Erfassungsblatt des Studios
+   * einspielen. Das Blatt ist die Wahrheit: gesetzte Felder überschreiben den
+   * Bestand, Federangaben werden ersetzt. Zeilen mit Fehlern (unbekannte
+   * Kontraindikation, ungültige Federlast) bleiben draussen und stehen im
+   * Bericht unter problems.
+   */
+  @Post('import/reformer')
+  async importReformer(
+    @CurrentTrainer() trainer: Trainer,
+    @Query('dryRun') dryRun?: string,
+  ) {
+    if (!trainer) throw new ForbiddenException('Nur Trainer können den Katalog importieren.');
+    return this.reformerImport.execute({ dryRun: dryRun === '1' || dryRun === 'true' });
+  }
 
   /**
    * POST /api/exercise/import/repdb?dryRun=1 — Katalog aus RepDB einspielen.

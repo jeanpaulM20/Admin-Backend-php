@@ -22,8 +22,11 @@ export type ExerciseLevel = 'beginner' | 'intermediate' | 'advanced';
 
 export const EXERCISE_LEVELS: readonly ExerciseLevel[] = ['beginner', 'intermediate', 'advanced'];
 
-/** Woher ein Katalogeintrag stammt — nötig, um Importe später neu abzugleichen. */
-export type ExerciseSource = 'sihl' | 'repdb' | 'free-exercise-db';
+/**
+ * Woher ein Katalogeintrag stammt — nötig, um Importe später neu abzugleichen.
+ * 'sihl-reformer' = das Erfassungsblatt des Studios (data/reformer-repertoire.csv).
+ */
+export type ExerciseSource = 'sihl' | 'sihl-reformer' | 'repdb' | 'free-exercise-db';
 
 /**
  * Kontraindikations-Schlüssel an der Übung. Der Generator filtert Übungen mit

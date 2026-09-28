@@ -90,8 +90,9 @@ describe('ImportCatalogUseCase', () => {
         return store.length;
       },
       patch: async () => undefined,
+      upsertReformer: async () => undefined,
     };
-    const source = { name: 'test', load: async () => entries };
+    const source = { name: 'test', overwrites: false, load: async () => ({ entries, problems: [] }) };
 
     const first = await new ImportCatalogUseCase(source, repo).execute({ dryRun: false });
     expect(first.inserted).toBe(1);              // „Back Squat" ist eine Dublette der Kniebeuge
@@ -105,8 +106,9 @@ describe('ImportCatalogUseCase', () => {
 
   it('schreibt im Probelauf nichts', async () => {
     const insert = jest.fn(async () => 1);
-    const repo = { listExisting: async () => [], ensureGroup: async () => 1, insert, patch: jest.fn() };
-    const report = await new ImportCatalogUseCase({ name: 't', load: async () => entries }, repo).execute({ dryRun: true });
+    const repo = { listExisting: async () => [], ensureGroup: async () => 1, insert, patch: jest.fn(), upsertReformer: jest.fn() };
+    const source = { name: 't', overwrites: false, load: async () => ({ entries, problems: [] }) };
+    const report = await new ImportCatalogUseCase(source, repo).execute({ dryRun: true });
     expect(report.inserted).toBe(1);
     expect(insert).not.toHaveBeenCalled();
   });

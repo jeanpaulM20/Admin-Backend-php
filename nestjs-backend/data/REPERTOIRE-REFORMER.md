@@ -64,3 +64,15 @@ unterrichtet, hängt sie einfach mit der nächsten `order`-Nummer an.
 Ist das Blatt abgenommen, liest ein Importer (Etappe 5) die Zeilen in
 `exercise` (modality `pilates_reformer`) und `exercise_reformer` ein —
 über die Import-Pipeline aus Etappe 2, mit eigenem Adapter für diese CSV.
+
+## Einspielen (Etappe 5)
+
+Das Blatt ist die Wahrheit über das Repertoire. Der Importer (`POST /api/exercise/import/reformer`, nur für Trainer) liest es aus dem Repo (`data/`, im Deploy-Image `dist/data/`; überschreibbar mit `REFORMER_SHEET_PATH`).
+
+- **Probelauf zuerst:** `?dryRun=1` liefert den Bericht, ohne zu schreiben.
+- **Kennung** ist `name_en` — wird sie umbenannt, entsteht ein neuer Eintrag.
+- **Gesetzte Felder überschreiben** den Bestand, leere lassen ihn in Ruhe; die Federangaben (`exercise_reformer`) werden bei jedem Lauf komplett ersetzt.
+- **Zusammengelegt** wird nur mit früheren Läufen desselben Blatts, nie per Namensähnlichkeit mit Fitnessübungen (Reformer-„Laufen" ≠ Cardio-„Laufen").
+- **Zeilen mit Fehlern bleiben draussen** und stehen im Bericht unter `problems`: unbekannter Schlüssel in `contraindications`, `spring_load` ausserhalb 0–5, doppeltes `name_en`, fehlender Name. `level` und `position` ausserhalb des Vokabulars werden gemeldet, aber übernommen bzw. leer gelassen.
+- `contraindications_vorschlag` wird **nie** gelesen.
+- `springs_studio` leer → Katalog zeigt `„<springs_classical> Federn (klassisch)"`.

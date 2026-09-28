@@ -1,4 +1,4 @@
-import type { CatalogSource } from '../application/ports';
+import type { CatalogSource, SourceLoad } from '../application/ports';
 import type { CatalogEntry } from '../domain/catalog-entry';
 import { mapRepDb, type RepDbRecord } from '../domain/exercise-mapping';
 
@@ -9,10 +9,12 @@ import { mapRepDb, type RepDbRecord } from '../domain/exercise-mapping';
  */
 export class RepDbSource implements CatalogSource {
   readonly name = 'repdb';
+  /** Fremdquelle: der Bestand gewinnt. */
+  readonly overwrites = false;
 
   constructor(private readonly url: string, private readonly fetchImpl: typeof fetch = fetch) {}
 
-  async load(): Promise<CatalogEntry[]> {
+  async load(): Promise<SourceLoad> {
     const response = await this.fetchImpl(this.url, {
       headers: { Accept: 'application/json', 'User-Agent': 'SihlMove-Katalog/1.0' },
     });
@@ -21,6 +23,7 @@ export class RepDbSource implements CatalogSource {
     const records = Array.isArray(json)
       ? (json as RepDbRecord[])
       : ((json as { exercises?: RepDbRecord[] }).exercises ?? []);
-    return records.map(mapRepDb).filter((e): e is CatalogEntry => e !== null);
+    const entries = records.map(mapRepDb).filter((e): e is CatalogEntry => e !== null);
+    return { entries, problems: [] };
   }
 }
