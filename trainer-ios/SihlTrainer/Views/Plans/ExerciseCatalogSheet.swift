@@ -9,6 +9,7 @@ struct ExerciseCatalogSheet: View {
 
     @StateObject private var model: ExerciseCatalogViewModel
     @Environment(\.dismiss) private var dismiss
+    @State private var infoExercise: Exercise?
 
     init(isPreview: Bool, onSelect: @escaping (ExerciseSelection) -> Void) {
         self.onSelect = onSelect
@@ -34,13 +35,25 @@ struct ExerciseCatalogSheet: View {
                 }
             }
             .task { await model.load() }
+            .sheet(item: $infoExercise) { exercise in
+                ExerciseInfoSheet(exercise: exercise)
+            }
         }
     }
 
-    /// Kacheln wie in der Client-App: Körperregionen zuerst, dann Gruppen.
+    /// Kacheln wie in der Client-App: Modalität zuerst, dann Körperregionen, dann Gruppen.
     private var filterBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
+                ForEach(model.modalities, id: \.key) { item in
+                    FilterChip(title: item.title,
+                               isActive: model.selectedModality == item.key) {
+                        model.selectedModality = model.selectedModality == item.key ? nil : item.key
+                    }
+                }
+                if !model.modalities.isEmpty {
+                    Divider().frame(height: 22).overlay(AppColor.border)
+                }
                 ForEach(model.bodyRegions, id: \.self) { region in
                     FilterChip(title: region,
                                isActive: model.selectedBodyRegion == region) {
@@ -76,7 +89,9 @@ struct ExerciseCatalogSheet: View {
                                                device: exercise.group?.name ?? ""))
                     dismiss()
                 } label: {
-                    ExerciseRow(exercise: exercise)
+                    ExerciseRow(exercise: exercise, onInfo: {
+                        infoExercise = exercise
+                    })
                 }
                 .listRowBackground(AppColor.background)
                 .listRowSeparatorTint(AppColor.border)
@@ -89,6 +104,7 @@ struct ExerciseCatalogSheet: View {
 
 private struct ExerciseRow: View {
     let exercise: Exercise
+    var onInfo: (() -> Void)? = nil
 
     var body: some View {
         HStack(spacing: 12) {
@@ -108,10 +124,21 @@ private struct ExerciseRow: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(exercise.name)
-                    .font(.app(15, weight: .semibold))
-                    .foregroundStyle(AppColor.text)
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(exercise.name)
+                        .font(.app(15, weight: .semibold))
+                        .foregroundStyle(AppColor.text)
+                        .lineLimit(1)
+                    if let level = exercise.levelTitle {
+                        Text(level)
+                            .font(.app(10, weight: .semibold))
+                            .foregroundStyle(AppColor.brass)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(AppColor.brass.opacity(0.14))
+                            .clipShape(Capsule())
+                    }
+                }
                 if let subtitle {
                     Text(subtitle)
                         .font(.app(12))
@@ -120,6 +147,16 @@ private struct ExerciseRow: View {
                 }
             }
             Spacer(minLength: 0)
+            // Anleitung und Cues, ohne die Auswahl auszulösen.
+            if let onInfo, exercise.instructionsDe != nil || exercise.cuesDe != nil {
+                Button(action: onInfo) {
+                    Image(systemName: "info.circle")
+                        .font(.app(16))
+                        .foregroundStyle(AppColor.muted)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Anleitung anzeigen")
+            }
         }
         .padding(.vertical, 3)
     }

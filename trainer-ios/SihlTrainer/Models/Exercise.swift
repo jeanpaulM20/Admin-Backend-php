@@ -21,6 +21,12 @@ struct Exercise: Identifiable, Equatable {
     let bodyRegion: String?
     let primaryMuscleGroup: String?
     let movementPattern: String?
+    // Etappe 6: Felder aus dem erweiterten Katalog
+    let modality: String?
+    let level: String?
+    let equipment: String?
+    let instructionsDe: String?
+    let cuesDe: String?
 
     init(json: [String: Any]) {
         id = JSON.int(json, "id") ?? 0
@@ -31,6 +37,20 @@ struct Exercise: Identifiable, Equatable {
         bodyRegion = JSON.string(json, "body_region", "bodyRegion")
         primaryMuscleGroup = JSON.string(json, "primary_muscle_group", "primaryMuscleGroup")
         movementPattern = JSON.string(json, "movement_pattern", "movementPattern")
+        modality = JSON.string(json, "modality")
+        level = JSON.string(json, "level")
+        equipment = JSON.string(json, "equipment")
+        instructionsDe = JSON.string(json, "instructions_de", "instructionsDe")
+        cuesDe = JSON.string(json, "cues_de", "cuesDe")
+    }
+
+    var levelTitle: String? {
+        switch level {
+        case "beginner": return "Einsteiger"
+        case "intermediate": return "Mittel"
+        case "advanced": return "Fortgeschritten"
+        default: return nil
+        }
     }
 
     /// Symbolbild der Übung. Liefert das Backend keines, zeigt die Zeile ein

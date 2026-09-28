@@ -16,6 +16,10 @@ struct TrainingPlanRow: Identifiable, Equatable {
     var liked = false
     var disliked = false
     var timers: [Int] = []   // gespeicherte Timer-Vorgaben in Sekunden
+    // Etappe 6: nur bei Reformer bzw. Pilates gefüllt (Konzept, Abschnitt 4.3)
+    var springs = ""         // Anzeige: "1 rot + 1 blau"
+    var breathing = ""       // "5 ein / 5 aus"
+    var tempo = ""           // "3-1-1-0"
 
     init() {}
 
@@ -29,6 +33,9 @@ struct TrainingPlanRow: Identifiable, Equatable {
         liked = JSON.bool(json, "liked")
         disliked = JSON.bool(json, "disliked")
         timers = TrainingPlanRow.parseTimers(json)
+        springs = JSON.string(json, "springs") ?? ""
+        breathing = JSON.string(json, "breathing") ?? ""
+        tempo = JSON.string(json, "tempo") ?? ""
     }
 
     /// Neues Format: `timers` als Liste. Altes Format: ein einzelnes `timer`.
@@ -57,11 +64,14 @@ struct TrainingPlanRow: Identifiable, Equatable {
         if disliked { result["disliked"] = true }
         if !timers.isEmpty { result["timers"] = timers }
         if !comment.isEmpty { result["comment"] = comment }
+        if !springs.isEmpty { result["springs"] = springs }
+        if !breathing.isEmpty { result["breathing"] = breathing }
+        if !tempo.isEmpty { result["tempo"] = tempo }
         return result
     }
 
     var isEmpty: Bool {
-        exercise.isEmpty && device.isEmpty && position.isEmpty && weight.isEmpty && sets.isEmpty
+        exercise.isEmpty && device.isEmpty && position.isEmpty && weight.isEmpty && sets.isEmpty && springs.isEmpty
     }
 }
 
@@ -81,12 +91,50 @@ enum PlanSection: String, CaseIterable, Identifiable {
         }
     }
 
+    /// Beschriftung je Trainingswelt — Spiegel von SECTION_LABELS im Backend.
+    /// Die vier technischen Schlüssel bleiben, nur die Namen wechseln.
+    func title(for modality: PlanModality) -> String {
+        switch (modality, self) {
+        case (.fitness, .sonsomo):  return "AUFWÄRMEN"
+        case (.fitness, .main):     return "HAUPTTEIL"
+        case (.fitness, .mobility): return "AUSKLANG"
+        case (.pilatesReformer, .sonsomo):  return "FOOTWORK"
+        case (.pilatesReformer, .main):     return "ZUG & ARME"
+        case (.pilatesReformer, .core):     return "CORE & BAUCH"
+        case (.pilatesReformer, .mobility): return "ABSCHLUSS"
+        case (.pilatesMat, .sonsomo):  return "VORBEREITUNG"
+        case (.pilatesMat, .main):     return "SERIE"
+        case (.pilatesMat, .mobility): return "AUSKLANG"
+        default: return title
+        }
+    }
+
     var icon: String {
         switch self {
         case .sonsomo:  return "figure.cooldown"
         case .main:     return "dumbbell"
         case .core:     return "figure.core.training"
         case .mobility: return "figure.flexibility"
+        }
+    }
+}
+
+/// Trainingswelt eines Plans — Spiegel des Backend-Vokabulars.
+enum PlanModality: String {
+    case athletik, fitness, cardio
+    case pilatesMat = "pilates_mat"
+    case pilatesReformer = "pilates_reformer"
+
+    /// Reformer-Pläne führen Federn statt Gewicht.
+    var usesSprings: Bool { self == .pilatesReformer }
+
+    var title: String {
+        switch self {
+        case .athletik: return "Athletik"
+        case .fitness: return "Fitness"
+        case .cardio: return "Cardio"
+        case .pilatesMat: return "Pilates Matte"
+        case .pilatesReformer: return "Reformer"
         }
     }
 }
@@ -142,6 +190,8 @@ struct TrainingPlan: Identifiable, Equatable {
     /// 'draft' = Trainer bearbeitet noch, 'published' = für den Kunden freigegeben.
     var status: String?
     var publishedAt: String?
+    /// Fehlt im Bestand — dann gilt Athletik, wie im Backend.
+    var modality: PlanModality = .athletik
 
     var isPublished: Bool { status == "published" }
 
@@ -159,6 +209,7 @@ struct TrainingPlan: Identifiable, Equatable {
         createdAt = JSON.string(json, "created_at", "createdAt")
         status = JSON.string(json, "status")
         publishedAt = JSON.string(json, "publishedAt", "published_at")
+        modality = JSON.string(json, "modality").flatMap(PlanModality.init(rawValue:)) ?? .athletik
 
         // `values` kommt je nach Backend als JSON-String oder als Objekt.
         if let text = json["values"] as? String, !text.isEmpty,

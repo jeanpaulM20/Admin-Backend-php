@@ -11,6 +11,8 @@ final class ExerciseCatalogViewModel: ObservableObject {
     @Published var query = ""
     @Published var selectedGroupId: Int?
     @Published var selectedBodyRegion: String?
+    /// Etappe 6: der Katalog hat 740 Übungen — ohne Modalitätsfilter unhandlich.
+    @Published var selectedModality: String?
 
     private let service = ExerciseService()
     private let isPreview: Bool
@@ -25,8 +27,18 @@ final class ExerciseCatalogViewModel: ObservableObject {
         Array(Set(exercises.compactMap(\.bodyRegion))).sorted()
     }
 
+    /// Modalitäten, die im geladenen Katalog vorkommen — Bestand ohne Wert zählt als Athletik.
+    var modalities: [(key: String, title: String)] {
+        let present = Set(exercises.map { $0.modality ?? "athletik" })
+        return [("athletik", "Athletik"), ("fitness", "Fitness"), ("cardio", "Cardio"),
+                ("pilates_mat", "Pilates Matte"), ("pilates_reformer", "Reformer")]
+            .filter { present.contains($0.0) }
+            .map { (key: $0.0, title: $0.1) }
+    }
+
     var filtered: [Exercise] {
         exercises.filter { exercise in
+            if let selectedModality, (exercise.modality ?? "athletik") != selectedModality { return false }
             if let selectedBodyRegion, exercise.bodyRegion != selectedBodyRegion { return false }
             if let selectedGroupId, exercise.groupId != selectedGroupId { return false }
             return exercise.matches(query)

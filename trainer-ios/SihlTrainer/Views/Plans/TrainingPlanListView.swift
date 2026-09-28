@@ -7,6 +7,7 @@ struct TrainingPlanListView: View {
 
     @EnvironmentObject private var auth: AuthViewModel
     @StateObject private var model: TrainingPlanListViewModel
+    @State private var showAiSheet = false
 
     init(client: Client, isPreview: Bool) {
         self.client = client
@@ -31,6 +32,23 @@ struct TrainingPlanListView: View {
         .background(AppColor.background)
         .navigationTitle("Trainingspläne")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showAiSheet = true
+                } label: {
+                    Image(systemName: "sparkles")
+                }
+                .accessibilityLabel("KI-Plan generieren")
+            }
+        }
+        .sheet(isPresented: $showAiSheet) {
+            AiPlanSheet(client: client, isPreview: auth.previewFlag) { plan in
+                // Der Plan ist serverseitig bereits gespeichert und kommt
+                // vollständig zurück — kein Neuladen nötig.
+                model.prepend(plan)
+            }
+        }
         .task { await model.load() }
         .alert("Fehler", isPresented: .constant(model.error != nil)) {
             Button("OK") { model.error = nil }

@@ -58,7 +58,7 @@ struct TrainingPlanDetailView: View {
 
             HStack {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("\(model.plan.values.totalRows) Übungen")
+                    Text("\(model.plan.values.totalRows) Übungen · \(model.plan.modality.title)")
                         .font(.app(14))
                         .foregroundStyle(AppColor.text)
                     if let created = model.plan.createdAt, let date = JSON.date(created) {
@@ -93,7 +93,7 @@ struct TrainingPlanDetailView: View {
                         RowEditor(row: Binding(
                             get: { model.plan.values[section][index] },
                             set: { model.plan.values[section][index] = $0 }
-                        ), isPreview: isPreview)
+                        ), isPreview: isPreview, usesSprings: model.plan.modality.usesSprings)
                     } else {
                         RowDisplay(row: row)
                     }
@@ -114,7 +114,7 @@ struct TrainingPlanDetailView: View {
                     .listRowBackground(AppColor.surface)
                 }
             } header: {
-                Label(section.title, systemImage: section.icon)
+                Label(section.title(for: model.plan.modality), systemImage: section.icon)
                     .font(.app(12, weight: .semibold))
                     .foregroundStyle(AppColor.muted)
             }
@@ -194,7 +194,9 @@ private struct RowDisplay: View {
     }
 
     private var details: String? {
-        let parts = [row.sets, row.weight, row.device, row.position].filter { !$0.isEmpty }
+        let load = row.springs.isEmpty ? row.weight : "Federn \(row.springs)"
+        let parts = [row.sets, load, row.device, row.position, row.tempo.isEmpty ? "" : "Tempo \(row.tempo)",
+                     row.breathing].filter { !$0.isEmpty }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 }
@@ -204,6 +206,8 @@ private struct RowDisplay: View {
 private struct RowEditor: View {
     @Binding var row: TrainingPlanRow
     let isPreview: Bool
+    /// Reformer: Federn statt Gewicht (Konzept, Abschnitt 4.3).
+    var usesSprings = false
     @State private var showCatalog = false
 
     var body: some View {
@@ -226,7 +230,17 @@ private struct RowEditor: View {
             }
             HStack(spacing: 8) {
                 field("Sätze × Wdh.", text: $row.sets)
-                field("Gewicht", text: $row.weight)
+                if usesSprings {
+                    field("Federn", text: $row.springs)
+                } else {
+                    field("Gewicht", text: $row.weight)
+                }
+            }
+            if usesSprings {
+                HStack(spacing: 8) {
+                    field("Atmung", text: $row.breathing)
+                    field("Tempo", text: $row.tempo)
+                }
             }
             HStack(spacing: 8) {
                 field("Gerät", text: $row.device)

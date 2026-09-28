@@ -70,6 +70,12 @@ final class TrainingPlanListViewModel: ObservableObject {
         }
     }
 
+    /// Frisch generierter Plan ganz oben, bis die Liste neu geladen ist.
+    func prepend(_ plan: TrainingPlan) {
+        plans.removeAll { $0.id == plan.id }
+        plans.insert(plan, at: 0)
+    }
+
     func replace(_ plan: TrainingPlan) {
         guard let index = plans.firstIndex(where: { $0.id == plan.id }) else { return }
         plans[index] = plan

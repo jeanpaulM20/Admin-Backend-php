@@ -96,7 +96,10 @@ enum PreviewData {
 
     static let exercises: [Exercise] = [
         ["id": 1, "name": "Kniebeuge", "group_id": 1, "body_region": "Unterkörper",
-         "group": ["id": 1, "name": "Langhantel"], "primary_muscle_group": "Quadrizeps"],
+         "group": ["id": 1, "name": "Langhantel"], "primary_muscle_group": "Quadrizeps",
+         "modality": "fitness", "level": "intermediate", "equipment": "barbell",
+         "instructions_de": "Stange auf dem Trapez ablegen.\nFüsse schulterbreit.\nKontrolliert in die Hocke, Knie folgen den Zehen.",
+         "cues_de": "Brust raus, Blick geradeaus, Ferse bleibt am Boden."],
         ["id": 2, "name": "Kreuzheben", "group_id": 1, "body_region": "Ganzkörper",
          "group": ["id": 1, "name": "Langhantel"], "primary_muscle_group": "Rückenstrecker"],
         ["id": 3, "name": "Bankdrücken", "group_id": 1, "body_region": "Oberkörper",
@@ -179,6 +182,27 @@ enum PreviewData {
             entry(1, dayOffset: 0, from: 9, to: 12, source: "Studio Enge"),
             entry(2, dayOffset: 2, from: 14, to: 16, source: "Studio Enge"),
         ].compactMap { $0 }
+    }
+
+    /// Ein fertiges KI-Ergebnis für den Vorschaumodus.
+    static func aiOutcome(for client: Client, request: AiPlanRequest) -> AiPlanOutcome {
+        var plan = plans[1]
+        plan.name = request.modality == .fitness ? "Kraftaufbau Hypertrophie" : "Athletik Phase 1"
+        var planJson = plan.savePayload
+        planJson["id"] = 503
+        planJson["status"] = "draft"
+        planJson["created_at"] = "2026-09-28 19:00:00"
+        planJson["modality"] = request.modality.rawValue
+        return AiPlanOutcome(json: [
+            "plan": planJson,
+            "meta": [
+                "ai_reasoning": "Der Plan adressiert die Zugkraft-Schwäche aus dem letzten Test mit Rudern und Klimmzug-Regressionen und schont die LWS: keine belastete Flexion, dafür Anti-Extension im Core.",
+                "isRuleBased": false,
+                "contraindications": ["Verletzung: Bandscheibenvorfall, Bereich: LWS"],
+                "excludedByContraindication": [["name": "Roll Over", "reason": "lumbar_flexion_load"]],
+                "weaknesses": [["label": "Zugkraft Oberkörper"], ["label": "Rumpfstabilität"]],
+            ],
+        ])
     }
 
     static var reviews: [Review] {
