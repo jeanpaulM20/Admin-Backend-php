@@ -239,7 +239,7 @@ export class AiPlanService {
     // Ohne Repertoire gibt es keinen Rückfall, der etwas taugt — klare Meldung statt leerem Plan.
     if (modality === 'pilates_reformer' && exercises.length === 0) {
       throw new BadRequestException(
-        'Kein Reformer-Repertoire für dieses Level verfügbar — zuerst das Erfassungsblatt importieren (POST api/exercise/import/reformer).',
+        'Reformer-Repertoire für dieses Level noch nicht im Katalog — das Erfassungsblatt muss zuerst importiert werden.',
       );
     }
     try {
