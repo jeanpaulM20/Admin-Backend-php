@@ -53,6 +53,74 @@ struct Exercise: Identifiable, Equatable {
         }
     }
 
+    /// Deutsches Geräte-Label; unbekannte Schlüssel werden lesbar gemacht
+    /// (`smith_machine` → „Smith machine") statt verschluckt.
+    var equipmentTitle: String? {
+        guard let key = equipment?.trimmingCharacters(in: .whitespaces), !key.isEmpty else { return nil }
+        if let known = Exercise.equipmentLabels[key] { return known }
+        return key.replacingOccurrences(of: "_", with: " ").capitalizedFirst
+    }
+
+    /// Schlüssel des RepDB-Vokabulars (und `reformer` aus dem eigenen Blatt).
+    static let equipmentLabels: [String: String] = [
+        "barbell": "Langhantel",
+        "dumbbell": "Kurzhantel",
+        "kettlebell": "Kettlebell",
+        "ez_bar": "SZ-Stange",
+        "trap_bar": "Trap Bar",
+        "plates": "Hantelscheiben",
+        "cable": "Kabelzug",
+        "smith_machine": "Multipresse",
+        "pull_up_bar": "Klimmzugstange",
+        "dip_station": "Dip-Barren",
+        "rings": "Ringe",
+        "suspension_trainer": "Schlingentrainer",
+        "loop_band": "Miniband",
+        "resistance_band": "Widerstandsband",
+        "flat_bench": "Flachbank",
+        "stability_ball": "Gymnastikball",
+        "slam_ball": "Slam Ball",
+        "ab_wheel": "Bauchroller",
+        "wrist_roller": "Unterarmroller",
+        "plyo_box": "Sprungkasten",
+        "jump_rope": "Springseil",
+        "battle_rope": "Battle Rope",
+        "climbing_rope": "Klettertau",
+        "sled": "Schlitten",
+        "glute_ham_developer": "Glute-Ham-Developer",
+        "leg_press": "Beinpresse",
+        "hack_squat": "Hackenschmidt-Maschine",
+        "leg_curl": "Beinbeuger",
+        "leg_extension": "Beinstrecker",
+        "hip_thrust_machine": "Hip-Thrust-Maschine",
+        "hip_abduction_machine": "Abduktoren-Maschine",
+        "hip_adduction_machine": "Adduktoren-Maschine",
+        "standing_calf_raise_machine": "Wadenmaschine stehend",
+        "seated_calf_raise_machine": "Wadenmaschine sitzend",
+        "donkey_calf_raise_machine": "Donkey-Wadenmaschine",
+        "back_extension_machine": "Rückenstrecker-Maschine",
+        "ab_crunch_machine": "Bauchmaschine",
+        "lat_pulldown_machine": "Latzug",
+        "assisted_pullup_machine": "Klimmzug-Hilfsmaschine",
+        "chest_press_machine": "Brustpresse",
+        "chest_fly_machine": "Butterfly",
+        "pec_deck": "Butterfly",
+        "shoulder_press_machine": "Schulterpresse",
+        "plate_loaded_lateral_raise_machine": "Seitheben-Maschine",
+        "shrug_machine": "Shrug-Maschine",
+        "bicep_curl_machine": "Bizeps-Maschine",
+        "preacher_curl_machine": "Scott-Curl-Pult",
+        "tricep_extension_machine": "Trizeps-Maschine",
+        "dip_machine": "Dip-Maschine",
+        "treadmill": "Laufband",
+        "rower": "Rudergerät",
+        "stationary_bike": "Ergometer",
+        "air_bike": "Air Bike",
+        "elliptical": "Crosstrainer",
+        "stair_climber": "Stepper",
+        "reformer": "Reformer",
+    ]
+
     /// Symbolbild der Übung. Liefert das Backend keines, zeigt die Zeile ein
     /// Platzhaltersymbol.
     var iconURL: URL? {
@@ -76,4 +144,8 @@ struct Exercise: Identifiable, Equatable {
 struct ExerciseSelection {
     let name: String
     let device: String
+}
+
+private extension String {
+    var capitalizedFirst: String { prefix(1).uppercased() + dropFirst() }
 }

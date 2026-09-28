@@ -17,9 +17,7 @@ struct ExerciseInfoSheet: View {
                                 .foregroundStyle(AppColor.text)
                             HStack(spacing: 8) {
                                 if let level = exercise.levelTitle { tag(level) }
-                                if let equipment = exercise.equipment, !equipment.isEmpty {
-                                    tag(equipment.replacingOccurrences(of: "_", with: " "))
-                                }
+                                if let equipment = exercise.equipmentTitle { tag(equipment) }
                                 if let muscle = exercise.primaryMuscleGroup { tag(muscle) }
                             }
                         }
