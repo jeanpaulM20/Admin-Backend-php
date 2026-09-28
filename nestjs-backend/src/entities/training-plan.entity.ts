@@ -51,6 +51,14 @@ export class TrainingPlan {
   @Column({ name: 'published_at', type: 'datetime', nullable: true })
   publishedAt: Date;
 
+  /**
+   * Trainingswelt des Plans (s. exercise-vocabulary.ts). Bestimmt die
+   * Beschriftung der vier Abschnitte und die Spalten der Planzeile
+   * (Gewicht vs. Federn). NULL = Bestand = athletik.
+   */
+  @Column({ type: 'varchar', length: 24, nullable: true })
+  modality: string | null;
+
   /** Auto-set on first save */
   @CreateDateColumn({ name: 'created_at', type: 'datetime', nullable: true })
   createdAt: Date;

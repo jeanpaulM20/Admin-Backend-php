@@ -159,6 +159,34 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       // Plan publication workflow: draft until the trainer releases it to the client
       `ALTER TABLE trainingplan ADD COLUMN status VARCHAR(20) DEFAULT 'draft'`,
       `ALTER TABLE trainingplan ADD COLUMN published_at DATETIME DEFAULT NULL`,
+      // Programm-Generator Etappe 1: Modalität, Ausführung, Herkunft je Übung
+      `ALTER TABLE exercise ADD COLUMN modality VARCHAR(24) DEFAULT NULL`,
+      `ALTER TABLE exercise ADD COLUMN equipment VARCHAR(48) DEFAULT NULL`,
+      `ALTER TABLE exercise ADD COLUMN level VARCHAR(16) DEFAULT NULL`,
+      `ALTER TABLE exercise ADD COLUMN instructions_de TEXT DEFAULT NULL`,
+      `ALTER TABLE exercise ADD COLUMN cues_de TEXT DEFAULT NULL`,
+      `ALTER TABLE exercise ADD COLUMN breathing_de VARCHAR(190) DEFAULT NULL`,
+      `ALTER TABLE exercise ADD COLUMN tempo VARCHAR(16) DEFAULT NULL`,
+      `ALTER TABLE exercise ADD COLUMN contraindications VARCHAR(255) DEFAULT NULL`,
+      `ALTER TABLE exercise ADD COLUMN is_unilateral TINYINT(1) DEFAULT NULL`,
+      `ALTER TABLE exercise ADD COLUMN met DECIMAL(4,2) DEFAULT NULL`,
+      `ALTER TABLE exercise ADD COLUMN source VARCHAR(32) DEFAULT NULL`,
+      `ALTER TABLE exercise ADD COLUMN source_ref VARCHAR(120) DEFAULT NULL`,
+      `ALTER TABLE trainingplan ADD COLUMN modality VARCHAR(24) DEFAULT NULL`,
+      // Reformer-Angaben in eigener Tabelle (Konzept 4.2)
+      `CREATE TABLE IF NOT EXISTS exercise_reformer (
+         exercise_id INT PRIMARY KEY,
+         springs VARCHAR(48) DEFAULT NULL,
+         spring_load DECIMAL(4,2) DEFAULT NULL,
+         footbar VARCHAR(16) DEFAULT NULL,
+         headrest VARCHAR(16) DEFAULT NULL,
+         carriage_start VARCHAR(24) DEFAULT NULL,
+         attachment VARCHAR(48) DEFAULT NULL,
+         position VARCHAR(32) DEFAULT NULL,
+         classical_order INT DEFAULT NULL,
+         CONSTRAINT fk_exercise_reformer FOREIGN KEY (exercise_id)
+           REFERENCES exercise(id) ON DELETE CASCADE
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
     ];
 
     // Create training_plan_comment table if not exists
