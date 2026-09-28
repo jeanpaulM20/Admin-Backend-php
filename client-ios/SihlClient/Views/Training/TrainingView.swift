@@ -210,18 +210,11 @@ private struct PlanCard: View {
     let plan: ClientTrainingPlan
     let exerciseIdMap: [String: Int]
 
-    private static let sectionOrder  = ["sonsomo", "main", "core", "mobility"]
-    private static let sectionLabels: [String: String] = [
-        "sonsomo":  "Aufwärmen",
-        "main":     "Haupttraining",
-        "core":     "Core",
-        "mobility": "Mobilität",
-    ]
-
     private var phaseText: String {
-        Self.sectionOrder
+        let labels = PlanSectionLabels.labels(for: plan.modality)
+        return PlanSectionLabels.order
             .filter { (plan.sections[$0] ?? 0) > 0 }
-            .map    { "\(Self.sectionLabels[$0] ?? $0) \(plan.sections[$0]!)" }
+            .map    { "\(labels[$0] ?? $0) \(plan.sections[$0]!)" }
             .joined(separator: " · ")
     }
 

@@ -62,6 +62,10 @@ struct TrainingPlanRow {
     let sets:     String   // z. B. "3×12"
     let dates:    [String] // 8 wöchentliche Spalten
     let timers:   [Int]    // Countdown-Presets (Sekunden)
+    // Etappe 7: Reformer-Angaben — leer, wenn der Plan keine führt
+    let springs:  String   // "1 rot + 1 blau"
+    let breathing: String  // "5 ein / 5 aus"
+    let tempo:    String   // "3-1-1-0"
 
     init(json: [String: Any]) {
         self.exercise = json["exercise"] as? String ?? ""
@@ -69,6 +73,9 @@ struct TrainingPlanRow {
         self.position = json["position"] as? String ?? ""
         self.weight   = json["weight"]   as? String ?? ""
         self.sets     = json["sets"]     as? String ?? ""
+        self.springs  = json["springs"]  as? String ?? ""
+        self.breathing = json["breathing"] as? String ?? ""
+        self.tempo    = json["tempo"]    as? String ?? ""
         self.dates    = (json["dates"] as? [Any])?.map { "\($0)" }
                         ?? Array(repeating: "", count: 8)
         self.timers   = Self.parseTimers(json)
@@ -123,6 +130,28 @@ struct TrainingPlanValues {
     }
 }
 
+// MARK: - Abschnittsnamen je Modalität
+
+/// Die vier technischen Slots heissen je Trainingswelt anders — Pendant zu
+/// `SECTION_LABELS` im Backend. Ohne Modalität gilt Athletik (Bestand).
+enum PlanSectionLabels {
+    static let order = ["sonsomo", "main", "core", "mobility"]
+
+    static func labels(for modality: String?) -> [String: String] {
+        switch modality {
+        case "fitness":
+            return ["sonsomo": "Aufwärmen", "main": "Hauptteil", "core": "Core", "mobility": "Ausklang"]
+        case "pilates_reformer":
+            return ["sonsomo": "Footwork & Hundred", "main": "Serie", "core": "Gurte & Knee Stretch", "mobility": "Abschluss"]
+        default:
+            return ["sonsomo": "Aufwärmen", "main": "Haupttraining", "core": "Core", "mobility": "Mobilität"]
+        }
+    }
+
+    /// Reformer-Pläne führen Federn statt Gewicht und zeigen den Aufbau.
+    static func usesSprings(_ modality: String?) -> Bool { modality == "pilates_reformer" }
+}
+
 // MARK: - ClientTrainingPlan
 
 /// Top-Level Trainingsplan wie er dem Client angezeigt wird.
@@ -140,6 +169,8 @@ struct ClientTrainingPlan: Identifiable, Hashable {
     let values:             TrainingPlanValues?
     var clientLikes:        [String: String]
     let coverExerciseName:  String?
+    /// Trainingswelt: nil/athletik, fitness, pilates_reformer
+    let modality:           String?
 
     var totalExercises: Int { sections.values.reduce(0, +) }
 
@@ -189,5 +220,6 @@ struct ClientTrainingPlan: Identifiable, Hashable {
         self.clientLikes          = (json["clientLikes"] as? [String: Any])?
                                         .mapValues { "\($0)" } ?? [:]
         self.coverExerciseName    = json["coverExerciseName"] as? String
+        self.modality             = json["modality"] as? String
     }
 }

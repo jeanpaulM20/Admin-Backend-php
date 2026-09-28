@@ -20,12 +20,20 @@ class _SectionMeta {
   const _SectionMeta(this.key, this.label, this.color);
 }
 
-const _sections = [
-  _SectionMeta('sonsomo', 'Aufwärmen',     AppColors.primary),
-  _SectionMeta('main',    'Haupttraining', AppColors.blue),
-  _SectionMeta('core',    'Core',          AppColors.green),
-  _SectionMeta('mobility','Mobilität',     AppColors.orange),
-];
+const _sectionColors = {
+  'sonsomo': AppColors.primary,
+  'main': AppColors.blue,
+  'core': AppColors.green,
+  'mobility': AppColors.orange,
+};
+
+/// Beschriftung je Trainingswelt des Plans (Etappe 7).
+List<_SectionMeta> _sectionsFor(String? modality) {
+  final labels = planSectionLabels(modality);
+  return planSectionOrder
+      .map((k) => _SectionMeta(k, labels[k] ?? k, _sectionColors[k] ?? AppColors.primary))
+      .toList();
+}
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
@@ -206,19 +214,20 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
       return _paywallRedirect(plan);
     }
 
+    final sections = _sectionsFor(plan.modality);
     return Column(children: [
-      _buildSectionTabs(),
+      _buildSectionTabs(sections),
       _buildTimerWidget(),
       Expanded(child: TabBarView(
         controller: _tabCtrl,
-        children: _sections.map((m) => _buildTab(m, plan.values!)).toList(),
+        children: sections.map((m) => _buildTab(m, plan.values!)).toList(),
       )),
     ]);
   }
 
   // ─── Section tabs ─────────────────────────────────────────────────────────
 
-  Widget _buildSectionTabs() {
+  Widget _buildSectionTabs(List<_SectionMeta> sections) {
     return Container(
       color: AppColors.background,
       child: Column(children: [
@@ -233,7 +242,7 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
           indicatorWeight: 2.5,
           labelStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700),
           unselectedLabelStyle: GoogleFonts.inter(fontSize: 12),
-          tabs: _sections.map((m) => Tab(text: m.label.toUpperCase())).toList(),
+          tabs: sections.map((m) => Tab(text: m.label.toUpperCase())).toList(),
         ),
       ]),
     );
@@ -412,8 +421,12 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
                   // Feedback
                   _buildActionRow(key, meta, i, row, isLiked, isDisliked, commentCount),
 
-                  // Coaching-Notizen — sekundär, ganz unten
-                  if (row.position.isNotEmpty && row.position.length > 35) ...[
+                  // Ausführung (Etappe 7): Aufbau am Reformer, Atmung, Tempo
+                  ..._buildDetailRows(row),
+
+                  // Coaching-Notizen — sekundär, ganz unten. Beim Reformer ist
+                  // position der Aufbau und steht schon oben.
+                  if (!_usesSprings && row.position.isNotEmpty && row.position.length > 35) ...[
                     const SizedBox(height: 8),
                     _buildNoteBlock(row.position),
                   ],
@@ -462,11 +475,15 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
     );
   }
 
+  bool get _usesSprings => planUsesSprings(_plan?.modality);
+
   Widget _metaSubtitle(TrainingPlanRow row) {
+    // Reformer: Federn statt Gewicht in der Kurzzeile
+    final load = _usesSprings && row.springs.isNotEmpty ? 'Federn ${row.springs}' : row.weight;
     final parts = <String>[
       if (row.device.isNotEmpty) row.device,
       if (row.sets.isNotEmpty)   row.sets,
-      if (row.weight.isNotEmpty) row.weight,
+      if (load.isNotEmpty)       load,
     ];
     if (parts.isEmpty) return const SizedBox.shrink();
     return Text(parts.join(' · '),
@@ -474,6 +491,39 @@ class _ClientPlanDetailScreenState extends State<ClientPlanDetailScreen>
         style: GoogleFonts.inter(
             color: AppColors.muted, fontSize: 11,
             fontWeight: FontWeight.w300));
+  }
+
+  List<Widget> _buildDetailRows(TrainingPlanRow row) {
+    final details = <MapEntry<String, String>>[
+      if (_usesSprings && row.position.isNotEmpty) MapEntry('Aufbau', row.position),
+      if (_usesSprings && row.springs.isNotEmpty) MapEntry('Federn', row.springs),
+      if (row.breathing.isNotEmpty) MapEntry('Atmung', row.breathing),
+      if (row.tempo.isNotEmpty) MapEntry('Tempo', row.tempo),
+    ];
+    if (details.isEmpty) return const [];
+    return [
+      const SizedBox(height: 8),
+      ...details.map((d) => Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 56,
+                  child: Text(d.key,
+                      style: GoogleFonts.inter(
+                          color: AppColors.muted, fontSize: 11,
+                          fontWeight: FontWeight.w600)),
+                ),
+                Expanded(
+                  child: Text(d.value,
+                      style: GoogleFonts.inter(
+                          color: AppColors.text.withAlpha(217), fontSize: 12)),
+                ),
+              ],
+            ),
+          )),
+    ];
   }
 
   Widget _buildNoteBlock(String text) {

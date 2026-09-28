@@ -9,6 +9,10 @@ class TrainingPlanRow {
   final String sets; // e.g. "3×12"
   final List<String> dates; // weekly result columns
   final List<int> timers; // saved timer presets (seconds)
+  // Etappe 7: Reformer-Angaben — leer, wenn der Plan keine führt
+  final String springs; // "1 rot + 1 blau"
+  final String breathing; // "5 ein / 5 aus"
+  final String tempo; // "3-1-1-0"
 
   TrainingPlanRow({
     this.exercise = '',
@@ -16,6 +20,9 @@ class TrainingPlanRow {
     this.position = '',
     this.weight = '',
     this.sets = '',
+    this.springs = '',
+    this.breathing = '',
+    this.tempo = '',
     List<String>? dates,
     List<int>? timers,
   })  : dates = dates ?? List.filled(8, ''),
@@ -28,6 +35,9 @@ class TrainingPlanRow {
       position: json['position']?.toString() ?? '',
       weight: json['weight']?.toString() ?? '',
       sets: json['sets']?.toString() ?? '',
+      springs: json['springs']?.toString() ?? '',
+      breathing: json['breathing']?.toString() ?? '',
+      tempo: json['tempo']?.toString() ?? '',
       dates: json['dates'] is List
           ? List<String>.from(
               (json['dates'] as List).map((e) => e?.toString() ?? ''))
@@ -101,6 +111,24 @@ class TrainingPlanValues {
 /// A training plan as seen by the client. The backend returns either a teaser
 /// (locked: metadata + per-section counts, no exercises) or the full plan
 /// (with [values]) when the client is entitled (free window or subscription).
+/// Die vier technischen Slots heissen je Trainingswelt anders — Pendant zu
+/// `SECTION_LABELS` im Backend. Ohne Modalität gilt Athletik (Bestand).
+const planSectionOrder = ['sonsomo', 'main', 'core', 'mobility'];
+
+Map<String, String> planSectionLabels(String? modality) {
+  switch (modality) {
+    case 'fitness':
+      return const {'sonsomo': 'Aufwärmen', 'main': 'Hauptteil', 'core': 'Core', 'mobility': 'Ausklang'};
+    case 'pilates_reformer':
+      return const {'sonsomo': 'Footwork & Hundred', 'main': 'Serie', 'core': 'Gurte & Knee Stretch', 'mobility': 'Abschluss'};
+    default:
+      return const {'sonsomo': 'Aufwärmen', 'main': 'Haupttraining', 'core': 'Core', 'mobility': 'Mobilität'};
+  }
+}
+
+/// Reformer-Pläne führen Federn statt Gewicht und zeigen den Aufbau.
+bool planUsesSprings(String? modality) => modality == 'pilates_reformer';
+
 class ClientTrainingPlan {
   final int? id;
   final int? clientId;
@@ -123,6 +151,9 @@ class ClientTrainingPlan {
   /// First exercise name — used as cover image key for the plan list card.
   final String? coverExerciseName;
 
+  /// Trainingswelt: null/athletik, fitness, pilates_reformer
+  final String? modality;
+
   ClientTrainingPlan({
     this.id,
     this.clientId,
@@ -136,6 +167,7 @@ class ClientTrainingPlan {
     this.values,
     this.clientLikes,
     this.coverExerciseName,
+    this.modality,
   }) : sections = sections ?? {};
 
   int get totalExercises =>
@@ -187,6 +219,7 @@ class ClientTrainingPlan {
               (json['clientLikes'] as Map).map((k, v) => MapEntry(k.toString(), v.toString())))
           : null,
       coverExerciseName: json['coverExerciseName']?.toString(),
+      modality: json['modality']?.toString(),
     );
   }
 }

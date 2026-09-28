@@ -22,14 +22,6 @@ class TrainingPlanListScreen extends StatefulWidget {
 }
 
 class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
-  static const _sectionLabels = {
-    'sonsomo': 'Aufwärmen',
-    'main':    'Haupttraining',
-    'core':    'Core',
-    'mobility':'Mobilität',
-  };
-
-  static const _sectionOrder = ['sonsomo', 'main', 'core', 'mobility'];
 
   // Exercise name → id map for cover image display
   Map<String, int> _exerciseIdMap = {};
@@ -314,10 +306,11 @@ class _TrainingPlanListScreenState extends State<TrainingPlanListScreen> {
     final locked = plan.locked;
     final borderColor = locked ? AppColors.muted : AppColors.primary;
 
-    // All phases with exercises as plain-text subtitle
-    final phaseText = _sectionOrder
+    // All phases with exercises as plain-text subtitle — labels per modality
+    final labels = planSectionLabels(plan.modality);
+    final phaseText = planSectionOrder
         .where((key) => (plan.sections[key] ?? 0) > 0)
-        .map((key) => '${_sectionLabels[key]} ${plan.sections[key]}')
+        .map((key) => '${labels[key]} ${plan.sections[key]}')
         .join(' · ');
 
     return Padding(

@@ -8,12 +8,17 @@ private struct SectionMeta {
     let color: Color
 }
 
-private let planSections: [SectionMeta] = [
-    .init(key: "sonsomo",  label: "Aufwärmen",     color: AppColor.primary),
-    .init(key: "main",     label: "Haupttraining", color: AppColor.blue),
-    .init(key: "core",     label: "Core",           color: AppColor.green),
-    .init(key: "mobility", label: "Mobilität",      color: AppColor.orange),
+private let sectionColors: [String: Color] = [
+    "sonsomo": AppColor.primary, "main": AppColor.blue, "core": AppColor.green, "mobility": AppColor.orange,
 ]
+
+/// Beschriftung je Trainingswelt des Plans (Etappe 7).
+private func planSections(for modality: String?) -> [SectionMeta] {
+    let labels = PlanSectionLabels.labels(for: modality)
+    return PlanSectionLabels.order.map {
+        SectionMeta(key: $0, label: labels[$0] ?? $0, color: sectionColors[$0] ?? AppColor.primary)
+    }
+}
 
 // MARK: - Local ViewModel
 
@@ -148,12 +153,13 @@ struct TrainingPlanDetailView: View {
     // MARK: - Plan Content
 
     private func planContent(plan: ClientTrainingPlan) -> some View {
-        VStack(spacing: 0) {
-            sectionTabBar
+        let sections = planSections(for: plan.modality)
+        return VStack(spacing: 0) {
+            sectionTabBar(sections)
             timerWidget
             TabView(selection: $selectedSection) {
-                ForEach(planSections, id: \.key) { meta in
-                    exerciseList(meta: meta, values: plan.values!)
+                ForEach(sections, id: \.key) { meta in
+                    exerciseList(meta: meta, values: plan.values!, usesSprings: PlanSectionLabels.usesSprings(plan.modality))
                         .tag(meta.key)
                 }
             }
@@ -163,12 +169,12 @@ struct TrainingPlanDetailView: View {
 
     // MARK: - Section Tab Bar
 
-    private var sectionTabBar: some View {
+    private func sectionTabBar(_ sections: [SectionMeta]) -> some View {
         VStack(spacing: 0) {
             Divider().background(AppColor.border)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 0) {
-                    ForEach(planSections, id: \.key) { meta in
+                    ForEach(sections, id: \.key) { meta in
                         let isSelected = meta.key == selectedSection
                         Button {
                             withAnimation(.easeInOut(duration: 0.2)) {
@@ -247,7 +253,7 @@ struct TrainingPlanDetailView: View {
 
     // MARK: - Exercise List
 
-    private func exerciseList(meta: SectionMeta, values: TrainingPlanValues) -> some View {
+    private func exerciseList(meta: SectionMeta, values: TrainingPlanValues, usesSprings: Bool) -> some View {
         let rows = values.rows(for: meta.key)
         return Group {
             if rows.isEmpty {
@@ -265,6 +271,7 @@ struct TrainingPlanDetailView: View {
                                 meta:         meta,
                                 index:        i,
                                 row:          row,
+                                usesSprings:  usesSprings,
                                 exerciseIdMap: exerciseIdMap,
                                 likeType:     vm.likes["\(meta.key)-\(i)"],
                                 commentCount: vm.commentCounts["\(meta.key)-\(i)"] ?? 0,
@@ -326,6 +333,7 @@ private struct ExerciseTile: View {
     let meta:          SectionMeta
     let index:         Int
     let row:           TrainingPlanRow
+    let usesSprings:   Bool
     let exerciseIdMap: [String: Int]
     let likeType:      String?
     let commentCount:  Int
@@ -369,7 +377,9 @@ private struct ExerciseTile: View {
                             .foregroundStyle(AppColor.text)
                             .multilineTextAlignment(.leading)
 
-                        let parts = [row.device, row.sets, row.weight].filter { !$0.isEmpty }
+                        // Reformer: Federn statt Gewicht in der Kurzzeile
+                        let load = usesSprings && !row.springs.isEmpty ? "Federn \(row.springs)" : row.weight
+                        let parts = [row.device, row.sets, load].filter { !$0.isEmpty }
                         if !parts.isEmpty {
                             Text(parts.joined(separator: " · "))
                                 .font(.app(11)).foregroundStyle(AppColor.muted)
@@ -454,8 +464,32 @@ private struct ExerciseTile: View {
                     }
                     .padding(.horizontal, 16)
 
-                    // Coaching-Notiz (langer Text in position)
-                    if row.position.count > 35 {
+                    // Ausführung (Etappe 7): Aufbau am Reformer, Atmung, Tempo
+                    let setup = usesSprings && !row.position.isEmpty ? row.position : ""
+                    let details: [(String, String)] = [
+                        ("Aufbau", setup), ("Federn", usesSprings ? row.springs : ""),
+                        ("Atmung", row.breathing), ("Tempo", row.tempo),
+                    ].filter { !$0.1.isEmpty }
+                    if !details.isEmpty {
+                        VStack(alignment: .leading, spacing: 6) {
+                            ForEach(details, id: \.0) { label, value in
+                                HStack(alignment: .top, spacing: 8) {
+                                    Text(label)
+                                        .font(.app(11, weight: .semibold))
+                                        .foregroundStyle(AppColor.muted)
+                                        .frame(width: 56, alignment: .leading)
+                                    Text(value)
+                                        .font(.app(12))
+                                        .foregroundStyle(AppColor.text.opacity(0.85))
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                    }
+
+                    // Coaching-Notiz (langer Text in position) — beim Reformer ist
+                    // position der Aufbau und steht schon oben.
+                    if !usesSprings && row.position.count > 35 {
                         HStack(alignment: .top, spacing: 12) {
                             Rectangle()
                                 .fill(AppColor.border).frame(width: 2)

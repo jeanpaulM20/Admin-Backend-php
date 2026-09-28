@@ -62,6 +62,8 @@ export class TrainingPlanController {
       locked: true,
       requiresSubscription: true,
       sections,
+      // Die Abschnitte heissen je Modalität anders — auch in der Vorschau.
+      modality: plan.modality ?? null,
       ...(coverExerciseName ? { coverExerciseName } : {}),
     };
   }
