@@ -7,10 +7,11 @@ import { Exercisepictures } from '../entities/exercise-pictures.entity';
 import { ExerciseService } from './exercise.service';
 import { ExerciseIconService } from './exercise-icon.service';
 import { ExerciseController } from './exercise.controller';
+import { repDbImportProvider } from './import/interface/catalog-import.provider';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Exercise, Exercisegroup, Exercisesubgroup, Exercisepictures])],
-  providers: [ExerciseService, ExerciseIconService],
+  providers: [ExerciseService, ExerciseIconService, repDbImportProvider],
   controllers: [ExerciseController],
   exports: [ExerciseService, ExerciseIconService],
 })

@@ -22,6 +22,7 @@ struct SettingsView: View {
                     diagnosticsSection
                     #endif
                     accountSection
+                    attribution
                 }
                 .padding(.horizontal, AppSpacing.screen)
                 .padding(.top, AppSpacing.stack)
@@ -208,6 +209,20 @@ struct SettingsView: View {
         }
     }
     #endif
+
+    /// Lizenzauflage von RepDB: sichtbarer Link, wo die Übungsdaten herkommen.
+    private var attribution: some View {
+        VStack(spacing: 2) {
+            Text("Übungsdaten teilweise von")
+                .font(.app(11))
+                .foregroundStyle(AppColor.muted)
+            Link("RepDB (repdb.co)", destination: URL(string: "https://repdb.co")!)
+                .font(.app(11, weight: .semibold))
+                .foregroundStyle(AppColor.primary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 8)
+    }
 
     private var accountSection: some View {
         Card(padding: 0) {

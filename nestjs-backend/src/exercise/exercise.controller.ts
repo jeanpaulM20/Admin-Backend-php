@@ -1,17 +1,36 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, Res, ParseIntPipe, BadRequestException, NotFoundException, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, Res, ParseIntPipe, BadRequestException, NotFoundException, ForbiddenException, UseInterceptors, UploadedFile, Inject } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { ExerciseService } from './exercise.service';
 import { ExerciseIconService } from './exercise-icon.service';
 import { Exercise } from '../entities/exercise.entity';
 import { Public } from '../auth/decorators/public.decorator';
+import { CurrentTrainer } from '../auth/decorators/current-user.decorator';
+import { Trainer } from '../entities/trainer.entity';
+import { ImportCatalogUseCase } from './import/application/import-catalog.usecase';
+import { REPDB_IMPORT } from './import/interface/catalog-import.provider';
 
 @Controller('api/exercise')
 export class ExerciseController {
   constructor(
     private readonly service: ExerciseService,
     private readonly iconService: ExerciseIconService,
+    @Inject(REPDB_IMPORT) private readonly repDbImport: ImportCatalogUseCase,
   ) {}
+
+  /**
+   * POST /api/exercise/import/repdb?dryRun=1 — Katalog aus RepDB einspielen.
+   * Nur für Trainer; mit dryRun=1 wird nur gezählt, nicht geschrieben.
+   * Idempotent: ein zweiter Lauf erkennt die Einträge an source_ref wieder.
+   */
+  @Post('import/repdb')
+  async importRepDb(
+    @CurrentTrainer() trainer: Trainer,
+    @Query('dryRun') dryRun?: string,
+  ) {
+    if (!trainer) throw new ForbiddenException('Nur Trainer können den Katalog importieren.');
+    return this.repDbImport.execute({ dryRun: dryRun === '1' || dryRun === 'true' });
+  }
 
   @Get('groups')
   findGroups() {
