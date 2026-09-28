@@ -30,3 +30,4 @@ client-ios/build/
 trainer-ios/SihlTrainer.xcodeproj/
 trainer-ios/build/
 trainer-ios/build-device/
+client-ios/build-device/
