@@ -63,7 +63,7 @@ export type ReformerHeadrest = 'oben' | 'flach';
 export type ReformerCarriage = 'geschlossen' | 'offen';
 export type ReformerAttachment =
   | 'keines' | 'lange Gurte' | 'kurze Gurte' | 'Box quer' | 'Box längs' | 'Jumpboard';
-export type ReformerPosition = 'Rückenlage' | 'Bauchlage' | 'Sitz' | 'Knien' | 'Stand' | 'Seitlage';
+export type ReformerPosition = 'Rückenlage' | 'Bauchlage' | 'Sitz' | 'Knien' | 'Stand' | 'Stütz' | 'Seitlage';
 
 /**
  * Normierte Federlast 0–5. Die Farbe ist Anzeige (hersteller­abhängig),
