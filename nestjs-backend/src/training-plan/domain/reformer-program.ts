@@ -128,6 +128,36 @@ export function buildReformerProgram(
   };
 }
 
+/**
+ * Umfang je Abschnitt ist Code-Sache, nicht Modell-Sache: Das Modell nahm
+ * im ersten Produktionslauf alle fünf Eröffnungsübungen und kürzte die Serie
+ * auf zwei. Zu lange Abschnitte werden zugeschnitten (Serie gleichmässig,
+ * die übrigen vom Anfang), zu kurze aus dem zulässigen Repertoire in
+ * klassischer Ordnung aufgefüllt — das deckt auch eine fehlende Eröffnung ab.
+ */
+export function fitToCounts(
+  program: ReformerProgram,
+  counts: Record<PlanSection, number>,
+  pool: readonly ReformerCandidate[],
+): ReformerProgram {
+  const reserve = arrangeByOrder(pool);
+  const taken = new Set<number>();
+  const result: ReformerProgram = { sonsomo: [], main: [], core: [], mobility: [] };
+  for (const s of SECTIONS) {
+    const want = counts[s];
+    let list = s === 'main' ? evenlySpaced(program[s], want) : program[s].slice(0, want);
+    list.forEach((c) => taken.add(c.id));
+    if (list.length < want) {
+      const spare = reserve[s].filter((c) => !taken.has(c.id));
+      const fill = s === 'main' ? evenlySpaced(spare, want - list.length) : spare.slice(0, want - list.length);
+      fill.forEach((c) => taken.add(c.id));
+      list = [...list, ...fill].sort(byClassicalOrder);
+    }
+    result[s] = list;
+  }
+  return result;
+}
+
 // ── Zeile ────────────────────────────────────────────────────────────────
 
 export interface ReformerRowDetails {

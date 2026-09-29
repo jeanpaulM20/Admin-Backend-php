@@ -9,8 +9,9 @@ import { filterCatalogByModality, SECTION_LABELS, type PlanModality } from './do
 import { deriveConstraintKeys, excludeContraindicated } from './domain/contraindication-filter';
 import { fitnessPromptBlock } from './domain/strength-periodization';
 import {
-  admitsLevel, arrangeByOrder, buildReformerProgram, reformerPromptBlock, reformerRowDetails,
-  springCarryOvers, type ReformerCandidate, type ReformerLevel, type ReformerProgram,
+  admitsLevel, arrangeByOrder, buildReformerProgram, fitToCounts, reformerPromptBlock, reformerRowDetails,
+  springCarryOvers, DEFAULT_REFORMER_DURATION, REFORMER_DURATION_COUNTS,
+  type ReformerCandidate, type ReformerLevel, type ReformerProgram,
 } from './domain/reformer-program';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -439,12 +440,12 @@ export class AiPlanService {
     }
     if (dropped.length) this.logger.warn(`Reformer: ${dropped.length} Vorschläge ohne Repertoire-Eintrag verworfen: ${dropped.join(', ')}`);
 
-    let program: ReformerProgram = arrangeByOrder(chosen);
-    // Ohne Footwork ist es kein Reformer-Programm — der Rückfall liefert die Eröffnung.
-    if (program.sonsomo.length === 0) {
-      const level: ReformerLevel = request?.level ?? 'beginner';
-      program = { ...program, sonsomo: buildReformerProgram(exercises.map(AiPlanService.toReformerCandidate), level, request?.duration ?? null).sonsomo };
-    }
+    // Umfang je Abschnitt nach Dauer — zugeschnitten bzw. aus dem zulässigen
+    // Repertoire aufgefüllt (auch die Eröffnung, falls das Modell sie ausliess).
+    const counts = REFORMER_DURATION_COUNTS[request?.duration ?? DEFAULT_REFORMER_DURATION];
+    const program: ReformerProgram = fitToCounts(
+      arrangeByOrder(chosen), counts, exercises.map(AiPlanService.toReformerCandidate),
+    );
 
     const previous = await this.loadPreviousPlanRows(clientId, 'pilates_reformer');
     const all = [...program.sonsomo, ...program.main, ...program.core, ...program.mobility];

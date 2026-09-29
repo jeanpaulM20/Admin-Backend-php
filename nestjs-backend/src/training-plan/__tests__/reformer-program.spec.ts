@@ -1,6 +1,6 @@
 import {
-  admitsLevel, arrangeByOrder, buildReformerProgram, evenlySpaced, reformerPromptBlock,
-  reformerRowDetails, reformerSlot, springCarryOvers, type ReformerCandidate,
+  admitsLevel, arrangeByOrder, buildReformerProgram, evenlySpaced, fitToCounts, reformerPromptBlock,
+  reformerRowDetails, reformerSlot, springCarryOvers, REFORMER_DURATION_COUNTS, type ReformerCandidate,
 } from '../domain/reformer-program';
 import { admitsExercise, SECTION_LABELS } from '../domain/plan-modality';
 
@@ -80,6 +80,31 @@ describe('Deterministisches Programm', () => {
     const ids = [...p.sonsomo, ...p.main, ...p.core, ...p.mobility].map((x) => x.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(p.main.map((x) => x.name)).toContain('Überkopf');
+  });
+});
+
+describe('Umfang je Abschnitt (Produktionsfund Plan #742: 5/2/2/1 statt 3/4/2/1)', () => {
+  const basic = POOL.filter((x) => x.level === 'beginner' || x.level === null);
+
+  it('schneidet die Eröffnung zu und füllt die Serie klassisch geordnet auf', () => {
+    const llm = arrangeByOrder([POOL[0], POOL[1], POOL[2], POOL[7], POOL[11], POOL[13]]); // 3 Footwork/Hundert, 1 Serie, 1 Knee, 1 Abschluss
+    const fitted = fitToCounts(llm, REFORMER_DURATION_COUNTS[30], basic);
+    expect(fitted.sonsomo.map((x) => x.name)).toEqual(['Footwork Zehen', 'Footwork Fersen', 'Hundert']);
+    expect(fitted.main).toHaveLength(4);
+    expect(fitted.main.map((x) => x.name)).toContain('Stomach Massage rund');           // Wahl des Modells bleibt
+    const orders = fitted.main.map((x) => x.reformer!.classicalOrder!);
+    expect(orders).toEqual([...orders].sort((a, b) => a - b));                          // klassisch sortiert
+    expect(fitted.core).toHaveLength(2);
+    expect(fitted.mobility.map((x) => x.name)).toEqual(['Beckenheben']);
+    const ids = [...fitted.sonsomo, ...fitted.main, ...fitted.core, ...fitted.mobility].map((x) => x.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('lässt ein passendes Programm unverändert und ergänzt eine fehlende Eröffnung', () => {
+    const ok = buildReformerProgram(basic, 'beginner', 30);
+    expect(fitToCounts(ok, REFORMER_DURATION_COUNTS[30], basic)).toEqual(ok);
+    const noOpening = { ...ok, sonsomo: [] };
+    expect(fitToCounts(noOpening, REFORMER_DURATION_COUNTS[30], basic).sonsomo.map((x) => x.name)).toEqual(['Footwork Zehen', 'Footwork Fersen', 'Hundert']);
   });
 });
 
