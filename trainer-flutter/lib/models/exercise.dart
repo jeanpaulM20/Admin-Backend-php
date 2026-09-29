@@ -16,6 +16,8 @@ class Exercise {
   final int? groupId;
   final int? subgroupId;
   final String? bodyRegion;
+  /// Trainingswelt: athletik, fitness, cardio, pilates_mat, pilates_reformer
+  final String? modality;
   final String? primaryMuscleGroup;
   final String? targetJoint;
   final String? movementPattern;
@@ -28,6 +30,7 @@ class Exercise {
     this.groupId,
     this.subgroupId,
     this.bodyRegion,
+    this.modality,
     this.primaryMuscleGroup,
     this.targetJoint,
     this.movementPattern,
@@ -51,6 +54,7 @@ class Exercise {
       groupId: json['group_id'] is int ? json['group_id'] : json['groupId'] is int ? json['groupId'] : null,
       subgroupId: json['subgroup_id'] is int ? json['subgroup_id'] : json['subgroupId'] is int ? json['subgroupId'] : null,
       bodyRegion: json['body_region']?.toString() ?? json['bodyRegion']?.toString(),
+      modality: json['modality']?.toString(),
       primaryMuscleGroup: json['primary_muscle_group']?.toString() ?? json['primaryMuscleGroup']?.toString(),
       targetJoint: json['target_joint']?.toString() ?? json['targetJoint']?.toString(),
       movementPattern: json['movement_pattern']?.toString() ?? json['movementPattern']?.toString(),

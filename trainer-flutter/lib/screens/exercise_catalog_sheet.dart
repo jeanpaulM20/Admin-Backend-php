@@ -545,7 +545,10 @@ class _ExerciseCatalogSheetState extends State<ExerciseCatalogSheet> {
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Icon(
-                          _regionIcon(ex.bodyRegion),
+                          // Reformer/Matte: Pilates-Symbol statt Körperregion
+                          (ex.modality ?? '').startsWith('pilates')
+                              ? Icons.self_improvement
+                              : _regionIcon(ex.bodyRegion),
                           color: _regionColor(ex.bodyRegion),
                           size: 32,
                         ),

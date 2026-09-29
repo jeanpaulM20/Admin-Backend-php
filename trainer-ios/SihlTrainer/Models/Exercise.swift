@@ -53,6 +53,17 @@ struct Exercise: Identifiable, Equatable {
         }
     }
 
+    /// Platzhaltersymbol, solange die Übung kein Bild hat — je Trainingswelt,
+    /// damit eine Reformer-Übung nicht als Hantel erscheint.
+    var placeholderSymbol: String {
+        switch modality {
+        case "pilates_reformer", "pilates_mat": return "figure.pilates"
+        case "cardio": return "figure.run"
+        case "fitness": return "dumbbell"
+        default: return "figure.strengthtraining.traditional"
+        }
+    }
+
     /// Deutsches Geräte-Label; unbekannte Schlüssel werden lesbar gemacht
     /// (`smith_machine` → „Smith machine") statt verschluckt.
     var equipmentTitle: String? {

@@ -114,7 +114,7 @@ private struct ExerciseRow: View {
                 if let image = phase.image {
                     image.resizable().scaledToFit()
                 } else {
-                    Image(systemName: "figure.strengthtraining.traditional")
+                    Image(systemName: exercise.placeholderSymbol)
                         .font(.app(16))
                         .foregroundStyle(AppColor.muted)
                 }

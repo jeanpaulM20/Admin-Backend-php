@@ -234,7 +234,8 @@ private struct PlanCard: View {
                     liked:         false,
                     disliked:      false,
                     size:          72,
-                    fallbackIcon:  plan.locked ? "lock" : "dumbbell.fill"
+                    fallbackIcon:  plan.locked ? "lock"
+                                   : PlanSectionLabels.usesSprings(plan.modality) ? "figure.pilates" : "dumbbell.fill"
                 )
 
                 VStack(alignment: .leading, spacing: 4) {
