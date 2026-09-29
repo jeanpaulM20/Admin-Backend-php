@@ -12,7 +12,12 @@ export class RepDbSource implements CatalogSource {
   /** Fremdquelle: der Bestand gewinnt. */
   readonly overwrites = false;
 
-  constructor(private readonly url: string, private readonly fetchImpl: typeof fetch = fetch) {}
+  /** imageBase: Wurzel, unter der die repo-relativen Bildpfade liegen (null = keine Bilder). */
+  constructor(
+    private readonly url: string,
+    private readonly imageBase: string | null = null,
+    private readonly fetchImpl: typeof fetch = fetch,
+  ) {}
 
   async load(): Promise<SourceLoad> {
     const response = await this.fetchImpl(this.url, {
@@ -23,7 +28,7 @@ export class RepDbSource implements CatalogSource {
     const records = Array.isArray(json)
       ? (json as RepDbRecord[])
       : ((json as { exercises?: RepDbRecord[] }).exercises ?? []);
-    const entries = records.map(mapRepDb).filter((e): e is CatalogEntry => e !== null);
+    const entries = records.map((r) => mapRepDb(r, this.imageBase)).filter((e): e is CatalogEntry => e !== null);
     return { entries, problems: [] };
   }
 }

@@ -27,6 +27,27 @@ export interface ExerciseCatalogRepository {
   patch(id: number, fields: Partial<ExistingExercise>): Promise<void>;
   /** Reformer-Angaben anlegen oder ersetzen — die Tabelle hängt am Eintrag. */
   upsertReformer(exerciseId: number, spec: ReformerSpec): Promise<void>;
+  /** Bild ablegen (PNG oder WebP, Rohbytes). */
+  saveIcon(exerciseId: number, bytes: Uint8Array): Promise<void>;
+}
+
+/** Holt ein Bild von einer Adresse — oder null, wenn es keines ist. */
+export interface ImageFetcher {
+  fetch(url: string): Promise<Uint8Array | null>;
+}
+
+export interface ImageImportReport {
+  source: string;
+  dryRun: boolean;
+  /** Einträge der Quelle mit Bildadresse */
+  withImage: number;
+  /** davon im Katalog gefunden */
+  matched: number;
+  /** übersprungen, weil schon ein Bild da ist — vorhandene Bilder bleiben */
+  alreadyHasIcon: number;
+  fetched: number;
+  failed: number;
+  samples: { fetched: string[]; failed: string[] };
 }
 
 export interface ImportReport {

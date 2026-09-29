@@ -19,6 +19,19 @@ export interface RepDbRecord {
   instructions_de?: string[] | string;
   tips_de?: string[] | string;
   met?: number | string;
+  /** Repo-relative WebP-Pfade: start/peak oder main (Dehnungen). */
+  images?: { flat?: { start?: string; peak?: string; main?: string } };
+}
+
+/**
+ * Bild eines RepDB-Eintrags: die Endposition (peak) zeigt die Übung, bei
+ * Dehnungen gibt es nur main. Die Basis kommt vom Aufrufer — das Mapping
+ * kennt keine Adressen.
+ */
+export function repDbImageUrl(record: RepDbRecord, imageBase: string | null): string | null {
+  const path = record.images?.flat?.peak ?? record.images?.flat?.main ?? null;
+  if (!path || !imageBase) return null;
+  return `${imageBase.replace(/\/$/, '')}/${path.replace(/^\//, '')}`;
 }
 
 /** RepDB body_part → unsere Körperregion (Vokabular aus exercise.entity.ts). */
@@ -71,7 +84,7 @@ function toLevel(value: string | undefined): ExerciseLevel | null {
 }
 
 /** Einen RepDB-Datensatz in unseren Katalogeintrag überführen. */
-export function mapRepDb(record: RepDbRecord): CatalogEntry | null {
+export function mapRepDb(record: RepDbRecord, imageBase: string | null = null): CatalogEntry | null {
   const nameDe = (record.name_de ?? '').trim();
   const nameEn = (record.name_en ?? '').trim() || null;
   if (!record.id || !nameDe) return null;
@@ -103,6 +116,7 @@ export function mapRepDb(record: RepDbRecord): CatalogEntry | null {
     bodyRegion: record.body_part ? (BODY_REGION[record.body_part] ?? null) : null,
     primaryMuscleGroup: muscleKey ? (MUSCLE_DE[muscleKey] ?? humanize(muscleKey)) : null,
     movementPattern: movementPattern(nameEn ?? nameDe, record.force_type, record.category),
+    imageUrl: repDbImageUrl(record, imageBase),
     instructionsDe: joinSteps(record.instructions_de),
     cuesDe: joinSteps(record.tips_de),
     isUnilateral: record.is_unilateral == null ? null : !!record.is_unilateral,

@@ -102,7 +102,7 @@ describe('Master-Quelle', () => {
     const repo = {
       listExisting: async () => [{ ...existing, instructionsDe: 'neu', cuesDe: 'Cue' }],
       ensureGroup: async () => 1, insert: jest.fn(async () => 1), patch: jest.fn(async () => undefined),
-      upsertReformer: upsert,
+      upsertReformer: upsert, saveIcon: jest.fn(),
     };
     const source = { name: 'sheet', overwrites: true, load: async () => ({ entries: [entry], problems: ['Zeile 5: x'] }) };
     const report = await new ImportCatalogUseCase(source, repo).execute({ dryRun: false });
@@ -123,7 +123,7 @@ describe('Master-Quelle', () => {
 
     const repo = {
       listExisting: async () => [cardio], ensureGroup: async () => 1,
-      insert: jest.fn(async () => 2), patch: jest.fn(async () => undefined), upsertReformer: jest.fn(async () => undefined),
+      insert: jest.fn(async () => 2), patch: jest.fn(async () => undefined), upsertReformer: jest.fn(async () => undefined), saveIcon: jest.fn(),
     };
     const source = { name: 'sheet', overwrites: true, load: async () => ({ entries: [laufen], problems: [] }) };
     const report = await new ImportCatalogUseCase(source, repo).execute({ dryRun: false });
@@ -134,7 +134,7 @@ describe('Master-Quelle', () => {
   it('der Probelauf ruft nichts Schreibendes auf', async () => {
     const repo = {
       listExisting: async () => [] as ExistingExercise[], ensureGroup: jest.fn(async () => 1),
-      insert: jest.fn(async () => 1), patch: jest.fn(async () => undefined), upsertReformer: jest.fn(async () => undefined),
+      insert: jest.fn(async () => 1), patch: jest.fn(async () => undefined), upsertReformer: jest.fn(async () => undefined), saveIcon: jest.fn(),
     };
     const source = { name: 'sheet', overwrites: true, load: async () => ({ entries: [entry] as CatalogEntry[], problems: [] }) };
     const report = await new ImportCatalogUseCase(source, repo).execute({ dryRun: true });

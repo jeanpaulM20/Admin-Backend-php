@@ -15,7 +15,13 @@ export class TypeOrmExerciseCatalogRepository implements ExerciseCatalogReposito
 
   async listExisting(): Promise<ExistingExercise[]> {
     const rows = await this.exercises.find({ where: { archive: 0 } });
+    // Der Blob ist select: false — ob ein Bild da ist, kommt aus einer eigenen Abfrage.
+    const withIcon = new Set<number>(
+      (await this.exercises.createQueryBuilder('e').select('e.id', 'id').where('e.icon IS NOT NULL').getRawMany())
+        .map((r: { id: number }) => Number(r.id)),
+    );
     return rows.map((e) => ({
+      hasIcon: withIcon.has(e.id),
       id: e.id,
       name: e.name,
       primaryMuscleGroup: e.primaryMuscleGroup ?? null,
@@ -66,6 +72,12 @@ export class TypeOrmExerciseCatalogRepository implements ExerciseCatalogReposito
       }),
     );
     return saved.id;
+  }
+
+  async saveIcon(exerciseId: number, bytes: Uint8Array): Promise<void> {
+    await this.exercises.createQueryBuilder().update(Exercise)
+      .set({ icon: Buffer.from(bytes) } as Partial<Exercise>)
+      .where('id = :id', { id: exerciseId }).execute();
   }
 
   async upsertReformer(exerciseId: number, spec: ReformerSpec): Promise<void> {

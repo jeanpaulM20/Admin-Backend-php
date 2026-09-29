@@ -27,6 +27,8 @@ export interface CatalogEntry {
   contraindications?: string | null;
   /** Nur bei modality = pilates_reformer */
   reformer?: ReformerSpec | null;
+  /** Illustration der Quelle (absolute Adresse), falls sie eine liefert. */
+  imageUrl?: string | null;
 }
 
 /** Reformer-Angaben, Spiegel der Tabelle exercise_reformer. */
@@ -59,4 +61,6 @@ export interface ExistingExercise {
   breathingDe?: string | null;
   tempo?: string | null;
   contraindications?: string | null;
+  /** Hat der Eintrag schon ein Bild? Nur der Bild-Import fragt danach. */
+  hasIcon?: boolean;
 }

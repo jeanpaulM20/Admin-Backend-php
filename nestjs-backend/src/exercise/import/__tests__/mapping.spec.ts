@@ -90,7 +90,7 @@ describe('ImportCatalogUseCase', () => {
         return store.length;
       },
       patch: async () => undefined,
-      upsertReformer: async () => undefined,
+      upsertReformer: async () => undefined, saveIcon: jest.fn(),
     };
     const source = { name: 'test', overwrites: false, load: async () => ({ entries, problems: [] }) };
 
@@ -106,7 +106,7 @@ describe('ImportCatalogUseCase', () => {
 
   it('schreibt im Probelauf nichts', async () => {
     const insert = jest.fn(async () => 1);
-    const repo = { listExisting: async () => [], ensureGroup: async () => 1, insert, patch: jest.fn(), upsertReformer: jest.fn() };
+    const repo = { listExisting: async () => [], ensureGroup: async () => 1, insert, patch: jest.fn(), upsertReformer: jest.fn(), saveIcon: jest.fn(), };
     const source = { name: 't', overwrites: false, load: async () => ({ entries, problems: [] }) };
     const report = await new ImportCatalogUseCase(source, repo).execute({ dryRun: true });
     expect(report.inserted).toBe(1);

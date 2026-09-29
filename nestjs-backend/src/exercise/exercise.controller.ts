@@ -8,7 +8,9 @@ import { Public } from '../auth/decorators/public.decorator';
 import { CurrentTrainer } from '../auth/decorators/current-user.decorator';
 import { Trainer } from '../entities/trainer.entity';
 import { ImportCatalogUseCase } from './import/application/import-catalog.usecase';
-import { REPDB_IMPORT, REFORMER_IMPORT } from './import/interface/catalog-import.provider';
+import { REPDB_IMPORT, REPDB_IMAGE_IMPORT, REFORMER_IMPORT } from './import/interface/catalog-import.provider';
+import type { ImportCatalogImagesUseCase } from './import/application/import-catalog-images.usecase';
+import { imageMime } from './import/adapter/http-image-fetcher';
 
 @Controller('api/exercise')
 export class ExerciseController {
@@ -17,7 +19,27 @@ export class ExerciseController {
     private readonly iconService: ExerciseIconService,
     @Inject(REPDB_IMPORT) private readonly repDbImport: ImportCatalogUseCase,
     @Inject(REFORMER_IMPORT) private readonly reformerImport: ImportCatalogUseCase,
+    @Inject(REPDB_IMAGE_IMPORT) private readonly repDbImageImport: ImportCatalogImagesUseCase,
   ) {}
+
+  /**
+   * POST /api/exercise/import/repdb/images?dryRun=1&limit=100 — RepDB-
+   * Illustrationen für importierte Übungen ohne Bild holen. Vorhandene
+   * Bilder bleiben unangetastet.
+   */
+  @Post('import/repdb/images')
+  async importRepDbImages(
+    @CurrentTrainer() trainer: Trainer,
+    @Query('dryRun') dryRun?: string,
+    @Query('limit') limit?: string,
+  ) {
+    if (!trainer) throw new ForbiddenException('Nur Trainer können den Katalog importieren.');
+    const parsed = limit ? Number(limit) : undefined;
+    return this.repDbImageImport.execute({
+      dryRun: dryRun === '1' || dryRun === 'true',
+      limit: Number.isFinite(parsed) && parsed! > 0 ? parsed : undefined,
+    });
+  }
 
   /**
    * POST /api/exercise/import/reformer?dryRun=1 — Erfassungsblatt des Studios
@@ -112,7 +134,8 @@ export class ExerciseController {
     const buffer = await this.iconService.getIconBuffer(id);
     if (!buffer) throw new NotFoundException('Icon nicht vorhanden');
     res.set({
-      'Content-Type': 'image/png',
+      // Der Pfad heisst icon.png, gespeichert sind PNG (KI-Bilder) und WebP (RepDB).
+      'Content-Type': imageMime(buffer),
       'Cache-Control': 'public, max-age=86400',
     });
     res.send(buffer);

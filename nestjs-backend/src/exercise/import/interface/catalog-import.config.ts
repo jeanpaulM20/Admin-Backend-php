@@ -8,6 +8,8 @@ import * as path from 'path';
 
 export interface CatalogImportConfig {
   repDbUrl: string;
+  /** Wurzel der RepDB-Bildpfade (images/flat/…); leer = keine Bilder. */
+  repDbImageBase: string | null;
   /** Erfassungsblatt des Studios; liegt im Repo unter data/. */
   reformerSheetPath: string;
 }
@@ -17,6 +19,8 @@ export function readCatalogImportConfig(env: NodeJS.ProcessEnv = process.env): C
     repDbUrl:
       env.REPDB_SOURCE_URL ??
       'https://raw.githubusercontent.com/RepDB/exercise-dataset/main/exercises.json',
+    repDbImageBase:
+      env.REPDB_IMAGE_BASE ?? 'https://raw.githubusercontent.com/RepDB/exercise-dataset/main',
     reformerSheetPath: env.REFORMER_SHEET_PATH ?? defaultSheetPath(),
   };
 }
