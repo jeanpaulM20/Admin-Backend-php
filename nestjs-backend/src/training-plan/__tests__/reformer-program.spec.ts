@@ -86,9 +86,10 @@ describe('Deterministisches Programm', () => {
 describe('Umfang je Abschnitt (Produktionsfund Plan #742: 5/2/2/1 statt 3/4/2/1)', () => {
   const basic = POOL.filter((x) => x.level === 'beginner' || x.level === null);
 
-  it('schneidet die Eröffnung zu und füllt die Serie klassisch geordnet auf', () => {
-    const llm = arrangeByOrder([POOL[0], POOL[1], POOL[2], POOL[7], POOL[11], POOL[13]]); // 3 Footwork/Hundert, 1 Serie, 1 Knee, 1 Abschluss
-    const fitted = fitToCounts(llm, REFORMER_DURATION_COUNTS[30], basic);
+  it('schneidet die Eröffnung zu (Hundert bleibt) und füllt die Serie klassisch geordnet auf', () => {
+    const opening = [c(1, 'Footwork Zehen', 1), c(21, 'Footwork Fussgewölbe', 2), c(2, 'Footwork Fersen', 3), c(22, 'Footwork Sehnendehnung', 4), c(3, 'Hundert', 5)];
+    const llm = arrangeByOrder([...opening, POOL[7], POOL[11], POOL[13]]); // 5 Eröffnung (Plan #744), 1 Serie, 1 Knee, 1 Abschluss
+    const fitted = fitToCounts(llm, REFORMER_DURATION_COUNTS[30], [...basic, ...opening]);
     expect(fitted.sonsomo.map((x) => x.name)).toEqual(['Footwork Zehen', 'Footwork Fersen', 'Hundert']);
     expect(fitted.main).toHaveLength(4);
     expect(fitted.main.map((x) => x.name)).toContain('Stomach Massage rund');           // Wahl des Modells bleibt

@@ -121,7 +121,9 @@ export function buildReformerProgram(
   const full = arrangeByOrder(admitted);
   const counts = REFORMER_DURATION_COUNTS[duration ?? DEFAULT_REFORMER_DURATION];
   return {
-    sonsomo: full.sonsomo.slice(0, counts.sonsomo),
+    // Eröffnung gleichmässig: bei drei Plätzen Zehen · Fersen · Hundert statt
+    // dreimal Footwork ohne Hundert.
+    sonsomo: evenlySpaced(full.sonsomo, counts.sonsomo),
     main: evenlySpaced(full.main, counts.main),
     core: full.core.slice(0, counts.core),
     mobility: full.mobility.slice(0, counts.mobility),
@@ -143,13 +145,14 @@ export function fitToCounts(
   const reserve = arrangeByOrder(pool);
   const taken = new Set<number>();
   const result: ReformerProgram = { sonsomo: [], main: [], core: [], mobility: [] };
+  const spread = (s: PlanSection) => s === 'main' || s === 'sonsomo';
   for (const s of SECTIONS) {
     const want = counts[s];
-    let list = s === 'main' ? evenlySpaced(program[s], want) : program[s].slice(0, want);
+    let list = spread(s) ? evenlySpaced(program[s], want) : program[s].slice(0, want);
     list.forEach((c) => taken.add(c.id));
     if (list.length < want) {
       const spare = reserve[s].filter((c) => !taken.has(c.id));
-      const fill = s === 'main' ? evenlySpaced(spare, want - list.length) : spare.slice(0, want - list.length);
+      const fill = spread(s) ? evenlySpaced(spare, want - list.length) : spare.slice(0, want - list.length);
       fill.forEach((c) => taken.add(c.id));
       list = [...list, ...fill].sort(byClassicalOrder);
     }

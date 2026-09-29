@@ -449,6 +449,10 @@ export class AiPlanService {
 
     const previous = await this.loadPreviousPlanRows(clientId, 'pilates_reformer');
     const all = [...program.sonsomo, ...program.main, ...program.core, ...program.mobility];
+    // Was das Modell wollte, der Umfang aber nicht hergab — sonst erklärt die
+    // Begründung Übungen, die im Plan fehlen.
+    const kept = new Set(all.map((c) => c.id));
+    const trimmed = chosen.filter((c, i) => !kept.has(c.id) && chosen.findIndex((x) => x.id === c.id) === i).map((c) => c.name);
     const carryOvers = springCarryOvers(previous, all);
     const carried = new Map(carryOvers.map((c) => [c.exerciseId, c.springs]));
 
@@ -469,6 +473,7 @@ export class AiPlanService {
       carryOvers.length ? `Federn aus dem Vorplan übernommen für ${carryOvers.length} Übungen.` : '',
       hints.length ? `Progression prüfen — ${hints.join('; ')}.` : '',
       dropped.length ? `Nicht im Repertoire und darum weggelassen: ${dropped.join(', ')}.` : '',
+      trimmed.length ? `Auf den Umfang von ${request?.duration ?? DEFAULT_REFORMER_DURATION} Minuten zugeschnitten, weggelassen: ${trimmed.join(', ')}.` : '',
     ].filter(Boolean).join(' ');
 
     return {
