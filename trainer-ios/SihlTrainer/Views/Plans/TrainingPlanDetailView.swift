@@ -29,6 +29,7 @@ struct TrainingPlanDetailView: View {
         .background(AppColor.background)
         .environment(\.editMode, .constant(model.isEditing ? .active : .inactive))
         .navigationTitle(model.plan.name?.isEmpty == false ? model.plan.name! : "Trainingsplan")
+        .task { await model.loadExerciseIds() }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbarContent }
         .sheet(isPresented: $showSchedule) {
@@ -95,7 +96,8 @@ struct TrainingPlanDetailView: View {
                             set: { model.plan.values[section][index] = $0 }
                         ), isPreview: isPreview, usesSprings: model.plan.modality.usesSprings)
                     } else {
-                        RowDisplay(row: row)
+                        RowDisplay(row: row, iconId: model.iconId(for: row),
+                                   placeholder: model.plan.modality.usesSprings ? "figure.pilates" : "dumbbell")
                     }
                 }
                 .onDelete { offsets in
@@ -161,8 +163,32 @@ struct TrainingPlanDetailView: View {
 /// Zeile im Lesemodus: Übung oben, die Ausführungsangaben darunter.
 private struct RowDisplay: View {
     let row: TrainingPlanRow
+    let iconId: Int?
+    let placeholder: String
 
     var body: some View {
+        HStack(spacing: 12) {
+            // Übungsbild wie im Katalog; ohne ID oder Bild ein Platzhalter,
+            // damit die Zeilenhöhe gleich bleibt.
+            AsyncImage(url: iconId.flatMap(Exercise.iconURL(id:))) { phase in
+                if let image = phase.image {
+                    image.resizable().scaledToFit()
+                } else {
+                    Image(systemName: placeholder)
+                        .font(.app(16))
+                        .foregroundStyle(AppColor.muted)
+                }
+            }
+            .frame(width: 44, height: 44)
+            .background(AppColor.surface2)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            textBlock
+        }
+        .padding(.vertical, 2)
+    }
+
+    private var textBlock: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 8) {
                 Text(row.exercise.isEmpty ? "Ohne Namen" : row.exercise)
@@ -190,7 +216,6 @@ private struct RowDisplay: View {
                     .foregroundStyle(AppColor.brass)
             }
         }
-        .padding(.vertical, 2)
     }
 
     private var details: String? {
@@ -251,6 +276,7 @@ private struct RowEditor: View {
         .sheet(isPresented: $showCatalog) {
             ExerciseCatalogSheet(isPreview: isPreview) { selection in
                 row.exercise = selection.name
+                row.exerciseId = selection.id
                 // Gerät nur setzen, wenn der Katalog eines kennt — sonst
                 // bliebe eine vom Trainer getippte Angabe auf der Strecke.
                 if !selection.device.isEmpty { row.device = selection.device }

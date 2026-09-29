@@ -85,7 +85,7 @@ struct ExerciseCatalogSheet: View {
         } else {
             List(model.filtered) { exercise in
                 Button {
-                    onSelect(ExerciseSelection(name: exercise.name,
+                    onSelect(ExerciseSelection(id: exercise.id, name: exercise.name,
                                                device: exercise.group?.name ?? ""))
                     dismiss()
                 } label: {

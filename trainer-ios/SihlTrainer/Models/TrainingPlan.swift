@@ -20,10 +20,14 @@ struct TrainingPlanRow: Identifiable, Equatable {
     var springs = ""         // Anzeige: "1 rot + 1 blau"
     var breathing = ""       // "5 ein / 5 aus"
     var tempo = ""           // "3-1-1-0"
+    /// Katalog-ID, wenn die Zeile aus dem Katalog oder vom Generator stammt —
+    /// Schlüssel zum Übungsbild. Muss beim Speichern erhalten bleiben.
+    var exerciseId: Int? = nil
 
     init() {}
 
     init(json: [String: Any]) {
+        exerciseId = JSON.intNonZero(json, "exerciseId", "exercise_id")
         exercise = JSON.string(json, "exercise") ?? ""
         device = JSON.string(json, "device") ?? ""
         position = JSON.string(json, "position") ?? ""
@@ -67,6 +71,7 @@ struct TrainingPlanRow: Identifiable, Equatable {
         if !springs.isEmpty { result["springs"] = springs }
         if !breathing.isEmpty { result["breathing"] = breathing }
         if !tempo.isEmpty { result["tempo"] = tempo }
+        if let exerciseId { result["exerciseId"] = exerciseId }
         return result
     }
 

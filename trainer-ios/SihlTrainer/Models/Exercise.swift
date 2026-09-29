@@ -134,8 +134,13 @@ struct Exercise: Identifiable, Equatable {
 
     /// Symbolbild der Übung. Liefert das Backend keines, zeigt die Zeile ein
     /// Platzhaltersymbol.
-    var iconURL: URL? {
-        URL(string: "exercise/\(id)/icon.png", relativeTo: APIConfig.baseURL)
+    var iconURL: URL? { Exercise.iconURL(id: id) }
+
+    /// Bild einer Übung nach ID — auch Planzeilen nutzen das.
+    /// absoluteURL: AsyncImage bekommt eine relative URL (mit baseURL) nicht
+    /// auf jeder iOS-Version aufgelöst — absolut ist überall eindeutig.
+    static func iconURL(id: Int) -> URL? {
+        URL(string: "exercise/\(id)/icon.png", relativeTo: APIConfig.baseURL)?.absoluteURL
     }
 
     /// Suchtreffer über Name, Gruppe, Untergruppe und Muskelgruppe — wie der
@@ -153,6 +158,7 @@ struct Exercise: Identifiable, Equatable {
 
 /// Was die Auswahl an die Planzeile zurückgibt: Name und Gerät (= Gruppe).
 struct ExerciseSelection {
+    let id: Int
     let name: String
     let device: String
 }

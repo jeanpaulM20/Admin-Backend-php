@@ -89,8 +89,12 @@ final class TrainingPlanEditorViewModel: ObservableObject {
     @Published var isEditing = false
     @Published private(set) var isSaving = false
     @Published var error: String?
+    /// Übungsname (klein) → Katalog-ID, für Zeilen, die nur den Namen tragen
+    /// (von Hand getippt oder aus der Web-App). Bilder hängen an der ID.
+    @Published private(set) var exerciseIds: [String: Int] = [:]
 
     private let service = TrainingPlanService()
+    private let exerciseService = ExerciseService()
     private let isPreview: Bool
     private var saved: TrainingPlan
 
@@ -102,6 +106,26 @@ final class TrainingPlanEditorViewModel: ObservableObject {
 
     var hasChanges: Bool {
         plan.name != saved.name || plan.values != saved.values
+    }
+
+    /// Katalog einmal laden, damit jede Zeile ihr Bild findet. Fehler sind
+    /// hier kein Drama — dann bleibt der Platzhalter.
+    func loadExerciseIds() async {
+        guard exerciseIds.isEmpty else { return }
+        #if DEBUG
+        if isPreview {
+            exerciseIds = Dictionary(PreviewData.exercises.map { ($0.name.lowercased(), $0.id) }, uniquingKeysWith: { a, _ in a })
+            return
+        }
+        #endif
+        guard let list = try? await exerciseService.exercises() else { return }
+        exerciseIds = Dictionary(list.map { ($0.name.lowercased(), $0.id) }, uniquingKeysWith: { a, _ in a })
+    }
+
+    /// Bild-ID einer Zeile: der Name gewinnt (ein umbenannter Eintrag soll
+    /// nicht das alte Bild behalten), sonst die gespeicherte Katalog-ID.
+    func iconId(for row: TrainingPlanRow) -> Int? {
+        exerciseIds[row.exercise.trimmingCharacters(in: .whitespaces).lowercased()] ?? row.exerciseId
     }
 
     func addRow(to section: PlanSection) {
