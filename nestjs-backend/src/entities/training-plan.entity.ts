@@ -30,7 +30,8 @@ export class TrainingPlan {
   @Column({ name: 'own_week', nullable: true })
   ownWeek: number;
 
-  @Column({ nullable: true })
+  /** Freitext-Ziel bzw. bei KI-Plänen die Begründung — TEXT, weil 255 Zeichen nicht reichen. */
+  @Column({ type: 'text', nullable: true })
   goal: string;
 
   @Column({ nullable: true, type: 'text' })

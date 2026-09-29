@@ -60,6 +60,12 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       `ALTER TABLE training_plan_comment ADD INDEX idx_tpc_plan_exercise (plan_id, exercise_key)`,
       // AI-generated exercise icon (PNG stored as BLOB)
       `ALTER TABLE exercise ADD COLUMN icon LONGBLOB DEFAULT NULL`,
+      // KI-Begründung (ai_reasoning) ist länger als 255 Zeichen — mit VARCHAR
+      // scheiterte jede Speicherung eines KI-Plans mit "Data too long".
+      `ALTER TABLE trainingplan MODIFY COLUMN goal TEXT DEFAULT NULL`,
+      // Die Goal-Entity liest target_date; ohne die Spalte fällt das Laden
+      // der Kundenziele für den KI-Prompt still aus.
+      `ALTER TABLE goal ADD COLUMN target_date DATE DEFAULT NULL`,
       // Training plan timestamps for sorting (newest/recently edited first)
       `ALTER TABLE trainingplan ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP`,
       `ALTER TABLE trainingplan ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`,

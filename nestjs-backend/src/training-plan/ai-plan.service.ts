@@ -371,7 +371,7 @@ export class AiPlanService {
         clientId,
         values,
         name: result.name || 'KI-Trainingsplan',
-        goal: result.ai_reasoning.substring(0, 1000),
+        goal: result.ai_reasoning,
         modality: result.modality,
       }),
     );
