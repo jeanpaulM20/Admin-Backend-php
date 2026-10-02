@@ -26,13 +26,27 @@ export class ToursAssistantService {
   private readonly anthropic?: Anthropic;
 
   /**
-   * Tageslimit je Kunde (Missbrauchs-/Kostenbremse). Über die
-   * Umgebungsvariable ASSISTANT_DAILY_LIMIT steuerbar; 0 oder nicht
-   * gesetzt = kein Limit (Testphase).
+   * Tageslimit je Kunde (Missbrauchs-/Kostenbremse): 30 Fragen pro Tag.
+   * Über die Umgebungsvariable ASSISTANT_DAILY_LIMIT übersteuerbar;
+   * dort bedeutet 0 „kein Limit". Der Zähler lebt im Speicher der
+   * Instanz und beginnt nach einem Neustart/Deploy von vorn.
    */
   private readonly usage = new Map<number, { date: string; count: number }>();
-  private static readonly DAILY_LIMIT =
-    parseInt(process.env.ASSISTANT_DAILY_LIMIT ?? '0', 10) || 0;
+  private static readonly DEFAULT_DAILY_LIMIT = 30;
+  private static readonly DAILY_LIMIT = ToursAssistantService.dailyLimit(process.env.ASSISTANT_DAILY_LIMIT);
+
+  /** Nicht gesetzt/leer/ungültig → Standard; eine Zahl (auch 0) gilt wie angegeben. */
+  static dailyLimit(raw: string | undefined): number {
+    const value = raw?.trim();
+    if (!value) return ToursAssistantService.DEFAULT_DAILY_LIMIT;
+    const parsed = parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : ToursAssistantService.DEFAULT_DAILY_LIMIT;
+  }
+
+  /** Kalendertag in der Schweiz — das Limit wechselt um Mitternacht Ortszeit. */
+  private static today(): string {
+    return new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Zurich' });
+  }
 
   constructor(private readonly tours: ToursService) {
     const key = process.env.ANTHROPIC_API_KEY?.trim();
@@ -170,7 +184,7 @@ Regeln:
     }
     // Tageslimit
     if (ToursAssistantService.DAILY_LIMIT > 0) {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = ToursAssistantService.today();
       const u = this.usage.get(clientId);
       const count = u?.date === today ? u.count : 0;
       if (count >= ToursAssistantService.DAILY_LIMIT) {

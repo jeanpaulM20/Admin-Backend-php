@@ -267,5 +267,7 @@ Behoben nach eigenem und unabhängigem Review:
 - **Suche:** grosse Regionen zoomen weit genug heraus; ein zweiter Tipp
   auf den Such-Pin setzt keinen doppelten Punkt.
 
-Bewusst offen: ein Tageslimit für den Assistenten je Klient
-(`ASSISTANT_DAILY_LIMIT`, derzeit ohne Limit — Produktentscheid).
+Tageslimit des Assistenten: **30 Fragen pro Klient und Tag** (Standard im
+Code, per `ASSISTANT_DAILY_LIMIT` übersteuerbar; `0` = kein Limit). Der
+Tag wechselt um Mitternacht Schweizer Zeit. Der Zähler lebt im Speicher
+der Instanz und beginnt nach einem Deploy von vorn.
