@@ -27,6 +27,8 @@ struct TourDiscoveryView: View {
     @State private var showImporter = false
     @State private var showAssistant = false
     @State private var searchModel = LocationSearchModel()
+    /// Exakter Punkt des letzten Suchtreffers (Pin auf der Karte)
+    @State private var searchPin: LocationSearchModel.Place?
     /// Einmal-Ortung für „Wo bin ich?" — kein Dauer-GPS beim Kartenbetrachten
     @State private var locator = OneShotLocator()
     @State private var locationDenied = false
@@ -201,11 +203,27 @@ struct TourDiscoveryView: View {
                     .font(.subheadline)
                     .foregroundStyle(AppColor.text)
                     .submitLabel(.search)
+                    // Ortsnamen nicht „korrigieren" — aus „strasse" wurde sonst
+                    // „straße" und die Suche traf einen anderen Ort
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.words)
                     .focused($searchFocused)
                     .onSubmit { searchLocation() }
                     .onChange(of: searchText) { _, text in
                         searchModel.update(query: text, near: cameraCenter ?? center)
+                        if text.isEmpty { searchPin = nil }
                     }
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                        searchModel.clear()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.callout)
+                            .foregroundStyle(AppColor.muted)
+                    }
+                    .accessibilityLabel("Suche löschen")
+                }
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
@@ -404,6 +422,23 @@ struct TourDiscoveryView: View {
                     plannerContent
                 } else {
                     discoveryContent
+                }
+                // Suchtreffer: Pin auf der exakten Koordinate. Im
+                // Planungsmodus setzt ein Tipp darauf genau diesen Punkt.
+                if let pin = searchPin {
+                    Annotation(pin.name, coordinate: pin.coordinate, anchor: .bottom) {
+                        Image(systemName: "mappin.circle.fill")
+                            .font(.app(30))
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(AppColor.white, AppColor.blue)
+                            .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+                            .frame(width: 44, height: 44, alignment: .bottom)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                if isPlanning { planner.add(pin.coordinate) }
+                            }
+                            .accessibilityLabel("Suchtreffer \(pin.name)")
+                    }
                 }
             }
             .onTapGesture { position in
@@ -661,15 +696,21 @@ struct TourDiscoveryView: View {
         searchText = s.title
         searchModel.clear()
         Task {
-            guard let c = await searchModel.resolve(s) else {
+            guard let place = await searchModel.resolve(s) else {
                 error = "Ort konnte nicht geladen werden."
                 return
             }
-            moveTo(c)
+            show(place)
         }
     }
 
-    /// Fallback für die „Suchen“-Taste ohne gewählten Vorschlag.
+    /// Suchtreffer anzeigen: Pin auf die exakte Koordinate, Karte so nah
+    /// heran, wie es zur Grösse des Treffers passt.
+    private func show(_ place: LocationSearchModel.Place) {
+        searchPin = place
+        moveTo(place.coordinate, span: place.span)
+    }
+
     /// Detail der gewählten Tour laden und als Karten-Vorschau zeichnen.
     private func loadPreview(for id: String?) {
         guard let id, previewCache[id] == nil, !loadingPreviews.contains(id) else { return }
@@ -687,22 +728,23 @@ struct TourDiscoveryView: View {
         }
     }
 
+    /// Fallback für die „Suchen“-Taste ohne gewählten Vorschlag.
     private func searchLocation() {
+        // Der oberste Vorschlag ist genauer als die Freitext-Suche
+        if let top = searchModel.suggestions.first {
+            select(top)
+            return
+        }
         searchFocused = false
         searchModel.clear()
-        let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = searchText
-        request.region = MKCoordinateRegion(
-            center: center,
-            span: MKCoordinateSpan(latitudeDelta: 2, longitudeDelta: 2))
-        MKLocalSearch(request: request).start { response, _ in
-            Task { @MainActor in
-                guard let item = response?.mapItems.first else {
-                    error = "„\(searchText)“ wurde nicht gefunden."
-                    return
-                }
-                moveTo(item.placemark.coordinate)
+        let query = searchText
+        guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        Task {
+            guard let place = await searchModel.search(query, near: center) else {
+                error = "„\(query)“ wurde nicht gefunden."
+                return
             }
+            show(place)
         }
     }
 
@@ -740,8 +782,8 @@ struct TourDiscoveryView: View {
     }
 
     /// Karte zentrieren und Touren neu laden. `span` in Grad: 0.15 ≈ 15 km
-    /// (Ortssuche, zeigt den 10-km-Suchradius), 0.02 ≈ 2 km (eigener
-    /// Standort — „wo genau bin ich?").
+    /// (Start, zeigt den 10-km-Suchradius), 0.02 ≈ 2 km (eigener Standort);
+    /// Suchtreffer bringen ihren eigenen, zur Treffergrösse passenden Wert mit.
     private func moveTo(_ c: CLLocationCoordinate2D, span: Double = 0.15) {
         center = c
         withAnimation(.easeInOut(duration: 0.6)) {
