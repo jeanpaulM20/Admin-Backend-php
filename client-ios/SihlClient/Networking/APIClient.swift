@@ -4,6 +4,9 @@ import Foundation
 struct APIError: LocalizedError {
     let statusCode: Int
     let message: String
+    /// Roh-Antwort des Servers — für Aufrufer, die Zusatzfelder der
+    /// Fehlerantwort brauchen (z. B. `pointIndex` beim Routenplaner).
+    var body: Data? = nil
 
     var errorDescription: String? { message }
 }
@@ -134,6 +137,6 @@ actor APIClient {
            !generic.contains(serverMsg.lowercased()) {
             message = serverMsg
         }
-        return APIError(statusCode: statusCode, message: message)
+        return APIError(statusCode: statusCode, message: message, body: data)
     }
 }

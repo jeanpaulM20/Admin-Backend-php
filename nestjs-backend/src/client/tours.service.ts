@@ -2,7 +2,14 @@ import { Injectable } from '@nestjs/common';
 
 /** Fachlicher Routing-Fehler: kein Weg zwischen den Punkten (→ 422 im Controller). */
 export class RouteNotFoundError extends Error {
-  constructor(message = 'Keine Route gefunden — Punkt verschieben oder löschen.') {
+  /**
+   * @param pointIndex Index des Punkts, den die Routing-Engine nicht
+   *   zuordnen konnte (0 = Start, -1 = Ziel), falls sie ihn benennt.
+   */
+  constructor(
+    message = 'Keine Route gefunden — Punkt verschieben oder löschen.',
+    readonly pointIndex?: number,
+  ) {
     super(message);
     this.name = 'RouteNotFoundError';
   }
@@ -380,12 +387,36 @@ out geom 80;`;
       this.viaCache.set(key, entry);
     }
 
+    const tour = await entry.tour;
+    // BRouter rastet jeden Punkt auf den nächsten Weg ein — auch wenn der
+    // weit weg liegt (See, Gletscher). Der Abstand Punkt ↔ Route macht das
+    // für die App sichtbar (rote Markierung ab ~150 m).
+    const line = tour.segments[0];
     return {
       id: `plan-${now}`,
       name: 'Geplante Route',
-      ...(await entry.tour),
-      waypoints: chain.map((p) => ({ lat: p.lat, lon: p.lon })),
+      ...tour,
+      waypoints: points.map((p) => ({
+        lat: p.lat, lon: p.lon,
+        offRouteM: Math.round(ToursService.distanceToLineM(p, line)),
+      })),
     };
+  }
+
+  /** Kürzester Abstand eines Punkts zu einer Linie (Meter, lokale Projektion). */
+  private static distanceToLineM(p: RoutePoint, line: { lat: number; lon: number }[]): number {
+    const kLat = 110_574, kLon = 111_320 * Math.cos((p.lat * Math.PI) / 180);
+    let best = Infinity;
+    for (let i = 1; i < line.length; i++) {
+      const ax = (line[i - 1].lon - p.lon) * kLon, ay = (line[i - 1].lat - p.lat) * kLat;
+      const bx = (line[i].lon - p.lon) * kLon, by = (line[i].lat - p.lat) * kLat;
+      const dx = bx - ax, dy = by - ay;
+      const len2 = dx * dx + dy * dy;
+      const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / len2));
+      const d = Math.hypot(ax + t * dx, ay + t * dy);
+      if (d < best) best = d;
+    }
+    return best;
   }
 
   static readonly MAX_VIA_POINTS = 25;
@@ -553,7 +584,18 @@ out geom 80;`;
       } catch {
         throw new RoutingUnavailableError();
       }
-      if (res.status >= 400 && res.status < 500) throw new RouteNotFoundError();
+      // brouter.de drosselt mit 403/429 („Please, retry later!") — das ist
+      // Überlast, kein Routing-Ergebnis
+      if (res.status === 403 || res.status === 429) {
+        throw new RoutingUnavailableError('Routing gerade ausgelastet — bitte gleich nochmals versuchen.');
+      }
+      if (res.status >= 400 && res.status < 500) {
+        // z. B. „via1-position not mapped in existing datafile"
+        const text = await res.text().catch(() => '');
+        const m = /(from|to|via(\d+))-position not mapped/.exec(text);
+        const index = !m ? undefined : m[1] === 'from' ? 0 : m[1] === 'to' ? -1 : parseInt(m[2], 10);
+        throw new RouteNotFoundError(undefined, index);
+      }
       if (!res.ok) throw new RoutingUnavailableError(`Routing fehlgeschlagen (${res.status})`);
       let geo: any;
       try { geo = await res.json(); } catch { throw new RouteNotFoundError(); }

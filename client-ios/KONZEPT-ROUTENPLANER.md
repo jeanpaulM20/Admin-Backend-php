@@ -1,6 +1,6 @@
 # Konzept: Routenplaner — Start, Zwischenpunkte, Ziel
 
-Stand: 26. September 2026 · Status: Phase 1 umgesetzt
+Stand: 26. September 2026 · Status: Phase 1 und 2 umgesetzt
 
 ## 1. Ziel
 
@@ -171,3 +171,28 @@ Phase 1 ist für sich vollständig nutzbar.
    bewusst per Schalter.
 3. **Maximal 25 Punkte** — reicht das?
 4. **Phase 3 zeitnah** oder erst nach Praxiserfahrung mit Phase 1?
+
+## 10. Umsetzungsnotizen Phase 2 (2. Oktober 2026)
+
+- **Pins ziehen:** Karten-Annotationen nehmen in SwiftUI nur Tipps an, keine
+  Zieh-Gesten. Die Planer-Pins liegen deshalb als eigene Ebene über der
+  Karte (`PlannerPinsOverlay`) und folgen ihr über einen Kamera-Takt.
+  Tipp auf einen Pin öffnet die Aktionen (löschen, Richtung umkehren).
+- **Punkt auf der Linie einfügen:** Tipp auf die Route (18 pt Trefferbreite)
+  fügt dort einen Zwischenpunkt ein, an der richtigen Stelle der
+  Reihenfolge; anschliessend lässt er sich ziehen.
+- **Rundkurs-Schalter** im Panel: führt vom letzten Punkt zurück zum Start;
+  das Ziel wird dann zum nummerierten Punkt, der Start heisst „Start/Ziel".
+- **Menü „…":** Richtung umkehren, Ganze Route zeigen, Details und
+  Höhenprofil, Alle Punkte löschen. Tipp auf Kennzahlen oder Mini-Profil
+  öffnet ebenfalls die Details.
+- **Rote Markierung:** BRouter lehnt abgelegene Punkte nicht ab, sondern
+  rastet sie auf den nächsten Weg ein. Das Backend liefert darum je Punkt
+  den Abstand zur Route (`offRouteM`); ab 150 m wird der Pin rot und das
+  Panel nennt den Abstand. Meldet BRouter einen Punkt ausdrücklich als
+  nicht zuordenbar, kommt dessen Index mit der 422-Antwort.
+- **Drosselung von brouter.de:** Antwortet bei schnellen Folgen mit 403
+  „Please, retry later!" — wird als „ausgelastet" (503, mit „Nochmals
+  versuchen") gemeldet, nicht als „Keine Route gefunden". Bei vielen
+  gleichzeitigen Nutzern bleibt die eigene BRouter-Instanz (Abschnitt 4.1)
+  die saubere Lösung.

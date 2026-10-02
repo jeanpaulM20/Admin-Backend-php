@@ -304,6 +304,13 @@ extension TourDetail {
     }
 }
 
+/// Ergebnis des Routenplaners: die Route und je gesetztem Punkt dessen
+/// Abstand zur Route in Metern (gross = Punkt liegt abseits der Wege).
+struct PlannedRoute {
+    let detail: TourDetail
+    let offRouteM: [Int?]
+}
+
 // MARK: - TourService
 
 /// Touren-Discovery (T1) + Rundtouren-Generator (T4, BRouter/OSM).
@@ -340,15 +347,19 @@ struct TourService {
 
     /// Routenplaner: Start → Zwischenpunkte → Ziel in dieser Reihenfolge,
     /// Wegeführung je Aktivität (BRouter, inkl. Höhen und Abstieg).
+    /// `roundtrip` führt vom letzten Punkt zurück zum Start.
     func plannedRoute(clientId: String, points: [CLLocationCoordinate2D],
-                      activity: RoundtripActivity) async throws -> TourDetail? {
+                      activity: RoundtripActivity, roundtrip: Bool) async throws -> PlannedRoute? {
         let body: [String: Any] = [
             "points": points.map { ["lat": $0.latitude, "lon": $0.longitude] },
             "activity": activity.rawValue,
+            "roundtrip": roundtrip,
         ]
         guard let json = try await APIClient.shared
-            .postJSONObject("/api/client/tours/route/\(clientId)", body: body, timeout: 45) else { return nil }
-        return TourDetail(json: json)
+            .postJSONObject("/api/client/tours/route/\(clientId)", body: body, timeout: 45),
+              let detail = TourDetail(json: json) else { return nil }
+        let off = (json["waypoints"] as? [[String: Any]] ?? []).map { Int("\($0["offRouteM"] ?? "")") }
+        return PlannedRoute(detail: detail, offRouteM: off)
     }
 
     // MARK: - Demo-Daten (Demo-Modus: kein Backend-Zugriff)
@@ -424,8 +435,9 @@ struct TourService {
 
     /// Demo-Planung: Luftlinien zwischen den Punkten — ohne Wegeführung und
     /// Höhen, damit keine falschen Zahlen entstehen (Hinweis in `description`).
-    static func demoPlannedRoute(points: [CLLocationCoordinate2D],
-                                 activity: RoundtripActivity) -> TourDetail {
+    static func demoPlannedRoute(points input: [CLLocationCoordinate2D],
+                                 activity: RoundtripActivity, roundtrip: Bool) -> TourDetail {
+        let points = roundtrip ? input + input.prefix(1) : input
         var km = 0.0
         for i in points.indices.dropFirst() {
             km += CLLocation(latitude: points[i - 1].latitude, longitude: points[i - 1].longitude)

@@ -40,6 +40,10 @@ struct TourDiscoveryView: View {
     @State private var showDiscardAlert = false
     @State private var hasFittedRoute = false
     @State private var startRoute: TourDetail?
+    /// Pin, dessen Aktionen gerade angeboten werden (Tipp auf den Pin)
+    @State private var selectedPoint: PlannedPoint?
+    /// Taktgeber für die Pin-Ebene: zählt bei jeder Kamerabewegung hoch
+    @State private var cameraTicker = MapCameraTicker()
 
     // Routen-Vorschau: die Route der gerade gewählten Tour-Karte wird auf
     // der Karte gezeichnet (Details werden nachgeladen und gecacht)
@@ -90,6 +94,7 @@ struct TourDiscoveryView: View {
                     RoutePlannerPanel(
                         model: planner,
                         onLocate: { locateAsStart() },
+                        onFit: { fitRoute() },
                         onDetails: { generatedDetail = $0 },
                         onStart: { startRoute = $0 })
                 } else {
@@ -104,12 +109,29 @@ struct TourDiscoveryView: View {
         } message: {
             Text("Die gesetzten Punkte und die berechnete Route gehen verloren.")
         }
+        .confirmationDialog(
+            selectedPoint.map { planner.label(of: $0) } ?? "",
+            isPresented: Binding(get: { selectedPoint != nil },
+                                 set: { if !$0 { selectedPoint = nil } }),
+            titleVisibility: .visible,
+            presenting: selectedPoint
+        ) { point in
+            Button("Punkt löschen", role: .destructive) { planner.remove(point) }
+            if planner.points.count >= 2 {
+                Button("Richtung umkehren") { planner.reverse() }
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: { point in
+            Text(planner.isFlagged(point)
+                 ? "Dieser Punkt liegt abseits der Wege. Zum Verschieben den Pin ziehen."
+                 : "Zum Verschieben den Pin ziehen.")
+        }
         .onChange(of: planner.result?.id) { _, id in
             // Beim ersten Ergebnis die ganze Route zeigen — danach nicht mehr
             // eingreifen, der Nutzer bewegt die Karte selbst
-            guard id != nil, !hasFittedRoute, let region = planner.fitRegion else { return }
+            guard id != nil, !hasFittedRoute else { return }
             hasFittedRoute = true
-            withAnimation(.easeInOut(duration: 0.6)) { camera = .region(region) }
+            fitRoute()
         }
         .onChange(of: planner.points.isEmpty) { _, empty in
             // Nach „Alles löschen" darf die nächste Route wieder eingepasst werden
@@ -391,6 +413,12 @@ struct TourDiscoveryView: View {
         withAnimation(.easeInOut(duration: 0.25)) { isPlanning = false }
     }
 
+    /// Karte so legen, dass die ganze Route zwischen Kopfzeile und Panel liegt.
+    private func fitRoute() {
+        guard let region = planner.fitRegion else { return }
+        withAnimation(.easeInOut(duration: 0.6)) { camera = .region(region) }
+    }
+
     /// „Mein Standort als Start“ — ein Fix, Karte dorthin, Start setzen.
     private func locateAsStart() {
         locator.locate { outcome in
@@ -442,19 +470,61 @@ struct TourDiscoveryView: View {
                 }
             }
             .onTapGesture { position in
-                // Nur im Planungsmodus: Tipp auf die Karte setzt einen Punkt
+                // Nur im Planungsmodus: Tipp auf die Linie fügt dort einen
+                // Zwischenpunkt ein, jeder andere Tipp hängt einen Punkt an
                 guard isPlanning, let c = proxy.convert(position, from: .local) else { return }
-                planner.add(c)
+                if let vertex = lineVertex(near: position, proxy: proxy) {
+                    planner.insert(c, at: planner.insertIndex(afterLineVertex: vertex))
+                } else {
+                    planner.add(c)
+                }
             }
             .onMapCameraChange { context in
                 cameraCenter = context.region.center
+            }
+            // Laufender Takt nur für die Pin-Ebene (eigenes Observable —
+            // der Rest des Bildschirms rechnet dabei nicht neu)
+            .onMapCameraChange(frequency: .continuous) { _ in
+                cameraTicker.tick &+= 1
+            }
+            .overlay {
+                if isPlanning {
+                    PlannerPinsOverlay(proxy: proxy, planner: planner, ticker: cameraTicker) {
+                        selectedPoint = $0
+                    }
+                }
             }
             .ignoresSafeArea(edges: .bottom)
         }
     }
 
-    /// Planungsmodus: Luftlinien (gestrichelt, solange keine Route da ist),
-    /// berechnete Route in der Track-Farbe, darüber die Pins.
+    /// Trifft der Tipp die Routenlinie (bzw. die Luftlinie, solange keine
+    /// Route da ist)? Liefert den Stützpunkt-Index VOR der getroffenen
+    /// Stelle, sonst nil. Gemessen wird in Bildschirmpunkten, damit die
+    /// Trefferbreite bei jedem Zoom gleich bleibt.
+    private func lineVertex(near tap: CGPoint, proxy: MapProxy) -> Int? {
+        guard planner.points.count >= 2 else { return nil }
+        let line = planner.result?.segments.first ?? planner.straightLine
+        let hitRadius: CGFloat = 18
+        var best: (index: Int, distance: CGFloat)?
+        var previous: CGPoint?
+        for (i, coordinate) in line.enumerated() {
+            guard let point = proxy.convert(coordinate, to: .local) else { previous = nil; continue }
+            if let a = previous {
+                let dx = point.x - a.x, dy = point.y - a.y
+                let len2 = dx * dx + dy * dy
+                let t = len2 == 0 ? 0 : max(0, min(1, ((tap.x - a.x) * dx + (tap.y - a.y) * dy) / len2))
+                let d = hypot(tap.x - (a.x + t * dx), tap.y - (a.y + t * dy))
+                if d <= hitRadius, d < (best?.distance ?? .infinity) { best = (i - 1, d) }
+            }
+            previous = point
+        }
+        return best?.index
+    }
+
+    /// Planungsmodus: Luftlinien (gestrichelt, solange keine Route da ist)
+    /// bzw. die berechnete Route in der Track-Farbe. Die Pins liegen als
+    /// eigene Ebene darüber (`PlannerPinsOverlay`), damit sie ziehbar sind.
     @MapContentBuilder
     private var plannerContent: some MapContent {
         if let route = planner.result {
@@ -463,34 +533,8 @@ struct TourDiscoveryView: View {
                     .stroke(AppColor.track, lineWidth: 4)
             }
         } else if planner.points.count >= 2 {
-            MapPolyline(coordinates: planner.coordinates)
+            MapPolyline(coordinates: planner.straightLine)
                 .stroke(AppColor.muted, style: StrokeStyle(lineWidth: 2, dash: [6, 6]))
-        }
-        ForEach(planner.points) { point in
-            Annotation("", coordinate: point.coordinate, anchor: .center) {
-                pinMenu(point)
-            }
-        }
-    }
-
-    /// Pin mit Kontextmenü: Löschen; am Start/Ziel zusätzlich Richtung tauschen.
-    private func pinMenu(_ point: PlannedPoint) -> some View {
-        let role = planner.role(of: point)
-        return Menu {
-            Button(role: .destructive) { planner.remove(point) } label: {
-                Label("Punkt löschen", systemImage: "trash")
-            }
-            if case .destination = role {
-                Button { planner.reverse() } label: {
-                    Label("Als Start setzen", systemImage: "arrow.left.arrow.right")
-                }
-            } else if case .start = role, planner.points.count >= 2 {
-                Button { planner.reverse() } label: {
-                    Label("Als Ziel setzen", systemImage: "arrow.left.arrow.right")
-                }
-            }
-        } label: {
-            RoutePinView(role: role)
         }
     }
 
@@ -795,6 +839,76 @@ struct TourDiscoveryView: View {
     }
 }
 
+
+// MARK: - PlannerPinsOverlay
+
+/// Zählt Kamerabewegungen der Karte — nur Views, die `tick` lesen, werden
+/// dabei neu gezeichnet.
+@Observable
+final class MapCameraTicker {
+    var tick = 0
+}
+
+/// Die Planer-Pins als Ebene über der Karte. Karten-Annotationen nehmen
+/// in SwiftUI nur Tipps an, keine Zieh-Gesten — darum werden die Pins hier
+/// selbst an ihre Bildschirmposition gesetzt und folgen der Karte über den
+/// Kamera-Takt. Tipp = Aktionen, Ziehen = Punkt verschieben.
+private struct PlannerPinsOverlay: View {
+    let proxy: MapProxy
+    let planner: RoutePlannerModel
+    let ticker: MapCameraTicker
+    let onSelect: (PlannedPoint) -> Void
+
+    @State private var draggingID: UUID?
+    /// Versatz zwischen Finger und Pin-Mitte beim Greifen
+    @State private var grabOffset: CGSize = .zero
+
+    private static let space = "plannerPins"
+
+    var body: some View {
+        let _ = ticker.tick   // Karte bewegt sich → Positionen neu bestimmen
+        ZStack {
+            ForEach(planner.points) { point in
+                if let position = proxy.convert(point.coordinate, to: .local) {
+                    pin(point, at: position)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .coordinateSpace(name: Self.space)
+    }
+
+    private func pin(_ point: PlannedPoint, at position: CGPoint) -> some View {
+        RoutePinView(role: planner.role(of: point),
+                     flagged: planner.isFlagged(point),
+                     lifted: draggingID == point.id,
+                     label: planner.label(of: point))
+            .onTapGesture { onSelect(point) }
+            .gesture(
+                DragGesture(minimumDistance: 4, coordinateSpace: .named(Self.space))
+                    .onChanged { value in
+                        if draggingID != point.id {
+                            draggingID = point.id
+                            // Der Finger greift selten genau die Mitte — den
+                            // Versatz merken, damit der Pin nicht springt
+                            grabOffset = CGSize(width: position.x - value.startLocation.x,
+                                                height: position.y - value.startLocation.y)
+                        }
+                        let target = CGPoint(x: value.location.x + grabOffset.width,
+                                             y: value.location.y + grabOffset.height)
+                        if let c = proxy.convert(target, from: .local) {
+                            planner.move(point, to: c)
+                        }
+                    }
+                    .onEnded { _ in
+                        draggingID = nil
+                        planner.finishMove()
+                    }
+            )
+            .position(position)
+            .zIndex(draggingID == point.id ? 1 : 0)
+    }
+}
 
 // MARK: - PlanTourSheet (T4: Rundtouren-Generator)
 

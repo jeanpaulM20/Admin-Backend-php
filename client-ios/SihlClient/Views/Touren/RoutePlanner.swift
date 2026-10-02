@@ -24,17 +24,25 @@ struct PlannedPoint: Identifiable, Equatable {
 @Observable @MainActor
 final class RoutePlannerModel {
     static let maxPoints = 25
+    /// Ab diesem Abstand zur Route gilt ein Punkt als „abseits der Wege".
+    static let offRouteThresholdM = 150
 
     enum Role: Equatable { case start, via(Int), destination }
 
     private(set) var points: [PlannedPoint] = []
     private(set) var activity: RoundtripActivity = .wandern
+    /// Rundkurs: vom letzten Punkt zurück zum Start.
+    private(set) var roundtrip = false
     private(set) var result: TourDetail?
     private(set) var isCalculating = false
     private(set) var error: String?
     /// Fehler, bei dem ein erneuter Versuch mit denselben Punkten Sinn ergibt
     /// (Netz, Auslastung) — im Gegensatz zu „Keine Route gefunden".
     private(set) var canRetry = false
+    /// Punkte, die weit neben dem nächsten Weg liegen (Abstand in Metern)
+    /// oder gar nicht erreichbar sind (`unreachableID`) — rot markiert.
+    private(set) var offRoute: [UUID: Int] = [:]
+    private(set) var unreachableID: UUID?
 
     @ObservationIgnored private var task: Task<Void, Never>?
     @ObservationIgnored var clientId: String?
@@ -43,20 +51,51 @@ final class RoutePlannerModel {
     var isFull: Bool { points.count >= Self.maxPoints }
     var coordinates: [CLLocationCoordinate2D] { points.map(\.coordinate) }
 
+    /// Luftlinie durch alle Punkte (im Rundkurs zurück zum Start) — wird
+    /// gestrichelt gezeigt, solange keine berechnete Route da ist.
+    var straightLine: [CLLocationCoordinate2D] {
+        roundtrip && points.count >= 2 ? coordinates + coordinates.prefix(1) : coordinates
+    }
+
     func role(of point: PlannedPoint) -> Role {
         guard let index = points.firstIndex(of: point) else { return .via(0) }
         if index == 0 { return .start }
-        if index == points.count - 1 { return .destination }
+        if index == points.count - 1 && !roundtrip { return .destination }
         return .via(index)
+    }
+
+    func isFlagged(_ point: PlannedPoint) -> Bool {
+        offRoute[point.id] != nil || unreachableID == point.id
+    }
+
+    func label(of point: PlannedPoint) -> String {
+        switch role(of: point) {
+        case .start:       return roundtrip ? "Start/Ziel" : "Start"
+        case .via(let i):  return "Zwischenpunkt \(i)"
+        case .destination: return "Ziel"
+        }
     }
 
     /// Bedienhinweis je Zustand (Kopfzeile im Planungsmodus).
     var hint: String {
         switch points.count {
         case 0:  return "Tippe auf die Karte, um den Start zu setzen"
-        case 1:  return "Der nächste Tipp setzt das Ziel"
-        default: return isFull ? "Maximal \(Self.maxPoints) Punkte" : "Jeder weitere Tipp wird zum neuen Ziel"
+        case 1:  return roundtrip ? "Der nächste Tipp setzt den Wendepunkt" : "Der nächste Tipp setzt das Ziel"
+        default:
+            if isFull { return "Maximal \(Self.maxPoints) Punkte" }
+            return roundtrip ? "Tipp: weiterer Punkt · auf der Linie: einfügen"
+                             : "Tipp: neues Ziel · auf der Linie: einfügen"
         }
+    }
+
+    /// Hinweis auf Punkte abseits der Wege (unter den Kennzahlen).
+    var warning: String? {
+        guard let first = points.first(where: { offRoute[$0.id] != nil }),
+              let meters = offRoute[first.id] else { return nil }
+        let more = offRoute.count - 1
+        let distance = meters >= 1000 ? String(format: "%.1f km", Double(meters) / 1000) : "\(meters) m"
+        return "\(label(of: first)) liegt \(distance) neben dem nächsten Weg — die Route führt daran vorbei."
+            + (more > 0 ? " (+\(more) weitere)" : "")
     }
 
     // MARK: Punkte
@@ -64,6 +103,54 @@ final class RoutePlannerModel {
     func add(_ c: CLLocationCoordinate2D) {
         guard !isFull else { return }
         points.append(PlannedPoint(c))
+        scheduleCalculation()
+    }
+
+    /// Punkt an Position `index` einfügen (Tipp auf die Linie).
+    func insert(_ c: CLLocationCoordinate2D, at index: Int) {
+        guard !isFull else { return }
+        points.insert(PlannedPoint(c), at: min(max(index, 1), points.count))
+        scheduleCalculation()
+    }
+
+    /// Einfügeposition für einen Tipp auf die Linie beim Linien-Stützpunkt
+    /// `vertex` (Index in der berechneten Route bzw. in `straightLine`):
+    /// der neue Punkt kommt vor den ersten gesetzten Punkt, den die Route
+    /// erst NACH dieser Stelle erreicht.
+    func insertIndex(afterLineVertex vertex: Int) -> Int {
+        guard let route = result?.segments.first, route.count >= 2 else {
+            return min(vertex + 1, points.count)
+        }
+        var from = 0
+        for k in points.indices {
+            let c = points[k].coordinate
+            var best = from, bestD = Double.infinity
+            for r in from..<route.count {
+                let dLat = route[r].latitude - c.latitude, dLon = route[r].longitude - c.longitude
+                let d = dLat * dLat + dLon * dLon
+                if d < bestD { bestD = d; best = r }
+            }
+            if k > 0 && best > vertex { return k }
+            from = best
+        }
+        return points.count
+    }
+
+    /// Pin ziehen: Koordinate laufend nachführen (die Route verschwindet,
+    /// Luftlinien zeigen den Zwischenstand); gerechnet wird beim Loslassen.
+    func move(_ point: PlannedPoint, to c: CLLocationCoordinate2D) {
+        guard let index = points.firstIndex(of: point) else { return }
+        points[index].coordinate = c
+        task?.cancel()
+        task = nil
+        result = nil
+        error = nil
+        isCalculating = false
+        offRoute[point.id] = nil
+        if unreachableID == point.id { unreachableID = nil }
+    }
+
+    func finishMove() {
         scheduleCalculation()
     }
 
@@ -85,7 +172,7 @@ final class RoutePlannerModel {
         scheduleCalculation()
     }
 
-    /// Start und Ziel tauschen (Zwischenpunkte spiegeln sich mit).
+    /// Richtung umkehren (Start und Ziel tauschen, Zwischenpunkte spiegeln).
     func reverse() {
         guard points.count >= 2 else { return }
         points.reverse()
@@ -94,16 +181,25 @@ final class RoutePlannerModel {
 
     func clear() {
         task?.cancel()
+        task = nil
         points = []
         result = nil
         error = nil
         canRetry = false
         isCalculating = false
+        offRoute = [:]
+        unreachableID = nil
     }
 
     func setActivity(_ a: RoundtripActivity) {
         guard a != activity else { return }
         activity = a
+        scheduleCalculation()
+    }
+
+    func setRoundtrip(_ on: Bool) {
+        guard on != roundtrip else { return }
+        roundtrip = on
         scheduleCalculation()
     }
 
@@ -136,14 +232,17 @@ final class RoutePlannerModel {
     /// der grosse Breitengrad-Faktor; der Mittelpunkt wandert etwas nach
     /// Süden, damit die Route über dem Panel liegt.
     var fitRegion: MKCoordinateRegion? {
-        guard let coords = result?.segments.flatMap({ $0 }), coords.count >= 2 else { return nil }
+        let coords = result?.segments.flatMap({ $0 }) ?? coordinates
+        guard coords.count >= 2 else { return nil }
         let lats = coords.map(\.latitude), lons = coords.map(\.longitude)
         guard let minLat = lats.min(), let maxLat = lats.max(),
               let minLon = lons.min(), let maxLon = lons.max() else { return nil }
-        let latDelta = max((maxLat - minLat) * 2.6, 0.012)
-        let lonDelta = max((maxLon - minLon) * 1.4, 0.012)
+        // Rechts unten sitzt der Lokalisieren-Knopf über dem Panel — genug
+        // Rand lassen, damit kein Pin darunter verschwindet
+        let latDelta = max((maxLat - minLat) * 3.0, 0.012)
+        let lonDelta = max((maxLon - minLon) * 1.7, 0.012)
         return MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: (minLat + maxLat) / 2 - latDelta * 0.12,
+            center: CLLocationCoordinate2D(latitude: (minLat + maxLat) / 2 - latDelta * 0.13,
                                            longitude: (minLon + maxLon) / 2),
             span: MKCoordinateSpan(latitudeDelta: latDelta, longitudeDelta: lonDelta))
     }
@@ -156,15 +255,18 @@ final class RoutePlannerModel {
         error = nil
         canRetry = false
         result = nil
+        offRoute = [:]
+        unreachableID = nil
         guard points.count >= 2 else { isCalculating = false; return }
         isCalculating = true
-        let coords = coordinates, act = activity, demo = isDemo, cid = clientId
+        let snapshot = points, act = activity, loop = roundtrip, demo = isDemo, cid = clientId
+        let coords = snapshot.map(\.coordinate)
         task = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(400))
             guard !Task.isCancelled, let self else { return }
             defer { if !Task.isCancelled { isCalculating = false; task = nil } }
             if demo {
-                result = TourService.demoPlannedRoute(points: coords, activity: act)
+                result = TourService.demoPlannedRoute(points: coords, activity: act, roundtrip: loop)
                 return
             }
             guard let cid else {
@@ -172,15 +274,28 @@ final class RoutePlannerModel {
                 return
             }
             do {
-                let detail = try await TourService.shared.plannedRoute(clientId: cid, points: coords, activity: act)
+                let planned = try await TourService.shared.plannedRoute(
+                    clientId: cid, points: coords, activity: act, roundtrip: loop)
                 guard !Task.isCancelled else { return }
-                if let detail {
-                    result = detail
-                } else {
+                guard let planned else {
                     error = "Keine Route gefunden — Punkt verschieben oder löschen."
+                    return
+                }
+                result = planned.detail
+                for (i, meters) in planned.offRouteM.enumerated() where i < snapshot.count {
+                    if let meters, meters > Self.offRouteThresholdM { offRoute[snapshot[i].id] = meters }
                 }
             } catch {
                 guard !Task.isCancelled else { return }
+                // 422 mit pointIndex: genau dieser Punkt ist nicht erreichbar
+                if let api = error as? APIError, api.statusCode == 422,
+                   let body = api.body,
+                   let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+                   let index = json["pointIndex"] as? Int, snapshot.indices.contains(index) {
+                    unreachableID = snapshot[index].id
+                    self.error = "\(label(of: snapshot[index])) ist nicht erreichbar — verschieben oder löschen."
+                    return
+                }
                 let (message, retryable) = Self.classify(error)
                 self.error = message
                 canRetry = retryable
@@ -206,11 +321,16 @@ final class RoutePlannerModel {
 // MARK: - RoutePinView
 
 /// Pin auf der Karte: S = Start (Olive), Ziffer = Zwischenpunkt (Messing),
-/// Z = Ziel (CTA-Orange). 26 pt Optik, 44 pt Trefffläche.
+/// Z = Ziel (CTA-Orange); rot = abseits der Wege bzw. nicht erreichbar.
+/// 26 pt Optik, 44 pt Trefffläche; beim Ziehen leicht vergrössert.
 struct RoutePinView: View {
     let role: RoutePlannerModel.Role
+    var flagged = false
+    var lifted = false
+    var label = ""
 
     private var color: Color {
+        if flagged { return AppColor.red }
         switch role {
         case .start:       return AppColor.primary
         case .via:         return AppColor.brass
@@ -226,14 +346,6 @@ struct RoutePinView: View {
         }
     }
 
-    var accessibilityText: String {
-        switch role {
-        case .start:        return "Startpunkt"
-        case .via(let i):   return "Zwischenpunkt \(i)"
-        case .destination:  return "Ziel"
-        }
-    }
-
     var body: some View {
         Text(text)
             .font(.app(11, weight: .bold))
@@ -241,10 +353,12 @@ struct RoutePinView: View {
             .frame(width: 26, height: 26)
             .background(color, in: Circle())
             .overlay(Circle().stroke(AppColor.white, lineWidth: 2))
-            .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
+            .shadow(color: .black.opacity(lifted ? 0.45 : 0.25), radius: lifted ? 6 : 2, y: lifted ? 3 : 1)
+            .scaleEffect(lifted ? 1.35 : 1)
             .frame(width: 44, height: 44)
             .contentShape(Circle())
-            .accessibilityLabel(accessibilityText)
+            .accessibilityLabel(flagged ? "\(label), abseits der Wege" : label)
+            .accessibilityHint("Tippen für Aktionen, ziehen zum Verschieben")
     }
 }
 
@@ -255,6 +369,7 @@ struct RoutePinView: View {
 struct RoutePlannerPanel: View {
     let model: RoutePlannerModel
     let onLocate: () -> Void
+    let onFit: () -> Void
     let onDetails: (TourDetail) -> Void
     let onStart: (TourDetail) -> Void
 
@@ -273,22 +388,25 @@ struct RoutePlannerPanel: View {
 
             status
 
+            // Mini-Höhenprofil — Tipp öffnet die Details mit dem vollen Profil
             if let r = model.result, ElevationProfileView.hasProfile(r.elevations) {
                 ElevationProfileView(segments: r.segments, elevations: r.elevations, compact: true)
                     .frame(height: 40)
                     .background(AppColor.surface2, in: RoundedRectangle(cornerRadius: AppRadius.control))
+                    .contentShape(Rectangle())
+                    .onTapGesture { onDetails(r) }
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityHint("Öffnet die Details mit dem Höhenprofil")
             }
 
             HStack(spacing: 8) {
                 iconButton("location", "Mein Standort als Start", action: onLocate)
                 iconButton("arrow.uturn.backward", "Letzten Punkt entfernen",
                            disabled: model.points.isEmpty) { model.removeLast() }
-                iconButton("trash", "Alle Punkte löschen",
-                           disabled: model.points.isEmpty) { model.clear() }
-                iconButton("chart.xyaxis.line", "Details und Höhenprofil",
-                           disabled: model.result == nil) {
-                    if let r = model.result { onDetails(r) }
-                }
+                iconButton("arrow.triangle.2.circlepath",
+                           model.roundtrip ? "Rundkurs ausschalten" : "Rundkurs: zurück zum Start",
+                           active: model.roundtrip) { model.setRoundtrip(!model.roundtrip) }
+                moreMenu
 
                 Spacer(minLength: 0)
 
@@ -358,14 +476,56 @@ struct RoutePlannerPanel: View {
                         .foregroundStyle(AppColor.muted)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                if let warning = model.warning {
+                    Label(warning, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption2)
+                        .foregroundStyle(AppColor.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
+            .contentShape(Rectangle())
+            .onTapGesture { onDetails(r) }
         } else {
             // Der Bedienhinweis steht in der Kopfzeile — hier nur das Prinzip
-            Text("Start, Zwischenpunkte, Ziel — die Route wird automatisch berechnet.")
+            Text("Start, Zwischenpunkte, Ziel — die Route wird automatisch berechnet. Pins lassen sich ziehen.")
                 .font(.footnote)
                 .foregroundStyle(AppColor.muted)
                 .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
         }
+    }
+
+    /// Seltenere Aktionen: Richtung umkehren, Route einpassen, Details, alles löschen.
+    private var moreMenu: some View {
+        Menu {
+            Button { model.reverse() } label: {
+                Label("Richtung umkehren", systemImage: "arrow.left.arrow.right")
+            }
+            .disabled(model.points.count < 2)
+            Button(action: onFit) {
+                Label("Ganze Route zeigen", systemImage: "arrow.up.left.and.arrow.down.right")
+            }
+            .disabled(model.points.count < 2)
+            Button {
+                if let r = model.result { onDetails(r) }
+            } label: {
+                Label("Details und Höhenprofil", systemImage: "chart.xyaxis.line")
+            }
+            .disabled(model.result == nil)
+            Divider()
+            Button(role: .destructive) { model.clear() } label: {
+                Label("Alle Punkte löschen", systemImage: "trash")
+            }
+            .disabled(model.points.isEmpty)
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.app(14, weight: .semibold))
+                .foregroundStyle(AppColor.text)
+                .frame(width: 40, height: 40)
+                .background(AppColor.surface2, in: RoundedRectangle(cornerRadius: AppRadius.control))
+                .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
+                    .stroke(AppColor.border, lineWidth: 1))
+        }
+        .accessibilityLabel("Weitere Aktionen")
     }
 
     private func stat(_ label: String, _ value: String) -> some View {
@@ -403,15 +563,17 @@ struct RoutePlannerPanel: View {
     }
 
     private func iconButton(_ symbol: String, _ label: String, disabled: Bool = false,
-                            action: @escaping () -> Void) -> some View {
+                            active: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.app(14, weight: .semibold))
-                .foregroundStyle(disabled ? AppColor.muted.opacity(0.5) : AppColor.text)
+                .foregroundStyle(disabled ? AppColor.muted.opacity(0.5)
+                                 : active ? AppColor.white : AppColor.text)
                 .frame(width: 40, height: 40)
-                .background(AppColor.surface2, in: RoundedRectangle(cornerRadius: AppRadius.control))
+                .background(active ? AppColor.primary : AppColor.surface2,
+                            in: RoundedRectangle(cornerRadius: AppRadius.control))
                 .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
-                    .stroke(AppColor.border, lineWidth: 1))
+                    .stroke(active ? AppColor.primary : AppColor.border, lineWidth: 1))
         }
         .disabled(disabled)
         .accessibilityLabel(label)

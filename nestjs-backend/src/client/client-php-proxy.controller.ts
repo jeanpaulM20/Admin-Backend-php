@@ -233,7 +233,15 @@ export class ClientAppController {
         points, String(body?.activity ?? 'wandern'), body?.roundtrip === true);
     } catch (e) {
       if (e instanceof RouteNotFoundError) {
-        throw new HttpException({ message: e.message }, HttpStatus.UNPROCESSABLE_ENTITY);
+        // pointIndex (falls bekannt) → die App markiert genau diesen Pin;
+        // -1 = Ziel, im Rundkurs ist das der Start
+        const index = e.pointIndex === undefined ? undefined
+          : e.pointIndex < 0 || e.pointIndex >= points.length
+            ? (body?.roundtrip === true ? 0 : points.length - 1)
+            : e.pointIndex;
+        throw new HttpException(
+          { message: e.message, ...(index === undefined ? {} : { pointIndex: index }) },
+          HttpStatus.UNPROCESSABLE_ENTITY);
       }
       if (e instanceof RoutingUnavailableError) {
         throw new HttpException({ message: e.message }, HttpStatus.SERVICE_UNAVAILABLE);
