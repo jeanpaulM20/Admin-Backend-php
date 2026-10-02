@@ -21,6 +21,8 @@ import { ClientAppService } from './client-app.service';
 import { ToursAssistantService } from './tours-assistant.service';
 import { ToursService } from './tours.service';
 import { ReviewPhoto } from '../entities/review-photo.entity';
+import { PlannedRoute } from '../entities/planned-route.entity';
+import { PlannedRouteService } from './planned-route.service';
 import { ClientChatService } from './client-chat.service';
 import { ClientController } from './client.controller';
 import { ClientAppController } from './client-php-proxy.controller';
@@ -41,6 +43,7 @@ import { ClientAppController } from './client-php-proxy.controller';
       Feedback,
       Metric,
       ReviewPhoto,
+      PlannedRoute,
     ]),
     ReviewModule,
     FileModule,
@@ -48,7 +51,7 @@ import { ClientAppController } from './client-php-proxy.controller';
     PaymentModule,
     EntitlementModule,
   ],
-  providers: [ClientService, ClientAppService, ClientChatService, ToursAssistantService, ToursService],
+  providers: [ClientService, ClientAppService, ClientChatService, ToursAssistantService, ToursService, PlannedRouteService],
   controllers: [ClientAppController, ClientController],
   exports: [ClientService],
 })

@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { PlannedRoute } from '../entities/planned-route.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { randomBytes } from 'crypto';
@@ -197,6 +198,8 @@ export class ClientService {
 
   async remove(id: number) {
     const client = await this.findOne(id);
+    // Gespeicherte Routen gehören dem Klienten und gehen mit ihm
+    await this.clientRepo.manager.delete(PlannedRoute, { clientId: id });
     return this.clientRepo.remove(client);
   }
 

@@ -1,6 +1,6 @@
 # Konzept: Routenplaner — Start, Zwischenpunkte, Ziel
 
-Stand: 26. September 2026 · Status: Phase 1 und 2 umgesetzt
+Stand: 26. September 2026 · Status: Phase 1 bis 3 umgesetzt
 
 ## 1. Ziel
 
@@ -196,3 +196,27 @@ Phase 1 ist für sich vollständig nutzbar.
   versuchen") gemeldet, nicht als „Keine Route gefunden". Bei vielen
   gleichzeitigen Nutzern bleibt die eigene BRouter-Instanz (Abschnitt 4.1)
   die saubere Lösung.
+
+## 11. Umsetzungsnotizen Phase 3 (2. Oktober 2026)
+
+- **Speichern im Planer:** Lesezeichen im Panel. Eine neue Route fragt nach
+  dem Namen (Vorschlag „Wandern · 12.4 km"); eine geladene Route wird
+  direkt ersetzt. Gefülltes Lesezeichen = gespeichert und unverändert;
+  jede Änderung macht es wieder leer. Im Menü „…" zusätzlich „Als neue
+  Route speichern". Verlassen des Planers fragt nur noch bei
+  ungespeicherter Arbeit nach.
+- **Meine Routen:** Lesezeichen-Knopf neben „Route planen" öffnet eine
+  Liste (statt der im Konzept skizzierten Kartenreihe — die hätte der
+  Karte dauerhaft Platz genommen und skaliert nicht mit vielen Routen).
+  Tipp = Details mit Höhenprofil, GPX und „Tour starten"; Menü je Zeile:
+  Im Planer bearbeiten, Umbenennen, Löschen.
+- **Backend:** Tabelle `planned_route` (Startup-Migration), Entity
+  `PlannedRoute`, `PlannedRouteService`, Endpunkte
+  `GET/POST tours/planned/:clientId` und
+  `GET/PUT/DELETE tours/planned/:clientId/:routeId`. Die Geometrie wird
+  beim Speichern serverseitig aus den Punkten berechnet (Routing-Cache),
+  nicht vom Gerät übernommen. Eigentumsprüfung in jeder Abfrage
+  (`client_id`), fremde IDs antworten mit 404. Höchstens 100 Routen je
+  Klient. Beim Löschen eines Klienten gehen seine Routen mit.
+- **Demo-Modus:** Speichern funktioniert für die laufende Sitzung
+  (Speicher im Gerät), damit der Ablauf erlebbar ist.

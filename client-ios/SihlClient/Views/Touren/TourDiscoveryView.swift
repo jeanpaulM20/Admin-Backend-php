@@ -42,6 +42,12 @@ struct TourDiscoveryView: View {
     @State private var startRoute: TourDetail?
     /// Pin, dessen Aktionen gerade angeboten werden (Tipp auf den Pin)
     @State private var selectedPoint: PlannedPoint?
+    // Meine Routen (Phase 3)
+    @State private var showSavedRoutes = false
+    @State private var showNameAlert = false
+    @State private var routeName = ""
+    @State private var saveAsNew = false
+    @State private var saveError: String?
     /// Taktgeber für die Pin-Ebene: zählt bei jeder Kamerabewegung hoch
     @State private var cameraTicker = MapCameraTicker()
 
@@ -86,7 +92,10 @@ struct TourDiscoveryView: View {
                 Spacer()
                 HStack(spacing: 10) {
                     Spacer()
-                    if !isPlanning { planRouteButton }
+                    if !isPlanning {
+                        savedRoutesButton
+                        planRouteButton
+                    }
                     locateButton
                 }
                 .padding(.horizontal, AppSpacing.screen)
@@ -95,6 +104,7 @@ struct TourDiscoveryView: View {
                         model: planner,
                         onLocate: { locateAsStart() },
                         onFit: { fitRoute() },
+                        onSave: { saveRoute(asNew: $0) },
                         onDetails: { generatedDetail = $0 },
                         onStart: { startRoute = $0 })
                 } else {
@@ -103,6 +113,32 @@ struct TourDiscoveryView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showSavedRoutes) {
+            SavedRoutesSheet(
+                repository: SavedRouteRepository(clientId: auth.clientId, isDemo: isDemo),
+                onOpen: { detail in
+                    showSavedRoutes = false
+                    generatedDetail = detail
+                },
+                onEdit: { route in
+                    showSavedRoutes = false
+                    enterPlanning()
+                    planner.load(route)
+                })
+        }
+        .alert("Route speichern", isPresented: $showNameAlert) {
+            TextField("Name", text: $routeName)
+            Button("Speichern") { performSave(name: routeName, asNew: saveAsNew) }
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text("Die Route erscheint unter „Meine Routen“ und ist nur für dich sichtbar.")
+        }
+        .alert("Speichern fehlgeschlagen", isPresented: Binding(
+            get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(saveError ?? "")
+        }
         .alert("Planung verwerfen?", isPresented: $showDiscardAlert) {
             Button("Verwerfen", role: .destructive) { exitPlanning() }
             Button("Weiter planen", role: .cancel) {}
@@ -265,7 +301,12 @@ struct TourDiscoveryView: View {
     private var planningBar: some View {
         HStack(spacing: 10) {
             Button {
-                if planner.points.count >= 2 { showDiscardAlert = true } else { exitPlanning() }
+                // Rückfrage nur, wenn ungespeicherte Arbeit verloren ginge
+                if planner.points.count >= 2 && !planner.isSaved {
+                    showDiscardAlert = true
+                } else {
+                    exitPlanning()
+                }
             } label: {
                 Image(systemName: "xmark")
                     .font(.app(13, weight: .semibold))
@@ -276,9 +317,10 @@ struct TourDiscoveryView: View {
             .accessibilityLabel("Planung abbrechen")
 
             VStack(alignment: .leading, spacing: 1) {
-                Text("Route planen")
+                Text(planner.savedRoute?.name ?? "Route planen")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(AppColor.text)
+                    .lineLimit(1)
                 Text(planner.hint)
                     .font(.caption)
                     .foregroundStyle(AppColor.muted)
@@ -394,6 +436,44 @@ struct TourDiscoveryView: View {
             .overlay(Capsule().stroke(AppColor.border, lineWidth: 1))
         }
         .accessibilityLabel("Route planen: Start, Zwischenpunkte und Ziel auf der Karte setzen")
+    }
+
+    /// „Meine Routen" — gespeicherte Planungen öffnen, bearbeiten, löschen.
+    private var savedRoutesButton: some View {
+        Button {
+            showSavedRoutes = true
+        } label: {
+            Image(systemName: "bookmark")
+                .font(.app(15, weight: .semibold))
+                .foregroundStyle(AppColor.text)
+                .frame(width: 40, height: 40)
+                .background(AppColor.surface, in: Circle())
+                .overlay(Circle().stroke(AppColor.border, lineWidth: 1))
+        }
+        .accessibilityLabel("Meine Routen")
+    }
+
+    // MARK: Meine Routen
+
+    /// Lesezeichen im Planer: eine geladene Route wird direkt ersetzt,
+    /// eine neue (oder „als neue speichern") fragt zuerst nach dem Namen.
+    private func saveRoute(asNew: Bool) {
+        if let saved = planner.savedRoute, !asNew {
+            performSave(name: saved.name, asNew: false)
+        } else {
+            routeName = asNew ? "\(planner.savedRoute?.name ?? planner.suggestedName) (Kopie)"
+                              : planner.suggestedName
+            saveAsNew = asNew
+            showNameAlert = true
+        }
+    }
+
+    private func performSave(name: String, asNew: Bool) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        Task {
+            saveError = await planner.save(name: trimmed.isEmpty ? planner.suggestedName : trimmed,
+                                           asNew: asNew)
+        }
     }
 
     // MARK: Planungsmodus

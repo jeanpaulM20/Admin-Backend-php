@@ -94,6 +94,24 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       // NOT NULL ohne Default und liessen den INSERT scheitern (ER_NO_DEFAULT)
       `ALTER TABLE review MODIFY COLUMN exerciseset_id INT DEFAULT NULL`,
       `ALTER TABLE review MODIFY COLUMN training_id INT DEFAULT NULL`,
+      // Routenplaner Phase 3: „Meine Routen" — gespeicherte Planungen je Klient
+      `CREATE TABLE IF NOT EXISTS planned_route (
+         id INT AUTO_INCREMENT PRIMARY KEY,
+         client_id INT NOT NULL,
+         name VARCHAR(120) NOT NULL,
+         activity VARCHAR(20) NOT NULL,
+         roundtrip TINYINT(1) NOT NULL DEFAULT 0,
+         points TEXT NOT NULL,
+         geometry MEDIUMTEXT NOT NULL,
+         distance_km FLOAT NOT NULL,
+         elevation_gain INT DEFAULT NULL,
+         elevation_loss INT DEFAULT NULL,
+         duration_min INT DEFAULT NULL,
+         difficulty VARCHAR(20) DEFAULT NULL,
+         created_at DATETIME NOT NULL,
+         updated_at DATETIME NOT NULL,
+         KEY idx_planned_route_client (client_id)
+       )`,
       // Trainings-Galerie (F1): ein Foto je Aufzeichnung, Bild als BLOB
       `CREATE TABLE IF NOT EXISTS review_photo (
          id INT AUTO_INCREMENT PRIMARY KEY,

@@ -43,12 +43,29 @@ final class RoutePlannerModel {
     /// oder gar nicht erreichbar sind (`unreachableID`) — rot markiert.
     private(set) var offRoute: [UUID: Int] = [:]
     private(set) var unreachableID: UUID?
+    /// „Meine Routen": die gespeicherte Fassung dieser Planung (falls es
+    /// eine gibt) und ob seither etwas geändert wurde.
+    private(set) var savedRoute: SavedRoute?
+    private(set) var hasUnsavedChanges = false
+    private(set) var isSaving = false
 
     @ObservationIgnored private var task: Task<Void, Never>?
+    /// Zählt Änderungen — so erkennt `save`, ob währenddessen weitergeplant wurde
+    @ObservationIgnored private var revision = 0
     @ObservationIgnored var clientId: String?
     @ObservationIgnored var isDemo = false
 
     var isFull: Bool { points.count >= Self.maxPoints }
+    /// Die Route ist gespeichert und seither unverändert.
+    var isSaved: Bool { savedRoute != nil && !hasUnsavedChanges }
+    /// Namensvorschlag für eine neue Route: „Wandern · 12.4 km"
+    var suggestedName: String {
+        [activity.label, result?.distanceKm.map { TourFormat.distance($0) }]
+            .compactMap { $0 }.joined(separator: " · ")
+    }
+    private var repository: SavedRouteRepository {
+        SavedRouteRepository(clientId: clientId, isDemo: isDemo)
+    }
     var coordinates: [CLLocationCoordinate2D] { points.map(\.coordinate) }
 
     /// Luftlinie durch alle Punkte (im Rundkurs zurück zum Start) — wird
@@ -141,6 +158,8 @@ final class RoutePlannerModel {
     func move(_ point: PlannedPoint, to c: CLLocationCoordinate2D) {
         guard let index = points.firstIndex(of: point) else { return }
         points[index].coordinate = c
+        revision += 1
+        hasUnsavedChanges = true
         task?.cancel()
         task = nil
         result = nil
@@ -189,6 +208,48 @@ final class RoutePlannerModel {
         isCalculating = false
         offRoute = [:]
         unreachableID = nil
+        savedRoute = nil
+        hasUnsavedChanges = false
+        revision += 1
+    }
+
+    // MARK: Meine Routen
+
+    /// Gespeicherte Route zum Weiterbearbeiten in den Planer laden.
+    func load(_ saved: SavedRoute) {
+        clear()
+        points = saved.points.map { PlannedPoint($0) }
+        activity = saved.activity
+        roundtrip = saved.roundtrip
+        scheduleCalculation()
+        savedRoute = saved
+        hasUnsavedChanges = false
+    }
+
+    /// Route speichern: ersetzt die geladene Fassung oder legt — mit
+    /// `asNew` bzw. ohne geladene Fassung — eine neue an.
+    /// Liefert nil bei Erfolg, sonst die Fehlermeldung.
+    func save(name: String, asNew: Bool = false) async -> String? {
+        guard points.count >= 2, !isSaving else { return nil }
+        isSaving = true
+        defer { isSaving = false }
+        let savedRevision = revision
+        do {
+            guard let saved = try await repository.save(
+                name: name, points: coordinates, activity: activity, roundtrip: roundtrip,
+                replacing: asNew ? nil : savedRoute?.id) else {
+                return "Route konnte nicht gespeichert werden."
+            }
+            savedRoute = saved
+            // Nur „gespeichert" melden, wenn währenddessen nichts verändert wurde
+            hasUnsavedChanges = revision != savedRevision
+            return nil
+        } catch {
+            if let api = error as? APIError, [400, 409, 422].contains(api.statusCode), !api.message.isEmpty {
+                return api.message
+            }
+            return Self.classify(error).0
+        }
     }
 
     func setActivity(_ a: RoundtripActivity) {
@@ -205,7 +266,14 @@ final class RoutePlannerModel {
 
     /// Gleiche Punkte nochmals rechnen (nach Netz-/Auslastungsfehler).
     func retry() {
+        recalculateUnchanged()
+    }
+
+    /// Neu rechnen, ohne dass die Planung als verändert gilt.
+    private func recalculateUnchanged() {
+        let unsaved = hasUnsavedChanges
         scheduleCalculation()
+        hasUnsavedChanges = unsaved
     }
 
     /// Fehler von aussen anzeigen (z. B. Ortung fehlgeschlagen).
@@ -224,7 +292,7 @@ final class RoutePlannerModel {
     /// … und beim Zurückkommen eine fehlende Route nachholen.
     func resumeIfNeeded() {
         guard points.count >= 2, result == nil, error == nil, task == nil else { return }
-        scheduleCalculation()
+        recalculateUnchanged()
     }
 
     /// Region, die die berechnete Route im freien Kartenausschnitt zeigt:
@@ -250,6 +318,8 @@ final class RoutePlannerModel {
     // MARK: Berechnung
 
     private func scheduleCalculation() {
+        revision += 1
+        hasUnsavedChanges = true
         task?.cancel()
         task = nil
         error = nil
@@ -370,6 +440,8 @@ struct RoutePlannerPanel: View {
     let model: RoutePlannerModel
     let onLocate: () -> Void
     let onFit: () -> Void
+    /// Speichern; `true` = ausdrücklich als neue Route (Kopie)
+    let onSave: (Bool) -> Void
     let onDetails: (TourDetail) -> Void
     let onStart: (TourDetail) -> Void
 
@@ -400,12 +472,16 @@ struct RoutePlannerPanel: View {
             }
 
             HStack(spacing: 8) {
-                iconButton("location", "Mein Standort als Start", action: onLocate)
                 iconButton("arrow.uturn.backward", "Letzten Punkt entfernen",
                            disabled: model.points.isEmpty) { model.removeLast() }
                 iconButton("arrow.triangle.2.circlepath",
                            model.roundtrip ? "Rundkurs ausschalten" : "Rundkurs: zurück zum Start",
                            active: model.roundtrip) { model.setRoundtrip(!model.roundtrip) }
+                // Lesezeichen: gefüllt = gespeichert und unverändert
+                iconButton(model.isSaved ? "bookmark.fill" : "bookmark",
+                           model.isSaved ? "Route ist gespeichert" : "Route speichern",
+                           disabled: model.result == nil || model.isSaving || model.isSaved,
+                           active: model.isSaved) { onSave(false) }
                 moreMenu
 
                 Spacer(minLength: 0)
@@ -497,6 +573,9 @@ struct RoutePlannerPanel: View {
     /// Seltenere Aktionen: Richtung umkehren, Route einpassen, Details, alles löschen.
     private var moreMenu: some View {
         Menu {
+            Button(action: onLocate) {
+                Label("Mein Standort als Start", systemImage: "location")
+            }
             Button { model.reverse() } label: {
                 Label("Richtung umkehren", systemImage: "arrow.left.arrow.right")
             }
@@ -511,6 +590,12 @@ struct RoutePlannerPanel: View {
                 Label("Details und Höhenprofil", systemImage: "chart.xyaxis.line")
             }
             .disabled(model.result == nil)
+            if model.savedRoute != nil {
+                Button { onSave(true) } label: {
+                    Label("Als neue Route speichern", systemImage: "bookmark")
+                }
+                .disabled(model.result == nil || model.isSaving)
+            }
             Divider()
             Button(role: .destructive) { model.clear() } label: {
                 Label("Alle Punkte löschen", systemImage: "trash")
@@ -567,8 +652,8 @@ struct RoutePlannerPanel: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.app(14, weight: .semibold))
-                .foregroundStyle(disabled ? AppColor.muted.opacity(0.5)
-                                 : active ? AppColor.white : AppColor.text)
+                .foregroundStyle(active ? AppColor.white
+                                 : disabled ? AppColor.muted.opacity(0.5) : AppColor.text)
                 .frame(width: 40, height: 40)
                 .background(active ? AppColor.primary : AppColor.surface2,
                             in: RoundedRectangle(cornerRadius: AppRadius.control))

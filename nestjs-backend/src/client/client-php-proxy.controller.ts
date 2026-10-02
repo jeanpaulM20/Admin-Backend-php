@@ -9,6 +9,9 @@ import { ClientAppService } from './client-app.service';
 import { ToursAssistantService } from './tours-assistant.service';
 import { RouteNotFoundError, RoutePoint, RoutingUnavailableError, ToursService } from './tours.service';
 import { ClientChatService } from './client-chat.service';
+import {
+  PlannedRouteLimitError, PlannedRouteNotFoundError, PlannedRouteService,
+} from './planned-route.service';
 import { InvoiceService } from '../invoice/invoice.service';
 import { SaferpayService } from '../payment/saferpay.service';
 import { Public } from '../auth/decorators/public.decorator';
@@ -28,6 +31,7 @@ export class ClientAppController {
     private readonly appService: ClientAppService,
     private readonly toursAssistantService: ToursAssistantService,
     private readonly toursService: ToursService,
+    private readonly plannedRouteService: PlannedRouteService,
     private readonly chatService: ClientChatService,
     private readonly invoiceService: InvoiceService,
     private readonly saferpayService: SaferpayService,
@@ -218,6 +222,106 @@ export class ClientAppController {
     @Body() body: any,
   ) {
     this.assertClientAccess(req, clientId);
+    const points = this.parseRoutePoints(body);
+    const roundtrip = body?.roundtrip === true;
+    try {
+      return await this.toursService.routeVia(points, String(body?.activity ?? 'wandern'), roundtrip);
+    } catch (e) {
+      throw this.routeError(e, points, roundtrip);
+    }
+  }
+
+  // ── Meine Routen (Routenplaner Phase 3) ──────────────────────────────
+  // Vor `tours/:clientId/:tourId` deklariert, sonst fängt jene Route
+  // „planned" als clientId ab.
+
+  @Get('tours/planned/:clientId')
+  savedRoutes(
+    @Req() req: Request,
+    @Param('clientId', ParseIntPipe) clientId: number,
+  ) {
+    this.assertClientAccess(req, clientId);
+    return this.plannedRouteService.list(clientId);
+  }
+
+  @Get('tours/planned/:clientId/:routeId')
+  async savedRoute(
+    @Req() req: Request,
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Param('routeId', ParseIntPipe) routeId: number,
+  ) {
+    this.assertClientAccess(req, clientId);
+    try {
+      return await this.plannedRouteService.detail(clientId, routeId);
+    } catch (e) {
+      throw this.routeError(e);
+    }
+  }
+
+  @Post('tours/planned/:clientId')
+  async saveRoute(
+    @Req() req: Request,
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Body() body: any,
+  ) {
+    this.assertClientAccess(req, clientId);
+    const points = this.parseRoutePoints(body);
+    const roundtrip = body?.roundtrip === true;
+    try {
+      return await this.plannedRouteService.create(clientId, {
+        name: String(body?.name ?? ''),
+        activity: String(body?.activity ?? 'wandern'),
+        roundtrip, points,
+      });
+    } catch (e) {
+      throw this.routeError(e, points, roundtrip);
+    }
+  }
+
+  /** Umbenennen (nur `name`) oder mit neuen Punkten ersetzen (`points` gesetzt). */
+  @Put('tours/planned/:clientId/:routeId')
+  async updateSavedRoute(
+    @Req() req: Request,
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Param('routeId', ParseIntPipe) routeId: number,
+    @Body() body: any,
+  ) {
+    this.assertClientAccess(req, clientId);
+    const name = typeof body?.name === 'string' ? body.name : undefined;
+    const hasRoute = body?.points !== undefined;
+    if (!hasRoute && name === undefined) {
+      throw new HttpException({ message: 'Nichts zu ändern' }, HttpStatus.BAD_REQUEST);
+    }
+    const points = hasRoute ? this.parseRoutePoints(body) : [];
+    const roundtrip = body?.roundtrip === true;
+    try {
+      return await this.plannedRouteService.update(clientId, routeId, {
+        name,
+        route: hasRoute
+          ? { activity: String(body?.activity ?? 'wandern'), roundtrip, points }
+          : undefined,
+      });
+    } catch (e) {
+      throw this.routeError(e, points, roundtrip);
+    }
+  }
+
+  @Delete('tours/planned/:clientId/:routeId')
+  async deleteSavedRoute(
+    @Req() req: Request,
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Param('routeId', ParseIntPipe) routeId: number,
+  ) {
+    this.assertClientAccess(req, clientId);
+    try {
+      return await this.plannedRouteService.remove(clientId, routeId);
+    } catch (e) {
+      throw this.routeError(e);
+    }
+  }
+
+  /** `points` aus dem Request prüfen: 2–25 gültige Koordinaten. */
+  private parseRoutePoints(body: any): RoutePoint[] {
     const raw = body?.points;
     if (!Array.isArray(raw) || raw.length < 2 || raw.length > ToursService.MAX_VIA_POINTS) {
       throw new HttpException(
@@ -228,26 +332,32 @@ export class ClientAppController {
         || Math.abs(p.lat) > 90 || Math.abs(p.lon) > 180)) {
       throw new HttpException({ message: 'Ungültige Koordinaten' }, HttpStatus.BAD_REQUEST);
     }
-    try {
-      return await this.toursService.routeVia(
-        points, String(body?.activity ?? 'wandern'), body?.roundtrip === true);
-    } catch (e) {
-      if (e instanceof RouteNotFoundError) {
-        // pointIndex (falls bekannt) → die App markiert genau diesen Pin;
-        // -1 = Ziel, im Rundkurs ist das der Start
-        const index = e.pointIndex === undefined ? undefined
-          : e.pointIndex < 0 || e.pointIndex >= points.length
-            ? (body?.roundtrip === true ? 0 : points.length - 1)
-            : e.pointIndex;
-        throw new HttpException(
-          { message: e.message, ...(index === undefined ? {} : { pointIndex: index }) },
-          HttpStatus.UNPROCESSABLE_ENTITY);
-      }
-      if (e instanceof RoutingUnavailableError) {
-        throw new HttpException({ message: e.message }, HttpStatus.SERVICE_UNAVAILABLE);
-      }
-      throw e;
+    return points;
+  }
+
+  /** Fachliche Fehler der Routen-Dienste → HTTP-Antwort. */
+  private routeError(e: unknown, points: RoutePoint[] = [], roundtrip = false): unknown {
+    if (e instanceof RouteNotFoundError) {
+      // pointIndex (falls bekannt) → die App markiert genau diesen Pin;
+      // -1 = Ziel, im Rundkurs ist das der Start
+      const index = e.pointIndex === undefined ? undefined
+        : e.pointIndex < 0 || e.pointIndex >= points.length
+          ? (roundtrip ? 0 : points.length - 1)
+          : e.pointIndex;
+      return new HttpException(
+        { message: e.message, ...(index === undefined ? {} : { pointIndex: index }) },
+        HttpStatus.UNPROCESSABLE_ENTITY);
     }
+    if (e instanceof RoutingUnavailableError) {
+      return new HttpException({ message: e.message }, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+    if (e instanceof PlannedRouteNotFoundError) {
+      return new HttpException({ message: e.message }, HttpStatus.NOT_FOUND);
+    }
+    if (e instanceof PlannedRouteLimitError) {
+      return new HttpException({ message: e.message }, HttpStatus.CONFLICT);
+    }
+    return e;
   }
 
   /** Touren-Detail: Geometrie + berechnete Werte */

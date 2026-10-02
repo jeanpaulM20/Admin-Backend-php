@@ -462,6 +462,14 @@ out geom 80;`;
     };
   }
 
+  /** Aktivitäten des Routenplaners (Schlüssel wie in der App). */
+  static readonly PLANNER_ACTIVITIES = ['wandern', 'bergtour', 'joggen', 'rennrad', 'gravel', 'mtb'];
+
+  /** Planer-Aktivität → OSM-Routentyp (`activity` der Tour-Detail-Form). */
+  static osmActivity(activity: string): string {
+    return ToursService.roundtripSpec(activity).osm;
+  }
+
   /**
    * BRouter-Profil, Richtgeschwindigkeit und Steigleistung je
    * Generator-Aktivität (alle Profile auf brouter.de verifiziert).
