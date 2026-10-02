@@ -9,6 +9,10 @@ struct TourAssistantView: View {
     @Environment(AuthViewModel.self) private var auth
     @Environment(\.dismiss) private var dismiss
 
+    /// Empfohlene Route im Routenplaner öffnen (Start, Zwischenpunkte, Ziel
+    /// anpassen). Ohne Callback wird der Knopf nicht gezeigt.
+    var onPlan: ((RoutePlan) -> Void)? = nil
+
     @State private var messages: [AssistantMessage] = []
     @State private var input = ""
     @State private var isThinking = false
@@ -116,7 +120,7 @@ struct TourAssistantView: View {
     @ViewBuilder
     private func bubble(_ message: AssistantMessage) -> some View {
         VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 8) {
-            Text(message.text)
+            Text(Self.formatted(message))
                 .font(.subheadline)
                 .foregroundStyle(message.role == .user ? AppColor.white : AppColor.text)
                 .padding(.horizontal, 14)
@@ -124,15 +128,29 @@ struct TourAssistantView: View {
                 .background(message.role == .user ? AppColor.primary : AppColor.surface,
                             in: RoundedRectangle(cornerRadius: AppRadius.card))
             if let route = message.route {
-                routeCard(route)
+                routeCard(route, plan: message.plan)
             }
         }
         .frame(maxWidth: .infinity, alignment: message.role == .user ? .trailing : .leading)
         .id(message.id)
     }
 
-    /// Kompakte Routen-Karte: Tap → Detail; „Tour starten" startet direkt.
-    private func routeCard(_ route: TourDetail) -> some View {
+    /// Antworten des Assistenten enthalten Hervorhebungen (**fett**) —
+    /// als Auszeichnung darstellen statt als Sternchen. Zeilenumbrüche
+    /// bleiben erhalten; eigene Eingaben werden nie interpretiert.
+    private static func formatted(_ message: AssistantMessage) -> AttributedString {
+        guard message.role == .assistant,
+              let rich = try? AttributedString(
+                markdown: message.text,
+                options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) else {
+            return AttributedString(message.text)
+        }
+        return rich
+    }
+
+    /// Kompakte Routen-Karte: Tap → Detail; „Im Planer anpassen" übergibt
+    /// die Punkte an den Routenplaner; „Tour starten" startet direkt.
+    private func routeCard(_ route: TourDetail, plan: RoutePlan?) -> some View {
         VStack(spacing: 0) {
         Button {
             detailRoute = route
@@ -175,6 +193,25 @@ struct TourAssistantView: View {
             .padding(AppSpacing.card)
         }
         .buttonStyle(.plain)
+
+        // Ruhige Zweitaktion — der eine CTA der Karte bleibt „Tour starten"
+        if let plan, let onPlan {
+            Divider().overlay(AppColor.border)
+            Button {
+                onPlan(plan)
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "point.3.connected.trianglepath.dotted").font(.footnote)
+                    Text("Im Planer anpassen").font(.footnote.weight(.medium))
+                }
+                .foregroundStyle(AppColor.text)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Öffnet die Route im Routenplaner mit Start, Zwischenpunkten und Ziel")
+        }
 
         Button {
             startTour = route.asRoute

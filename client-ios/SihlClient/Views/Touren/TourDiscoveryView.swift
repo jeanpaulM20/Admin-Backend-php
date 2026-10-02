@@ -48,6 +48,8 @@ struct TourDiscoveryView: View {
     @State private var routeName = ""
     @State private var saveAsNew = false
     @State private var saveError: String?
+    /// Vorschlag des Assistenten, der eine ungespeicherte Planung ersetzen würde
+    @State private var pendingPlan: RoutePlan?
     /// Taktgeber für die Pin-Ebene: zählt bei jeder Kamerabewegung hoch
     @State private var cameraTicker = MapCameraTicker()
 
@@ -59,7 +61,15 @@ struct TourDiscoveryView: View {
 
     private var isDemo: Bool { auth.clientId == "demo" }
 
+    // Der Bildschirm ist in drei Teile zerlegt (Ebenen, Touren-Suche,
+    // Routenplaner) — als ein einziger Ausdruck überfordert er den
+    // Swift-Typprüfer.
     var body: some View {
+        plannerPresentations(discoveryPresentations(layers))
+    }
+
+    /// Karte mit den schwebenden Bedienelementen.
+    private var layers: some View {
         // Kacheln schweben über der Karte — sie bleibt zwischen den
         // Bedienelementen sichtbar (moderner Look, User-Wunsch 2026-08-25)
         ZStack(alignment: .top) {
@@ -112,7 +122,85 @@ struct TourDiscoveryView: View {
                 }
             }
         }
+    }
+
+    /// Navigation, Werkzeugleiste und Dialoge der Touren-Suche.
+    private func discoveryPresentations(_ content: some View) -> some View {
+        content
         .navigationBarTitleDisplayMode(.inline)
+        .alert("Kein Zugriff auf den Standort", isPresented: $locationDenied) {
+            Button("Einstellungen öffnen") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text("Erlaube SIHLMOVE in den Einstellungen den Standortzugriff, um Touren in deiner Nähe zu finden.")
+        }
+        .toolbar {
+            // Touren-Assistent (C1): Wunschtour beschreiben → Route
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { showAssistant = true } label: {
+                    Image(systemName: "sparkles")
+                        .font(.callout)
+                        .foregroundStyle(AppColor.brass)
+                }
+                .accessibilityLabel("Touren-Assistent")
+            }
+            // GPX-Import (T4) — z.B. aus Komoot exportierte Touren
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { showImporter = true } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "square.and.arrow.down").font(.callout)
+                        Text("GPX").font(.footnote.weight(.medium))
+                    }
+                    .foregroundStyle(AppColor.muted)
+                }
+                .accessibilityLabel("GPX importieren")
+            }
+        }
+        .task {
+            guard tours.isEmpty else { return }
+            if locator.isAuthorized {
+                // Bereits erlaubt: still am eigenen Standort starten statt in Zürich
+                locator.locate { outcome in
+                    if case .located(let c) = outcome { moveTo(c) } else { reload() }
+                }
+            } else {
+                reload()
+            }
+        }
+        .navigationDestination(item: $detailTour) { tour in
+            TourDetailView(tour: tour)
+        }
+        .navigationDestination(item: $generatedDetail) { detail in
+            TourDetailView(detail: detail)
+        }
+        .navigationDestination(item: $startRoute) { detail in
+            // T3: geplante Route in den Recorder übergeben (Leitlinie + Off-Route)
+            RecordWorkoutView(tour: detail.asRoute)
+        }
+        .sheet(isPresented: $showPlanSheet) {
+            PlanTourSheet(activity: activity.roundtrip, isDemo: isDemo,
+                          center: cameraCenter ?? center) { detail in
+                showPlanSheet = false
+                if let detail { generatedDetail = detail }
+            }
+        }
+        .fileImporter(isPresented: $showImporter,
+                      allowedContentTypes: [UTType(filenameExtension: "gpx") ?? .xml]) { result in
+            if case .success(let url) = result, let detail = GPXFile.parse(url: url) {
+                generatedDetail = detail
+            } else {
+                error = "GPX-Datei konnte nicht gelesen werden."
+            }
+        }
+    }
+
+    /// Dialoge, Listen und Reaktionen des Routenplaners (inkl. Assistent).
+    private func plannerPresentations(_ content: some View) -> some View {
+        content
         .sheet(isPresented: $showSavedRoutes) {
             SavedRoutesSheet(
                 repository: SavedRouteRepository(clientId: auth.clientId, isDemo: isDemo),
@@ -175,76 +263,24 @@ struct TourDiscoveryView: View {
         }
         .onAppear { planner.resumeIfNeeded() }
         .onDisappear { planner.cancelPending() }
-        .alert("Kein Zugriff auf den Standort", isPresented: $locationDenied) {
-            Button("Einstellungen öffnen") {
-                if let url = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(url)
-                }
-            }
-            Button("Abbrechen", role: .cancel) {}
-        } message: {
-            Text("Erlaube SIHLMOVE in den Einstellungen den Standortzugriff, um Touren in deiner Nähe zu finden.")
-        }
-        .toolbar {
-            // Touren-Assistent (C1): Wunschtour beschreiben → Route
-            ToolbarItem(placement: .topBarTrailing) {
-                Button { showAssistant = true } label: {
-                    Image(systemName: "sparkles")
-                        .font(.callout)
-                        .foregroundStyle(AppColor.brass)
-                }
-                .accessibilityLabel("Touren-Assistent")
-            }
-            // GPX-Import (T4) — z.B. aus Komoot exportierte Touren
-            ToolbarItem(placement: .topBarTrailing) {
-                Button { showImporter = true } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "square.and.arrow.down").font(.callout)
-                        Text("GPX").font(.footnote.weight(.medium))
-                    }
-                    .foregroundStyle(AppColor.muted)
-                }
-                .accessibilityLabel("GPX importieren")
-            }
-        }
-        .task {
-            guard tours.isEmpty else { return }
-            if locator.isAuthorized {
-                // Bereits erlaubt: still am eigenen Standort starten statt in Zürich
-                locator.locate { outcome in
-                    if case .located(let c) = outcome { moveTo(c) } else { reload() }
-                }
-            } else {
-                reload()
-            }
-        }
-        .navigationDestination(item: $detailTour) { tour in
-            TourDetailView(tour: tour)
-        }
-        .navigationDestination(item: $generatedDetail) { detail in
-            TourDetailView(detail: detail)
-        }
-        .navigationDestination(item: $startRoute) { detail in
-            // T3: geplante Route in den Recorder übergeben (Leitlinie + Off-Route)
-            RecordWorkoutView(tour: detail.asRoute)
-        }
         .sheet(isPresented: $showAssistant) {
-            TourAssistantView()
+            // Phase 4: Empfehlung des Assistenten im Planer öffnen
+            TourAssistantView(onPlan: { plan in
+                showAssistant = false
+                if isPlanning && planner.points.count >= 2 && !planner.isSaved {
+                    pendingPlan = plan   // erst nachfragen — sonst ginge Arbeit verloren
+                } else {
+                    openInPlanner(plan)
+                }
+            })
         }
-        .sheet(isPresented: $showPlanSheet) {
-            PlanTourSheet(activity: activity.roundtrip, isDemo: isDemo,
-                          center: cameraCenter ?? center) { detail in
-                showPlanSheet = false
-                if let detail { generatedDetail = detail }
-            }
-        }
-        .fileImporter(isPresented: $showImporter,
-                      allowedContentTypes: [UTType(filenameExtension: "gpx") ?? .xml]) { result in
-            if case .success(let url) = result, let detail = GPXFile.parse(url: url) {
-                generatedDetail = detail
-            } else {
-                error = "GPX-Datei konnte nicht gelesen werden."
-            }
+        .alert("Aktuelle Planung ersetzen?", isPresented: Binding(
+            get: { pendingPlan != nil }, set: { if !$0 { pendingPlan = nil } }),
+               presenting: pendingPlan) { plan in
+            Button("Ersetzen", role: .destructive) { openInPlanner(plan) }
+            Button("Abbrechen", role: .cancel) {}
+        } message: { _ in
+            Text("Die ungespeicherten Punkte im Planer werden durch den Vorschlag des Assistenten ersetzt.")
         }
     }
 
@@ -451,6 +487,13 @@ struct TourDiscoveryView: View {
                 .overlay(Circle().stroke(AppColor.border, lineWidth: 1))
         }
         .accessibilityLabel("Meine Routen")
+    }
+
+    /// Vorschlag des Assistenten in den Planer laden (Phase 4).
+    private func openInPlanner(_ plan: RoutePlan) {
+        if !isPlanning { enterPlanning() }
+        hasFittedRoute = false
+        planner.load(plan)
     }
 
     // MARK: Meine Routen

@@ -1,6 +1,6 @@
 # Konzept: Routenplaner — Start, Zwischenpunkte, Ziel
 
-Stand: 26. September 2026 · Status: Phase 1 bis 3 umgesetzt
+Stand: 26. September 2026 · Status: Phase 1 bis 4 umgesetzt
 
 ## 1. Ziel
 
@@ -220,3 +220,24 @@ Phase 1 ist für sich vollständig nutzbar.
   Klient. Beim Löschen eines Klienten gehen seine Routen mit.
 - **Demo-Modus:** Speichern funktioniert für die laufende Sitzung
   (Speicher im Gerät), damit der Ablauf erlebbar ist.
+
+## 12. Umsetzungsnotizen Phase 4 (2. Oktober 2026)
+
+- **Werkzeug `route_ueber`** im Touren-Assistenten: Start, Zwischenziele
+  und Ziel in Reihenfolge (2–25 Punkte), optional `rundkurs`. Der
+  Assistent nutzt es bei Wünschen mit „über", „via", „vorbei an"; neu
+  kennt er auch die Aktivität „bergtour". Nennt das Modell den Start
+  nochmals als letzten Punkt, wird daraus serverseitig ein Rundkurs.
+- **Planungspunkte an jeder Empfehlung:** Die Antwort trägt `route.plan`
+  (Punkte, Planer-Aktivität, Rundkurs) — auch für A→B und die erzeugte
+  Rundtour. „velo" (Trekking) wird im Planer zu „Gravel", weil der Planer
+  kein Trekking-Profil hat; die Route kann dort leicht anders verlaufen.
+- **„Im Planer anpassen"** auf der Routen-Karte im Chat: schliesst den
+  Assistenten und lädt die Punkte in den Planer (Name als Vorschlag beim
+  Speichern). Liegt dort ungespeicherte Arbeit, wird zuerst nachgefragt.
+- **Darstellung:** Hervorhebungen in den Antworten (**fett**) werden als
+  Auszeichnung gezeigt statt als Sternchen.
+- **Geprüft** mit dem echten Modell: „Wanderung von Adliswil über die
+  Felsenegg auf den Uetliberg" (3 Punkte, 7.9 km, ↑508 ↓147) und
+  „Gravel-Runde ab Adliswil über Langnau und Thalwil und zurück"
+  (Rundkurs, 3 Punkte, 12.9 km).

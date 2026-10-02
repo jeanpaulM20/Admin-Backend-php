@@ -48,6 +48,8 @@ final class RoutePlannerModel {
     private(set) var savedRoute: SavedRoute?
     private(set) var hasUnsavedChanges = false
     private(set) var isSaving = false
+    /// Name einer vom Assistenten übernommenen Route (Vorschlag beim Speichern)
+    private(set) var proposedName: String?
 
     @ObservationIgnored private var task: Task<Void, Never>?
     /// Zählt Änderungen — so erkennt `save`, ob währenddessen weitergeplant wurde
@@ -60,7 +62,8 @@ final class RoutePlannerModel {
     var isSaved: Bool { savedRoute != nil && !hasUnsavedChanges }
     /// Namensvorschlag für eine neue Route: „Wandern · 12.4 km"
     var suggestedName: String {
-        [activity.label, result?.distanceKm.map { TourFormat.distance($0) }]
+        if let proposedName { return proposedName }
+        return [activity.label, result?.distanceKm.map { TourFormat.distance($0) }]
             .compactMap { $0 }.joined(separator: " · ")
     }
     private var repository: SavedRouteRepository {
@@ -210,6 +213,7 @@ final class RoutePlannerModel {
         unreachableID = nil
         savedRoute = nil
         hasUnsavedChanges = false
+        proposedName = nil
         revision += 1
     }
 
@@ -224,6 +228,17 @@ final class RoutePlannerModel {
         scheduleCalculation()
         savedRoute = saved
         hasUnsavedChanges = false
+    }
+
+    /// Vorschlag des Assistenten übernehmen: gleiche Punkte, Aktivität und
+    /// Rundkurs — als neue, noch ungespeicherte Planung.
+    func load(_ plan: RoutePlan) {
+        clear()
+        points = plan.points.prefix(Self.maxPoints).map { PlannedPoint($0) }
+        activity = plan.activity
+        roundtrip = plan.roundtrip
+        proposedName = plan.name
+        scheduleCalculation()
     }
 
     /// Route speichern: ersetzt die geladene Fassung oder legt — mit

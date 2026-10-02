@@ -349,6 +349,9 @@ out geom 80;`;
       id: `rt-${Date.now()}`,
       name: `Rundtour · ${distOut.toFixed(1)} km`,
       ...ToursService.routedTour(routed, spec),
+      // Start + Stützpunkte des Kreises (ohne den Rückweg zum Start) —
+      // als Rundkurs-Punkte im Routenplaner weiterbearbeitbar
+      waypoints: points.slice(0, -1).map((p) => ({ lat: p[1], lon: p[0] })),
     };
   }
 

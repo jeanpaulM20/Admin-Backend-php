@@ -1,11 +1,23 @@
 import { Injectable, Logger } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
-import { ToursService } from './tours.service';
+import { RoutePoint, ToursService } from './tours.service';
+
+/**
+ * Planungsdaten einer berechneten Route: die Punkte in Reihenfolge, die
+ * Planer-Aktivität und ob es ein Rundkurs ist. Damit lässt sich die
+ * Empfehlung in der App im Routenplaner öffnen und anpassen (Phase 4).
+ */
+interface RoutePlan {
+  points: RoutePoint[];
+  activity: string;
+  roundtrip: boolean;
+}
 
 /**
  * Touren-Assistent (KONZEPT-TOUREN-CHAT.md, Phase C1):
  * Natürlichsprachige Tourenwünsche → Claude mit Werkzeug-Loop
- * (geocode/route/rundtour) → ehrliche Antwort + berechnete Route.
+ * (geocode/route/route_ueber/rundtour) → ehrliche Antwort + berechnete
+ * Route samt Planungspunkten für den Routenplaner.
  * Das Modell darf keine Route empfehlen, die es nicht berechnet hat.
  */
 @Injectable()
@@ -38,10 +50,30 @@ Regeln:
 - Liegt die berechnete Dauer ÜBER dem Zeitbudget, aber unter dem Doppelten: Empfiehl die berechnete Route DIREKT per empfehlung(...) und benenne die Abweichung ehrlich — KEINE Alternativsuche.
 - PFLICHT-SCHRITT: Überschreitet die berechnete Dauer das genannte Zeitbudget auf MEHR ALS DAS DOPPELTE, darfst du NICHT direkt antworten. Du MUSST zuerst mindestens eine Alternative berechnen (geocode eines höher gelegenen, mit Bahn/Bus erreichbaren Startpunkts — z. B. Bergstationen wie "Rigi Kaltbad" oder "Rigi Klösterli" — dann route von dort) und DIESE Alternative per empfehlung(...) empfehlen. Die unmachbare Direktroute nie als Empfehlung stehen lassen.
 - "Mit der Bahn zurück/runter" o. Ä. heisst: Einweg-Route reicht; erwähne die Bahn im Text.
+- Nennt der Wunsch Zwischenziele ("über", "via", "vorbei an", "mit Abstecher zu"), geocode JEDEN genannten Ort und berechne die Route mit route_ueber — alle Punkte in der gewünschten Reihenfolge. Soll die Tour am Start enden ("und zurück", "Runde über …"), setze rundkurs=true und nenne den Start NICHT nochmals als letzten Punkt. Ohne Zwischenziele bleibt es bei route bzw. rundtour. Nach route_ueber gilt wie immer: empfehlung(...) aufrufen und Distanz, Dauer sowie Höhenmeter im Text nennen — keine Rückfrage mehr.
+- Für hochalpine Touren (Gipfel, Hütten, weiss-rot-weiss/alpin) nutze aktivitaet "bergtour".
 - Korrigiere offensichtliche Ortsnamen-Tippfehler stillschweigend (z. B. "Vetznau" → "Vitznau").
 - Wenn Angaben fehlen (Start, Aktivität), stelle EINE kurze Rückfrage statt zu raten. Eine Rückfrage ist NUR erlaubt, wenn dir Angaben fehlen, um überhaupt eine Route zu rechnen — nie, um eine Empfehlung abzusichern. Hast du bereits eine Route berechnet, empfiehl die beste davon.
 - Wenn du eine finale Route empfiehlst: Rufe zuerst empfehlung(routeId, titel) auf und beschreibe die Route danach im Text (Distanz, Dauer, Höhenmeter, ggf. Bahn-Hinweis).
 - Maximal eine empfohlene Route pro Antwort.`;
+
+  private static readonly ACTIVITIES = ['wandern', 'bergtour', 'joggen', 'velo', 'rennrad', 'gravel', 'mtb'];
+
+  /**
+   * Assistenten-Aktivität → Aktivität des Routenplaners. Der Planer kennt
+   * kein „velo" (Trekking-Rad); am nächsten liegt Gravel.
+   */
+  private static plannerActivity(aktivitaet: string): string {
+    if (aktivitaet === 'velo' || aktivitaet === 'rad') return 'gravel';
+    return ToursService.PLANNER_ACTIVITIES.includes(aktivitaet) ? aktivitaet : 'wandern';
+  }
+
+  /** Zwei Punkte liegen praktisch aufeinander (< ~50 m). */
+  private static near(a: RoutePoint, b: RoutePoint): boolean {
+    const dLat = (a.lat - b.lat) * 110_574;
+    const dLon = (a.lon - b.lon) * 111_320 * Math.cos((a.lat * Math.PI) / 180);
+    return Math.hypot(dLat, dLon) < 50;
+  }
 
   private static readonly TOOLS: Anthropic.Tool[] = [
     {
@@ -61,9 +93,34 @@ Regeln:
         properties: {
           startLat: { type: 'number' }, startLon: { type: 'number' },
           zielLat: { type: 'number' }, zielLon: { type: 'number' },
-          aktivitaet: { type: 'string', enum: ['wandern', 'joggen', 'velo', 'rennrad', 'gravel', 'mtb'] },
+          aktivitaet: { type: 'string', enum: ToursAssistantService.ACTIVITIES },
         },
         required: ['startLat', 'startLon', 'zielLat', 'zielLon', 'aktivitaet'],
+      },
+    },
+    {
+      name: 'route_ueber',
+      description:
+        'Berechnet eine Route über mehrere Punkte in fester Reihenfolge: Start, Zwischenziele, Ziel '
+        + '(echte Wege, Höhenmeter auf/ab, SAC-Dauer). Für Wünsche mit "über", "via" oder mehreren Etappenorten.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          punkte: {
+            type: 'array',
+            description: 'Start, Zwischenziele und Ziel in Reihenfolge (2 bis 25 Punkte), Koordinaten aus geocode.',
+            minItems: 2,
+            maxItems: ToursService.MAX_VIA_POINTS,
+            items: {
+              type: 'object',
+              properties: { lat: { type: 'number' }, lon: { type: 'number' } },
+              required: ['lat', 'lon'],
+            },
+          },
+          aktivitaet: { type: 'string', enum: ToursAssistantService.ACTIVITIES },
+          rundkurs: { type: 'boolean', description: 'true = vom letzten Punkt zurück zum Start' },
+        },
+        required: ['punkte', 'aktivitaet'],
       },
     },
     {
@@ -74,7 +131,7 @@ Regeln:
         properties: {
           lat: { type: 'number' }, lon: { type: 'number' },
           distanceKm: { type: 'number' },
-          aktivitaet: { type: 'string', enum: ['wandern', 'joggen', 'velo', 'rennrad', 'gravel', 'mtb'] },
+          aktivitaet: { type: 'string', enum: ToursAssistantService.ACTIVITIES },
         },
         required: ['lat', 'lon', 'distanceKm', 'aktivitaet'],
       },
@@ -118,7 +175,7 @@ Regeln:
     }
 
     // Berechnete Routen der Konversation (nur Zusammenfassung geht ans Modell)
-    const routes = new Map<string, any>();
+    const routes = new Map<string, { detail: any; plan: RoutePlan }>();
     let chosen: { routeId: string; titel: string } | null = null;
     let routeCounter = 0;
 
@@ -163,15 +220,16 @@ Regeln:
     // auch wenn das Modell empfehlung() vergessen hat (zuletzt berechnete
     // Route = in der Regel die beste/letzte Alternative).
     let route: any;
-    if (chosen && routes.has(chosen.routeId)) {
-      const r = routes.get(chosen.routeId);
-      route = { ...r.detail, id: `assist-${Date.now()}`, name: chosen.titel };
+    const picked = chosen ? routes.get(chosen.routeId) : undefined;
+    if (chosen && picked) {
+      route = { ...picked.detail, id: `assist-${Date.now()}`, name: chosen.titel, plan: picked.plan };
     } else if (routes.size > 0) {
-      const last = [...routes.values()][routes.size - 1].detail;
-      const name = last.name && last.name !== 'Route'
+      const lastEntry = [...routes.values()][routes.size - 1];
+      const last = lastEntry.detail;
+      const name = last.name && !['Route', 'Geplante Route'].includes(last.name)
         ? last.name
         : `Route · ${last.distanceKm} km`;
-      route = { ...last, id: `assist-${Date.now()}`, name };
+      route = { ...last, id: `assist-${Date.now()}`, name, plan: lastEntry.plan };
     }
     if (truncated && reply) reply += ' …';
     return { reply: reply || 'Da ist etwas schiefgelaufen — versuch es bitte nochmal.', route };
@@ -182,7 +240,7 @@ Regeln:
   private async runTool(
     name: string,
     input: any,
-    routes: Map<string, any>,
+    routes: Map<string, { detail: any; plan: RoutePlan }>,
     nextId: () => string,
   ): Promise<any> {
     switch (name) {
@@ -195,11 +253,50 @@ Regeln:
           String(input.aktivitaet ?? 'wandern'),
         );
         const id = nextId();
-        routes.set(id, { detail });
+        const plan: RoutePlan = {
+          points: [
+            { lat: Number(input.startLat), lon: Number(input.startLon) },
+            { lat: Number(input.zielLat), lon: Number(input.zielLon) },
+          ],
+          activity: ToursAssistantService.plannerActivity(String(input.aktivitaet ?? 'wandern')),
+          roundtrip: false,
+        };
+        routes.set(id, { detail, plan });
         return {
           routeId: id,
           distanceKm: detail.distanceKm,
           elevationGain: detail.elevationGain,
+          durationMin: detail.durationMin,
+        };
+      }
+      case 'route_ueber': {
+        const raw: any[] = Array.isArray(input.punkte) ? input.punkte : [];
+        const points: RoutePoint[] = raw.map((p) => ({ lat: Number(p?.lat), lon: Number(p?.lon) }));
+        if (points.length < 2 || points.length > ToursService.MAX_VIA_POINTS
+            || points.some((p) => !Number.isFinite(p.lat) || !Number.isFinite(p.lon)
+              || Math.abs(p.lat) > 90 || Math.abs(p.lon) > 180)) {
+          return { fehler: `punkte: 2 bis ${ToursService.MAX_VIA_POINTS} gültige Koordinaten erforderlich` };
+        }
+        const aktivitaet = String(input.aktivitaet ?? 'wandern');
+        // Nennt das Modell den Start nochmals als letzten Punkt, ist das ein
+        // Rundkurs — so normalisiert liegen im Planer nicht Start- und
+        // Ziel-Pin aufeinander
+        let roundtrip = input.rundkurs === true;
+        if (points.length >= 3 && ToursAssistantService.near(points[0], points[points.length - 1])) {
+          points.pop();
+          roundtrip = true;
+        }
+        const detail = await this.tours.routeVia(points, aktivitaet, roundtrip);
+        const id = nextId();
+        routes.set(id, {
+          detail,
+          plan: { points, activity: ToursAssistantService.plannerActivity(aktivitaet), roundtrip },
+        });
+        return {
+          routeId: id,
+          distanceKm: detail.distanceKm,
+          elevationGain: detail.elevationGain,
+          elevationLoss: detail.elevationLoss,
           durationMin: detail.durationMin,
         };
       }
@@ -209,7 +306,14 @@ Regeln:
           Number(input.distanceKm), String(input.aktivitaet ?? 'wandern'),
         );
         const id = nextId();
-        routes.set(id, { detail });
+        routes.set(id, {
+          detail,
+          plan: {
+            points: detail.waypoints,
+            activity: ToursAssistantService.plannerActivity(String(input.aktivitaet ?? 'wandern')),
+            roundtrip: true,
+          },
+        });
         return {
           routeId: id,
           distanceKm: detail.distanceKm,
