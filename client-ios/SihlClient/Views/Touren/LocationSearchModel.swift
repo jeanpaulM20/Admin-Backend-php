@@ -62,8 +62,10 @@ final class LocationSearchModel: NSObject, MKLocalSearchCompleterDelegate {
             }
             // MapKit liefert zu jedem Treffer dessen Ausdehnung als Kreis:
             // Hausnummer ≈ 50 m, Ortschaft einige Kilometer
+            // Obergrenze 0.8° (≈ 90 km): Täler und Kantone bleiben ganz
+            // sichtbar, ein Land zoomt nicht ins Leere
             let radius = (item.placemark.region as? CLCircularRegion)?.radius ?? 300
-            span = min(max(radius * 2.8 / 111_000, 0.008), 0.15)
+            span = min(max(radius * 2.8 / 111_000, 0.008), 0.8)
         }
     }
 

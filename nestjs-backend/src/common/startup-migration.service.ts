@@ -111,7 +111,10 @@ export class StartupMigrationService implements OnApplicationBootstrap {
          created_at DATETIME NOT NULL,
          updated_at DATETIME NOT NULL,
          KEY idx_planned_route_client (client_id)
-       )`,
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+      // Bereits ohne Zeichensatz-Angabe angelegte Tabelle angleichen
+      // (Routennamen mit Umlauten/Emoji) — wiederholbar, bei utf8mb4 ein No-op
+      `ALTER TABLE planned_route CONVERT TO CHARACTER SET utf8mb4`,
       // Trainings-Galerie (F1): ein Foto je Aufzeichnung, Bild als BLOB
       `CREATE TABLE IF NOT EXISTS review_photo (
          id INT AUTO_INCREMENT PRIMARY KEY,

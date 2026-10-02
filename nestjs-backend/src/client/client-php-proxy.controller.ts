@@ -51,6 +51,18 @@ export class ClientAppController {
     }
   }
 
+  /**
+   * Gespeicherte Routen sind privat: nur der Klient selbst, auch kein
+   * Trainer. Sie beginnen oft zu Hause, und die App sagt beim Speichern
+   * „nur für dich sichtbar".
+   */
+  private assertOwnClient(req: Request, clientId: number): void {
+    const client = (req as any).currentClient;
+    if (!client || client.id !== clientId) {
+      throw new ForbiddenException('Gespeicherte Routen sind privat');
+    }
+  }
+
   /** Dashboard — credits + upcoming trainings */
   @Get('start/:clientId')
   start(@Req() req: Request, @Param('clientId', ParseIntPipe) clientId: number) {
@@ -240,7 +252,7 @@ export class ClientAppController {
     @Req() req: Request,
     @Param('clientId', ParseIntPipe) clientId: number,
   ) {
-    this.assertClientAccess(req, clientId);
+    this.assertOwnClient(req, clientId);
     return this.plannedRouteService.list(clientId);
   }
 
@@ -250,7 +262,7 @@ export class ClientAppController {
     @Param('clientId', ParseIntPipe) clientId: number,
     @Param('routeId', ParseIntPipe) routeId: number,
   ) {
-    this.assertClientAccess(req, clientId);
+    this.assertOwnClient(req, clientId);
     try {
       return await this.plannedRouteService.detail(clientId, routeId);
     } catch (e) {
@@ -264,7 +276,7 @@ export class ClientAppController {
     @Param('clientId', ParseIntPipe) clientId: number,
     @Body() body: any,
   ) {
-    this.assertClientAccess(req, clientId);
+    this.assertOwnClient(req, clientId);
     const points = this.parseRoutePoints(body);
     const roundtrip = body?.roundtrip === true;
     try {
@@ -286,7 +298,7 @@ export class ClientAppController {
     @Param('routeId', ParseIntPipe) routeId: number,
     @Body() body: any,
   ) {
-    this.assertClientAccess(req, clientId);
+    this.assertOwnClient(req, clientId);
     const name = typeof body?.name === 'string' ? body.name : undefined;
     const hasRoute = body?.points !== undefined;
     if (!hasRoute && name === undefined) {
@@ -312,7 +324,7 @@ export class ClientAppController {
     @Param('clientId', ParseIntPipe) clientId: number,
     @Param('routeId', ParseIntPipe) routeId: number,
   ) {
-    this.assertClientAccess(req, clientId);
+    this.assertOwnClient(req, clientId);
     try {
       return await this.plannedRouteService.remove(clientId, routeId);
     } catch (e) {

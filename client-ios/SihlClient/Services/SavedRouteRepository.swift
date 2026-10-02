@@ -119,7 +119,9 @@ struct SavedRouteRepository {
         ]
         let data: Data
         if let id {
-            data = try await APIClient.shared.put("/api/client/tours/planned/\(clientId)/\(id)", body: body)
+            // Ersetzen rechnet die Route auf dem Server neu — gleiche Geduld wie beim Anlegen
+            data = try await APIClient.shared.put("/api/client/tours/planned/\(clientId)/\(id)",
+                                                  body: body, timeout: 45)
         } else {
             data = try await APIClient.shared.post("/api/client/tours/planned/\(clientId)", body: body, timeout: 45)
         }

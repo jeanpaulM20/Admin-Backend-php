@@ -198,9 +198,13 @@ export class ClientService {
 
   async remove(id: number) {
     const client = await this.findOne(id);
-    // Gespeicherte Routen gehören dem Klienten und gehen mit ihm
-    await this.clientRepo.manager.delete(PlannedRoute, { clientId: id });
-    return this.clientRepo.remove(client);
+    // Gespeicherte Routen gehören dem Klienten und gehen mit ihm — in
+    // einer Transaktion, damit sie nicht verschwinden, falls das Löschen
+    // des Klienten scheitert
+    return this.clientRepo.manager.transaction(async (m) => {
+      await m.delete(PlannedRoute, { clientId: id });
+      return m.remove(client);
+    });
   }
 
   async getAutoNotify(id: number) {

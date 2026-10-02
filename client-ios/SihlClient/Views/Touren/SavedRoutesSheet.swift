@@ -16,6 +16,7 @@ struct SavedRoutesSheet: View {
     @State private var isLoading = true
     @State private var error: String?
     @State private var openingID: Int?
+    @State private var openTask: Task<Void, Never>?
     @State private var renaming: SavedRoute?
     @State private var renameText = ""
     @State private var deleting: SavedRoute?
@@ -38,6 +39,9 @@ struct SavedRoutesSheet: View {
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         .task { await load() }
+        // Wird die Liste geschlossen, soll ein noch ladendes Detail nicht
+        // später unerwartet aufgehen
+        .onDisappear { openTask?.cancel() }
         .alert("Route umbenennen", isPresented: Binding(
             get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
             TextField("Name", text: $renameText)
@@ -163,9 +167,11 @@ struct SavedRoutesSheet: View {
     private func open(_ route: SavedRoute) {
         guard openingID == nil else { return }
         openingID = route.id
-        Task {
+        openTask = Task {
             defer { openingID = nil }
-            if let detail = try? await repository.detail(route) {
+            let detail = try? await repository.detail(route)
+            guard !Task.isCancelled else { return }
+            if let detail {
                 onOpen(detail)
             } else {
                 error = "Route konnte nicht geladen werden."

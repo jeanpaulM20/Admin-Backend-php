@@ -140,10 +140,16 @@ struct TourAssistantView: View {
     /// bleiben erhalten; eigene Eingaben werden nie interpretiert.
     private static func formatted(_ message: AssistantMessage) -> AttributedString {
         guard message.role == .assistant,
-              let rich = try? AttributedString(
+              var rich = try? AttributedString(
                 markdown: message.text,
                 options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) else {
             return AttributedString(message.text)
+        }
+        // Nur Hervorhebungen übernehmen: Links aus dem Modelltext werden
+        // nicht antippbar (der Text kann Inhalte fremder Quellen wie
+        // Ortsnamen aus der Geocodierung enthalten)
+        for run in rich.runs where run.link != nil {
+            rich[run.range].link = nil
         }
         return rich
     }

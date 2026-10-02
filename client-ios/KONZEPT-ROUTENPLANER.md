@@ -241,3 +241,31 @@ Phase 1 ist für sich vollständig nutzbar.
   Felsenegg auf den Uetliberg" (3 Punkte, 7.9 km, ↑508 ↓147) und
   „Gravel-Runde ab Adliswil über Langnau und Thalwil und zurück"
   (Rundkurs, 3 Punkte, 12.9 km).
+
+## 13. Quality Check Phase 2–4 (2. Oktober 2026)
+
+Behoben nach eigenem und unabhängigem Review:
+
+- **Speichern und Verwerfen:** Ein Speichern, das erst nach Verwerfen oder
+  Laden einer anderen Route zurückkommt, hängt sich nicht mehr an die neue
+  Planung (sonst hätte das nächste Speichern die alte Route überschrieben).
+  Der Planer startet bei jedem Betreten frisch, ohne Rundkurs.
+- **Gespeicherte Routen sind privat:** Die fünf Endpunkte lassen nur den
+  Klienten selbst zu, auch keinen Trainer — passend zum Hinweis „nur für
+  dich sichtbar".
+- **Ersetzen:** längere Wartezeit (Server rechnet neu); existiert die
+  geladene Route nicht mehr, wird sie als neue angelegt.
+- **Abgebrochene Zieh-Geste** (Anruf, App-Wechsel) setzt den Pin ab und
+  rechnet neu.
+- **Einfügen auf der Linie** stimmt auch auf Hin-und-zurück-Strecken.
+- **Assistent:** höchstens sechs Routing-Aufrufe je Anfrage; „velo"
+  entfällt (Gravel/Rennrad/MTB), damit der Planer exakt gleich nachrechnet;
+  Rundtour-Punkte liegen auf der Route statt auf dem Hilfskreis; Links in
+  Antworten sind nicht antippbar.
+- **Backend:** Klient löschen und Routen entfernen in einer Transaktion;
+  Obergrenze unmittelbar vor dem Einfügen geprüft; Tabelle mit utf8mb4.
+- **Suche:** grosse Regionen zoomen weit genug heraus; ein zweiter Tipp
+  auf den Such-Pin setzt keinen doppelten Punkt.
+
+Bewusst offen: ein Tageslimit für den Assistenten je Klient
+(`ASSISTANT_DAILY_LIMIT`, derzeit ohne Limit — Produktentscheid).

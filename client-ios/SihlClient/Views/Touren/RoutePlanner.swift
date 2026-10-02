@@ -54,6 +54,9 @@ final class RoutePlannerModel {
     @ObservationIgnored private var task: Task<Void, Never>?
     /// Zählt Änderungen — so erkennt `save`, ob währenddessen weitergeplant wurde
     @ObservationIgnored private var revision = 0
+    /// Zählt Planungen (jedes `clear`/`load` beginnt eine neue) — ein
+    /// Speichern, das erst danach zurückkommt, gehört nicht mehr dazu
+    @ObservationIgnored private var session = 0
     @ObservationIgnored var clientId: String?
     @ObservationIgnored var isDemo = false
 
@@ -122,6 +125,12 @@ final class RoutePlannerModel {
 
     func add(_ c: CLLocationCoordinate2D) {
         guard !isFull else { return }
+        // Derselbe Ort zweimal hintereinander (z. B. wiederholter Tipp auf
+        // den Such-Pin) ergäbe eine Strecke der Länge null
+        if let last = points.last?.coordinate,
+           abs(last.latitude - c.latitude) < 1e-5, abs(last.longitude - c.longitude) < 1e-5 {
+            return
+        }
         points.append(PlannedPoint(c))
         scheduleCalculation()
     }
@@ -141,19 +150,45 @@ final class RoutePlannerModel {
         guard let route = result?.segments.first, route.count >= 2 else {
             return min(vertex + 1, points.count)
         }
+        // Jedem gesetzten Punkt die Stelle zuordnen, an der die Route ihn
+        // erreicht. Start und (ohne Rundkurs) Ziel sind die Enden der Linie;
+        // für Zwischenpunkte zählt der ERSTE Vorbeigang nach dem vorigen
+        // Punkt — so stimmt es auch auf Hin-und-zurück-Strecken, wo die
+        // Route denselben Ort zweimal passiert.
         var from = 0
-        for k in points.indices {
-            let c = points[k].coordinate
-            var best = from, bestD = Double.infinity
-            for r in from..<route.count {
-                let dLat = route[r].latitude - c.latitude, dLon = route[r].longitude - c.longitude
-                let d = dLat * dLat + dLon * dLon
-                if d < bestD { bestD = d; best = r }
+        for k in points.indices.dropFirst() {
+            let reached: Int
+            if k == points.count - 1 && !roundtrip {
+                reached = route.count - 1
+            } else {
+                reached = Self.firstPass(of: points[k].coordinate, on: route, from: from)
             }
-            if k > 0 && best > vertex { return k }
-            from = best
+            if reached > vertex { return k }
+            from = reached
         }
         return points.count
+    }
+
+    /// Erster Linien-Stützpunkt ab `from`, an dem die Route nahe (< 80 m)
+    /// an `c` vorbeiführt; liegt `c` nirgends so nah, der insgesamt nächste.
+    private static func firstPass(of c: CLLocationCoordinate2D,
+                                  on route: [CLLocationCoordinate2D], from: Int) -> Int {
+        let kLon = cos(c.latitude * .pi / 180)
+        let nearDeg: Double = 80.0 / 111_320.0   // 80 m in Grad
+        let near = nearDeg * nearDeg
+        var best = from, bestD = Double.infinity
+        for r in from..<route.count {
+            let dLat = route[r].latitude - c.latitude
+            let dLon = (route[r].longitude - c.longitude) * kLon
+            let d = dLat * dLat + dLon * dLon
+            if d < bestD {
+                bestD = d
+                best = r
+            } else if bestD < near && d > bestD * 4 {
+                break   // war nah dran und entfernt sich wieder → erster Vorbeigang
+            }
+        }
+        return best
     }
 
     /// Pin ziehen: Koordinate laufend nachführen (die Route verschwindet,
@@ -215,6 +250,14 @@ final class RoutePlannerModel {
         hasUnsavedChanges = false
         proposedName = nil
         revision += 1
+        session += 1
+    }
+
+    /// Planer ganz zurücksetzen (Betreten/Verlassen des Planungsmodus):
+    /// wie `clear`, zusätzlich ohne Rundkurs.
+    func reset() {
+        clear()
+        roundtrip = false
     }
 
     // MARK: Meine Routen
@@ -248,19 +291,33 @@ final class RoutePlannerModel {
         guard points.count >= 2, !isSaving else { return nil }
         isSaving = true
         defer { isSaving = false }
-        let savedRevision = revision
+        let savedRevision = revision, savedSession = session
+        let coords = coordinates, act = activity, loop = roundtrip
+        var replacing = asNew ? nil : savedRoute?.id
         do {
-            guard let saved = try await repository.save(
-                name: name, points: coordinates, activity: activity, roundtrip: roundtrip,
-                replacing: asNew ? nil : savedRoute?.id) else {
-                return "Route konnte nicht gespeichert werden."
+            let saved: SavedRoute?
+            do {
+                saved = try await repository.save(name: name, points: coords, activity: act,
+                                                  roundtrip: loop, replacing: replacing)
+            } catch let api as APIError where api.statusCode == 404 && replacing != nil {
+                // Die geladene Route gibt es nicht mehr (anderswo gelöscht) —
+                // als neue Route anlegen statt für immer zu scheitern
+                replacing = nil
+                saved = try await repository.save(name: name, points: coords, activity: act,
+                                                  roundtrip: loop, replacing: nil)
             }
+            guard let saved else { return "Route konnte nicht gespeichert werden." }
+            // Wurde inzwischen verworfen oder eine andere Route geladen, gehört
+            // das Ergebnis nicht mehr zu dieser Planung: gespeichert ist es,
+            // aber es darf nicht an der neuen Planung hängen bleiben
+            guard session == savedSession else { return nil }
             savedRoute = saved
             // Nur „gespeichert" melden, wenn währenddessen nichts verändert wurde
             hasUnsavedChanges = revision != savedRevision
             return nil
         } catch {
-            if let api = error as? APIError, [400, 409, 422].contains(api.statusCode), !api.message.isEmpty {
+            guard session == savedSession else { return nil }
+            if let api = error as? APIError, [400, 403, 409, 422].contains(api.statusCode), !api.message.isEmpty {
                 return api.message
             }
             return Self.classify(error).0

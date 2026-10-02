@@ -52,12 +52,26 @@ Regeln:
 - "Mit der Bahn zurück/runter" o. Ä. heisst: Einweg-Route reicht; erwähne die Bahn im Text.
 - Nennt der Wunsch Zwischenziele ("über", "via", "vorbei an", "mit Abstecher zu"), geocode JEDEN genannten Ort und berechne die Route mit route_ueber — alle Punkte in der gewünschten Reihenfolge. Soll die Tour am Start enden ("und zurück", "Runde über …"), setze rundkurs=true und nenne den Start NICHT nochmals als letzten Punkt. Ohne Zwischenziele bleibt es bei route bzw. rundtour. Nach route_ueber gilt wie immer: empfehlung(...) aufrufen und Distanz, Dauer sowie Höhenmeter im Text nennen — keine Rückfrage mehr.
 - Für hochalpine Touren (Gipfel, Hütten, weiss-rot-weiss/alpin) nutze aktivitaet "bergtour".
+- Velo-Wünsche: "gravel" für Touren auf Nebenstrassen, Rad- und Kieswegen (auch für allgemeine Velotouren), "rennrad" für Strasse, "mtb" für Trails.
 - Korrigiere offensichtliche Ortsnamen-Tippfehler stillschweigend (z. B. "Vetznau" → "Vitznau").
 - Wenn Angaben fehlen (Start, Aktivität), stelle EINE kurze Rückfrage statt zu raten. Eine Rückfrage ist NUR erlaubt, wenn dir Angaben fehlen, um überhaupt eine Route zu rechnen — nie, um eine Empfehlung abzusichern. Hast du bereits eine Route berechnet, empfiehl die beste davon.
 - Wenn du eine finale Route empfiehlst: Rufe zuerst empfehlung(routeId, titel) auf und beschreibe die Route danach im Text (Distanz, Dauer, Höhenmeter, ggf. Bahn-Hinweis).
 - Maximal eine empfohlene Route pro Antwort.`;
 
-  private static readonly ACTIVITIES = ['wandern', 'bergtour', 'joggen', 'velo', 'rennrad', 'gravel', 'mtb'];
+  /**
+   * Aktivitäten der Werkzeuge = Aktivitäten des Routenplaners. „velo"
+   * (Trekking) ist bewusst nicht dabei: Der Planer hat kein solches
+   * Profil, und die Empfehlung soll dort exakt gleich nachgerechnet werden.
+   */
+  private static readonly ACTIVITIES = ['wandern', 'bergtour', 'joggen', 'rennrad', 'gravel', 'mtb'];
+
+  /**
+   * Höchstens so viele Routing-Aufrufe je Chat-Anfrage — schützt die
+   * öffentliche BRouter-Instanz (und damit den Planer aller Nutzer) vor
+   * einer Anfrage, die das Modell zu vielen Berechnungen treibt.
+   */
+  private static readonly MAX_ROUTING_CALLS = 6;
+  private static readonly ROUTING_TOOLS = ['route', 'route_ueber', 'rundtour'];
 
   /**
    * Assistenten-Aktivität → Aktivität des Routenplaners. Der Planer kennt
@@ -176,6 +190,7 @@ Regeln:
 
     // Berechnete Routen der Konversation (nur Zusammenfassung geht ans Modell)
     const routes = new Map<string, { detail: any; plan: RoutePlan }>();
+    const budget = { routingLeft: ToursAssistantService.MAX_ROUTING_CALLS };
     let chosen: { routeId: string; titel: string } | null = null;
     let routeCounter = 0;
 
@@ -205,7 +220,7 @@ Regeln:
       for (const tu of toolUses) {
         let result: any;
         try {
-          result = await this.runTool(tu.name, tu.input as any, routes, () => `r${++routeCounter}`);
+          result = await this.runTool(tu.name, tu.input as any, routes, () => `r${++routeCounter}`, budget);
           if (tu.name === 'empfehlung') chosen = tu.input as any;
         } catch (err: any) {
           result = { fehler: err?.message ?? 'Werkzeug fehlgeschlagen' };
@@ -242,7 +257,14 @@ Regeln:
     input: any,
     routes: Map<string, { detail: any; plan: RoutePlan }>,
     nextId: () => string,
+    budget: { routingLeft: number },
   ): Promise<any> {
+    if (ToursAssistantService.ROUTING_TOOLS.includes(name)) {
+      if (budget.routingLeft <= 0) {
+        return { fehler: 'Rechenlimit dieser Anfrage erreicht — empfiehl die beste bereits berechnete Route.' };
+      }
+      budget.routingLeft--;
+    }
     switch (name) {
       case 'geocode':
         return this.tours.geocode(String(input.ort ?? ''));

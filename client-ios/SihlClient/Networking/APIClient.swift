@@ -35,8 +35,8 @@ actor APIClient {
         try await send(path: path, method: "POST", body: body, timeout: timeout)
     }
 
-    func put(_ path: String, body: [String: Any]? = nil) async throws -> Data {
-        try await send(path: path, method: "PUT", body: body)
+    func put(_ path: String, body: [String: Any]? = nil, timeout: TimeInterval? = nil) async throws -> Data {
+        try await send(path: path, method: "PUT", body: body, timeout: timeout)
     }
 
     func delete(_ path: String) async throws -> Data {

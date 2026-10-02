@@ -350,8 +350,11 @@ out geom 80;`;
       name: `Rundtour · ${distOut.toFixed(1)} km`,
       ...ToursService.routedTour(routed, spec),
       // Start + Stützpunkte des Kreises (ohne den Rückweg zum Start) —
-      // als Rundkurs-Punkte im Routenplaner weiterbearbeitbar
-      waypoints: points.slice(0, -1).map((p) => ({ lat: p[1], lon: p[0] })),
+      // als Rundkurs-Punkte im Routenplaner weiterbearbeitbar. Die
+      // Kreispunkte sind reine Geometrie; auf die Route gelegt liegen sie
+      // auf einem Weg (sonst markierte der Planer sie als „abseits").
+      waypoints: points.slice(0, -1).map((p, i) =>
+        i === 0 ? { lat: p[1], lon: p[0] } : ToursService.nearestOnLine(p[1], p[0], routed.coords)),
     };
   }
 
@@ -404,6 +407,18 @@ out geom 80;`;
         offRouteM: Math.round(ToursService.distanceToLineM(p, line)),
       })),
     };
+  }
+
+  /** Nächster Stützpunkt einer Linie ([lon, lat, ele?]) zu einer Koordinate. */
+  private static nearestOnLine(lat: number, lon: number, coords: number[][]): RoutePoint {
+    const k = Math.cos((lat * Math.PI) / 180);
+    let best = coords[0], bestD = Infinity;
+    for (const c of coords) {
+      const dLat = c[1] - lat, dLon = (c[0] - lon) * k;
+      const d = dLat * dLat + dLon * dLon;
+      if (d < bestD) { bestD = d; best = c; }
+    }
+    return { lat: best[1], lon: best[0] };
   }
 
   /** Kürzester Abstand eines Punkts zu einer Linie (Meter, lokale Projektion). */

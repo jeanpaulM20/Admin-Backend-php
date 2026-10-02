@@ -74,14 +74,18 @@ export class PlannedRouteService {
     if (count >= PlannedRouteService.MAX_PER_CLIENT) {
       throw new PlannedRouteLimitError(PlannedRouteService.MAX_PER_CLIENT);
     }
+    // Das Routing kann Sekunden dauern — die Grenze deshalb unmittelbar
+    // vor dem Einfügen nochmals prüfen (parallele Speicher-Anfragen)
+    const fields = await this.computed(input);
     const now = new Date();
-    const row = this.repo.create({
-      clientId,
-      createdAt: now,
-      updatedAt: now,
-      ...(await this.computed(input)),
+    const saved = await this.repo.manager.transaction(async (m) => {
+      const repo = m.getRepository(PlannedRoute);
+      if (await repo.count({ where: { clientId } }) >= PlannedRouteService.MAX_PER_CLIENT) {
+        throw new PlannedRouteLimitError(PlannedRouteService.MAX_PER_CLIENT);
+      }
+      return repo.save(repo.create({ clientId, createdAt: now, updatedAt: now, ...fields }));
     });
-    return PlannedRouteService.summary(await this.repo.save(row));
+    return PlannedRouteService.summary(saved);
   }
 
   /** Umbenennen (nur `name`) oder die Route mit neuen Punkten ersetzen. */

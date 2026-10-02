@@ -13,7 +13,10 @@ struct TourDiscoveryView: View {
     @State private var radiusKm: Double = 10
     @State private var searchText = ""
     @State private var center = CLLocationCoordinate2D(latitude: 47.37, longitude: 8.54) // Zürich
-    @State private var cameraCenter: CLLocationCoordinate2D?
+    /// Aktuelle Kartenmitte — wird nur bei Aktionen gelesen (Suche, „Hier
+    /// suchen", Rundtour), darum kein @State: liegt im Kamera-Takt, damit
+    /// das Verschieben der Karte den Bildschirm nicht neu berechnet
+    private var cameraCenter: CLLocationCoordinate2D? { cameraTicker.center }
     @State private var camera: MapCameraPosition = .region(
         MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: 47.37, longitude: 8.54),
                            span: MKCoordinateSpan(latitudeDelta: 0.15, longitudeDelta: 0.15)))
@@ -522,6 +525,7 @@ struct TourDiscoveryView: View {
     // MARK: Planungsmodus
 
     private func enterPlanning() {
+        planner.reset()   // frische Planung — nichts aus einer früheren hängt nach
         planner.clientId = auth.clientId
         planner.isDemo = isDemo
         planner.setActivity(activity.roundtrip)
@@ -531,7 +535,7 @@ struct TourDiscoveryView: View {
     }
 
     private func exitPlanning() {
-        planner.clear()
+        planner.reset()
         hasFittedRoute = false
         withAnimation(.easeInOut(duration: 0.25)) { isPlanning = false }
     }
@@ -602,12 +606,11 @@ struct TourDiscoveryView: View {
                     planner.add(c)
                 }
             }
-            .onMapCameraChange { context in
-                cameraCenter = context.region.center
-            }
-            // Laufender Takt nur für die Pin-Ebene (eigenes Observable —
-            // der Rest des Bildschirms rechnet dabei nicht neu)
-            .onMapCameraChange(frequency: .continuous) { _ in
+            // Ein laufender Takt für beides: Kartenmitte merken und die
+            // Pin-Ebene nachführen (eigenes Observable — der Rest des
+            // Bildschirms rechnet dabei nicht neu)
+            .onMapCameraChange(frequency: .continuous) { context in
+                cameraTicker.center = context.region.center
                 cameraTicker.tick &+= 1
             }
             .overlay {
@@ -970,6 +973,8 @@ struct TourDiscoveryView: View {
 @Observable
 final class MapCameraTicker {
     var tick = 0
+    /// Kartenmitte der letzten Kamerabewegung (nicht beobachtet)
+    @ObservationIgnored var center: CLLocationCoordinate2D?
 }
 
 /// Die Planer-Pins als Ebene über der Karte. Karten-Annotationen nehmen
@@ -985,6 +990,10 @@ private struct PlannerPinsOverlay: View {
     @State private var draggingID: UUID?
     /// Versatz zwischen Finger und Pin-Mitte beim Greifen
     @State private var grabOffset: CGSize = .zero
+    /// Läuft gerade eine Zieh-Geste? Fällt auch dann auf false zurück, wenn
+    /// das System die Geste abbricht (Anruf, App-Wechsel) — `onEnded`
+    /// käme in dem Fall nie
+    @GestureState private var isDragging = false
 
     private static let space = "plannerPins"
 
@@ -999,6 +1008,12 @@ private struct PlannerPinsOverlay: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .coordinateSpace(name: Self.space)
+        .onChange(of: isDragging) { _, dragging in
+            // Ende ODER Abbruch der Geste: Pin absetzen und neu rechnen
+            guard !dragging, draggingID != nil else { return }
+            draggingID = nil
+            planner.finishMove()
+        }
     }
 
     private func pin(_ point: PlannedPoint, at position: CGPoint) -> some View {
@@ -1009,6 +1024,7 @@ private struct PlannerPinsOverlay: View {
             .onTapGesture { onSelect(point) }
             .gesture(
                 DragGesture(minimumDistance: 4, coordinateSpace: .named(Self.space))
+                    .updating($isDragging) { _, state, _ in state = true }
                     .onChanged { value in
                         if draggingID != point.id {
                             draggingID = point.id
@@ -1022,10 +1038,6 @@ private struct PlannerPinsOverlay: View {
                         if let c = proxy.convert(target, from: .local) {
                             planner.move(point, to: c)
                         }
-                    }
-                    .onEnded { _ in
-                        draggingID = nil
-                        planner.finishMove()
                     }
             )
             .position(position)
