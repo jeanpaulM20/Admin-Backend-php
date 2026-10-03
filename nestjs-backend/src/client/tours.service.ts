@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 
 /** Fachlicher Routing-Fehler: kein Weg zwischen den Punkten (→ 422 im Controller). */
 export class RouteNotFoundError extends Error {
@@ -31,8 +31,23 @@ export interface RoutePoint { lat: number; lon: number }
  * und den Aktivitäts-Spezifikationen als einziger Quelle.
  * Aus ClientAppService extrahiert (Clean-Architecture-Check 2026-08-25).
  */
+/**
+ * Routing-Server (BRouter) in Reihenfolge der Bevorzugung: zuerst die
+ * eigene Instanz (falls konfiguriert), dann die öffentliche brouter.de.
+ * Wird an der Composition Root (ClientModule) aus der Umgebung gefüllt.
+ */
+export const ROUTING_BASE_URLS = 'ROUTING_BASE_URLS';
+export const PUBLIC_BROUTER_URL = 'https://brouter.de';
+
 @Injectable()
 export class ToursService {
+  private readonly routingBaseUrls: string[];
+
+  constructor(@Optional() @Inject(ROUTING_BASE_URLS) baseUrls?: string[]) {
+    const urls = (baseUrls ?? []).map((u) => u.trim().replace(/\/+$/, '')).filter(Boolean);
+    this.routingBaseUrls = urls.length ? urls : [PUBLIC_BROUTER_URL];
+  }
+
   private tourListCache = new Map<string, { at: number; data: any }>();
   private tourDetailCache = new Map<string, { at: number; data: any }>();
   private static readonly TOUR_TTL_MS = 24 * 60 * 60 * 1000;
@@ -343,7 +358,7 @@ out geom 80;`;
     points.push([lon, lat]);
 
     const lonlats = points.map((p) => `${p[0].toFixed(6)},${p[1].toFixed(6)}`).join('|');
-    const routed = await ToursService.brouter(lonlats, profile);
+    const routed = await this.brouter(lonlats, profile);
     const distOut = routed.lengthM / 1000;
     return {
       id: `rt-${Date.now()}`,
@@ -380,7 +395,7 @@ out geom 80;`;
 
     let entry = this.viaCache.get(key);
     if (!entry || now - entry.at >= ToursService.VIA_CACHE_TTL_MS) {
-      const tour = ToursService.brouter(lonlats, spec.profile)
+      const tour = this.brouter(lonlats, spec.profile)
         .then((routed) => ToursService.routedTour(routed, spec));
       // Fehlschläge nicht 24 h festhalten
       tour.catch(() => { if (this.viaCache.get(key)?.tour === tour) this.viaCache.delete(key); });
@@ -578,21 +593,21 @@ out geom 80;`;
     if (![aLat, aLon, bLat, bLon].every(Number.isFinite)) throw new Error('Ungültige Koordinaten');
     const spec = ToursService.roundtripSpec(aktivitaet === 'velo' ? 'rad' : aktivitaet);
     const lonlats = `${aLon.toFixed(6)},${aLat.toFixed(6)}|${bLon.toFixed(6)},${bLat.toFixed(6)}`;
-    const routed = await ToursService.brouter(lonlats, spec.profile);
+    const routed = await this.brouter(lonlats, spec.profile);
     return { id: `ab-${Date.now()}`, name: 'Route', ...ToursService.routedTour(routed, spec) };
   }
 
-  /** Gleichzeitige Aufrufe an brouter.de — Schutz der öffentlichen Instanz. */
+  /** Gleichzeitige Routing-Aufrufe — Schutz der (öffentlichen) Instanz. */
   private static brouterInFlight = 0;
   private static readonly BROUTER_MAX_IN_FLIGHT = 6;
 
   /**
-   * Gemeinsamer BRouter-Aufruf (Rundtour, A→B, Planer). BRouter meldet
-   * unerreichbare Punkte als HTTP 400 mit Klartext („no track found",
-   * „datafile … not found") → RouteNotFoundError; Ausfälle/Überlast →
-   * RoutingUnavailableError.
+   * Gemeinsamer BRouter-Aufruf (Rundtour, A→B, Planer). Versucht die
+   * Routing-Server in Reihenfolge: Fällt die eigene Instanz aus oder ist
+   * sie überlastet, übernimmt brouter.de. „Keine Route" ist ein fachliches
+   * Ergebnis und wird nicht an den nächsten Server weitergereicht.
    */
-  private static async brouter(lonlats: string, profile: string): Promise<{
+  private async brouter(lonlats: string, profile: string): Promise<{
     coords: number[][]; lengthM: number; ascend: number;
   }> {
     if (ToursService.brouterInFlight >= ToursService.BROUTER_MAX_IN_FLIGHT) {
@@ -600,43 +615,63 @@ out geom 80;`;
     }
     ToursService.brouterInFlight++;
     try {
-      const url = `https://brouter.de/brouter?lonlats=${lonlats}&profile=${profile}&alternativeidx=0&format=geojson`;
-      let res: Response;
-      try {
-        res = await fetch(url, {
-          headers: { 'User-Agent': ToursService.OSM_UA },
-          signal: AbortSignal.timeout(30000),
-        });
-      } catch {
-        throw new RoutingUnavailableError();
+      let lastError: RoutingUnavailableError | undefined;
+      for (const base of this.routingBaseUrls) {
+        try {
+          return await ToursService.brouterAt(base, lonlats, profile);
+        } catch (e) {
+          if (!(e instanceof RoutingUnavailableError)) throw e;
+          lastError = e;
+        }
       }
-      // brouter.de drosselt mit 403/429 („Please, retry later!") — das ist
-      // Überlast, kein Routing-Ergebnis
-      if (res.status === 403 || res.status === 429) {
-        throw new RoutingUnavailableError('Routing gerade ausgelastet — bitte gleich nochmals versuchen.');
-      }
-      if (res.status >= 400 && res.status < 500) {
-        // z. B. „via1-position not mapped in existing datafile"
-        const text = await res.text().catch(() => '');
-        const m = /(from|to|via(\d+))-position not mapped/.exec(text);
-        const index = !m ? undefined : m[1] === 'from' ? 0 : m[1] === 'to' ? -1 : parseInt(m[2], 10);
-        throw new RouteNotFoundError(undefined, index);
-      }
-      if (!res.ok) throw new RoutingUnavailableError(`Routing fehlgeschlagen (${res.status})`);
-      let geo: any;
-      try { geo = await res.json(); } catch { throw new RouteNotFoundError(); }
-      const feature = geo?.features?.[0];
-      const coords: number[][] = feature?.geometry?.coordinates ?? [];
-      if (coords.length < 2) throw new RouteNotFoundError();
-      const props = feature.properties ?? {};
-      return {
-        coords,
-        lengthM: parseFloat(props['track-length'] ?? '0') || 0,
-        ascend: parseInt(props['filtered ascend'] ?? '0', 10) || 0,
-      };
+      throw lastError ?? new RoutingUnavailableError();
     } finally {
       ToursService.brouterInFlight--;
     }
+  }
+
+  /**
+   * Ein Routing-Server. BRouter meldet unerreichbare Punkte als HTTP 400
+   * mit Klartext („… not mapped", „no track found") → RouteNotFoundError;
+   * Ausfälle, 5xx und die Drosselung 403/429 → RoutingUnavailableError.
+   */
+  private static async brouterAt(base: string, lonlats: string, profile: string): Promise<{
+    coords: number[][]; lengthM: number; ascend: number;
+  }> {
+    const url = `${base}/brouter?lonlats=${lonlats}&profile=${profile}&alternativeidx=0&format=geojson`;
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        headers: { 'User-Agent': ToursService.OSM_UA },
+        signal: AbortSignal.timeout(30000),
+      });
+    } catch {
+      throw new RoutingUnavailableError();
+    }
+    // brouter.de drosselt mit 403/429 („Please, retry later!") — das ist
+    // Überlast, kein Routing-Ergebnis
+    if (res.status === 403 || res.status === 429) {
+      throw new RoutingUnavailableError('Routing gerade ausgelastet — bitte gleich nochmals versuchen.');
+    }
+    if (res.status >= 400 && res.status < 500) {
+      // z. B. „via1-position not mapped in existing datafile"
+      const text = await res.text().catch(() => '');
+      const m = /(from|to|via(\d+))-position not mapped/.exec(text);
+      const index = !m ? undefined : m[1] === 'from' ? 0 : m[1] === 'to' ? -1 : parseInt(m[2], 10);
+      throw new RouteNotFoundError(undefined, index);
+    }
+    if (!res.ok) throw new RoutingUnavailableError(`Routing fehlgeschlagen (${res.status})`);
+    let geo: any;
+    try { geo = await res.json(); } catch { throw new RouteNotFoundError(); }
+    const feature = geo?.features?.[0];
+    const coords: number[][] = feature?.geometry?.coordinates ?? [];
+    if (coords.length < 2) throw new RouteNotFoundError();
+    const props = feature.properties ?? {};
+    return {
+      coords,
+      lengthM: parseFloat(props['track-length'] ?? '0') || 0,
+      ascend: parseInt(props['filtered ascend'] ?? '0', 10) || 0,
+    };
   }
 
   // ── Offizielle Anlagen-Infos der Stadt Zürich ────────────────────────

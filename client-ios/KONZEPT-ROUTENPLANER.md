@@ -271,3 +271,19 @@ Tageslimit des Assistenten: **30 Fragen pro Klient und Tag** (Standard im
 Code, per `ASSISTANT_DAILY_LIMIT` übersteuerbar; `0` = kein Limit). Der
 Tag wechselt um Mitternacht Schweizer Zeit. Der Zähler lebt im Speicher
 der Instanz und beginnt nach einem Deploy von vorn.
+
+## 14. Eigene BRouter-Instanz (vorbereitet, 3. Oktober 2026)
+
+- Ordner `brouter/` im Repo: Dockerfile (BRouter 1.7.10, Java 17),
+  `start.sh` (lädt fehlende/alte Kacheln E5_N45 + E10_N45 nach `/data`,
+  startet den RouteServer), Zusatzprofil `hiking-beta` (nur auf brouter.de
+  vorhanden, Kopie im Repo), `railway.json`, README mit Einrichtung.
+- Backend: `ToursService` bekommt die Routing-Server an der Composition
+  Root (`ClientModule`, Token `ROUTING_BASE_URLS`) — `BROUTER_URL` zuerst,
+  brouter.de als Rückfallebene bei Ausfall/Überlast. Ohne `BROUTER_URL`
+  ändert sich nichts.
+- Einrichtung auf Railway: Dienst `brouter` aus dem Ordner, Volume unter
+  `/data`, dann `BROUTER_URL=http://brouter.railway.internal:17777` im
+  Backend. Siehe `brouter/README.md`.
+- Noch nicht gebaut: lokal fehlen Docker und Java; der erste Bau auf
+  Railway ist der Test.

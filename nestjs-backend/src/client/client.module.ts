@@ -19,7 +19,7 @@ import { EntitlementModule } from '../entitlement/entitlement.module';
 import { ClientService } from './client.service';
 import { ClientAppService } from './client-app.service';
 import { ToursAssistantService } from './tours-assistant.service';
-import { ToursService } from './tours.service';
+import { PUBLIC_BROUTER_URL, ROUTING_BASE_URLS, ToursService } from './tours.service';
 import { ReviewPhoto } from '../entities/review-photo.entity';
 import { PlannedRoute } from '../entities/planned-route.entity';
 import { PlannedRouteService } from './planned-route.service';
@@ -51,7 +51,16 @@ import { ClientAppController } from './client-php-proxy.controller';
     PaymentModule,
     EntitlementModule,
   ],
-  providers: [ClientService, ClientAppService, ClientChatService, ToursAssistantService, ToursService, PlannedRouteService],
+  providers: [
+    ClientService, ClientAppService, ClientChatService, ToursAssistantService, ToursService, PlannedRouteService,
+    {
+      // Routing-Server: eigene BRouter-Instanz (BROUTER_URL, z. B.
+      // http://brouter.railway.internal:17777) zuerst, brouter.de als
+      // Rückfallebene. Ohne BROUTER_URL nur brouter.de.
+      provide: ROUTING_BASE_URLS,
+      useValue: [process.env.BROUTER_URL, PUBLIC_BROUTER_URL].filter((u): u is string => !!u?.trim()),
+    },
+  ],
   controllers: [ClientAppController, ClientController],
   exports: [ClientService],
 })
