@@ -1,4 +1,4 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 
 /** Fachlicher Routing-Fehler: kein Weg zwischen den Punkten (→ 422 im Controller). */
 export class RouteNotFoundError extends Error {
@@ -23,6 +23,19 @@ export class RoutingUnavailableError extends Error {
   }
 }
 
+/**
+ * Dieser Routing-Server hat für das Gebiet keine Kartendaten („datafile …
+ * not found") — die eigene Instanz deckt nur die Schweiz ab. Zählt wie
+ * „nicht verfügbar" (nächster Server übernimmt); bleibt es beim letzten
+ * Server dabei, wird daraus „Keine Route gefunden".
+ */
+export class RoutingCoverageError extends RoutingUnavailableError {
+  constructor() {
+    super('Für dieses Gebiet liegen keine Kartendaten vor.');
+    this.name = 'RoutingCoverageError';
+  }
+}
+
 export interface RoutePoint { lat: number; lon: number }
 
 /**
@@ -41,6 +54,7 @@ export const PUBLIC_BROUTER_URL = 'https://brouter.de';
 
 @Injectable()
 export class ToursService {
+  private readonly logger = new Logger(ToursService.name);
   private readonly routingBaseUrls: string[];
 
   constructor(@Optional() @Inject(ROUTING_BASE_URLS) baseUrls?: string[]) {
@@ -616,14 +630,17 @@ out geom 80;`;
     ToursService.brouterInFlight++;
     try {
       let lastError: RoutingUnavailableError | undefined;
-      for (const base of this.routingBaseUrls) {
+      for (const [i, base] of this.routingBaseUrls.entries()) {
         try {
           return await ToursService.brouterAt(base, lonlats, profile);
         } catch (e) {
           if (!(e instanceof RoutingUnavailableError)) throw e;
           lastError = e;
+          const next = this.routingBaseUrls[i + 1];
+          if (next) this.logger.warn(`Routing über ${base} nicht möglich (${e.message}) — weiche aus auf ${next}`);
         }
       }
+      if (lastError instanceof RoutingCoverageError) throw new RouteNotFoundError();
       throw lastError ?? new RoutingUnavailableError();
     } finally {
       ToursService.brouterInFlight--;
@@ -656,6 +673,7 @@ out geom 80;`;
     if (res.status >= 400 && res.status < 500) {
       // z. B. „via1-position not mapped in existing datafile"
       const text = await res.text().catch(() => '');
+      if (/datafile .* not found/i.test(text)) throw new RoutingCoverageError();
       const m = /(from|to|via(\d+))-position not mapped/.exec(text);
       const index = !m ? undefined : m[1] === 'from' ? 0 : m[1] === 'to' ? -1 : parseInt(m[2], 10);
       throw new RouteNotFoundError(undefined, index);

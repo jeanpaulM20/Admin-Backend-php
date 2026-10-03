@@ -24,15 +24,19 @@ oder Überlast automatisch auf brouter.de zurück (`ToursService.brouter`).
 Im Projekt `sincere-abundance`, Ordner `brouter/` als eigener Dienst:
 
 ```bash
-cd brouter
 railway add --service brouter
-railway volume add --service brouter --mount-path /data
+# Service-ID aus `railway status --json` (Name „brouter")
+railway volume --service <service-id> add --mount-path /data
+# Stammverzeichnis: die CLI lädt immer das ganze Repository hoch — ohne
+# diese Einstellung baut Railway das Backend-Dockerfile im Hauptordner
+railway api 'mutation { serviceInstanceUpdate(serviceId: "<service-id>", environmentId: "<environment-id>", input: { rootDirectory: "brouter" }) }'
+railway variable set --service brouter PORT=17777
 railway up --service brouter --detach
 ```
 
-`railway up` lädt den Ordner hoch und baut das Dockerfile. Ohne Volume
-funktioniert der Dienst auch, lädt die Kacheln dann aber bei jedem Start
-neu (rund zwei Minuten).
+So wurde der Dienst am 3. Oktober 2026 angelegt. Ohne Volume funktioniert
+er auch, lädt die Kacheln dann aber bei jedem Start neu (rund zwei
+Minuten). Eine `VOLUME`-Anweisung im Dockerfile lehnt Railway ab.
 
 Danach im Backend-Dienst (`Admin-Backend-php`) die Variable setzen:
 
@@ -69,13 +73,15 @@ Private Networking ist in Railway-Projekten standardmässig aktiv; der Name
 curl "https://<domain-oder-tunnel>/brouter?lonlats=8.4948,47.3499|8.5200,47.3406&profile=hiking-beta&alternativeidx=0&format=geojson" | head -c 400
 ```
 
-Antwortet GeoJSON mit `track-length`, läuft die Instanz. Im Backend-Log
-erscheint danach kein „ausgelastet" mehr; fällt die Instanz aus, übernimmt
-brouter.de ohne Eingriff.
+Antwortet GeoJSON mit `track-length`, läuft die Instanz. Der Dienst hat
+bewusst keine öffentliche Domain (nur Private Network); zum Prüfen
+vorübergehend eine anlegen (`railway domain --service brouter`) und danach
+wieder löschen. Fällt die Instanz aus oder liegt ein Gebiet ausserhalb der
+Kacheln („datafile … not found"), übernimmt brouter.de ohne Eingriff.
 
 ## Grenzen
 
-- Der Container wurde ohne lokales Docker vorbereitet; der erste Bau auf
-  Railway zeigt, ob alles passt (Logs: „[brouter] starte RouteServer …").
+- Läuft seit 3. Oktober 2026 auf Railway; Kennzahlen identisch mit
+  brouter.de (gleiche Engine, gleiche Profile, gleiche Kacheln).
 - Die Kacheln stammen weiterhin von brouter.de (einmal pro Monat,
   450 MB) — das belastet die öffentliche Instanz nicht nennenswert.
