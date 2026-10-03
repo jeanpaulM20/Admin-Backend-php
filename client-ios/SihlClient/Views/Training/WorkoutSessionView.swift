@@ -17,6 +17,7 @@ struct WorkoutSessionView: View {
     @State private var confirmDiscard = false
     @State private var routeToast: AppToast?
     @State private var wasOffRoute = false
+    @State private var showArrival = false
 
     var body: some View {
         ZStack {
@@ -29,15 +30,24 @@ struct WorkoutSessionView: View {
         }
         .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
-        // Off-Route-Hinweis (T3): sanfter Toast bei Verlassen/Wiederfinden der Route
+        // Off-Route-Hinweis (T3/5.2): Toast + Haptik bei Verlassen/Wiederfinden
         .onChange(of: recorder.isOffRoute) { _, off in
             if off {
                 wasOffRoute = true
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
                 routeToast = AppToast(
                     message: "≈\(Int(recorder.offRouteDistance)) m neben der Route",
                     style: .neutral)
             } else if wasOffRoute {
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
                 routeToast = AppToast(message: "Zurück auf der Route", style: .success)
+            }
+        }
+        // Ziel erreicht (5.2): Haptik, Banner auf der Karte bietet „Beenden"
+        .onChange(of: recorder.arrived) { _, arrived in
+            if arrived {
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                showArrival = true
             }
         }
         .appToast($routeToast, bottomPadding: 100)
@@ -171,6 +181,12 @@ struct WorkoutSessionView: View {
                     Text(recorder.distanceString)
                         .font(.app(16, weight: .semibold).monospacedDigit())
                         .foregroundStyle(AppColor.text)
+                    if let p = recorder.routeProgress {
+                        Text("·").foregroundStyle(AppColor.muted)
+                        Text("noch \(Self.km(p.leftM))")
+                            .font(.app(16, weight: .semibold).monospacedDigit())
+                            .foregroundStyle(AppColor.blue)
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 9)
@@ -222,6 +238,8 @@ struct WorkoutSessionView: View {
                     liveStat(recorder.activity == .rad ? "Tempo" : "Pace", recorder.paceString)
                     liveStat("Höhenmeter", "\(Int(recorder.elevationGain)) m")
                 }
+
+                routeGuidance
 
                 controlRow
                     .padding(.bottom, AppSpacing.bottomInset)
@@ -281,6 +299,7 @@ struct WorkoutSessionView: View {
                         liveStat(recorder.activity == .rad ? "Tempo" : "Pace", recorder.paceString)
                         liveStat("Höhenmeter", "\(Int(recorder.elevationGain)) m")
                     }
+                    routeGuidance
                 } else {
                     HStack(spacing: 20) {
                         statMini("Ø", recorder.avgHR)
@@ -328,12 +347,24 @@ struct WorkoutSessionView: View {
 
     private var liveMap: some View {
         Map(position: $liveCamera) {
-            // Tour-Route (T3): geplante Route blau gestrichelt — klar
-            // unterscheidbar von der eigenen (orangen) Spur
-            ForEach(recorder.routeSegments.indices, id: \.self) { i in
-                MapPolyline(coordinates: recorder.routeSegments[i])
-                    .stroke(AppColor.blue.opacity(0.85),
-                            style: StrokeStyle(lineWidth: 3, dash: [6, 4]))
+            // Tour-Route (T3/5.2): gelaufener Teil grau, Rest blau gestrichelt —
+            // klar unterscheidbar von der eigenen (orangen) Spur
+            if let p = recorder.routeProgress, recorder.routeLine.count >= 2 {
+                if p.index > 0 {
+                    MapPolyline(coordinates: Array(recorder.routeLine[0...p.index]))
+                        .stroke(AppColor.muted.opacity(0.7), lineWidth: 3)
+                }
+                if p.index < recorder.routeLine.count - 1 {
+                    MapPolyline(coordinates: Array(recorder.routeLine[p.index...]))
+                        .stroke(AppColor.blue.opacity(0.85),
+                                style: StrokeStyle(lineWidth: 3, dash: [6, 4]))
+                }
+            } else {
+                ForEach(recorder.routeSegments.indices, id: \.self) { i in
+                    MapPolyline(coordinates: recorder.routeSegments[i])
+                        .stroke(AppColor.blue.opacity(0.85),
+                                style: StrokeStyle(lineWidth: 3, dash: [6, 4]))
+                }
             }
             // Start-/Ziel-Marker der Route (Rundtour: ein gemeinsamer Punkt)
             if let start = recorder.routeSegments.first?.first {
@@ -372,6 +403,56 @@ struct WorkoutSessionView: View {
         .onChange(of: recorder.headingDegrees) { _, _ in
             guard followUser, let pos = bestPosition else { return }
             recenter(on: pos, animated: false)
+        }
+        // Ziel erreicht (5.2)
+        .overlay(alignment: .top) {
+            if showArrival {
+                HStack(spacing: 10) {
+                    Image(systemName: "flag.checkered")
+                        .font(.app(15, weight: .semibold))
+                        .foregroundStyle(AppColor.primary)
+                    Text("Ziel erreicht")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(AppColor.text)
+                    Spacer(minLength: 4)
+                    Button("Beenden") { confirmStop = true }
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(AppColor.cta)
+                    Button { showArrival = false } label: {
+                        Image(systemName: "xmark")
+                            .font(.app(12, weight: .semibold))
+                            .foregroundStyle(AppColor.muted)
+                    }
+                    .accessibilityLabel("Hinweis ausblenden")
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(AppColor.surface.opacity(0.96), in: RoundedRectangle(cornerRadius: AppRadius.control))
+                .overlay(RoundedRectangle(cornerRadius: AppRadius.control).stroke(AppColor.border, lineWidth: 1))
+                .padding(10)
+                .padding(.trailing, 50)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        // Rückweg-Pfeil (5.2): Richtung und Abstand zur nächsten Routenstelle
+        .overlay(alignment: .bottomLeading) {
+            if recorder.isOffRoute, let target = recorder.nearestRoutePoint, let pos = bestPosition {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.up")
+                        .font(.app(16, weight: .bold))
+                        .foregroundStyle(AppColor.white)
+                        .rotationEffect(.degrees(Self.bearing(from: pos, to: target) - cameraHeading))
+                        .animation(.easeOut(duration: 0.3), value: cameraHeading)
+                    Text("\(Int(recorder.offRouteDistance)) m zur Route")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppColor.white)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .background(AppColor.red, in: Capsule())
+                .padding(10)
+                .accessibilityLabel("Zurück zur Route: \(Int(recorder.offRouteDistance)) Meter")
+            }
         }
         // Vollbild optional ein-/ausschalten
         .overlay(alignment: .topTrailing) {
@@ -463,7 +544,17 @@ struct WorkoutSessionView: View {
     private func recenter(on coord: CLLocationCoordinate2D, animated: Bool) {
         programmaticMove = true
         let heading = recorder.headingDegrees ?? cameraHeading
-        let camera = MapCamera(centerCoordinate: coord, distance: followDistance,
+        // Mit Route und bekannter Richtung liegt der Mittelpunkt etwas voraus
+        // (Position im unteren Drittel) — man sieht, was kommt
+        var center = coord
+        if recorder.routeProgress != nil, recorder.headingDegrees != nil {
+            let ahead = followDistance * 0.18   // Meter voraus, zoomabhängig
+            let rad = heading * .pi / 180
+            center = CLLocationCoordinate2D(
+                latitude: coord.latitude + ahead * cos(rad) / 111_320,
+                longitude: coord.longitude + ahead * sin(rad) / (111_320 * cos(coord.latitude * .pi / 180)))
+        }
+        let camera = MapCamera(centerCoordinate: center, distance: followDistance,
                                heading: heading, pitch: 0)
         withAnimation(.easeOut(duration: animated ? 0.4 : 0.3)) {
             liveCamera = .camera(camera)
@@ -541,6 +632,48 @@ struct WorkoutSessionView: View {
             RouteFullscreenView(plannedSegments: recorder.routeSegments,
                                 coordinates: displayCoordinates)
         }
+    }
+
+    /// Routenführung (5.2): Rest, Resthöhenmeter, Ankunft — und das
+    /// Höhenprofil mit der eigenen Position, sobald die Route Höhen hat.
+    @ViewBuilder
+    private var routeGuidance: some View {
+        if let p = recorder.routeProgress {
+            VStack(spacing: 8) {
+                HStack(spacing: 0) {
+                    liveStat(p.nextWaypointM != nil ? "Noch · nächster Punkt" : "Noch bis Ziel",
+                             p.nextWaypointM.map { "\(Self.km(p.leftM)) · \(Self.km($0))" } ?? Self.km(p.leftM))
+                    liveStat("Hm noch", ElevationProfileView.hasProfile(recorder.routeElevations)
+                             ? "↑\(Int(p.ascentLeftM)) ↓\(Int(p.descentLeftM))" : "–")
+                    liveStat("Ankunft ca.", p.etaMinutes.map { Self.clock(inMinutes: $0) } ?? "–")
+                }
+                if ElevationProfileView.hasProfile(recorder.routeElevations) {
+                    ElevationProfileView(segments: recorder.routeSegments,
+                                         elevations: recorder.routeElevations,
+                                         compact: true, progressKm: p.doneM / 1000)
+                        .frame(height: 36)
+                        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.control))
+                }
+            }
+        }
+    }
+
+    private static func km(_ meters: Double) -> String {
+        meters < 1000 ? "\(Int(meters.rounded())) m" : String(format: "%.1f km", meters / 1000)
+    }
+
+    private static func clock(inMinutes minutes: Int) -> String {
+        let date = Date().addingTimeInterval(TimeInterval(minutes * 60))
+        return date.formatted(date: .omitted, time: .shortened)
+    }
+
+    /// Kurs von a nach b in Grad (0 = Nord).
+    private static func bearing(from a: CLLocationCoordinate2D, to b: CLLocationCoordinate2D) -> Double {
+        let lat1 = a.latitude * .pi / 180, lat2 = b.latitude * .pi / 180
+        let dLon = (b.longitude - a.longitude) * .pi / 180
+        let y = sin(dLon) * cos(lat2)
+        let x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLon)
+        return (atan2(y, x) * 180 / .pi + 360).truncatingRemainder(dividingBy: 360)
     }
 
     private func liveStat(_ label: String, _ value: String) -> some View {

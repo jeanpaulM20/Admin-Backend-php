@@ -119,7 +119,11 @@ struct TourDiscoveryView: View {
                         onFit: { fitRoute() },
                         onSave: { saveRoute(asNew: $0) },
                         onDetails: { generatedDetail = $0 },
-                        onStart: { launcher.start($0.asRoute) })
+                        onStart: { detail in
+                            var route = detail.asRoute
+                            route.waypoints = planner.coordinates
+                            launcher.start(route)
+                        })
                 } else {
                     bottomCards
                 }

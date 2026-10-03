@@ -100,10 +100,37 @@ final class WorkoutRecorder {
     /// Blickrichtung in Grad (0 = Nord), vom Kompass bzw. simuliert.
     private(set) var headingDegrees: Double?
     private(set) var routeSegments: [[CLLocationCoordinate2D]] = []
+    private(set) var routeElevations: [[Double?]] = []
     private(set) var isOffRoute = false
     private(set) var offRouteDistance: Double = 0
-    private var routeCheckPoints: [CLLocationCoordinate2D] = []
-    private var pointsSinceRouteCheck = 0
+
+    // Routenführung (Phase 5.2): Fortschritt entlang der Route
+    struct RouteProgress: Equatable {
+        /// Stützpunkt der Linie, bis zu dem die Route abgeschritten ist
+        var index: Int
+        var doneM: Double
+        var leftM: Double
+        var ascentLeftM: Double
+        var descentLeftM: Double
+        /// Restzeit in Minuten (SAC-Formel, ab 500 m mit dem eigenen Tempo gemischt)
+        var etaMinutes: Int?
+        /// Distanz entlang der Route bis zum nächsten Zwischenpunkt
+        var nextWaypointM: Double?
+        var fraction: Double
+    }
+    private(set) var routeProgress: RouteProgress?
+    /// Ziel erreicht: innerhalb 30 m vom Ende und mindestens 90 % abgeschritten
+    private(set) var arrived = false
+    /// Nächste Stelle auf der Route — Richtung für den Rückweg-Pfeil
+    private(set) var nearestRoutePoint: CLLocationCoordinate2D?
+    /// Die Route als eine Linie (Segmente aneinandergehängt)
+    private(set) var routeLine: [CLLocationCoordinate2D] = []
+    private var routeCum: [Double] = []          // Meter ab Start je Stützpunkt
+    private var routeAscentToEnd: [Double] = []  // Resthöhenmeter ↑ ab Stützpunkt
+    private var routeDescentToEnd: [Double] = []
+    private var routeWaypointCum: [Double] = []  // Zwischenpunkte (ohne Start) als Meter ab Start
+    private var routeKmh = 4.2
+    private var routeClimbPerH = 400.0
 
     // Pausen-Buchhaltung: elapsed = jetzt - start - Pausensumme
     private var pausedTotal: TimeInterval = 0
@@ -193,9 +220,60 @@ final class WorkoutRecorder {
     func setRoute(_ route: TourRoute) {
         routeName = route.name
         routeSegments = route.segments
-        let all = route.segments.flatMap { $0 }
-        let stride = max(1, all.count / 800)
-        routeCheckPoints = all.enumerated().compactMap { $0.offset % stride == 0 ? $0.element : nil }
+        routeElevations = route.elevations
+        routeLine = route.segments.flatMap { $0 }
+
+        // Kumulierte Distanz je Stützpunkt
+        routeCum = routeLine.isEmpty ? [] : [0]
+        for i in routeLine.indices.dropFirst() {
+            routeCum.append(routeCum[i - 1] + Self.meters(routeLine[i - 1], routeLine[i]))
+        }
+
+        // Resthöhenmeter ab jedem Stützpunkt (Suffixsummen, 2-m-Glättung wie
+        // beim Aufzeichnen, damit Rest und Gesamt zusammenpassen)
+        let eles = route.elevations.flatMap { $0 }
+        var up = [Double](repeating: 0, count: routeLine.count)
+        var down = [Double](repeating: 0, count: routeLine.count)
+        if eles.count == routeLine.count {
+            var smoothed: Double?
+            for i in eles.indices {
+                guard let e = eles[i] else { continue }
+                if let sm = smoothed {
+                    let delta = e - sm
+                    if delta >= 2 { up[i] = delta; smoothed = e }
+                    else if delta <= -2 { down[i] = -delta; smoothed = e }
+                } else {
+                    smoothed = e
+                }
+            }
+        }
+        routeAscentToEnd = [Double](repeating: 0, count: routeLine.count)
+        routeDescentToEnd = [Double](repeating: 0, count: routeLine.count)
+        var accUp = 0.0, accDown = 0.0
+        for i in routeLine.indices.reversed() {
+            routeAscentToEnd[i] = accUp
+            routeDescentToEnd[i] = accDown
+            accUp += up[i]
+            accDown += down[i]
+        }
+
+        // Zwischenpunkte (ohne den Start) auf die Linie legen
+        routeWaypointCum = route.waypoints.dropFirst().compactMap { wp in
+            Self.nearestIndex(to: wp, in: routeLine, from: 0, to: routeLine.count - 1).map { routeCum[$0.index] }
+        }
+
+        // Richttempo je Aktivität (wie im Backend: SAC-Formel)
+        switch route.activity {
+        case "alpine_hiking": routeKmh = 3;   routeClimbPerH = 350
+        case "running":       routeKmh = 8;   routeClimbPerH = 500
+        case "bicycle":       routeKmh = 18;  routeClimbPerH = 600
+        case "mtb":           routeKmh = 12;  routeClimbPerH = 500
+        default:              routeKmh = 4.2; routeClimbPerH = 400
+        }
+
+        arrived = false
+        nearestRoutePoint = nil
+        routeProgress = routeLine.count >= 2 ? progress(at: 0) : nil
     }
 
     /// Route wieder entfernen — nach einer Routen-Aufzeichnung auf dem
@@ -203,8 +281,15 @@ final class WorkoutRecorder {
     func clearRoute() {
         routeName = nil
         routeSegments = []
-        routeCheckPoints = []
-        pointsSinceRouteCheck = 0
+        routeElevations = []
+        routeLine = []
+        routeCum = []
+        routeAscentToEnd = []
+        routeDescentToEnd = []
+        routeWaypointCum = []
+        routeProgress = nil
+        arrived = false
+        nearestRoutePoint = nil
         isOffRoute = false
         offRouteDistance = 0
     }
@@ -274,9 +359,11 @@ final class WorkoutRecorder {
         // Route bewusst NICHT löschen: Sie gehört zur Tour-Ansicht und wird nur
         // beim ersten Erscheinen gesetzt — ein erneuter Start derselben Tour
         // braucht sie noch. Nur der Off-Route-Zustand wird zurückgesetzt.
-        pointsSinceRouteCheck = 0
         isOffRoute = false
         offRouteDistance = 0
+        arrived = false
+        nearestRoutePoint = nil
+        routeProgress = routeLine.count >= 2 ? progress(at: 0) : nil
     }
 
     // MARK: Intern — Herzfrequenz
@@ -329,29 +416,104 @@ final class WorkoutRecorder {
         }
 
         track.append(point)
-        updateOffRoute(point)
+        updateRouteProgress(point)
     }
 
-    /// Off-Route-Check (gedrosselt, alle 5 Punkte): nächster Routenpunkt.
-    /// Hysterese 100 m raus / 60 m zurück, damit der Hinweis nicht flattert.
-    private func updateOffRoute(_ point: TrackPoint) {
-        guard !routeCheckPoints.isEmpty else { return }
-        pointsSinceRouteCheck += 1
-        guard pointsSinceRouteCheck >= 5 || track.count <= 1 else { return }
-        pointsSinceRouteCheck = 0
+    /// Routenführung (Phase 5.2): Position auf die Route projizieren —
+    /// monoton (nie zurück auf einen früheren Abschnitt), mit Fenster bis
+    /// 300 m voraus; Abkürzungen springen vor, wenn man wieder nahe (< 60 m)
+    /// an der Linie ist. Daraus Off-Route (Hysterese 100 m hinaus / 60 m
+    /// zurück), Rest, Ankunft und Zielerkennung.
+    private func updateRouteProgress(_ point: TrackPoint) {
+        guard routeLine.count >= 2, let current = routeProgress else { return }
+        let here = CLLocationCoordinate2D(latitude: point.lat, longitude: point.lon)
 
-        let here = CLLocation(latitude: point.lat, longitude: point.lon)
-        var minDist = Double.greatestFiniteMagnitude
-        for rp in routeCheckPoints {
-            let d = here.distance(from: CLLocation(latitude: rp.latitude, longitude: rp.longitude))
-            if d < minDist { minDist = d }
+        // Fenster: 20 Stützpunkte zurück bis 300 m voraus
+        let from = max(0, current.index - 20)
+        var to = current.index
+        while to + 1 < routeLine.count, routeCum[to + 1] - routeCum[current.index] <= 300 { to += 1 }
+        var hit = Self.nearestIndex(to: here, in: routeLine, from: from, to: to)
+
+        var newIndex = current.index
+        if let h = hit, h.distance <= 100 {
+            newIndex = max(current.index, h.index)
+        } else {
+            // Nicht im Fenster: weltweit nächste Stelle (ausgedünnt) — eine
+            // Abkürzung nach vorn wird übernommen, zurück nie
+            let global = Self.nearestIndex(to: here, in: routeLine, from: 0, to: routeLine.count - 1, stride: 4)
+            hit = global
+            if let g = global, g.distance <= 60, g.index > current.index { newIndex = g.index }
         }
-        offRouteDistance = minDist
-        if isOffRoute {
-            if minDist < 60 { isOffRoute = false }
-        } else if minDist > 100 {
-            isOffRoute = true
+
+        if let h = hit {
+            nearestRoutePoint = routeLine[h.index]
+            offRouteDistance = h.distance
+            if isOffRoute {
+                if h.distance < 60 { isOffRoute = false }
+            } else if h.distance > 100 {
+                isOffRoute = true
+            }
         }
+
+        // Jeder Punkt: Rest und Ankunft hängen auch am eigenen Tempo
+        routeProgress = progress(at: newIndex)
+
+        // Angekommen: der letzte Routenpunkt ist erreicht (die Projektion
+        // lässt das nur innerhalb von 100 m zu) oder — nahe am Ende — man
+        // steht keine 30 m vom Ziel entfernt
+        if !arrived, let end = routeLine.last, let p = routeProgress,
+           p.leftM <= 0 || (p.fraction >= 0.9 && Self.meters(here, end) <= 30) {
+            arrived = true
+        }
+    }
+
+    /// Kennzahlen ab Stützpunkt `index`.
+    private func progress(at index: Int) -> RouteProgress {
+        let total = routeCum.last ?? 0
+        let done = routeCum[index]
+        let left = max(0, total - done)
+        let ascentLeft = routeAscentToEnd[index]
+        let descentLeft = routeDescentToEnd[index]
+
+        // SAC: t = max(horizontal, vertikal) + min(...)/2
+        let horiz = left / 1000 / routeKmh
+        let climb = ascentLeft / routeClimbPerH
+        var hours = max(horiz, climb) + min(horiz, climb) / 2
+        // Ab 500 m mit dem eigenen Schnitt mischen
+        if distanceMeters > 500, elapsed > 60 {
+            let ownSpeed = distanceMeters / elapsed   // m/s
+            if ownSpeed > 0.3 {
+                hours = (hours + left / ownSpeed / 3600) / 2
+            }
+        }
+        let eta = left > 0 ? Int((hours * 60).rounded()) : 0
+
+        let next = routeWaypointCum.first { $0 > done + 30 }.map { $0 - done }
+        return RouteProgress(index: index, doneM: done, leftM: left,
+                             ascentLeftM: ascentLeft, descentLeftM: descentLeft,
+                             etaMinutes: eta, nextWaypointM: next,
+                             fraction: total > 0 ? done / total : 0)
+    }
+
+    /// Nächster Stützpunkt im Bereich [from, to] (optional ausgedünnt).
+    private static func nearestIndex(to c: CLLocationCoordinate2D, in line: [CLLocationCoordinate2D],
+                                     from: Int, to: Int, stride: Int = 1) -> (index: Int, distance: Double)? {
+        guard !line.isEmpty, from <= to else { return nil }
+        var best = from, bestD = Double.infinity
+        var i = from
+        while i <= to {
+            let d = meters(c, line[i])
+            if d < bestD { bestD = d; best = i }
+            i += stride
+        }
+        return (best, bestD)
+    }
+
+    /// Abstand zweier Koordinaten (äquirektangular — für Nachbarpunkte metergenau).
+    private static func meters(_ a: CLLocationCoordinate2D, _ b: CLLocationCoordinate2D) -> Double {
+        let dLat = (b.latitude - a.latitude) * 111_320
+        let dLon = (b.longitude - a.longitude) * 111_320 * cos(a.latitude * .pi / 180)
+        return (dLat * dLat + dLon * dLon).squareRoot()
     }
 
     // MARK: Intern — Zeit & Snapshot

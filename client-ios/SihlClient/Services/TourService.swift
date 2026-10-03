@@ -297,6 +297,8 @@ struct TourRoute {
     var elevationGain: Int? = nil
     var elevationLoss: Int? = nil
     var durationMin: Int? = nil
+    /// Gesetzte Punkte (Start, Zwischenpunkte, Ziel) — für „nächster Punkt"
+    var waypoints: [CLLocationCoordinate2D] = []
 
     /// Vorausgewählte Aufnahme-Aktivität.
     var workoutActivity: WorkoutActivity {

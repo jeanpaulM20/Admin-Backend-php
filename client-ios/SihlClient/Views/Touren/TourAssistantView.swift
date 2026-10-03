@@ -218,7 +218,9 @@ struct TourAssistantView: View {
         }
 
         Button {
-            launcher.start(route.asRoute)
+            var started = route.asRoute
+            started.waypoints = plan?.points ?? []
+            launcher.start(started)
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: "record.circle").font(.callout)

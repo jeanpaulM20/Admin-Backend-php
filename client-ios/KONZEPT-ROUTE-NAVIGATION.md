@@ -1,6 +1,6 @@
 # Konzept: Route starten — Aufzeichnung mit Navigation
 
-Stand: 4. Oktober 2026 · Status: Phase 5.1 umgesetzt, 5.2/5.3 offen
+Stand: 4. Oktober 2026 · Status: Phase 5.1 und 5.2 umgesetzt, 5.3 offen
 Ergänzt KONZEPT-ROUTENPLANER.md (Phase 5).
 
 ## 1. Beobachtung und Ursache
@@ -172,3 +172,32 @@ Beim Rundkurs zählt der Start als Ziel, aber erst nach 90 %.
 - Geprüft im Simulator: Planer → „Tour starten" → Start-Tab mit laufender
   Session und Route; „Beenden" → Übersicht → Start-Tab, Route abgeräumt;
   Planer behält seine Punkte.
+
+## 10. Umsetzungsnotizen Phase 5.2 (4. Oktober 2026)
+
+- **Recorder:** `RouteProgress` (Stützpunkt, gelaufene und restliche
+  Routendistanz, Resthöhenmeter ↑/↓ als Suffixsummen mit 2-m-Glättung,
+  Ankunft in Minuten, Distanz zum nächsten Zwischenpunkt, Anteil).
+  Projektion bei jedem Track-Punkt: Fenster 20 Punkte zurück bis 300 m
+  voraus, monoton; ausserhalb des Fensters weltweit nächste Stelle
+  (ausgedünnt), Sprung nach vorn nur bei < 60 m. Off-Route-Hysterese
+  100/60 m bleibt, jetzt aus derselben Projektion. Ankunft bei ≥ 90 % und
+  < 30 m vom Ende. ETA: SAC-Formel mit Richttempo je Aktivität, ab 500 m
+  halbiert mit dem eigenen Schnitt.
+- **Session:** Routen-Zeile „Noch · nächster Punkt / Hm noch / Ankunft
+  ca." in beiden Layouts, „noch x km" im Vollbild-HUD; gelaufener Teil
+  grau, Rest blau gestrichelt; Kamera mit Blick voraus (18 % der
+  Kameradistanz in Laufrichtung) sobald Route und Richtung bekannt;
+  Mini-Höhenprofil mit Positionsmarker, wenn die Route Höhen hat;
+  Rückweg-Pfeil (Richtung relativ zur Kartendrehung) mit Abstand beim
+  Verlassen; Haptik bei Verlassen, Zurückfinden und Ankunft; Banner
+  „Ziel erreicht" mit „Beenden".
+- **Übergabe:** `TourRoute.waypoints` aus den Planer-Punkten bzw. den
+  Orten des Assistenten — Grundlage für „nächster Punkt".
+- Ankunft zusätzlich, sobald der letzte Routenpunkt erreicht ist (Rest
+  0 m) — die 30-m-Regel allein griff im Test nicht, weil der Läufer am
+  Ende 91 m neben dem gesetzten Ziel vorbeizog. „Hm noch" zeigt „–",
+  solange die Route keine Höhen hat (Demo).
+- Geprüft im Simulator mit Routen auf der simulierten GPS-Bahn:
+  Fortschritt (grau/blau), Rest und nächster Punkt, Rückweg-Pfeil mit
+  Abstand, „Ziel erreicht" mit Beenden.

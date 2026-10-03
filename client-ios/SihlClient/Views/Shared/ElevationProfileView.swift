@@ -10,6 +10,8 @@ struct ElevationProfileView: View {
     let segments: [[CLLocationCoordinate2D]]
     let elevations: [[Double?]]
     var compact = false
+    /// Aktuelle Position entlang der Strecke (km) — Marker während der Aufzeichnung
+    var progressKm: Double? = nil
 
     private struct Sample { let km: Double; let ele: Double }
 
@@ -69,6 +71,24 @@ struct ElevationProfileView: View {
 
                 ctx.fill(area, with: .color(AppColor.track.opacity(0.22)))
                 ctx.stroke(line, with: .color(AppColor.track), lineWidth: 1.5)
+
+                // Position auf der Strecke: Linie + Punkt auf dem Profil
+                if let progressKm {
+                    let px = x(min(max(progressKm, 0), totalKm))
+                    // Höhe an dieser Stelle (linear zwischen den Nachbarn)
+                    let after = pts.firstIndex { $0.km >= progressKm } ?? pts.count - 1
+                    let before = max(0, after - 1)
+                    let span = max(pts[after].km - pts[before].km, 0.0001)
+                    let t = min(max((progressKm - pts[before].km) / span, 0), 1)
+                    let ele = pts[before].ele + (pts[after].ele - pts[before].ele) * t
+                    var marker = Path()
+                    marker.move(to: CGPoint(x: px, y: top))
+                    marker.addLine(to: CGPoint(x: px, y: top + plotH))
+                    ctx.stroke(marker, with: .color(AppColor.text.opacity(0.5)), lineWidth: 1)
+                    let dot = Path(ellipseIn: CGRect(x: px - 4, y: y(ele) - 4, width: 8, height: 8))
+                    ctx.fill(dot, with: .color(AppColor.green))
+                    ctx.stroke(dot, with: .color(AppColor.white), lineWidth: 1.5)
+                }
 
                 guard !compact else { return }
 
