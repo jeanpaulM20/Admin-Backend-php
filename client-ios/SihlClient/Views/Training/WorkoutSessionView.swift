@@ -53,7 +53,11 @@ struct WorkoutSessionView: View {
             case .now:  UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             }
         }
-        .onDisappear { RouteVoice.shared.stop() }
+        // Sprache endet mit der Aufzeichnung — nicht bei onDisappear, das
+        // auch beim Öffnen der Kamera (fullScreenCover) feuert
+        .onChange(of: recorder.phase) { _, phase in
+            if phase == .finished { RouteVoice.shared.stop() }
+        }
         // Ziel erreicht (5.2): Haptik, Banner auf der Karte bietet „Beenden"
         .onChange(of: recorder.arrived) { _, arrived in
             if arrived {
@@ -183,7 +187,8 @@ struct WorkoutSessionView: View {
     private var fullscreenLayout: some View {
         liveMap
             .ignoresSafeArea(edges: .bottom)
-            .overlay(alignment: .top) {
+            // Unten, damit oben Abbiege- und Ankunfts-Banner Platz haben
+            .overlay(alignment: .bottom) {
                 HStack(spacing: 10) {
                     Text(recorder.durationString)
                         .font(.app(16, weight: .heavy).monospacedDigit())
@@ -203,7 +208,7 @@ struct WorkoutSessionView: View {
                 .padding(.vertical, 9)
                 .background(AppColor.surface.opacity(0.95), in: Capsule())
                 .overlay(Capsule().stroke(AppColor.border, lineWidth: 1))
-                .padding(.top, 8)
+                .padding(.bottom, 60)
             }
     }
 
@@ -721,7 +726,7 @@ struct WorkoutSessionView: View {
     }
 
     /// Nur zeigen, wenn die Route überhaupt Hinweise hat (Demo: Luftlinie ohne Knick → keine).
-    private var voiceToggleVisible: Bool { recorder.nextHint != nil }
+    private var voiceToggleVisible: Bool { recorder.hasHints }
 
     /// Abstand für das Banner: auf 10 m gerundet, ab 1 km in Kilometern.
     private static func hintMeters(_ meters: Double) -> String {

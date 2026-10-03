@@ -14,6 +14,9 @@ final class RouteVoice: NSObject, AVSpeechSynthesizerDelegate {
     private static let enabledKey = "routeVoiceEnabled"
     private let synthesizer = AVSpeechSynthesizer()
     private var sessionActive = false
+    /// Aktuelle Ansage — Rückrufe älterer (abgebrochener) Ansagen werden
+    /// ignoriert, sonst deaktivierte `didCancel` die Session unter der neuen
+    private var current: AVSpeechUtterance?
 
     var isEnabled: Bool {
         get { UserDefaults.standard.bool(forKey: Self.enabledKey) }
@@ -32,11 +35,19 @@ final class RouteVoice: NSObject, AVSpeechSynthesizerDelegate {
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = AVSpeechSynthesisVoice(language: "de-CH") ?? AVSpeechSynthesisVoice(language: "de-DE")
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate
+        current = utterance
         synthesizer.speak(utterance)
     }
 
     func stop() {
+        current = nil
         synthesizer.stopSpeaking(at: .immediate)
+        deactivateSession()
+    }
+
+    private func finished(_ utterance: AVSpeechUtterance) {
+        guard utterance === current else { return }
+        current = nil
         deactivateSession()
     }
 
@@ -59,10 +70,10 @@ final class RouteVoice: NSObject, AVSpeechSynthesizerDelegate {
     }
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        Task { @MainActor in self.deactivateSession() }
+        Task { @MainActor in self.finished(utterance) }
     }
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
-        Task { @MainActor in self.deactivateSession() }
+        Task { @MainActor in self.finished(utterance) }
     }
 }

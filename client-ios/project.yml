@@ -31,6 +31,8 @@ targets:
           - remote-notification
           - bluetooth-central
           - location
+          # Sprachhinweise der Routenführung auch bei gesperrtem Bildschirm
+          - audio
         NSBluetoothAlwaysUsageDescription: "SIHLMOVE verbindet sich mit deinem Herzfrequenz-Brustgurt (z.B. Polar H10), um dein Training aufzuzeichnen."
         NSLocationWhenInUseUsageDescription: "SIHLMOVE zeichnet deine Route bei Outdoor-Trainings auf (Joggen, Radfahren, Wandern)."
         ITSAppUsesNonExemptEncryption: false

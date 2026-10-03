@@ -16,6 +16,9 @@ struct RecordWorkoutView: View {
     /// Countdown vor dem Autostart einer übergebenen Route (3 → 1), nil = keiner
     @State private var countdown: Int?
     @State private var countdownTask: Task<Void, Never>?
+    /// Sichtbar? Mit gepushtem Profil im Start-Tab liegt diese Ansicht
+    /// verdeckt darunter — dann kein Autostart ins Unsichtbare
+    @State private var isVisible = false
 
     @State private var activity: WorkoutActivity = WorkoutActivity.lastUsed ?? .joggen
     /// Einmal beim Erscheinen festgelegt — sonst würden die Chips während
@@ -44,12 +47,17 @@ struct RecordWorkoutView: View {
                 activityOrder = WorkoutActivity.orderedByRecency(preferring: activity)
             }
             recovered = WorkoutRecorder.pendingSnapshot()
+            isVisible = true
             takeLaunchedRoute()
         }
         // „Tour starten" aus Planer/Detail/Assistent, während die Startseite
         // schon sichtbar ist (der Tab-Wechsel allein löst kein onAppear aus)
         .onChange(of: launcher.requestCount) { _, _ in takeLaunchedRoute() }
         .onDisappear {
+            isVisible = false
+            // Tab gewechselt während des Countdowns: nicht im Hintergrund
+            // starten — die Route bleibt liegen, „Training starten" nimmt sie
+            cancelCountdown()
             // Nur aufräumen, wenn keine Session läuft
             if !showSession { recorder?.teardown() }
         }
@@ -115,11 +123,19 @@ struct RecordWorkoutView: View {
     /// vorwählen und mit Countdown starten. „Tour starten" war bereits der
     /// Startbefehl — ein zweites „Training starten" entfällt.
     private func takeLaunchedRoute() {
-        guard let route = launcher.takePendingRoute(), let recorder, !showSession else { return }
+        // Erst prüfen, dann abholen — sonst ginge die Route verloren. Ist die
+        // Startseite (noch) nicht sichtbar — Tab-Wechsel läuft, oder ein
+        // gepushtes Profil liegt darüber —, bleibt die Route liegen und wird
+        // beim nächsten Erscheinen übernommen.
+        guard isVisible, let recorder, !showSession, let route = launcher.takePendingRoute() else { return }
         tour = route
         recorder.setRoute(route)
         activity = route.workoutActivity
         activityOrder = WorkoutActivity.orderedByRecency(preferring: activity)
+        // Liegt ein unterbrochenes Training zur Rückfrage an, nicht automatisch
+        // starten: Alert und Vollbild-Session zugleich würden sich blockieren.
+        // Die Route bleibt liegen — „Training starten" nimmt sie mit.
+        guard recovered == nil else { return }
         startCountdown()
     }
 
@@ -146,6 +162,7 @@ struct RecordWorkoutView: View {
     }
 
     private func beginRecording() {
+        guard !showSession, recovered == nil else { return }
         WorkoutActivity.rememberUsed(activity)
         recorder?.startRecording(activity, clientId: auth.clientId)
         showSession = true

@@ -126,6 +126,11 @@ final class WorkoutRecorder {
     /// Die Route als eine Linie (Segmente aneinandergehängt)
     private(set) var routeLine: [CLLocationCoordinate2D] = []
     private var routeCum: [Double] = []          // Meter ab Start je Stützpunkt
+    /// Stützpunkt-Indizes, an denen ein neues Segment beginnt — bei
+    /// ungeordneten Routen (OSM-Relation) gibt es dort keine Verbindung
+    private var routeBreaks: Set<Int> = []
+    /// Fortschritt nur für geordnete Routen (Planer, Rundtour, GPX)
+    private var routeOrdered = true
     private var routeAscentToEnd: [Double] = []  // Resthöhenmeter ↑ ab Stützpunkt
     private var routeDescentToEnd: [Double] = []
     private var routeWaypointCum: [Double] = []  // Zwischenpunkte (ohne Start) als Meter ab Start
@@ -134,6 +139,8 @@ final class WorkoutRecorder {
 
     // Abbiegehinweise (Phase 5.3)
     private var routeHints: [TurnHint] = []
+    /// Die Route hat Abbiegehinweise (Sprachschalter zeigen)
+    var hasHints: Bool { !routeHints.isEmpty }
     /// Nächster Hinweis voraus und die Distanz dorthin entlang der Route
     private(set) var nextHint: TurnHint?
     private(set) var nextHintDistance: Double = 0
@@ -142,7 +149,7 @@ final class WorkoutRecorder {
         enum Stage { case far, near, now } }
     private(set) var hintCue: HintCue?
     private var cueSerial = 0
-    private var announced: [Double: Set<Int>] = [:]   // hint.at → Stufen (0 far, 1 near, 2 now)
+    private var announced: [Int: Set<Int>] = [:]   // Index in routeHints → Stufen (0 far, 1 near, 2 now)
 
     // Pausen-Buchhaltung: elapsed = jetzt - start - Pausensumme
     private var pausedTotal: TimeInterval = 0
@@ -234,6 +241,10 @@ final class WorkoutRecorder {
         routeSegments = route.segments
         routeElevations = route.elevations
         routeLine = route.segments.flatMap { $0 }
+        routeOrdered = route.ordered
+        routeBreaks = []
+        var offset = 0
+        for seg in route.segments.dropLast() { offset += seg.count; routeBreaks.insert(offset) }
 
         // Kumulierte Distanz je Stützpunkt
         routeCum = routeLine.isEmpty ? [] : [0]
@@ -285,12 +296,21 @@ final class WorkoutRecorder {
         default:              routeKmh = 4.2; routeClimbPerH = 400
         }
 
-        routeHints = route.hints.sorted { $0.at < $1.at }
+        // Hinweise auf die eigene Linie legen: Das Backend misst „Meter ab
+        // Start" entlang der vollen Geometrie, die App entlang der
+        // ausgedünnten — auf langen Routen weichen beide um Dutzende Meter
+        // ab. Der Lotpunkt der Hinweis-Koordinate ist die verlässliche Stelle.
+        routeHints = route.hints.map { hint in
+            guard routeLine.count >= 2,
+                  let near = nearestOnRoute(to: hint.coordinate, from: 0, to: routeLine.count - 1),
+                  near.distance <= 50 else { return hint }
+            return TurnHint(at: near.doneM, coordinate: hint.coordinate, turn: hint.turn, exit: hint.exit)
+        }.sorted { $0.at < $1.at }
         announced = [:]
         hintCue = nil
         arrived = false
         nearestRoutePoint = nil
-        routeProgress = routeLine.count >= 2 ? progress(doneM: 0) : nil
+        routeProgress = routeLine.count >= 2 && routeOrdered ? progress(doneM: 0) : nil
         updateNextHint()
     }
 
@@ -298,20 +318,22 @@ final class WorkoutRecorder {
     /// liegt (15 m Toleranz); Ansage-Stufen bei 150 m, 30 m und ≤ 15 m.
     private func updateNextHint() {
         guard let p = routeProgress else { nextHint = nil; return }
-        guard let hint = routeHints.first(where: { $0.at > p.doneM - 15 }) else {
+        guard let index = routeHints.firstIndex(where: { $0.at > p.doneM - 15 }) else {
             nextHint = nil; nextHintDistance = 0; return
         }
+        let hint = routeHints[index]
         nextHint = hint
         nextHintDistance = max(0, hint.at - p.doneM)
         guard phase == .recording, !isOffRoute else { return }
-        var stages = announced[hint.at] ?? []
-        let stage: HintCue.Stage?
-        if nextHintDistance <= 15, !stages.contains(2) { stage = .now; stages.insert(2) }
-        else if nextHintDistance <= 30, !stages.contains(1) { stage = .near; stages.insert(1) }
-        else if nextHintDistance <= 150, !stages.contains(0) { stage = .far; stages.insert(0) }
-        else { stage = nil }
-        if let stage {
-            announced[hint.at] = stages
+        // Höchste fällige Stufe; alle darunter gelten als erledigt — sonst
+        // käme nach „Jetzt links" noch „In 20 Metern links"
+        var stages = announced[index] ?? []
+        let due: (Int, HintCue.Stage)? =
+            nextHintDistance <= 15 ? (2, .now) : nextHintDistance <= 30 ? (1, .near)
+            : nextHintDistance <= 150 ? (0, .far) : nil
+        if let (level, stage) = due, !stages.contains(where: { $0 >= level }) {
+            stages.formUnion(0...level)
+            announced[index] = stages
             cueSerial += 1
             hintCue = HintCue(hint: hint, stage: stage, serial: cueSerial)
         }
@@ -410,7 +432,7 @@ final class WorkoutRecorder {
         nearestRoutePoint = nil
         announced = [:]
         hintCue = nil
-        routeProgress = routeLine.count >= 2 ? progress(doneM: 0) : nil
+        routeProgress = routeLine.count >= 2 && routeOrdered ? progress(doneM: 0) : nil
         updateNextHint()
     }
 
@@ -475,24 +497,43 @@ final class WorkoutRecorder {
     /// Daraus Off-Route (Hysterese 100 m hinaus / 60 m zurück), Rest,
     /// Ankunft und Zielerkennung.
     private func updateRouteProgress(_ point: TrackPoint) {
-        guard routeLine.count >= 2, let current = routeProgress else { return }
+        guard routeLine.count >= 2 else { return }
         let here = CLLocationCoordinate2D(latitude: point.lat, longitude: point.lon)
+
+        // Ungeordnete Route (OSM-Relation): nur Abstand zum nächsten Weg
+        guard let current = routeProgress else {
+            if let h = nearestOnRoute(to: here, from: 0, to: routeLine.count - 1) {
+                nearestRoutePoint = h.point
+                offRouteDistance = h.distance
+                if isOffRoute { if h.distance < 60 { isOffRoute = false } }
+                else if h.distance > 100 { isOffRoute = true }
+            }
+            return
+        }
 
         // Fenster: 20 Stützpunkte zurück bis 300 m voraus
         let from = max(0, current.index - 20)
         var to = current.index
         while to + 1 < routeLine.count, routeCum[to + 1] - routeCum[current.index] <= 300 { to += 1 }
-        var hit = nearestOnRoute(to: here, from: from, to: to)
+        // Bei fast gleichem Abstand (Hin- und Rückweg nebeneinander) gewinnt
+        // die Stelle, die dem bisherigen Fortschritt am nächsten liegt
+        var hit = nearestOnRoute(to: here, from: from, to: to, near: current.doneM)
 
         var newDone = current.doneM
         if let h = hit, h.distance <= 100 {
             newDone = max(current.doneM, h.doneM)
         } else {
-            // Nicht im Fenster: ganze Route (ausgedünnt) — eine Abkürzung
-            // nach vorn wird übernommen, zurück nie
-            let global = nearestOnRoute(to: here, from: 0, to: routeLine.count - 1, stride: 4)
+            // Nicht im Fenster: ganze Route — eine Abkürzung nach vorn wird
+            // übernommen, zurück nie; und nie in die letzten 15 %, solange die
+            // erste Hälfte nicht gelaufen ist (Rundkurs: man kommt am Anfang
+            // oft über den Schlussabschnitt zum Start)
+            let total = routeCum.last ?? 0
+            let global = nearestOnRoute(to: here, from: 0, to: routeLine.count - 1, near: current.doneM)
             hit = global
-            if let g = global, g.distance <= 60, g.doneM > current.doneM { newDone = g.doneM }
+            if let g = global, g.distance <= 60, g.doneM > current.doneM,
+               g.doneM < total * 0.85 || current.fraction > 0.5 {
+                newDone = g.doneM
+            }
         }
 
         if let h = hit {
@@ -512,7 +553,10 @@ final class WorkoutRecorder {
         // Angekommen: der letzte Routenpunkt ist erreicht (die Projektion
         // lässt das nur innerhalb von 100 m zu) oder — nahe am Ende — man
         // steht keine 30 m vom Ziel entfernt
+        // … und nur, wenn tatsächlich mindestens die halbe Strecke gelaufen
+        // wurde (sonst „Ziel erreicht" beim Start eines Rundkurses)
         if !arrived, let end = routeLine.last, let p = routeProgress,
+           distanceMeters >= (routeCum.last ?? 0) * 0.5,
            p.leftM <= 0 || (p.fraction >= 0.9 && Self.meters(here, end) <= 30) {
             arrived = true
         }
@@ -520,13 +564,15 @@ final class WorkoutRecorder {
 
     /// Nächste Stelle auf der Route im Abschnittsbereich [from, to]:
     /// Lotpunkt auf den Abschnitt, Meter ab Start, Abstand.
-    private func nearestOnRoute(to c: CLLocationCoordinate2D, from: Int, to: Int, stride: Int = 1)
+    private func nearestOnRoute(to c: CLLocationCoordinate2D, from: Int, to: Int, near preferDoneM: Double? = nil)
         -> (doneM: Double, point: CLLocationCoordinate2D, distance: Double)? {
         guard routeLine.count >= 2, from <= to else { return nil }
         let kLat = 111_320.0, kLon = 111_320.0 * cos(c.latitude * .pi / 180)
         var best: (doneM: Double, point: CLLocationCoordinate2D, distance: Double)?
         var i = from
         while i <= min(to, routeLine.count - 2) {
+            // Ungeordnete Segmente: die Verbindung zwischen zwei Wegen ist kein Weg
+            if routeBreaks.contains(i + 1) { i += 1; continue }
             let a = routeLine[i], b = routeLine[i + 1]
             let ax = (a.longitude - c.longitude) * kLon, ay = (a.latitude - c.latitude) * kLat
             let bx = (b.longitude - c.longitude) * kLon, by = (b.latitude - c.latitude) * kLat
@@ -535,12 +581,17 @@ final class WorkoutRecorder {
             let t = len2 == 0 ? 0 : min(max(-(ax * dx + ay * dy) / len2, 0), 1)
             let px = ax + t * dx, py = ay + t * dy
             let d = (px * px + py * py).squareRoot()
-            if d < (best?.distance ?? .infinity) {
+            let doneM = routeCum[i] + t * (routeCum[i + 1] - routeCum[i])
+            var better = d < (best?.distance ?? .infinity)
+            if let b0 = best, let prefer = preferDoneM, abs(d - b0.distance) <= 5 {
+                better = abs(doneM - prefer) < abs(b0.doneM - prefer)
+            }
+            if better {
                 let point = CLLocationCoordinate2D(latitude: a.latitude + (b.latitude - a.latitude) * t,
                                                    longitude: a.longitude + (b.longitude - a.longitude) * t)
-                best = (routeCum[i] + t * (routeCum[i + 1] - routeCum[i]), point, d)
+                best = (doneM, point, d)
             }
-            i += stride
+            i += 1
         }
         // Letzter Stützpunkt (Ziel) als eigener Kandidat
         if to >= routeLine.count - 1 {

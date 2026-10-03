@@ -237,3 +237,34 @@ Beim Rundkurs zählt der Start als Ziel, aber erst nach 90 %.
   Richtungen passen zu den Winkeln); im Simulator Banner „In 260 m halb
   links" → „In 80 m halb links", Sprachschalter, Fortschritt ohne
   falschen Abstandshinweis.
+
+## 12. Quality Check Phase 5 (4. Oktober 2026)
+
+Behoben nach eigenem und unabhängigem Review:
+
+- **Hinweise werden auf die eigene Linie gelotet** (Backend misst entlang
+  der vollen, die App entlang der ausgedünnten Geometrie).
+- **Ansage-Reihenfolge:** eine höhere Stufe erledigt alle darunter — kein
+  „In 20 Metern links" mehr nach „Jetzt links".
+- **Kein falsches „Ziel erreicht"** beim Start eines Rundkurses über den
+  Schlussabschnitt: Ankunft erst nach mindestens der halben Strecke;
+  Abkürzungs-Sprung nie in die letzten 15 %, solange die erste Hälfte nicht
+  gelaufen ist.
+- **Projektion lückenlos:** die weltweite Suche prüft jeden Abschnitt (kein
+  Überspringen); bei fast gleichem Abstand (Hin- und Rückweg nebeneinander)
+  gewinnt die Stelle nahe am bisherigen Fortschritt.
+- **OSM-Relationen** (ungeordnete Wege): nur Overlay und Abstand, kein
+  Fortschritt, keine Verbindungslinien über die Lücken (`ordered`-Flag aus
+  `generated` bzw. Einzelsegment).
+- **Sprache im Hintergrund:** Hintergrundmodus `audio` ergänzt — ohne ihn
+  blieb die Ansage bei gesperrtem Bildschirm stumm. Sprache stoppt erst mit
+  dem Ende der Aufzeichnung, nicht beim Öffnen der Kamera; abgebrochene
+  Ansagen deaktivieren die Audio-Session nicht mehr unter der nächsten.
+- **Vollbild-Karte:** Kennzahlen-Pille unten, damit oben Abbiege- und
+  Ankunfts-Banner Platz haben.
+- **Startseite:** kein Autostart, solange die Rückfrage zu einem
+  unterbrochenen Training offen ist oder die Startseite verdeckt ist
+  (gepushtes Profil); Tab-Wechsel bricht den Countdown ab; die übergebene
+  Route geht nicht verloren, wenn der Recorder noch fehlt.
+- **Hinweise mit gleicher Stelle** (Kreisel + Ausfahrt) kollidieren nicht
+  mehr; Lautsprecher-Knopf bleibt bis zum Ende sichtbar.

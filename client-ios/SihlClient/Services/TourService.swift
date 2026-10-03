@@ -202,7 +202,8 @@ struct TurnHint: Hashable, Identifiable {
     let turn: Turn
     let exit: Int?
 
-    var id: Double { at }
+    /// Eindeutig auch bei gleicher Stelle (Kreisel + Ausfahrt am selben Punkt)
+    var id: String { "\(at)-\(turn.rawValue)-\(coordinate.latitude)-\(coordinate.longitude)" }
 
     init(at: Double, coordinate: CLLocationCoordinate2D, turn: Turn, exit: Int? = nil) {
         self.at = at
@@ -220,8 +221,8 @@ struct TurnHint: Hashable, Identifiable {
                   turn: turn, exit: Int("\(json["exit"] ?? "")"))
     }
 
-    static func == (l: Self, r: Self) -> Bool { l.at == r.at && l.turn == r.turn }
-    func hash(into hasher: inout Hasher) { hasher.combine(at) }
+    static func == (l: Self, r: Self) -> Bool { l.id == r.id }
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
 
     /// Kurzform für Banner und Ansage („links", „im Kreisel die 2. Ausfahrt").
     var phrase: String {
@@ -279,13 +280,18 @@ struct TourDetail: Identifiable, Hashable {
     let elevations: [[Double?]]
     /// Abbiegehinweise (nur geroutete Strecken).
     let hints: [TurnHint]
+    /// Segmente in Laufreihenfolge (geroutet, GPX). OSM-Relationen liefern
+    /// ihre Wege ungeordnet — dann gibt es Overlay und Abstand, aber keinen
+    /// Fortschritt entlang der Route.
+    let ordered: Bool
 
     init(id: String, name: String, activity: String, network: String? = nil,
          operatorName: String? = nil, description: String? = nil,
          distanceKm: Double? = nil, durationMin: Int? = nil,
          difficulty: String? = nil, elevationGain: Int? = nil, elevationLoss: Int? = nil,
          surface: String? = nil, lit: Bool? = nil, official: OfficialInfo? = nil,
-         segments: [[CLLocationCoordinate2D]], elevations: [[Double?]] = [], hints: [TurnHint] = []) {
+         segments: [[CLLocationCoordinate2D]], elevations: [[Double?]] = [], hints: [TurnHint] = [],
+         ordered: Bool = true) {
         self.id = id
         self.name = name
         self.activity = activity
@@ -303,6 +309,7 @@ struct TourDetail: Identifiable, Hashable {
         self.segments = segments
         self.elevations = elevations
         self.hints = hints
+        self.ordered = ordered
     }
 
     init?(json: [String: Any]) {
@@ -336,7 +343,10 @@ struct TourDetail: Identifiable, Hashable {
             lit: json["lit"] as? Bool,
             official: OfficialInfo(json: json["official"] as? [String: Any]),
             segments: segs, elevations: eles,
-            hints: (json["hints"] as? [[String: Any]] ?? []).compactMap { TurnHint(json: $0) }
+            hints: (json["hints"] as? [[String: Any]] ?? []).compactMap { TurnHint(json: $0) },
+            // Backend: generated = geroutet (Planer, Rundtour, A→B, gespeichert);
+            // OSM-Relationen kommen ohne das Flag → ungeordnet
+            ordered: (json["generated"] as? Bool) == true || segs.count == 1
         )
     }
 
@@ -373,6 +383,8 @@ struct TourRoute {
     var waypoints: [CLLocationCoordinate2D] = []
     /// Abbiegehinweise (Phase 5.3)
     var hints: [TurnHint] = []
+    /// Segmente in Laufreihenfolge (sonst kein Fortschritt, nur Overlay)
+    var ordered: Bool = true
 
     /// Vorausgewählte Aufnahme-Aktivität.
     var workoutActivity: WorkoutActivity {
@@ -384,7 +396,8 @@ extension TourDetail {
     var asRoute: TourRoute {
         TourRoute(name: name, segments: segments, distanceKm: distanceKm, activity: activity,
                   elevations: elevations, elevationGain: elevationGain,
-                  elevationLoss: elevationLoss, durationMin: durationMin, hints: hints)
+                  elevationLoss: elevationLoss, durationMin: durationMin, hints: hints,
+                  ordered: ordered)
     }
 }
 
