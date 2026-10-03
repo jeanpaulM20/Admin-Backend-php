@@ -27,8 +27,8 @@ COPY profiles/hiking-beta.brf profiles2/hiking-beta.brf
 COPY start.sh ./start.sh
 RUN chmod +x start.sh
 
-# Kartendaten liegen unter /data (auf Railway als Volume einhängen, sonst
-# werden sie bei jedem Start neu geladen)
-VOLUME ["/data"]
+# Kartendaten liegen unter /data — auf Railway als Volume eingehängt (eine
+# VOLUME-Anweisung lehnt Railways Builder ab); ohne Volume werden sie bei
+# jedem Start neu geladen
 EXPOSE 17777
 CMD ["/opt/brouter/start.sh"]
