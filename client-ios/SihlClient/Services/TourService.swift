@@ -291,6 +291,12 @@ struct TourRoute {
     let segments: [[CLLocationCoordinate2D]]
     let distanceKm: Double?
     let activity: String        // "hiking" | "bicycle"
+    /// Höhen je Segmentpunkt (parallel zu `segments`), Dauer und Höhenmeter —
+    /// Grundlage der Routenführung in der Aufzeichnung (Phase 5)
+    var elevations: [[Double?]] = []
+    var elevationGain: Int? = nil
+    var elevationLoss: Int? = nil
+    var durationMin: Int? = nil
 
     /// Vorausgewählte Aufnahme-Aktivität.
     var workoutActivity: WorkoutActivity {
@@ -300,7 +306,9 @@ struct TourRoute {
 
 extension TourDetail {
     var asRoute: TourRoute {
-        TourRoute(name: name, segments: segments, distanceKm: distanceKm, activity: activity)
+        TourRoute(name: name, segments: segments, distanceKm: distanceKm, activity: activity,
+                  elevations: elevations, elevationGain: elevationGain,
+                  elevationLoss: elevationLoss, durationMin: durationMin)
     }
 }
 

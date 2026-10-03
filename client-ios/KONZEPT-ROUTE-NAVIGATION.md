@@ -1,6 +1,6 @@
 # Konzept: Route starten — Aufzeichnung mit Navigation
 
-Stand: 4. Oktober 2026 · Status: Analyse und Konzept zur Freigabe
+Stand: 4. Oktober 2026 · Status: Phase 5.1 umgesetzt, 5.2/5.3 offen
 Ergänzt KONZEPT-ROUTENPLANER.md (Phase 5).
 
 ## 1. Beobachtung und Ursache
@@ -150,3 +150,25 @@ Beim Rundkurs zählt der Start als Ziel, aber erst nach 90 %.
 1. **Autostart** mit 3-Sekunden-Countdown nach „Tour starten" (vorgeschlagen) — oder Landung auf der Startseite mit einem weiteren Tipp?
 2. **Sprachhinweise** standardmässig **aus**, per Schalter in der Session (vorgeschlagen).
 3. **Phase 5.3** gleich mit umsetzen oder nach Praxiserfahrung mit 5.1/5.2?
+
+## 9. Umsetzungsnotizen Phase 5.1 (4. Oktober 2026)
+
+- `RecordingLauncher` (ViewModels, app-weit in der Environment): `start(route)`
+  legt die Route ab und zählt `requestCount` hoch. `MainTabView` wechselt
+  darauf auf „Start"; `TourDiscoveryView` und `TourAssistantView` schliessen
+  ihre Sheets. Die Startseite holt die Route in `onAppear` und bei
+  `requestCount`-Änderung ab (`takePendingRoute`).
+- Startseite: Route in den Recorder, Aktivität vorgewählt, Countdown 3→1
+  mit „Abbrechen" (lässt die Route liegen — „Training starten" nimmt sie
+  mit, „×" auf der Routenkarte entfernt sie). Nach der Session räumt
+  `onDismiss` Recorder und Route ab; kein `dismiss()` mehr.
+- Entfernt: die gepushten `RecordWorkoutView(tour:)`-Kopien in Planer,
+  Tour-Detail und Assistent; die Recovery-Warnung ist ein eigener
+  `ViewModifier`.
+- `TourRoute` trägt jetzt Höhen, Höhenmeter auf/ab und Dauer (Grundlage
+  für 5.2).
+- Nicht nötig: die Rückfrage bei laufender Session — die Session liegt als
+  Vollbild über allen Tabs, „Tour starten" ist währenddessen unerreichbar.
+- Geprüft im Simulator: Planer → „Tour starten" → Start-Tab mit laufender
+  Session und Route; „Beenden" → Übersicht → Start-Tab, Route abgeräumt;
+  Planer behält seine Punkte.

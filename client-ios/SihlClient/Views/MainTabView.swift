@@ -16,6 +16,7 @@ struct MainTabView: View {
     private enum TabIndex: Int { case start, touren, kalender, chat, analytics }
 
     @Environment(StartViewModel.self) private var start
+    @Environment(RecordingLauncher.self) private var launcher
 
     var body: some View {
         TabView(selection: $selection) {
@@ -45,6 +46,11 @@ struct MainTabView: View {
             TabRoot(title: "Auswertung") { AnalyticsView() }
                 .tabItem { Label("Auswertung", systemImage: "chart.line.uptrend.xyaxis") }
                 .tag(TabIndex.analytics.rawValue)
+        }
+        // „Tour starten" (Planer, Tour-Detail, Assistent): die Aufzeichnung
+        // lebt im Start-Tab — dorthin wechseln, die Startseite übernimmt die Route
+        .onChange(of: launcher.requestCount) { _, _ in
+            selection = TabIndex.start.rawValue
         }
         .task {
             // Conversations schon beim App-Start laden, damit der Unread-Badge

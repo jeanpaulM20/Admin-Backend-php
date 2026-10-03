@@ -14,7 +14,7 @@ struct TourDetailView: View {
     @State private var detail: TourDetail?
     @State private var isLoading: Bool
     @State private var error: String?
-    @State private var showRecord = false
+    @Environment(RecordingLauncher.self) private var launcher
     @State private var gpxURL: URL?
     @State private var showMapFullscreen = false
 
@@ -65,10 +65,6 @@ struct TourDetailView: View {
             load()
         }
         .onChange(of: detail?.id) { _, _ in prepareGPX() }
-        .navigationDestination(isPresented: $showRecord) {
-            // T3: Route in den Recorder übergeben (Overlay + Off-Route-Hinweis)
-            RecordWorkoutView(tour: detail?.asRoute)
-        }
         .fullScreenCover(isPresented: $showMapFullscreen) {
             if let detail {
                 TourMapFullscreenView(detail: detail)
@@ -202,7 +198,8 @@ struct TourDetailView: View {
                         .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
                 }
 
-                Button("Tour starten") { showRecord = true }
+                // Übergabe an die Aufzeichnung im Start-Tab (Phase 5.1)
+                Button("Tour starten") { launcher.start(d.asRoute) }
                     .buttonStyle(PrimaryButtonStyle())
                     .padding(.top, 8)
 

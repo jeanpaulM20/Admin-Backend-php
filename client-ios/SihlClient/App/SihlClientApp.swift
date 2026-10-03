@@ -18,6 +18,7 @@ struct SihlClientApp: App {
     @State private var chatVM    = ChatViewModel()
     @State private var analytics = AnalyticsViewModel()
     @State private var creditsVM = CreditsViewModel()
+    @State private var launcher  = RecordingLauncher()
 
     var body: some Scene {
         WindowGroup {
@@ -31,6 +32,7 @@ struct SihlClientApp: App {
                 .environment(chatVM)
                 .environment(analytics)
                 .environment(creditsVM)
+                .environment(launcher)
                 .preferredColorScheme(.dark)
                 .tint(AppColor.primary)
                 .onChange(of: auth.clientId) { _, newId in
@@ -51,6 +53,7 @@ struct SihlClientApp: App {
                         chatVM    = ChatViewModel()
                         analytics = AnalyticsViewModel()
                         creditsVM = CreditsViewModel()
+                        launcher  = RecordingLauncher()
                     }
                 }
         }

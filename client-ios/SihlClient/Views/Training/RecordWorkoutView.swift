@@ -7,10 +7,15 @@ import SwiftUI
 /// (Profil → Sensoren) — hier wird nur gewählt und gestartet.
 struct RecordWorkoutView: View {
     @Environment(AuthViewModel.self) private var auth
-    @Environment(\.dismiss) private var dismiss
+    @Environment(RecordingLauncher.self) private var launcher
 
-    /// Optional: Tour, der gefolgt wird (T3 — Overlay + Off-Route-Hinweis).
-    var tour: TourRoute? = nil
+    /// Route, der gefolgt wird (T3/Phase 5): kommt über den Startbefehl
+    /// von Planer, Tour-Detail oder Assistent und bleibt bis zum Ende der
+    /// Aufzeichnung (oder bis sie hier entfernt wird).
+    @State private var tour: TourRoute?
+    /// Countdown vor dem Autostart einer übergebenen Route (3 → 1), nil = keiner
+    @State private var countdown: Int?
+    @State private var countdownTask: Task<Void, Never>?
 
     @State private var activity: WorkoutActivity = WorkoutActivity.lastUsed ?? .joggen
     /// Einmal beim Erscheinen festgelegt — sonst würden die Chips während
@@ -25,7 +30,49 @@ struct RecordWorkoutView: View {
     var body: some View {
         ZStack {
             AppColor.background.ignoresSafeArea()
-            ScrollView {
+            content
+            if let countdown { countdownOverlay(countdown) }
+        }
+        .navigationTitle("Training aufzeichnen")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            if recorder == nil {
+                recorder = WorkoutRecorder(
+                    source: Self.makeHeartRateSource(demo: isDemo),
+                    gpsSource: Self.makeLocationSource(demo: isDemo)
+                )
+                activityOrder = WorkoutActivity.orderedByRecency(preferring: activity)
+            }
+            recovered = WorkoutRecorder.pendingSnapshot()
+            takeLaunchedRoute()
+        }
+        // „Tour starten" aus Planer/Detail/Assistent, während die Startseite
+        // schon sichtbar ist (der Tab-Wechsel allein löst kein onAppear aus)
+        .onChange(of: launcher.requestCount) { _, _ in takeLaunchedRoute() }
+        .onDisappear {
+            // Nur aufräumen, wenn keine Session läuft
+            if !showSession { recorder?.teardown() }
+        }
+        .fullScreenCover(isPresented: $showSession, onDismiss: {
+            // Frisch für die nächste Aufzeichnung — dieselbe Instanz bleibt
+            // bestehen; eine übergebene Route ist mit der Session erledigt
+            recorder?.reset()
+            recorder?.clearRoute()
+            tour = nil
+        }) {
+            if let recorder {
+                WorkoutSessionView(recorder: recorder, isDemo: isDemo) {
+                    showSession = false
+                }
+            } else {
+                Color.clear.onAppear { showSession = false }
+            }
+        }
+        .modifier(RecoveryAlert(recovered: $recovered, isDemo: isDemo, clientId: auth.clientId))
+    }
+
+    private var content: some View {
+        ScrollView {
                 VStack(alignment: .leading, spacing: AppSpacing.stack) {
                     if let tour { tourCard(tour) }
 
@@ -35,11 +82,7 @@ struct RecordWorkoutView: View {
 
                     activityGrid
 
-                    Button("Training starten") {
-                        WorkoutActivity.rememberUsed(activity)
-                        recorder?.startRecording(activity, clientId: auth.clientId)
-                        showSession = true
-                    }
+                    Button("Training starten") { beginRecording() }
                     .buttonStyle(PrimaryButtonStyle())
                     .padding(.top, 12)
 
@@ -63,107 +106,83 @@ struct RecordWorkoutView: View {
                 .padding(.horizontal, AppSpacing.screen)
                 .padding(.top, 16)
                 .padding(.bottom, AppSpacing.bottomInset)
+        }
+    }
+
+    // MARK: Übergabe einer Route (Phase 5.1)
+
+    /// Route vom Startbefehl übernehmen: in den Recorder laden, Aktivität
+    /// vorwählen und mit Countdown starten. „Tour starten" war bereits der
+    /// Startbefehl — ein zweites „Training starten" entfällt.
+    private func takeLaunchedRoute() {
+        guard let route = launcher.takePendingRoute(), let recorder, !showSession else { return }
+        tour = route
+        recorder.setRoute(route)
+        activity = route.workoutActivity
+        activityOrder = WorkoutActivity.orderedByRecency(preferring: activity)
+        startCountdown()
+    }
+
+    private func startCountdown() {
+        countdownTask?.cancel()
+        countdown = 3
+        countdownTask = Task { @MainActor in
+            for value in stride(from: 3, through: 1, by: -1) {
+                countdown = value
+                try? await Task.sleep(for: .seconds(1))
+                if Task.isCancelled { return }
+            }
+            countdown = nil
+            beginRecording()
+        }
+    }
+
+    /// Abbrechen lässt die Route auf der Startseite — „Training starten"
+    /// nimmt sie dann manuell mit, „Route entfernen" lässt sie weg.
+    private func cancelCountdown() {
+        countdownTask?.cancel()
+        countdownTask = nil
+        countdown = nil
+    }
+
+    private func beginRecording() {
+        WorkoutActivity.rememberUsed(activity)
+        recorder?.startRecording(activity, clientId: auth.clientId)
+        showSession = true
+    }
+
+    private func removeRoute() {
+        cancelCountdown()
+        recorder?.clearRoute()
+        tour = nil
+    }
+
+    private func countdownOverlay(_ value: Int) -> some View {
+        ZStack {
+            AppColor.background.opacity(0.92).ignoresSafeArea()
+            VStack(spacing: 18) {
+                Text(tour?.name ?? "Route")
+                    .font(.headline)
+                    .foregroundStyle(AppColor.text)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, AppSpacing.screen)
+                Text("\(value)")
+                    .font(.app(96, weight: .black))
+                    .foregroundStyle(AppColor.cta)
+                    .monospacedDigit()
+                    .contentTransition(.numericText(countsDown: true))
+                    .animation(.easeOut(duration: 0.25), value: value)
+                Text("Aufzeichnung startet …")
+                    .font(.subheadline)
+                    .foregroundStyle(AppColor.muted)
+                Button("Abbrechen") { cancelCountdown() }
+                    .buttonStyle(OutlineButtonStyle())
+                    .padding(.horizontal, 60)
+                    .padding(.top, 10)
             }
         }
-        .navigationTitle("Training aufzeichnen")
-        .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            if recorder == nil {
-                recorder = WorkoutRecorder(
-                    source: Self.makeHeartRateSource(demo: isDemo),
-                    gpsSource: Self.makeLocationSource(demo: isDemo)
-                )
-                if let tour {
-                    recorder?.setRoute(tour)
-                    activity = tour.workoutActivity
-                }
-                // Gewählte Aktivität nach vorne (bei Tour deren Aktivität)
-                activityOrder = WorkoutActivity.orderedByRecency(preferring: activity)
-            }
-            recovered = WorkoutRecorder.pendingSnapshot()
-        }
-        .onDisappear {
-            // Nur aufräumen, wenn keine Session läuft
-            if !showSession { recorder?.teardown() }
-        }
-        .fullScreenCover(isPresented: $showSession, onDismiss: {
-            // Frisch für die nächste Aufzeichnung — auf dem Start-Tab bleibt
-            // dieselbe Instanz bestehen. Erst hier, nach der Ausblendung.
-            recorder?.reset()
-            dismiss()
-        }) {
-            if let recorder {
-                WorkoutSessionView(recorder: recorder, isDemo: isDemo) {
-                    showSession = false
-                }
-            } else {
-                Color.clear.onAppear { showSession = false }
-            }
-        }
-        // Crash-/Kill-Recovery: liegen gebliebenes Training nachreichen
-        .alert("Unterbrochenes Training gefunden", isPresented: Binding(
-            get: { recovered != nil }, set: { if !$0 { recovered = nil } }
-        ), presenting: recovered) { snap in
-            Button("Speichern") {
-                let rid = snap.recordingId
-                WorkoutRecorder.clearSnapshot()
-                recovered = nil
-                // Fremdes oder Demo-Konto: nicht nachreichen, nur aufräumen
-                guard !isDemo, let clientId = auth.clientId,
-                      snap.ownerClientId == nil || snap.ownerClientId == clientId else {
-                    WorkoutPhotoService.clearActivePhoto(recordingId: rid)
-                    return
-                }
-                var payload = WorkoutUploadService.Payload(
-                    clientId: clientId,
-                    trainingType: snap.activity.rawValue,
-                    startedAt: snap.startedAt,
-                    duration: Self.format(snap.elapsed),
-                    samples: snap.samples,
-                    track: snap.track,
-                    distanceMeters: snap.distanceMeters,
-                    elevationGain: snap.elevationGain
-                )
-                payload.clientRecordingId = rid
-                let photoData = WorkoutPhotoService.activePhotoData(recordingId: rid)
-                Task {
-                    let reviewId: Int?
-                    do {
-                        reviewId = try await WorkoutUploadService.shared.upload(payload)
-                    } catch {
-                        reviewId = nil
-                    }
-                    guard let reviewId else {
-                        // Offline oder ohne id: Training UND Foto in die Warteschlange
-                        if let photoData {
-                            payload.photoFile = WorkoutUploadService.shared.stashPhoto(photoData)
-                        }
-                        WorkoutUploadService.shared.queue(payload)
-                        WorkoutPhotoService.clearActivePhoto(recordingId: rid)
-                        return
-                    }
-                    if let photoData, let image = UIImage(data: photoData) {
-                        do {
-                            try await WorkoutPhotoService.shared.upload(
-                                clientId: clientId, reviewId: reviewId, image: image)
-                        } catch {
-                            let name = WorkoutUploadService.shared.stashPhoto(photoData)
-                            WorkoutUploadService.shared.queuePhoto(
-                                clientId: clientId, reviewId: reviewId, photoFile: name)
-                        }
-                    }
-                    WorkoutPhotoService.clearActivePhoto(recordingId: rid)
-                }
-            }
-            Button("Verwerfen", role: .destructive) {
-                WorkoutRecorder.clearSnapshot()
-                WorkoutPhotoService.clearActivePhoto(recordingId: snap.recordingId)
-                recovered = nil
-            }
-            Button("Abbrechen", role: .cancel) {}
-        } message: { snap in
-            Text("\(snap.activity.rawValue) · \(Self.format(snap.elapsed)) · \(snap.samples.count) HF-Punkte")
-        }
+        .transition(.opacity)
+        .accessibilityLabel("Aufzeichnung startet in \(value) Sekunden")
     }
 
     // MARK: Bausteine
@@ -188,6 +207,14 @@ struct RecordWorkoutView: View {
                     .foregroundStyle(AppColor.muted)
             }
             Spacer()
+            Button { removeRoute() } label: {
+                Image(systemName: "xmark")
+                    .font(.app(12, weight: .semibold))
+                    .foregroundStyle(AppColor.muted)
+                    .frame(width: 32, height: 32)
+                    .background(AppColor.surface2, in: Circle())
+            }
+            .accessibilityLabel("Route entfernen")
         }
         .padding(AppSpacing.card)
         .background(AppColor.surface)
@@ -243,5 +270,80 @@ struct RecordWorkoutView: View {
     static func format(_ t: TimeInterval) -> String {
         let s = Int(t)
         return String(format: "%02d:%02d:%02d", s / 3600, (s % 3600) / 60, s % 60)
+    }
+}
+
+// MARK: - RecoveryAlert
+
+/// Crash-/Kill-Recovery: liegen gebliebenes Training nachreichen oder verwerfen.
+private struct RecoveryAlert: ViewModifier {
+    @Binding var recovered: WorkoutRecorder.Snapshot?
+    let isDemo: Bool
+    let clientId: String?
+
+    func body(content: Content) -> some View {
+        content.alert("Unterbrochenes Training gefunden", isPresented: Binding(
+            get: { recovered != nil }, set: { if !$0 { recovered = nil } }
+        ), presenting: recovered) { (snap: WorkoutRecorder.Snapshot) in
+            Button("Speichern") {
+                let rid = snap.recordingId
+                WorkoutRecorder.clearSnapshot()
+                recovered = nil
+                // Fremdes oder Demo-Konto: nicht nachreichen, nur aufräumen
+                guard !isDemo, let clientId,
+                      snap.ownerClientId == nil || snap.ownerClientId == clientId else {
+                    WorkoutPhotoService.clearActivePhoto(recordingId: rid)
+                    return
+                }
+                var payload = WorkoutUploadService.Payload(
+                    clientId: clientId,
+                    trainingType: snap.activity.rawValue,
+                    startedAt: snap.startedAt,
+                    duration: RecordWorkoutView.format(snap.elapsed),
+                    samples: snap.samples,
+                    track: snap.track,
+                    distanceMeters: snap.distanceMeters,
+                    elevationGain: snap.elevationGain
+                )
+                payload.clientRecordingId = rid
+                let photoData = WorkoutPhotoService.activePhotoData(recordingId: rid)
+                Task {
+                    let reviewId: Int?
+                    do {
+                        reviewId = try await WorkoutUploadService.shared.upload(payload)
+                    } catch {
+                        reviewId = nil
+                    }
+                    guard let reviewId else {
+                        // Offline oder ohne id: Training UND Foto in die Warteschlange
+                        if let photoData {
+                            payload.photoFile = WorkoutUploadService.shared.stashPhoto(photoData)
+                        }
+                        WorkoutUploadService.shared.queue(payload)
+                        WorkoutPhotoService.clearActivePhoto(recordingId: rid)
+                        return
+                    }
+                    if let photoData, let image = UIImage(data: photoData) {
+                        do {
+                            try await WorkoutPhotoService.shared.upload(
+                                clientId: clientId, reviewId: reviewId, image: image)
+                        } catch {
+                            let name = WorkoutUploadService.shared.stashPhoto(photoData)
+                            WorkoutUploadService.shared.queuePhoto(
+                                clientId: clientId, reviewId: reviewId, photoFile: name)
+                        }
+                    }
+                    WorkoutPhotoService.clearActivePhoto(recordingId: rid)
+                }
+            }
+            Button("Verwerfen", role: .destructive) {
+                WorkoutRecorder.clearSnapshot()
+                WorkoutPhotoService.clearActivePhoto(recordingId: snap.recordingId)
+                recovered = nil
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: { (snap: WorkoutRecorder.Snapshot) in
+            Text("\(snap.activity.rawValue) · \(RecordWorkoutView.format(snap.elapsed)) · \(snap.samples.count) HF-Punkte")
+        }
     }
 }

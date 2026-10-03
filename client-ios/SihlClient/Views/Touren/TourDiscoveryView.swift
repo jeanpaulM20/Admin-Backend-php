@@ -42,7 +42,7 @@ struct TourDiscoveryView: View {
     @State private var isPlanning = false
     @State private var showDiscardAlert = false
     @State private var hasFittedRoute = false
-    @State private var startRoute: TourDetail?
+    @Environment(RecordingLauncher.self) private var launcher
     /// Pin, dessen Aktionen gerade angeboten werden (Tipp auf den Pin)
     @State private var selectedPoint: PlannedPoint?
     // Meine Routen (Phase 3)
@@ -119,7 +119,7 @@ struct TourDiscoveryView: View {
                         onFit: { fitRoute() },
                         onSave: { saveRoute(asNew: $0) },
                         onDetails: { generatedDetail = $0 },
-                        onStart: { startRoute = $0 })
+                        onStart: { launcher.start($0.asRoute) })
                 } else {
                     bottomCards
                 }
@@ -180,9 +180,11 @@ struct TourDiscoveryView: View {
         .navigationDestination(item: $generatedDetail) { detail in
             TourDetailView(detail: detail)
         }
-        .navigationDestination(item: $startRoute) { detail in
-            // T3: geplante Route in den Recorder übergeben (Leitlinie + Off-Route)
-            RecordWorkoutView(tour: detail.asRoute)
+        // „Tour starten" von irgendwo: Sheets schliessen, der Tab-Container
+        // wechselt auf „Start" (Planer bleibt mit seinen Punkten erhalten)
+        .onChange(of: launcher.requestCount) { _, _ in
+            showAssistant = false
+            showSavedRoutes = false
         }
         .sheet(isPresented: $showPlanSheet) {
             PlanTourSheet(activity: activity.roundtrip, isDemo: isDemo,

@@ -17,8 +17,7 @@ struct TourAssistantView: View {
     @State private var input = ""
     @State private var isThinking = false
     @State private var detailRoute: TourDetail?
-    @State private var startTour: TourRoute?
-    @State private var showRecord = false
+    @Environment(RecordingLauncher.self) private var launcher
     @FocusState private var inputFocused: Bool
 
     private var isDemo: Bool { auth.clientId == "demo" }
@@ -50,10 +49,9 @@ struct TourAssistantView: View {
             .navigationDestination(item: $detailRoute) { detail in
                 TourDetailView(detail: detail)
             }
-            // Direktstart aus dem Chat: Route in den Recorder übergeben (T3)
-            .navigationDestination(isPresented: $showRecord) {
-                RecordWorkoutView(tour: startTour)
-            }
+            // „Tour starten" (hier oder im Tour-Detail darunter): Sheet schliessen,
+            // die Aufzeichnung übernimmt im Start-Tab (Phase 5.1)
+            .onChange(of: launcher.requestCount) { _, _ in dismiss() }
         }
     }
 
@@ -220,8 +218,7 @@ struct TourAssistantView: View {
         }
 
         Button {
-            startTour = route.asRoute
-            showRecord = true
+            launcher.start(route.asRoute)
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: "record.circle").font(.callout)

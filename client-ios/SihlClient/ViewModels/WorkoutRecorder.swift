@@ -198,6 +198,17 @@ final class WorkoutRecorder {
         routeCheckPoints = all.enumerated().compactMap { $0.offset % stride == 0 ? $0.element : nil }
     }
 
+    /// Route wieder entfernen — nach einer Routen-Aufzeichnung auf dem
+    /// Start-Tab, damit das nächste Training ohne Leitlinie beginnt.
+    func clearRoute() {
+        routeName = nil
+        routeSegments = []
+        routeCheckPoints = []
+        pointsSinceRouteCheck = 0
+        isOffRoute = false
+        offRouteDistance = 0
+    }
+
     // GPS läuft bewusst NICHT im Setup „warm": Der Start-Tab ist die
     // Landeseite der App — ein Warmlauf dort hiesse Dauer-GPS ab App-Start.
     // startRecording() schaltet es ein, stop()/teardown() wieder aus; die
