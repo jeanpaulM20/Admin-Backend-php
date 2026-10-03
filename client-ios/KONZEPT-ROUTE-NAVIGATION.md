@@ -1,6 +1,6 @@
 # Konzept: Route starten — Aufzeichnung mit Navigation
 
-Stand: 4. Oktober 2026 · Status: Phase 5.1 und 5.2 umgesetzt, 5.3 offen
+Stand: 4. Oktober 2026 · Status: Phase 5.1 bis 5.3 umgesetzt
 Ergänzt KONZEPT-ROUTENPLANER.md (Phase 5).
 
 ## 1. Beobachtung und Ursache
@@ -201,3 +201,39 @@ Beim Rundkurs zählt der Start als Ziel, aber erst nach 90 %.
 - Geprüft im Simulator mit Routen auf der simulierten GPS-Bahn:
   Fortschritt (grau/blau), Rest und nächster Punkt, Rückweg-Pfeil mit
   Abstand, „Ziel erreicht" mit Beenden.
+
+## 11. Umsetzungsnotizen Phase 5.3 (4. Oktober 2026)
+
+- **Routing:** BRouter wird mit `timode=2` aufgerufen und liefert
+  `voicehints` ([Index im Track, Kommando, Kreisel-Ausfahrt, Distanz,
+  Winkel]). Das Wanderprofil `hiking-beta` kannte die Variable
+  `turnInstructionMode` nicht und lieferte keine Hinweise — in der
+  Repo-Kopie ergänzt (`assign turnInstructionMode 1`), Dienst neu gebaut.
+  Das Backend rechnet die Hinweise auf Meter ab Start um und liefert sie
+  als `hints: [{at, lat, lon, turn, angle, exit}]` in jeder Tour-Form
+  (Planer, Rundtour, A→B, Assistent, gespeicherte Routen beim Laden).
+  Kommandos: TL/TSLL/TSHL links, TR/TSLR/TSHR rechts, KL/KR halten, TU
+  wenden, RNDB/RNLB Kreisel (mit Ausfahrt), EL/ER Ausfahrt; „geradeaus"
+  wird weggelassen.
+- **Recorder:** nächster Hinweis = erster mit `at` vor uns (15 m
+  Toleranz); Ansage-Stufen 150 m („In 140 Metern links"), 30 m („Jetzt
+  links") und ≤ 15 m (Haptik). Jede Stufe je Hinweis nur einmal; keine
+  Ansagen, solange man neben der Route ist.
+- **Session:** Banner oben auf der Karte mit Pfeil-Symbol, sobald der
+  nächste Hinweis ≤ 400 m entfernt ist (weicht dem Ankunfts-Banner);
+  Lautsprecher-Knopf links oben schaltet die Sprachhinweise (Standard
+  aus, Wahl gemerkt). `RouteVoice`: AVSpeechSynthesizer de-CH,
+  Audio-Session `.playback`/`.voicePrompt` mit Ducking — Musik wird
+  leiser, nicht gestoppt, auch bei gesperrtem Bildschirm.
+- **Demo:** Luftlinien-Routen bekommen Hinweise an den Zwischenpunkten
+  aus dem Knickwinkel (ab 25°), damit der Ablauf erlebbar ist.
+- **Korrektur an 5.2:** Die Projektion mass nur den Abstand zu den
+  Stützpunkten; zwischen zwei weit auseinanderliegenden Punkten
+  (Luftlinie, spärliches GPX) galt man mitten auf der Linie als „neben
+  der Route". Jetzt Lotpunkt auf die Linienabschnitte, Fortschritt in
+  Metern (nicht Stützpunkt-Index). „Nächster Punkt" zählt das Ziel nicht
+  mehr mit.
+- Geprüft: Backend-Kette (45 Hinweise auf der Uetliberg-Teststrecke,
+  Richtungen passen zu den Winkeln); im Simulator Banner „In 260 m halb
+  links" → „In 80 m halb links", Sprachschalter, Fortschritt ohne
+  falschen Abstandshinweis.

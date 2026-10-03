@@ -38,6 +38,25 @@ export class RoutingCoverageError extends RoutingUnavailableError {
 
 export interface RoutePoint { lat: number; lon: number }
 
+/** Ergebnis eines Routing-Servers (BRouter-GeoJSON, reduziert). */
+interface RoutedTrack {
+  coords: number[][];
+  lengthM: number;
+  ascend: number;
+  voicehints?: any[];
+}
+
+/** Abbiegehinweis an einer Stelle der Route (Meter ab Start). */
+export interface TurnHint {
+  at: number;
+  lat: number;
+  lon: number;
+  /** TL/TSLL/TSHL links, TR/TSLR/TSHR rechts, KL/KR halten, TU wenden, RNDB/RNLB Kreisel, EL/ER Ausfahrt */
+  turn: string;
+  angle: number;
+  exit?: number;
+}
+
 /**
  * Touren-Domäne: OSM-Discovery (Overpass), Rundtouren-Generator und
  * A→B-Routing (BRouter), Geocoding (Nominatim) — mit Caches, Drosselung
@@ -481,7 +500,7 @@ out geom 80;`;
    * Netto-Höhendifferenz — so passen ↑ und ↓ immer zusammen (Rundkurs: gleich).
    */
   private static routedTour(
-    routed: { coords: number[][]; lengthM: number; ascend: number },
+    routed: RoutedTrack,
     spec: { profile: string; kmh: number; climbPerH: number; osm: string },
   ) {
     const { coords, lengthM, ascend } = routed;
@@ -506,6 +525,7 @@ out geom 80;`;
       durationMin: ToursService.tourDurationWithClimb(distKm, ascend, spec.kmh, spec.climbPerH),
       difficulty: ToursService.tourDifficulty(distKm),
       segments: [segment],
+      hints: ToursService.turnHints(coords, routed.voicehints ?? []),
     };
   }
 
@@ -621,9 +641,7 @@ out geom 80;`;
    * sie überlastet, übernimmt brouter.de. „Keine Route" ist ein fachliches
    * Ergebnis und wird nicht an den nächsten Server weitergereicht.
    */
-  private async brouter(lonlats: string, profile: string): Promise<{
-    coords: number[][]; lengthM: number; ascend: number;
-  }> {
+  private async brouter(lonlats: string, profile: string): Promise<RoutedTrack> {
     if (ToursService.brouterInFlight >= ToursService.BROUTER_MAX_IN_FLIGHT) {
       throw new RoutingUnavailableError('Routing gerade ausgelastet — bitte gleich nochmals versuchen.');
     }
@@ -648,14 +666,54 @@ out geom 80;`;
   }
 
   /**
+   * Abbiegehinweise (Phase 5.3). BRouter liefert je Hinweis
+   * [Index im Track, Kommando, Kreisel-Ausfahrt, Distanz zum nächsten, Winkel].
+   * Kommando-Codes (VoiceHint.java): 1 geradeaus, 2 links, 3 halb links,
+   * 4 scharf links, 5 rechts, 6 halb rechts, 7 scharf rechts, 8 links
+   * halten, 9 rechts halten, 10/11/15 wenden, 13/14 Kreisel, 17/18 Ausfahrt.
+   */
+  static readonly TURN_CODES: Record<number, string> = {
+    1: 'C', 2: 'TL', 3: 'TSLL', 4: 'TSHL', 5: 'TR', 6: 'TSLR', 7: 'TSHR',
+    8: 'KL', 9: 'KR', 10: 'TU', 11: 'TU', 15: 'TU', 13: 'RNDB', 14: 'RNLB', 17: 'EL', 18: 'ER',
+  };
+
+  /**
+   * Hinweise auf Meter ab Start umrechnen (kumulierte Distanz der vollen,
+   * noch nicht ausgedünnten Koordinaten). „geradeaus" wird weggelassen —
+   * es ist kein Hinweis, den man ansagen müsste.
+   */
+  private static turnHints(coords: number[][], voicehints: any[]): TurnHint[] {
+    if (!voicehints.length) return [];
+    const cum: number[] = [0];
+    for (let i = 1; i < coords.length; i++) {
+      const [lon0, lat0] = coords[i - 1], [lon1, lat1] = coords[i];
+      const dLat = (lat1 - lat0) * 110_574, dLon = (lon1 - lon0) * 111_320 * Math.cos((lat0 * Math.PI) / 180);
+      cum.push(cum[i - 1] + Math.hypot(dLat, dLon));
+    }
+    const hints: TurnHint[] = [];
+    for (const h of voicehints) {
+      if (!Array.isArray(h) || h.length < 5) continue;
+      const index = Number(h[0]), code = ToursService.TURN_CODES[Number(h[1])];
+      if (!code || code === 'C' || !Number.isFinite(index) || index < 0 || index >= coords.length) continue;
+      hints.push({
+        at: Math.round(cum[index]),
+        lat: coords[index][1], lon: coords[index][0],
+        turn: code,
+        angle: Math.round(Number(h[4]) || 0),
+        exit: Number(h[2]) > 0 ? Number(h[2]) : undefined,
+      });
+    }
+    return hints;
+  }
+
+  /**
    * Ein Routing-Server. BRouter meldet unerreichbare Punkte als HTTP 400
    * mit Klartext („… not mapped", „no track found") → RouteNotFoundError;
    * Ausfälle, 5xx und die Drosselung 403/429 → RoutingUnavailableError.
    */
-  private static async brouterAt(base: string, lonlats: string, profile: string): Promise<{
-    coords: number[][]; lengthM: number; ascend: number;
-  }> {
-    const url = `${base}/brouter?lonlats=${lonlats}&profile=${profile}&alternativeidx=0&format=geojson`;
+  private static async brouterAt(base: string, lonlats: string, profile: string): Promise<RoutedTrack> {
+    // timode=2: Abbiegehinweise („voicehints", Locus-Stil) in der Antwort
+    const url = `${base}/brouter?lonlats=${lonlats}&profile=${profile}&alternativeidx=0&format=geojson&timode=2`;
     let res: Response;
     try {
       res = await fetch(url, {
@@ -689,6 +747,7 @@ out geom 80;`;
       coords,
       lengthM: parseFloat(props['track-length'] ?? '0') || 0,
       ascend: parseInt(props['filtered ascend'] ?? '0', 10) || 0,
+      voicehints: Array.isArray(props.voicehints) ? props.voicehints : [],
     };
   }
 

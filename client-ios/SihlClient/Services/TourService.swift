@@ -187,6 +187,74 @@ struct OfficialInfo: Hashable {
     }
 }
 
+/// Abbiegehinweis an einer Stelle der Route (Phase 5.3), vom Routing-Server.
+struct TurnHint: Hashable, Identifiable {
+    enum Turn: String {
+        case left = "TL", slightLeft = "TSLL", sharpLeft = "TSHL"
+        case right = "TR", slightRight = "TSLR", sharpRight = "TSHR"
+        case keepLeft = "KL", keepRight = "KR", uTurn = "TU"
+        case roundabout = "RNDB", roundaboutLeft = "RNLB", exitLeft = "EL", exitRight = "ER"
+    }
+
+    /// Meter ab Start der Route
+    let at: Double
+    let coordinate: CLLocationCoordinate2D
+    let turn: Turn
+    let exit: Int?
+
+    var id: Double { at }
+
+    init(at: Double, coordinate: CLLocationCoordinate2D, turn: Turn, exit: Int? = nil) {
+        self.at = at
+        self.coordinate = coordinate
+        self.turn = turn
+        self.exit = exit
+    }
+
+    init?(json: [String: Any]) {
+        guard let at = Double("\(json["at"] ?? "")"),
+              let lat = Double("\(json["lat"] ?? "")"),
+              let lon = Double("\(json["lon"] ?? "")"),
+              let turn = Turn(rawValue: json["turn"] as? String ?? "") else { return nil }
+        self.init(at: at, coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
+                  turn: turn, exit: Int("\(json["exit"] ?? "")"))
+    }
+
+    static func == (l: Self, r: Self) -> Bool { l.at == r.at && l.turn == r.turn }
+    func hash(into hasher: inout Hasher) { hasher.combine(at) }
+
+    /// Kurzform für Banner und Ansage („links", „im Kreisel die 2. Ausfahrt").
+    var phrase: String {
+        switch turn {
+        case .left:            return "links"
+        case .slightLeft:      return "halb links"
+        case .sharpLeft:       return "scharf links"
+        case .right:           return "rechts"
+        case .slightRight:     return "halb rechts"
+        case .sharpRight:      return "scharf rechts"
+        case .keepLeft:        return "links halten"
+        case .keepRight:       return "rechts halten"
+        case .uTurn:           return "wenden"
+        case .roundabout, .roundaboutLeft:
+            return exit.map { "im Kreisel die \($0). Ausfahrt" } ?? "in den Kreisel"
+        case .exitLeft:        return "links abfahren"
+        case .exitRight:       return "rechts abfahren"
+        }
+    }
+
+    /// SF-Symbol für das Banner.
+    var symbol: String {
+        switch turn {
+        case .left, .sharpLeft, .exitLeft:            return "arrow.turn.up.left"
+        case .slightLeft, .keepLeft:                   return "arrow.up.left"
+        case .right, .sharpRight, .exitRight:          return "arrow.turn.up.right"
+        case .slightRight, .keepRight:                 return "arrow.up.right"
+        case .uTurn:                                   return "arrow.uturn.down"
+        case .roundabout, .roundaboutLeft:             return "arrow.triangle.2.circlepath"
+        }
+    }
+}
+
 /// Detail einer Route: Geometrie als Segmente. OSM-Relationen liefern die
 /// Segmente ungeordnet; generierte Rundtouren (T4) und GPX-Importe sind
 /// geordnet (ein Segment bzw. Segmentfolge).
@@ -209,13 +277,15 @@ struct TourDetail: Identifiable, Hashable {
     let segments: [[CLLocationCoordinate2D]]
     /// Höhen je Segmentpunkt (parallel zu `segments`), falls die Quelle sie liefert.
     let elevations: [[Double?]]
+    /// Abbiegehinweise (nur geroutete Strecken).
+    let hints: [TurnHint]
 
     init(id: String, name: String, activity: String, network: String? = nil,
          operatorName: String? = nil, description: String? = nil,
          distanceKm: Double? = nil, durationMin: Int? = nil,
          difficulty: String? = nil, elevationGain: Int? = nil, elevationLoss: Int? = nil,
          surface: String? = nil, lit: Bool? = nil, official: OfficialInfo? = nil,
-         segments: [[CLLocationCoordinate2D]], elevations: [[Double?]] = []) {
+         segments: [[CLLocationCoordinate2D]], elevations: [[Double?]] = [], hints: [TurnHint] = []) {
         self.id = id
         self.name = name
         self.activity = activity
@@ -232,6 +302,7 @@ struct TourDetail: Identifiable, Hashable {
         self.official = official
         self.segments = segments
         self.elevations = elevations
+        self.hints = hints
     }
 
     init?(json: [String: Any]) {
@@ -264,7 +335,8 @@ struct TourDetail: Identifiable, Hashable {
             surface: json["surface"] as? String,
             lit: json["lit"] as? Bool,
             official: OfficialInfo(json: json["official"] as? [String: Any]),
-            segments: segs, elevations: eles
+            segments: segs, elevations: eles,
+            hints: (json["hints"] as? [[String: Any]] ?? []).compactMap { TurnHint(json: $0) }
         )
     }
 
@@ -299,6 +371,8 @@ struct TourRoute {
     var durationMin: Int? = nil
     /// Gesetzte Punkte (Start, Zwischenpunkte, Ziel) — für „nächster Punkt"
     var waypoints: [CLLocationCoordinate2D] = []
+    /// Abbiegehinweise (Phase 5.3)
+    var hints: [TurnHint] = []
 
     /// Vorausgewählte Aufnahme-Aktivität.
     var workoutActivity: WorkoutActivity {
@@ -310,7 +384,7 @@ extension TourDetail {
     var asRoute: TourRoute {
         TourRoute(name: name, segments: segments, distanceKm: distanceKm, activity: activity,
                   elevations: elevations, elevationGain: elevationGain,
-                  elevationLoss: elevationLoss, durationMin: durationMin)
+                  elevationLoss: elevationLoss, durationMin: durationMin, hints: hints)
     }
 }
 
@@ -454,6 +528,21 @@ struct TourService {
                 .distance(from: CLLocation(latitude: points[i].latitude, longitude: points[i].longitude)) / 1000
         }
         let rounded = (km * 10).rounded() / 10
+        // Demo-Abbiegehinweise an den Zwischenpunkten aus dem Knickwinkel
+        var hints: [TurnHint] = []
+        var at = 0.0
+        for i in points.indices.dropFirst() {
+            at += CLLocation(latitude: points[i - 1].latitude, longitude: points[i - 1].longitude)
+                .distance(from: CLLocation(latitude: points[i].latitude, longitude: points[i].longitude))
+            guard i + 1 < points.count else { break }
+            let a = bearing(points[i - 1], points[i]), b = bearing(points[i], points[i + 1])
+            var turn = b - a
+            if turn > 180 { turn -= 360 } else if turn < -180 { turn += 360 }
+            let kind: TurnHint.Turn? = abs(turn) < 25 ? nil
+                : turn < -110 ? .sharpLeft : turn < -55 ? .left : turn < 0 ? .slightLeft
+                : turn > 110 ? .sharpRight : turn > 55 ? .right : .slightRight
+            if let kind { hints.append(TurnHint(at: at, coordinate: points[i], turn: kind)) }
+        }
         return TourDetail(
             id: "plan-demo-\(points.count)-\(rounded)",
             name: "Geplante Route",
@@ -462,7 +551,14 @@ struct TourService {
             distanceKm: rounded,
             durationMin: Int(km / activity.kmh * 60),
             difficulty: km < 8 ? "Leicht" : (km < 16 ? "Mittel" : "Schwer"),
-            segments: [points])
+            segments: [points], hints: hints)
+    }
+
+    private static func bearing(_ a: CLLocationCoordinate2D, _ b: CLLocationCoordinate2D) -> Double {
+        let lat1 = a.latitude * .pi / 180, lat2 = b.latitude * .pi / 180
+        let dLon = (b.longitude - a.longitude) * .pi / 180
+        let y = sin(dLon) * cos(lat2), x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLon)
+        return (atan2(y, x) * 180 / .pi + 360).truncatingRemainder(dividingBy: 360)
     }
 
     /// Demo-Rundtour: Kreis um den Startpunkt mit synthetischem Höhenprofil.

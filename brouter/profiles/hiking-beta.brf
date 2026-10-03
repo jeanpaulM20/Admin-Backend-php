@@ -9,6 +9,10 @@
 
 ---context:global
 
+# Abbiegehinweise erzeugen (Phase 5.3) — das Original-Profil kennt die
+# Variable nicht und liefert darum keine voicehints; 1 = auto-choose
+assign   turnInstructionMode      1
+
 assign   consider_elevation       1    # 0 as default, otherwise less interesting flat roads are chosen.
 assign   shortest_way             0    # 0 as default
 

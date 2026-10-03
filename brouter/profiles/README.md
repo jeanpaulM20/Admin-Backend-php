@@ -8,3 +8,7 @@ wird auf brouter.de bereitgestellt. Kopie vom 3. Oktober 2026
 
 Alle anderen vom Backend verwendeten Profile (`trekking`, `fastbike`,
 `gravel`, `mtb`, `hiking-mountain`) liegen im Release unter `profiles2/`.
+
+Ergänzung (4. Oktober 2026): `assign turnInstructionMode 1` im globalen
+Kontext — ohne die Variable liefert BRouter für dieses Profil keine
+Abbiegehinweise (`voicehints`), die anderen Profile bringen sie mit.

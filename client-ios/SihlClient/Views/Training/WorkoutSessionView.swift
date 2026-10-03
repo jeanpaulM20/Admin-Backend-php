@@ -18,6 +18,7 @@ struct WorkoutSessionView: View {
     @State private var routeToast: AppToast?
     @State private var wasOffRoute = false
     @State private var showArrival = false
+    @State private var voiceEnabled = RouteVoice.shared.isEnabled
 
     var body: some View {
         ZStack {
@@ -43,6 +44,16 @@ struct WorkoutSessionView: View {
                 routeToast = AppToast(message: "Zurück auf der Route", style: .success)
             }
         }
+        // Abbiegehinweise (5.3): Haptik am Abbiegepunkt, Sprache auf Wunsch
+        .onChange(of: recorder.hintCue) { _, cue in
+            guard let cue else { return }
+            switch cue.stage {
+            case .far:  RouteVoice.shared.speak("In \(Int(recorder.nextHintDistance / 10) * 10) Metern \(cue.hint.phrase)")
+            case .near: RouteVoice.shared.speak("Jetzt \(cue.hint.phrase)")
+            case .now:  UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            }
+        }
+        .onDisappear { RouteVoice.shared.stop() }
         // Ziel erreicht (5.2): Haptik, Banner auf der Karte bietet „Beenden"
         .onChange(of: recorder.arrived) { _, arrived in
             if arrived {
@@ -404,6 +415,57 @@ struct WorkoutSessionView: View {
             guard followUser, let pos = bestPosition else { return }
             recenter(on: pos, animated: false)
         }
+        // Nächster Abbiegehinweis (5.3) — weicht dem Ankunfts-Banner
+        .overlay(alignment: .top) {
+            if !showArrival, let hint = recorder.nextHint, recorder.nextHintDistance <= 400 {
+                HStack(spacing: 12) {
+                    Image(systemName: hint.symbol)
+                        .font(.app(22, weight: .bold))
+                        .foregroundStyle(AppColor.white)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(recorder.nextHintDistance <= 15
+                             ? "Jetzt \(hint.phrase)"
+                             : "In \(Self.hintMeters(recorder.nextHintDistance)) \(hint.phrase)")
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(AppColor.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
+                    Spacer(minLength: 4)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(AppColor.primary.opacity(0.96), in: RoundedRectangle(cornerRadius: AppRadius.control))
+                .padding(10)
+                .padding(.trailing, 50)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .accessibilityLabel("Abbiegehinweis: in \(Int(recorder.nextHintDistance)) Metern \(hint.phrase)")
+            }
+        }
+        // Sprachhinweise ein/aus (5.3) — nur wenn die Route Hinweise hat
+        .overlay(alignment: .topLeading) {
+            if voiceToggleVisible {
+                Button {
+                    voiceEnabled.toggle()
+                    RouteVoice.shared.isEnabled = voiceEnabled
+                    if voiceEnabled {
+                        RouteVoice.shared.speak("Sprachhinweise ein")
+                    } else {
+                        RouteVoice.shared.stop()
+                    }
+                } label: {
+                    Image(systemName: voiceEnabled ? "speaker.wave.2.fill" : "speaker.slash")
+                        .font(.app(14, weight: .semibold))
+                        .foregroundStyle(voiceEnabled ? AppColor.primary : AppColor.muted)
+                        .frame(width: 40, height: 40)
+                        .background(AppColor.surface, in: Circle())
+                        .overlay(Circle().stroke(AppColor.border, lineWidth: 1))
+                }
+                .padding(10)
+                .padding(.top, recorder.nextHint != nil && recorder.nextHintDistance <= 400 || showArrival ? 50 : 0)
+                .accessibilityLabel(voiceEnabled ? "Sprachhinweise ausschalten" : "Sprachhinweise einschalten")
+            }
+        }
         // Ziel erreicht (5.2)
         .overlay(alignment: .top) {
             if showArrival {
@@ -656,6 +718,14 @@ struct WorkoutSessionView: View {
                 }
             }
         }
+    }
+
+    /// Nur zeigen, wenn die Route überhaupt Hinweise hat (Demo: Luftlinie ohne Knick → keine).
+    private var voiceToggleVisible: Bool { recorder.nextHint != nil }
+
+    /// Abstand für das Banner: auf 10 m gerundet, ab 1 km in Kilometern.
+    private static func hintMeters(_ meters: Double) -> String {
+        meters >= 1000 ? String(format: "%.1f km", meters / 1000) : "\(max(10, Int(meters / 10) * 10)) m"
     }
 
     private static func km(_ meters: Double) -> String {
