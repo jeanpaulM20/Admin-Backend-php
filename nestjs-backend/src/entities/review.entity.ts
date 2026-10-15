@@ -37,7 +37,7 @@ export class Review {
   @Column({ type: 'datetime', nullable: true })
   date: string;
 
-  /** 'app' = recorded in the client app, null/legacy = trainer/polar flows */
+  /** 'app' = recorded in the client app, 'polar' = imported via AccessLink, null = legacy trainer flows */
   @Column({ nullable: true })
   source: string;
 

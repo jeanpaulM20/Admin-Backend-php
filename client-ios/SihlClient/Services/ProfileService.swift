@@ -40,16 +40,22 @@ struct ProfileService {
 
     // MARK: - Polar
 
-    func getPolarStatus(clientId: String) async throws -> (connected: Bool, connectUrl: String?) {
-        let data = try await APIClient.shared.get("api/client/polar/status/\(clientId)")
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return (false, nil)
+    /// `platform=ios`: Nach der Polar-Anmeldung leitet das Backend auf
+    /// `sihlmove://polar` zurück — dort fängt `PolarAuthSession` ab.
+    func getPolarStatus(clientId: String) async throws -> PolarStatus {
+        guard let json = try await APIClient.shared.getJSONObject(
+            "api/client/polar/status/\(clientId)?platform=ios") else {
+            return PolarStatus(available: false, connected: false, connectUrl: nil, lastSyncAt: nil)
         }
-        return (json["connected"] as? Bool == true, json["connectUrl"] as? String)
+        return PolarStatus(json: json)
     }
 
-    func syncPolar(clientId: String) async throws {
-        _ = try await APIClient.shared.post("api/client/polar/sync/\(clientId)", body: [:])
+    /// Liefert die Meldung des Servers, z. B. „3 Polar-Trainings importiert".
+    /// Grosszügiges Timeout: Ein Sync holt bis zu 25 Trainings samt HF-Kurve.
+    func syncPolar(clientId: String) async throws -> String {
+        let json = try await APIClient.shared.postJSONObject(
+            "api/client/polar/sync/\(clientId)", body: [:], timeout: 120)
+        return (json?["message"] as? String) ?? "Polar-Trainings synchronisiert"
     }
 
     func disconnectPolar(clientId: String) async throws {

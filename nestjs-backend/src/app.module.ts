@@ -22,6 +22,7 @@ import { RealtimeModule } from './realtime/realtime.module';
 import { EntitlementModule } from './entitlement/entitlement.module';
 import { DailyQuoteModule } from './daily-quote/daily-quote.module';
 import { CalendarModule } from './calendar/calendar.module';
+import { PolarModule } from './polar/polar.module';
 // Garmin module kept for later — not imported until Consumer Key is configured
 // import { GarminModule } from './garmin/garmin.module';
 import { PreferenceController } from './file/preference.controller';
@@ -92,6 +93,7 @@ const dbConfig: any = isSqlite
     EntitlementModule,
     DailyQuoteModule,
     CalendarModule,
+    PolarModule,
     // GarminModule, // re-enable when GARMIN_CONSUMER_KEY is set
   ],
   controllers: [PreferenceController],

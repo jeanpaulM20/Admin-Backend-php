@@ -214,6 +214,26 @@ export class StartupMigrationService implements OnApplicationBootstrap {
          CONSTRAINT fk_exercise_reformer FOREIGN KEY (exercise_id)
            REFERENCES exercise(id) ON DELETE CASCADE
        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+      // Polar AccessLink: Verknüpfung je Client (Token AES-GCM-verschlüsselt)
+      `CREATE TABLE IF NOT EXISTS polar_connection (
+         id INT AUTO_INCREMENT PRIMARY KEY,
+         client_id INT NOT NULL,
+         polar_user_id VARCHAR(32) NOT NULL,
+         access_token_enc TEXT NOT NULL,
+         expires_at DATETIME DEFAULT NULL,
+         connected_at DATETIME NOT NULL,
+         last_sync_at DATETIME DEFAULT NULL,
+         UNIQUE KEY uniq_polar_connection_client (client_id)
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+      // Bereits importierte Polar-Trainings — ohne FK, damit gelöschte nicht wiederkommen
+      `CREATE TABLE IF NOT EXISTS polar_exercise_import (
+         id INT AUTO_INCREMENT PRIMARY KEY,
+         client_id INT NOT NULL,
+         exercise_id VARCHAR(64) NOT NULL,
+         review_id INT DEFAULT NULL,
+         imported_at DATETIME NOT NULL,
+         UNIQUE KEY uniq_polar_exercise_import (client_id, exercise_id)
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
     ];
 
     // Create training_plan_comment table if not exists

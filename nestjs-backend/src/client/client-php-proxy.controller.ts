@@ -477,26 +477,7 @@ export class ClientAppController {
     return this.appService.getFiles(clientId);
   }
 
-  /** Polar status */
-  @Get('polar/status/:clientId')
-  polarStatus(@Req() req: Request, @Param('clientId', ParseIntPipe) clientId: number) {
-    this.assertClientAccess(req, clientId);
-    return this.appService.getPolarStatus(clientId);
-  }
-
-  /** Polar sync (stub) */
-  @Post('polar/sync/:clientId')
-  polarSync(@Req() req: Request, @Param('clientId', ParseIntPipe) clientId: number) {
-    this.assertClientAccess(req, clientId);
-    return { success: true, message: 'Polar sync not yet migrated' };
-  }
-
-  /** Polar disconnect (stub) */
-  @Post('polar/disconnect/:clientId')
-  polarDisconnect(@Req() req: Request, @Param('clientId', ParseIntPipe) clientId: number) {
-    this.assertClientAccess(req, clientId);
-    return { success: true };
-  }
+  // Polar (status/sync/disconnect/callback) → src/polar/interface/polar.controller.ts
 
   // ── Preferences ───────────────────────────────────────────────────
 

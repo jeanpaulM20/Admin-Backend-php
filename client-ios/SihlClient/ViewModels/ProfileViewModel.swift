@@ -14,11 +14,14 @@ final class ProfileViewModel {
     var invoices: [Invoice]    = []
     var files: [ClientFile]    = []
 
+    var polarAvailable  = true
     var polarConnected  = false
     var polarConnectUrl: String?
+    var polarLastSync: Date?
     var polarLoading    = false
 
     private let service = ProfileService()
+    private let polarAuth = PolarAuthSession()
 
     // MARK: - Laden
 
@@ -43,8 +46,7 @@ final class ProfileViewModel {
         invoices           = (try? await invoicesTask) ?? invoices
         files              = (try? await filesTask)    ?? files
         if let polar = try? await polarTask {
-            polarConnected  = polar.connected
-            polarConnectUrl = polar.connectUrl
+            apply(polar)
         }
 
         isLoading = false
@@ -52,13 +54,43 @@ final class ProfileViewModel {
 
     // MARK: - Polar
 
-    func syncPolar(clientId: String) async throws {
+    /// Öffnet die Polar-Anmeldung; danach den Status neu laden.
+    /// Liefert nil bei Erfolg oder Abbruch, sonst die Fehlermeldung.
+    func connectPolar(clientId: String) async -> String? {
+        guard let raw = polarConnectUrl, let url = URL(string: raw) else {
+            return "Polar-Verbindung ist gerade nicht verfügbar"
+        }
+        let outcome = await polarAuth.start(url: url)
         polarLoading = true
         defer { polarLoading = false }
-        try await service.syncPolar(clientId: clientId)
-        if let p = try? await service.getPolarStatus(clientId: clientId) {
-            polarConnected = p.connected
+        // Auch nach Abbruch neu laden: Der state im Link gilt nur 10 Minuten
+        if let p = try? await service.getPolarStatus(clientId: clientId) { apply(p) }
+        switch outcome {
+        case .connected, .cancelled: return nil
+        case .failed(let message):   return message
         }
+    }
+
+    /// Liefert die Meldung des Servers (z. B. „2 Polar-Trainings importiert").
+    func syncPolar(clientId: String) async throws -> String {
+        polarLoading = true
+        defer { polarLoading = false }
+        do {
+            let message = try await service.syncPolar(clientId: clientId)
+            if let p = try? await service.getPolarStatus(clientId: clientId) { apply(p) }
+            return message
+        } catch {
+            // Abgelaufene Verbindung trennt der Server selbst → Status nachziehen
+            if let p = try? await service.getPolarStatus(clientId: clientId) { apply(p) }
+            throw error
+        }
+    }
+
+    private func apply(_ status: PolarStatus) {
+        polarAvailable  = status.available
+        polarConnected  = status.connected
+        polarConnectUrl = status.connectUrl
+        polarLastSync   = status.lastSyncAt
     }
 
     func disconnectPolar(clientId: String) async throws {
@@ -66,6 +98,8 @@ final class ProfileViewModel {
         defer { polarLoading = false }
         try await service.disconnectPolar(clientId: clientId)
         polarConnected = false
+        // Neuer Verbinden-Link für den getrennten Zustand
+        if let p = try? await service.getPolarStatus(clientId: clientId) { apply(p) }
     }
 
     // MARK: - Helpers
