@@ -5,7 +5,7 @@ import SwiftUI
 /// Training-Tracking: Herzfrequenz (Polar H10 / BLE-Gurt) + GPS-Route
 /// bei Outdoor-Aktivitäten. Die Sensor-Einrichtung liegt im Profil
 /// (Profil → Sensoren) — hier wird gewählt und gestartet; die
-/// Trainingspläne sind von hier aus mit einem Tipp erreichbar.
+/// Trainingspläne öffnen sich über den ersten Reiter der Aktivitätsreihe.
 struct RecordWorkoutView: View {
     @Environment(AuthViewModel.self) private var auth
     @Environment(RecordingLauncher.self) private var launcher
@@ -99,14 +99,6 @@ struct RecordWorkoutView: View {
                         .font(.caption)
                         .foregroundStyle(AppColor.muted)
                         .frame(maxWidth: .infinity, alignment: .center)
-
-                    // Trainingspläne (aus dem Profil hierher verschoben): direkt
-                    // neben der Aufzeichnung, ohne Umweg über den Profil-Avatar
-                    NavRow(icon: "list.clipboard", tint: AppColor.brass,
-                           title: "Trainingspläne", subtitle: "Deine Pläne und das Coaching-Abo") {
-                        TrainingView().navigationTitle("Trainingspläne")
-                    }
-                    .padding(.top, AppSpacing.card)
 
                     // Trainings-Galerie (F1): Fotos der gewählten Aktivität
                     WorkoutGalleryView(activity: activity) { photo in
@@ -250,9 +242,19 @@ struct RecordWorkoutView: View {
 
     /// Aktivitätsauswahl im selben Kachel-Schema wie die Touren-Discovery
     /// (scrollbare Chip-Reihe) — einheitlicher Look über beide Screens.
+    /// Vorne der Reiter „Trainingspläne": öffnet die Pläne, statt eine
+    /// Aktivität zu wählen — der Trenner zeigt, dass er nicht dazugehört.
     private var activityGrid: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
+                trainingPlansChip
+
+                Rectangle()
+                    .fill(AppColor.border)
+                    .frame(width: 1, height: 24)
+                    .padding(.horizontal, 2)
+                    .accessibilityHidden(true)
+
                 ForEach(activityOrder) { a in
                     let selected = a == activity
                     HStack(spacing: 6) {
@@ -273,6 +275,29 @@ struct RecordWorkoutView: View {
             .padding(.horizontal, AppSpacing.screen)
         }
         .padding(.horizontal, -AppSpacing.screen)
+    }
+
+    /// Gleiche Form wie die Aktivitäts-Chips (nie „ausgewählt"), Icon in
+    /// Brass wie bisher die Trainingspläne-Zeile.
+    private var trainingPlansChip: some View {
+        NavigationLink {
+            TrainingView().navigationTitle("Trainingspläne")
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "list.clipboard").font(.app(13))
+                    .foregroundStyle(AppColor.brass)
+                Text("Trainingspläne").font(.footnote.weight(.medium))
+                    .foregroundStyle(AppColor.text)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.control))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
+                .stroke(AppColor.border, lineWidth: 1))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Öffnet deine Trainingspläne")
     }
 
     // MARK: Helfer

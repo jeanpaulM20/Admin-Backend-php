@@ -335,7 +335,7 @@ struct DemoUnavailableView: View {
 // MARK: - NavRow
 
 /// Einheitliche Navigations-Zeile (Icon-Kachel, Titel, Untertitel,
-/// Chevron) — Profil und Startseite teilen sich eine Definition.
+/// Chevron) — eine Definition statt Kopien je Screen.
 struct NavRow<Destination: View>: View {
     let icon: String
     let tint: Color
