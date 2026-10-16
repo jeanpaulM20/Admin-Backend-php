@@ -4,7 +4,8 @@ import SwiftUI
 
 /// Training-Tracking: Herzfrequenz (Polar H10 / BLE-Gurt) + GPS-Route
 /// bei Outdoor-Aktivitäten. Die Sensor-Einrichtung liegt im Profil
-/// (Profil → Sensoren) — hier wird nur gewählt und gestartet.
+/// (Profil → Sensoren) — hier wird gewählt und gestartet; die
+/// Trainingspläne sind von hier aus mit einem Tipp erreichbar.
 struct RecordWorkoutView: View {
     @Environment(AuthViewModel.self) private var auth
     @Environment(RecordingLauncher.self) private var launcher
@@ -98,6 +99,14 @@ struct RecordWorkoutView: View {
                         .font(.caption)
                         .foregroundStyle(AppColor.muted)
                         .frame(maxWidth: .infinity, alignment: .center)
+
+                    // Trainingspläne (aus dem Profil hierher verschoben): direkt
+                    // neben der Aufzeichnung, ohne Umweg über den Profil-Avatar
+                    NavRow(icon: "list.clipboard", tint: AppColor.brass,
+                           title: "Trainingspläne", subtitle: "Deine Pläne und das Coaching-Abo") {
+                        TrainingView().navigationTitle("Trainingspläne")
+                    }
+                    .padding(.top, AppSpacing.card)
 
                     // Trainings-Galerie (F1): Fotos der gewählten Aktivität
                     WorkoutGalleryView(activity: activity) { photo in

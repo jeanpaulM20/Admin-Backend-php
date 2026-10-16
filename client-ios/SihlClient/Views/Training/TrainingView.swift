@@ -11,24 +11,30 @@ struct TrainingView: View {
     @State private var expiryGuard      = false
     @State private var showCreditsSheet = false
 
+    private var isDemo: Bool { auth.clientId == "demo" }
+
     var body: some View {
         @Bindable var vm = vm
         ZStack {
             AppColor.background.ignoresSafeArea()
-            if vm.isLoading && vm.plans.isEmpty {
+            if isDemo {
+                // Wie Kalender/Chat: Pläne kommen vom Trainer, ohne Konto gibt
+                // es keine — statt „E-Mail oder Passwort falsch" ein Hinweis
+                DemoUnavailableView(message: "Hier erscheinen die Trainingspläne deines Trainers.")
+            } else if vm.isLoading && vm.plans.isEmpty {
                 LoadingView(message: "Lade Trainingspläne…")
             } else {
                 content
             }
         }
         .task {
-            if vm.plans.isEmpty, let id = auth.clientId {
+            if !isDemo, vm.plans.isEmpty, let id = auth.clientId {
                 await vm.fetch(clientId: id)
                 maybeShowExpiryAlert()
             }
         }
         .refreshable {
-            if let id = auth.clientId {
+            if !isDemo, let id = auth.clientId {
                 await vm.fetch(clientId: id)
                 maybeShowExpiryAlert()
             }
@@ -98,7 +104,7 @@ struct TrainingView: View {
 
     /// Ziel je Plan — direkte Destination statt wertbasierter Navigation:
     /// Seit die Liste selbst als NavigationLink-Destination gepusht wird
-    /// (Profil → Trainingspläne), findet SwiftUI ein hier registriertes
+    /// (Start → Trainingspläne), findet SwiftUI ein hier registriertes
     /// `navigationDestination(for:)` nicht mehr zuverlässig — der Tipp
     /// auf einen Plan verpuffte dann kommentarlos.
     @ViewBuilder
