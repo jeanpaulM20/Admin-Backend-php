@@ -75,8 +75,8 @@ struct ProfileView: View {
 
     // MARK: - Demo-Modus
 
-    /// Im Demo fehlen nur Konto- und Vertragsdaten — die funktionalen
-    /// Bereiche (Trainingspläne, Sensoren) bleiben erreichbar.
+    /// Im Demo fehlen nur Konto- und Vertragsdaten — die Sensoren bleiben
+    /// erreichbar (Trainingspläne liegen im Start-Tab).
     private var demoContent: some View {
         ScrollView {
             VStack(spacing: AppSpacing.stack) {
@@ -85,8 +85,6 @@ struct ProfileView: View {
                     message: "Konto- und Vertragsdaten sind im Demo-Modus nicht verfügbar."
                 )
                 .padding(.vertical, 12)
-
-                trainingPlansRow
 
                 sensorsRow
 
@@ -114,8 +112,6 @@ struct ProfileView: View {
                 filesSection
                 connectionsSection
                 glucoseRow
-
-                trainingPlansRow
 
                 sensorsRow
                 notificationsSection
@@ -186,8 +182,8 @@ struct ProfileView: View {
     // MARK: - Credits kaufen Row
 
     private var creditsBuyRow: some View {
-        ProfileNavRow(icon: "cart", tint: AppColor.primary,
-                      title: "Credits kaufen", subtitle: "Abos & Pakete ansehen") {
+        NavRow(icon: "cart", tint: AppColor.primary,
+               title: "Credits kaufen", subtitle: "Abos & Pakete ansehen") {
             CreditsView()
         }
     }
@@ -195,26 +191,17 @@ struct ProfileView: View {
     // MARK: - Blutzucker Row (CGM — ehemals Tab 6; max. 5 Tabs, s. MainTabView)
 
     private var glucoseRow: some View {
-        ProfileNavRow(icon: "waveform.path.ecg", tint: AppColor.red,
-                      title: "Blutzucker", subtitle: "FreeStyle Libre CGM-Daten") {
+        NavRow(icon: "waveform.path.ecg", tint: AppColor.red,
+               title: "Blutzucker", subtitle: "FreeStyle Libre CGM-Daten") {
             GlucoseView().navigationTitle("Blutzucker")
-        }
-    }
-
-    // MARK: - Trainingspläne (aus dem Touren-Tab hierher verschoben)
-
-    private var trainingPlansRow: some View {
-        ProfileNavRow(icon: "list.clipboard", tint: AppColor.brass,
-                      title: "Trainingspläne", subtitle: "Deine Pläne und das Coaching-Abo") {
-            TrainingView().navigationTitle("Trainingspläne")
         }
     }
 
     // MARK: - Sensoren (aus dem Aufzeichnungs-Screen hierher verschoben)
 
     private var sensorsRow: some View {
-        ProfileNavRow(icon: "sensor.tag.radiowaves.forward", tint: AppColor.primary,
-                      title: "Sensoren", subtitle: "Herzfrequenz-Gurt und Standort") {
+        NavRow(icon: "sensor.tag.radiowaves.forward", tint: AppColor.primary,
+               title: "Sensoren", subtitle: "Herzfrequenz-Gurt und Standort") {
             SensorSettingsView()
         }
     }
@@ -744,46 +731,3 @@ private struct PushNotificationCard: View {
     }
 }
 
-// MARK: - ProfileNavRow
-
-/// Einheitliche Navigations-Zeile der Profilseite (Icon-Kachel, Titel,
-/// Untertitel, Chevron) — eine Definition statt vier Kopien.
-private struct ProfileNavRow<Destination: View>: View {
-    let icon: String
-    let tint: Color
-    let title: String
-    let subtitle: String
-    @ViewBuilder let destination: () -> Destination
-
-    var body: some View {
-        NavigationLink(destination: destination()) {
-            HStack(spacing: 12) {
-                RoundedRectangle(cornerRadius: AppRadius.control)
-                    .fill(tint.opacity(0.14))
-                    .frame(width: 36, height: 36)
-                    .overlay(Image(systemName: icon)
-                        .font(.app(16))
-                        .foregroundStyle(tint))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.app(15, weight: .bold))
-                        .foregroundStyle(AppColor.text)
-                    Text(subtitle)
-                        .font(.app(12))
-                        .foregroundStyle(AppColor.muted)
-                }
-
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.app(14))
-                    .foregroundStyle(AppColor.muted)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(AppColor.surface)
-            .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
-            .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
-        }
-    }
-}

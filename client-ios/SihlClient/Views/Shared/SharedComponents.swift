@@ -331,3 +331,50 @@ struct DemoUnavailableView: View {
         .padding(.horizontal, AppSpacing.screen * 2)
     }
 }
+
+// MARK: - NavRow
+
+/// Einheitliche Navigations-Zeile (Icon-Kachel, Titel, Untertitel,
+/// Chevron) — Profil und Startseite teilen sich eine Definition.
+struct NavRow<Destination: View>: View {
+    let icon: String
+    let tint: Color
+    let title: String
+    let subtitle: String
+    @ViewBuilder let destination: () -> Destination
+
+    var body: some View {
+        NavigationLink(destination: destination()) {
+            HStack(spacing: 12) {
+                RoundedRectangle(cornerRadius: AppRadius.control)
+                    .fill(tint.opacity(0.14))
+                    .frame(width: 36, height: 36)
+                    .overlay(Image(systemName: icon)
+                        .font(.app(16))
+                        .foregroundStyle(tint))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.app(15, weight: .bold))
+                        .foregroundStyle(AppColor.text)
+                    Text(subtitle)
+                        .font(.app(12))
+                        .foregroundStyle(AppColor.muted)
+                }
+                // NavigationLink-Labels zentrieren mehrzeiligen Text — bei
+                // grosser Schrift bricht der Untertitel um und stand dann mittig
+                .multilineTextAlignment(.leading)
+
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.app(14))
+                    .foregroundStyle(AppColor.muted)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(AppColor.surface)
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
+        }
+    }
+}
