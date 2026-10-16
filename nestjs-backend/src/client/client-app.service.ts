@@ -1137,11 +1137,6 @@ export class ClientAppService {
     return { success: (res.affected ?? 0) > 0 };
   }
 
-  /** Polar status (stub – Polar integration to be migrated) */
-  getPolarStatus(_clientId: number) {
-    return { connected: false, connectUrl: null };
-  }
-
   // ── Helpers ──────────────────────────────────────────────────────
 
   private async getTotalCredits(clientId: number): Promise<number> {

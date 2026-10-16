@@ -267,22 +267,32 @@ struct ProfileView: View {
             subtitle: vm.polarConnected ? "Polar verbunden" : nil
         ) {
             PolarCard(
+                available: vm.polarAvailable,
                 connected: vm.polarConnected,
                 loading: vm.polarLoading,
+                lastSync: vm.polarLastSync,
                 onSync: {
                     Task {
                         guard let id = auth.clientId else { return }
                         do {
-                            try await vm.syncPolar(clientId: id)
-                            withAnimation { polarToast = AppToast(message: "Polar-Trainings synchronisiert!", style: .success) }
+                            let message = try await vm.syncPolar(clientId: id)
+                            withAnimation { polarToast = AppToast(message: message, style: .success) }
                         } catch {
-                            withAnimation { polarToast = AppToast(message: "Polar-Sync fehlgeschlagen", style: .error) }
+                            let message = (error as? APIError)?.message ?? "Polar-Sync fehlgeschlagen"
+                            withAnimation { polarToast = AppToast(message: message, style: .error) }
                         }
                     }
                 },
                 onDisconnect: { showPolarDisconnectAlert = true },
-                onConnect: vm.polarConnectUrl.flatMap { URL(string: $0) }.map { url in
-                    { UIApplication.shared.open(url) }
+                onConnect: vm.polarConnectUrl == nil ? nil : {
+                    Task {
+                        guard let id = auth.clientId else { return }
+                        if let message = await vm.connectPolar(clientId: id) {
+                            withAnimation { polarToast = AppToast(message: message, style: .error) }
+                        } else if vm.polarConnected {
+                            withAnimation { polarToast = AppToast(message: "Polar verbunden", style: .success) }
+                        }
+                    }
                 }
             )
         }
@@ -572,8 +582,11 @@ private struct FileRow: View {
 // MARK: - Polar Card
 
 private struct PolarCard: View {
+    /// false = auf dem Server nicht eingerichtet → Hinweis statt leerer Aktion
+    let available: Bool
     let connected: Bool
     let loading: Bool
+    let lastSync: Date?
     let onSync: () -> Void
     let onDisconnect: () -> Void
     var onConnect: (() -> Void)? = nil
@@ -596,7 +609,7 @@ private struct PolarCard: View {
                 Text("Polar")
                     .font(.app(15, weight: .bold))
                     .foregroundStyle(AppColor.text)
-                Text(connected ? "Verbunden" : "Nicht verbunden")
+                Text(statusText)
                     .font(.app(12))
                     .foregroundStyle(connected ? AppColor.green : AppColor.muted)
             }
@@ -644,6 +657,14 @@ private struct PolarCard: View {
             }
         }
         .padding(.vertical, 8)
+    }
+
+    private var statusText: String {
+        if connected {
+            guard let lastSync else { return "Verbunden" }
+            return "Verbunden · Sync \(lastSync.formatted(.relative(presentation: .named)))"
+        }
+        return available ? "Nicht verbunden" : "Derzeit nicht verfügbar"
     }
 }
 

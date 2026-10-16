@@ -69,6 +69,8 @@ export class ReviewService {
   async createWorkout(input: {
     clientId: number;
     clientRecordingId?: string | null;
+    /** 'app' (Standard) = in der App aufgezeichnet, 'polar' = aus Polar importiert */
+    source?: 'app' | 'polar';
     date: string;
     trainingType: string;
     duration: string | null;
@@ -91,7 +93,7 @@ export class ReviewService {
         kcal: input.kcal ?? undefined,
         distance: input.distanceMeters ?? undefined,
         elevation_gain: input.elevationGain ?? undefined,
-        source: 'app',
+        source: input.source ?? 'app',
       });
 
       const tsRepo = manager.getRepository(ReviewHeartRateTimeseries);
