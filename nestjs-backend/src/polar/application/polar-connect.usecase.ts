@@ -1,4 +1,6 @@
-import { ConnectPlatform, decodeState, encodeState, STATE_TTL_MS } from '../domain/oauth-state';
+import {
+  ConnectPlatform, decodeState, encodeState, signedPlatform, STATE_TTL_MS,
+} from '../domain/oauth-state';
 import { isExpired, memberId } from '../domain/polar-connection';
 import {
   PolarAccessLink, PolarConnectionRepository, PolarNotConfiguredError,
@@ -54,7 +56,9 @@ export class PolarConnectUseCase {
     const { api, connections, stateKey, now } = this.deps;
     const payload = decodeState(input.state, stateKey, now().getTime());
     if (!payload) {
-      return { ok: false, platform: 'web', message: 'Anmeldung abgelaufen – bitte erneut verbinden' };
+      // Abgelaufen, aber echt: trotzdem auf die richtige Plattform zurück
+      const platform = signedPlatform(input.state, stateKey) ?? 'web';
+      return { ok: false, platform, message: 'Anmeldung abgelaufen – bitte erneut verbinden' };
     }
     const { clientId, platform } = payload;
     if (!api) return { ok: false, platform, message: new PolarNotConfiguredError().message };

@@ -125,6 +125,18 @@ describe('PolarConnectUseCase', () => {
     expect(conns.rows.size).toBe(0);
   });
 
+  it('Callback: abgelaufener iOS-state springt trotzdem in die App zurück', async () => {
+    const state = new URL((await uc.status(7, 'ios')).connectUrl!).searchParams.get('state')!;
+    const later = new PolarConnectUseCase({
+      api, connections: conns, stateKey: KEY,
+      now: () => new Date(NOW.getTime() + 11 * 60_000), nonce: () => 'n',
+    });
+    const out = await later.completeAuthorization({ code: 'c', state });
+    expect(out).toEqual({ ok: false, platform: 'ios', message: 'Anmeldung abgelaufen – bitte erneut verbinden' });
+    expect(api.calls).toEqual([]);
+    expect(conns.rows.size).toBe(0);
+  });
+
   it('Callback: abgelehnt bei Polar', async () => {
     const state = new URL((await uc.status(7, 'ios')).connectUrl!).searchParams.get('state')!;
     expect(await uc.completeAuthorization({ state, error: 'access_denied' }))
