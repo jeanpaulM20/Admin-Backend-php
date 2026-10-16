@@ -361,6 +361,9 @@ struct NavRow<Destination: View>: View {
                         .font(.app(12))
                         .foregroundStyle(AppColor.muted)
                 }
+                // NavigationLink-Labels zentrieren mehrzeiligen Text — bei
+                // grosser Schrift bricht der Untertitel um und stand dann mittig
+                .multilineTextAlignment(.leading)
 
                 Spacer()
                 Image(systemName: "chevron.right")
