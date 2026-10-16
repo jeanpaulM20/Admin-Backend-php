@@ -1,5 +1,5 @@
 import { formatHms, parseIsoDurationSeconds } from '../domain/iso-duration';
-import { decodeState, encodeState } from '../domain/oauth-state';
+import { decodeState, encodeState, signedPlatform } from '../domain/oauth-state';
 import { isExpired, memberId } from '../domain/polar-connection';
 import { elevationGain, sportLabel, startUtcMs, toWorkoutDraft } from '../domain/workout-mapping';
 
@@ -42,6 +42,12 @@ describe('OAuth-state', () => {
 
   it('lehnt abgelaufenen state ab', () => {
     expect(decodeState(encodeState(payload, key), key, now + 61_000)).toBeNull();
+  });
+
+  it('Plattform auch aus abgelaufenem, echt signiertem state', () => {
+    expect(signedPlatform(encodeState(payload, key), key)).toBe('ios');
+    expect(signedPlatform(encodeState(payload, key), Buffer.alloc(32, 8))).toBeNull();
+    expect(signedPlatform('gefälscht', key)).toBeNull();
   });
 
   it.each([undefined, '', 'x', 'a.b.c'])('lehnt Unsinn ab: %p', (s) =>

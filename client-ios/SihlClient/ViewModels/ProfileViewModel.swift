@@ -57,13 +57,20 @@ final class ProfileViewModel {
     /// Öffnet die Polar-Anmeldung; danach den Status neu laden.
     /// Liefert nil bei Erfolg oder Abbruch, sonst die Fehlermeldung.
     func connectPolar(clientId: String) async -> String? {
+        // Frischer Link direkt vor dem Öffnen: Der state darin gilt nur
+        // 10 Minuten — der beim Laden des Profils geholte ist evtl. abgelaufen
+        polarLoading = true
+        let fresh = try? await service.getPolarStatus(clientId: clientId)
+        polarLoading = false
+        if let fresh { apply(fresh) }
+        if polarConnected { return nil }
         guard let raw = polarConnectUrl, let url = URL(string: raw) else {
             return "Polar-Verbindung ist gerade nicht verfügbar"
         }
         let outcome = await polarAuth.start(url: url)
         polarLoading = true
         defer { polarLoading = false }
-        // Auch nach Abbruch neu laden: Der state im Link gilt nur 10 Minuten
+        // Status nachziehen — auch nach Abbruch (neuer Link für den nächsten Versuch)
         if let p = try? await service.getPolarStatus(clientId: clientId) { apply(p) }
         switch outcome {
         case .connected, .cancelled: return nil

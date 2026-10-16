@@ -34,6 +34,22 @@ export function encodeState(payload: OAuthStatePayload, key: Buffer): string {
 
 /** Payload bei gültiger Signatur und nicht abgelaufenem state, sonst null. */
 export function decodeState(state: unknown, key: Buffer, nowMs: number): OAuthStatePayload | null {
+  const payload = readSigned(state, key);
+  if (!payload || payload.expiresAt < nowMs) return null;
+  return payload;
+}
+
+/**
+ * Plattform aus einem echt signierten, aber evtl. abgelaufenen state —
+ * nur für den Rücksprung: Auch eine abgelaufene iOS-Anmeldung muss nach
+ * `sihlmove://` zurück, sonst hängt die App in der Web-Seite fest.
+ */
+export function signedPlatform(state: unknown, key: Buffer): ConnectPlatform | null {
+  return readSigned(state, key)?.platform ?? null;
+}
+
+/** Payload bei gültiger Signatur — ohne Ablaufprüfung. */
+function readSigned(state: unknown, key: Buffer): OAuthStatePayload | null {
   if (typeof state !== 'string') return null;
   const parts = state.split('.');
   if (parts.length !== 2) return null;
@@ -53,6 +69,6 @@ export function decodeState(state: unknown, key: Buffer, nowMs: number): OAuthSt
   const expiresAt = Number(raw?.e);
   const platform = raw?.p === 'ios' ? 'ios' : raw?.p === 'web' ? 'web' : null;
   if (!Number.isInteger(clientId) || clientId <= 0 || !platform) return null;
-  if (!Number.isFinite(expiresAt) || expiresAt < nowMs) return null;
+  if (!Number.isFinite(expiresAt)) return null;
   return { clientId, platform, expiresAt, nonce: String(raw?.n ?? '') };
 }
