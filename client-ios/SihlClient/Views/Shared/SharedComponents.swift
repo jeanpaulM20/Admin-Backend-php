@@ -214,7 +214,9 @@ struct OverlineHeader: View {
 
 // MARK: - TokenImage
 
-/// Lädt ein Bild per URLSession mit X-Auth-Token-Header.
+/// Lädt ein Bild per URLSession mit X-Auth-Token-Header und hält es im
+/// gemeinsamen Speicher (`TokenImageStore`), damit Kachel, Vorschau und
+/// Vollbild dasselbe Bild nutzen statt es dreimal zu laden.
 /// Fallback: übergebenes `placeholder`-ViewBuilder.
 struct TokenImage<Placeholder: View>: View {
     let urlString: String
@@ -238,19 +240,43 @@ struct TokenImage<Placeholder: View>: View {
                     .frame(width: size, height: size)
             }
         }
-        .task(id: urlString) { await load() }
+        .task(id: urlString) {
+            image = await TokenImageStore.shared.image(for: urlString, token: token)
+        }
+    }
+}
+
+/// Bild-Speicher für Token-geschützte Bilder: ein Download je URL,
+/// danach aus dem Speicher (NSCache räumt bei Speicherdruck selbst auf).
+actor TokenImageStore {
+    static let shared = TokenImageStore()
+
+    private let cache = NSCache<NSString, UIImage>()
+    private var inFlight: [String: Task<UIImage?, Never>] = [:]
+
+    func cached(_ urlString: String) -> UIImage? {
+        cache.object(forKey: urlString as NSString)
     }
 
-    private func load() async {
-        guard let url = URL(string: urlString) else { return }
-        var request = URLRequest(url: url)
-        if let t = token, !t.isEmpty {
-            request.setValue(t, forHTTPHeaderField: APIConfig.authHeader)
+    func image(for urlString: String, token: String?) async -> UIImage? {
+        if let hit = cache.object(forKey: urlString as NSString) { return hit }
+        if let running = inFlight[urlString] { return await running.value }
+        let task = Task<UIImage?, Never> {
+            guard let url = URL(string: urlString) else { return nil }
+            var request = URLRequest(url: url)
+            if let t = token, !t.isEmpty {
+                request.setValue(t, forHTTPHeaderField: APIConfig.authHeader)
+            }
+            guard let (data, resp) = try? await URLSession.shared.data(for: request),
+                  let http = resp as? HTTPURLResponse, (200..<300).contains(http.statusCode),
+                  let img = UIImage(data: data) else { return nil }
+            return img
         }
-        guard let (data, resp) = try? await URLSession.shared.data(for: request),
-              let http = resp as? HTTPURLResponse, (200..<300).contains(http.statusCode),
-              let img = UIImage(data: data) else { return }
-        await MainActor.run { self.image = img }
+        inFlight[urlString] = task
+        let result = await task.value
+        inFlight[urlString] = nil
+        if let result { cache.setObject(result, forKey: urlString as NSString) }
+        return result
     }
 }
 
@@ -273,13 +299,20 @@ struct ExerciseBadge: View {
         liked ? AppColor.green : disliked ? AppColor.red : color
     }
 
+    /// Bild-URL einer Übung — das Backend liefert unter icon.png das Bild in
+    /// voller Grösse (1024 px bei KI-Bildern), also dieselbe Quelle für
+    /// Kachel, Vorschau und Vollbild.
+    static func imageURL(exerciseId: Int) -> String {
+        let base = APIConfig.baseURL.absoluteString
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return "\(base)/api/exercise/\(exerciseId)/icon.png"
+    }
+
     var body: some View {
         let r: CGFloat = 10
         if let name = exerciseName, let eid = exerciseIdMap[name] {
-            let base = APIConfig.baseURL.absoluteString
-                .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-            let url = "\(base)/api/exercise/\(eid)/icon.png"
-            TokenImage(urlString: url, token: auth.token, size: size, cornerRadius: r) {
+            TokenImage(urlString: Self.imageURL(exerciseId: eid), token: auth.token,
+                       size: size, cornerRadius: r) {
                 fallback(r: r)
             }
         } else {

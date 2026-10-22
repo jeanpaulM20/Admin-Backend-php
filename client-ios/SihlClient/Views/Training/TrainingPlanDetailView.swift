@@ -416,6 +416,13 @@ private struct ExerciseTile: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Divider().background(AppColor.border)
 
+                    // Übungsbild gross — Tipp öffnet das Vollbild mit Zoom
+                    if !row.exercise.isEmpty, let eid = exerciseIdMap[row.exercise] {
+                        ExerciseImagePreview(exerciseId: eid, exerciseName: row.exercise,
+                                             accent: meta.color)
+                            .padding(.horizontal, 16)
+                    }
+
                     // Timer-Chips
                     let timerValues = row.timers.isEmpty ? [30, 60, 90, 120] : row.timers
                     ScrollView(.horizontal, showsIndicators: false) {
