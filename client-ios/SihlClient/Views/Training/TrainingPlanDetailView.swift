@@ -343,7 +343,16 @@ private struct ExerciseTile: View {
     let onLike:    (String) -> Void
     let onComment: () -> Void
 
+    @Environment(AuthViewModel.self) private var auth
+    /// Übungsbild in voller Grösse (gleiche Quelle wie die Kachel, aus dem
+    /// gemeinsamen Speicher) — nur gesetzt, wenn die Übung ein Bild hat.
+    @State private var previewImage: UIImage?
+
     private var key: String { "\(meta.key)-\(index)" }
+    private var imageURL: String? {
+        guard !row.exercise.isEmpty, let eid = exerciseIdMap[row.exercise] else { return nil }
+        return ExerciseBadge.imageURL(exerciseId: eid)
+    }
     private var isLiked:    Bool { likeType == "like"    }
     private var isDisliked: Bool { likeType == "dislike" }
     private var isTimerActive: Bool {
@@ -417,8 +426,8 @@ private struct ExerciseTile: View {
                     Divider().background(AppColor.border)
 
                     // Übungsbild gross — Tipp öffnet das Vollbild mit Zoom
-                    if !row.exercise.isEmpty, let eid = exerciseIdMap[row.exercise] {
-                        ExerciseImagePreview(exerciseId: eid, exerciseName: row.exercise,
+                    if let previewImage {
+                        ExerciseImagePreview(image: previewImage, exerciseName: row.exercise,
                                              accent: meta.color)
                             .padding(.horizontal, 16)
                     }
@@ -526,6 +535,10 @@ private struct ExerciseTile: View {
         )
         .animation(.easeInOut(duration: 0.2), value: isExpanded)
         .animation(.easeInOut(duration: 0.2), value: borderColor.description)
+        .task(id: imageURL) {
+            guard let imageURL else { previewImage = nil; return }
+            previewImage = await TokenImageStore.shared.image(for: imageURL, token: auth.token)
+        }
     }
 }
 

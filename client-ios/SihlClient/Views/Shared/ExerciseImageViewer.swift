@@ -4,47 +4,38 @@ import SwiftUI
 
 /// Grosses Übungsbild in der aufgeklappten Übungskarte. Ein Tipp öffnet das
 /// Vollbild mit Zoom — damit sich Haltung und Ausführung genau betrachten
-/// lassen. Ohne geladenes Bild zeigt die Karte nichts (kein leerer Rahmen).
+/// lassen. Das Bild lädt die Karte (`ExerciseTile`) und reicht es herein:
+/// So gibt es diese Ansicht nur, wenn ein Bild da ist — kein leerer Rahmen
+/// und kein `.task` auf einer leeren View, das nie liefe.
 struct ExerciseImagePreview: View {
-    let exerciseId: Int
+    let image: UIImage
     let exerciseName: String
     let accent: Color
 
-    @Environment(AuthViewModel.self) private var auth
-    @State private var image: UIImage?
     @State private var showViewer = false
 
-    private var urlString: String { ExerciseBadge.imageURL(exerciseId: exerciseId) }
-
     var body: some View {
-        Group {
-            if let image {
-                Button { showViewer = true } label: {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxWidth: .infinity)
-                        .frame(maxHeight: 280)
-                        .background(accent.opacity(0.10))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay(alignment: .bottomTrailing) {
-                            Label("Vergrössern", systemImage: "arrow.up.left.and.arrow.down.right")
-                                .font(.app(11, weight: .semibold))
-                                .foregroundStyle(AppColor.text)
-                                .padding(.horizontal, 10).padding(.vertical, 6)
-                                .background(.ultraThinMaterial, in: Capsule())
-                                .padding(10)
-                        }
+        Button { showViewer = true } label: {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity)
+                .frame(maxHeight: 280)
+                .background(accent.opacity(0.10))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(alignment: .bottomTrailing) {
+                    Label("Vergrössern", systemImage: "arrow.up.left.and.arrow.down.right")
+                        .font(.app(11, weight: .semibold))
+                        .foregroundStyle(AppColor.text)
+                        .padding(.horizontal, 10).padding(.vertical, 6)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .padding(10)
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Übungsbild \(exerciseName) vergrössern")
-                .fullScreenCover(isPresented: $showViewer) {
-                    ExerciseImageViewer(image: image, title: exerciseName)
-                }
-            }
         }
-        .task(id: urlString) {
-            image = await TokenImageStore.shared.image(for: urlString, token: auth.token)
+        .buttonStyle(.plain)
+        .accessibilityLabel("Übungsbild \(exerciseName) vergrössern")
+        .fullScreenCover(isPresented: $showViewer) {
+            ExerciseImageViewer(image: image, title: exerciseName)
         }
     }
 }
