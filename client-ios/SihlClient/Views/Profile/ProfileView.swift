@@ -276,8 +276,8 @@ struct ProfileView: View {
     private var sensorsSubtitle: String {
         switch savedStraps.count {
         case 0:  return "Kein Herzfrequenz-Sensor gespeichert"
-        case 1:  return "\(savedStraps[0].name) gespeichert"
-        default: return "\(savedStraps[0].name) und \(savedStraps.count - 1) weitere"
+        case 1:  return "\(savedStraps[0].model) · ID \(savedStraps[0].sensorId)"
+        default: return "\(savedStraps[0].model) · ID \(savedStraps[0].sensorId) und \(savedStraps.count - 1) weitere"
         }
     }
 
@@ -388,10 +388,11 @@ struct ProfileView: View {
                 HStack(spacing: ProfileGrid.gap) {
                     ProfileIconTile(icon: "heart.fill", tint: AppColor.red)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(strap.name)
+                        Text(strap.model)
                             .font(.app(15, weight: .bold))
                             .foregroundStyle(AppColor.text)
                             .lineLimit(1)
+                        SensorIdText(id: strap.sensorId)
                         Text(strap.lastUsed.map {
                             "Gespeichert · zuletzt verbunden \($0.formatted(.relative(presentation: .named)))"
                         } ?? "Gespeichert · verbindet sich beim Training")
@@ -439,7 +440,7 @@ struct ProfileView: View {
     private var connectionsSubtitle: String {
         var parts: [String] = []
         if vm.polarConnected { parts.append("Polar verbunden") }
-        if let first = savedStraps.first { parts.append(first.name) }
+        if let first = savedStraps.first { parts.append("\(first.model) \(first.sensorId)") }
         return parts.isEmpty ? "Polar und Herzfrequenz-Sensor" : parts.joined(separator: " · ")
     }
 

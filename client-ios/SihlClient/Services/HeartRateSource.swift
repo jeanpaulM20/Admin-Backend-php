@@ -48,6 +48,8 @@ struct DiscoveredStrap: Identifiable, Equatable {
 
     /// Grobe Stufe 1…3 für die Anzeige.
     var signalLevel: Int { rssi >= -60 ? 3 : rssi >= -75 ? 2 : 1 }
+    var sensorId: String { StrapIdentity.sensorId(name: name, serial: nil, uuid: id) }
+    var model: String { StrapIdentity.model(name: name) }
     var signalLabel: String { ["schwach", "mittel", "stark"][signalLevel - 1] }
 }
 
@@ -57,6 +59,39 @@ struct SavedStrap: Codable, Identifiable, Equatable {
     var name: String
     /// Zuletzt verbunden — der jüngste wird beim Training zuerst versucht
     var lastUsed: Date?
+    /// Seriennummer aus dem BLE-Dienst „Geräteinformation" (0x180A/0x2A25),
+    /// beim ersten Verbinden gelesen
+    var serial: String? = nil
+
+    /// Sensor-ID wie auf dem Gurt (Polar: Geräte-ID im Namen), sonst Serien-
+    /// nummer, zuletzt die Kurzform der iOS-Kennung
+    var sensorId: String { StrapIdentity.sensorId(name: name, serial: serial, uuid: id) }
+    /// Name ohne angehängte Geräte-ID („Polar H10")
+    var model: String { StrapIdentity.model(name: name) }
+}
+
+/// Zerlegt Gurt-Namen wie „Polar H10 9A1B2C3D" in Modell und Geräte-ID.
+enum StrapIdentity {
+    /// 8-stellige Hex-ID am Namensende (Polar druckt sie auf den Gurt)
+    static func deviceId(in name: String) -> String? {
+        guard let last = name.split(separator: " ").last, last.count == 8,
+              last.allSatisfy(\.isHexDigit) else { return nil }
+        return last.uppercased()
+    }
+
+    static func model(name: String) -> String {
+        guard deviceId(in: name) != nil else { return name }
+        let parts = name.split(separator: " ").dropLast()
+        return parts.isEmpty ? name : parts.joined(separator: " ")
+    }
+
+    static func sensorId(name: String, serial: String?, uuid: UUID) -> String {
+        if let id = deviceId(in: name) { return id }
+        if let serial = serial?.trimmingCharacters(in: .whitespacesAndNewlines), !serial.isEmpty {
+            return serial
+        }
+        return String(uuid.uuidString.prefix(8))
+    }
 }
 
 /// Liste der gespeicherten Sensoren (geräteweit, nicht je Konto: der Gurt
@@ -99,6 +134,14 @@ enum SavedStraps {
         save(all.filter { $0.id != id })
     }
 
+    /// Seriennummer nachtragen (gelesen nach dem Verbinden).
+    static func setSerial(_ id: UUID, serial: String) {
+        var list = all
+        guard let i = list.firstIndex(where: { $0.id == id }), list[i].serial != serial else { return }
+        list[i].serial = serial
+        save(list)
+    }
+
     /// Verbindung hergestellt: als zuletzt genutzt markieren, Namen nachführen.
     static func touch(_ id: UUID, name: String?) {
         var list = all
@@ -138,6 +181,9 @@ protocol HeartRateSource: AnyObject {
 final class BleHeartRateSource: NSObject, HeartRateSource {
     private static let hrService        = CBUUID(string: "180D")
     private static let hrMeasurement    = CBUUID(string: "2A37")
+    /// Geräteinformation → Seriennummer (Sensor-ID bei Gurten ohne ID im Namen)
+    private static let deviceInfo       = CBUUID(string: "180A")
+    private static let serialNumber     = CBUUID(string: "2A25")
     /// Name des aktuell verbundenen Sensors (für die Anzeige).
     private(set) var connectedId: UUID?
 
@@ -324,7 +370,7 @@ extension BleHeartRateSource: CBCentralManagerDelegate {
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         connectTimeout?.cancel(); connectTimeout = nil
-        peripheral.discoverServices([Self.hrService])
+        peripheral.discoverServices([Self.hrService, Self.deviceInfo])
     }
 
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral,
@@ -353,12 +399,21 @@ extension BleHeartRateSource: CBCentralManagerDelegate {
 
 extension BleHeartRateSource: CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
+        if let info = peripheral.services?.first(where: { $0.uuid == Self.deviceInfo }) {
+            peripheral.discoverCharacteristics([Self.serialNumber], for: info)
+        }
         guard let service = peripheral.services?.first(where: { $0.uuid == Self.hrService }) else { return }
         peripheral.discoverCharacteristics([Self.hrMeasurement], for: service)
     }
 
     func peripheral(_ peripheral: CBPeripheral,
                     didDiscoverCharacteristicsFor service: CBService, error: Error?) {
+        if service.uuid == Self.deviceInfo {
+            if let serial = service.characteristics?.first(where: { $0.uuid == Self.serialNumber }) {
+                peripheral.readValue(for: serial)
+            }
+            return
+        }
         guard let char = service.characteristics?.first(where: { $0.uuid == Self.hrMeasurement }) else { return }
         peripheral.setNotifyValue(true, for: char)
         connectedId = peripheral.identifier
@@ -369,6 +424,16 @@ extension BleHeartRateSource: CBPeripheralDelegate {
 
     func peripheral(_ peripheral: CBPeripheral,
                     didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
+        if characteristic.uuid == Self.serialNumber {
+            if let data = characteristic.value,
+               let serial = String(data: data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines.union(.controlCharacters)),
+               !serial.isEmpty {
+                SavedStraps.setSerial(peripheral.identifier, serial: serial)
+                publishStraps(force: true)
+            }
+            return
+        }
         guard characteristic.uuid == Self.hrMeasurement,
               let data = characteristic.value, data.count >= 2 else { return }
         // BLE Heart Rate Measurement: Byte 0 = Flags, Bit 0 = HF-Format (0: UInt8, 1: UInt16 LE)

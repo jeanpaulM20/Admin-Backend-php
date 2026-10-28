@@ -40,7 +40,10 @@ final class SensorSettingsModel {
             self.saved = SavedStraps.all   // Name/zuletzt verbunden nachführen
         }
         hr.onSample = { [weak self] bpm in self?.currentHR = bpm }
-        (hr as? BleHeartRateSource)?.onStrapsChange = { [weak self] list in self?.straps = list }
+        (hr as? BleHeartRateSource)?.onStrapsChange = { [weak self] list in
+            self?.straps = list
+            self?.saved = SavedStraps.all   // nachgelesene Seriennummer zeigen
+        }
         hrSource = hr
 
         let gps = demo ? SimulatedLocationSource() as LocationSource : CoreLocationSource()
@@ -150,7 +153,7 @@ struct SensorSettingsView: View {
             Button("Abbrechen", role: .cancel) {}
             Button("Entfernen", role: .destructive) { model.remove(strap) }
         } message: { strap in
-            Text("„\(strap.name)“ verbindet sich danach nicht mehr automatisch. Du kannst ihn jederzeit wieder hinzufügen.")
+            Text("„\(strap.model)“ (ID \(strap.sensorId)) verbindet sich danach nicht mehr automatisch. Du kannst ihn jederzeit wieder hinzufügen.")
         }
     }
 
@@ -191,10 +194,11 @@ struct SensorSettingsView: View {
             ProfileIconTile(icon: connected ? "heart.fill" : "heart",
                             tint: connected ? AppColor.red : AppColor.primary)
             VStack(alignment: .leading, spacing: 2) {
-                Text(strap.name)
+                Text(strap.model)
                     .font(.app(15, weight: .bold))
                     .foregroundStyle(AppColor.text)
                     .lineLimit(1)
+                SensorIdText(id: strap.sensorId)
                 Text(status(of: strap, connected: connected))
                     .font(.app(12))
                     .foregroundStyle(connected ? AppColor.green : AppColor.muted)
@@ -208,7 +212,7 @@ struct SensorSettingsView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("\(strap.name) entfernen")
+            .accessibilityLabel("\(strap.model), ID \(strap.sensorId) entfernen")
         }
         .padding(.leading, AppSpacing.card)
         .padding(.trailing, 4)
@@ -258,7 +262,7 @@ struct SensorSettingsView: View {
             .padding(.horizontal, AppSpacing.card)
 
             if model.newStraps.isEmpty {
-                Text("Noch kein neuer Gurt gefunden — Gurt anlegen und Elektroden anfeuchten, er sendet erst mit Hautkontakt.")
+                Text("Noch kein neuer Gurt gefunden — Gurt anlegen und Elektroden anfeuchten, er sendet erst mit Hautkontakt. Die ID steht auf dem Gurt.")
                     .font(.caption)
                     .foregroundStyle(AppColor.muted)
                     .padding(.horizontal, AppSpacing.card)
@@ -283,10 +287,11 @@ struct SensorSettingsView: View {
                         .foregroundStyle(AppColor.primary)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(strap.name)
+                    Text(strap.model)
                         .font(.app(15, weight: .bold))
                         .foregroundStyle(AppColor.text)
                         .lineLimit(1)
+                    SensorIdText(id: strap.sensorId)
                     Text("Signal \(strap.signalLabel)")
                         .font(.app(12))
                         .foregroundStyle(AppColor.muted)
@@ -302,7 +307,7 @@ struct SensorSettingsView: View {
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(strap.name), Signal \(strap.signalLabel)")
+        .accessibilityLabel("\(strap.model), ID \(strap.sensorId), Signal \(strap.signalLabel)")
         .accessibilityHint("Fügt diesen Gurt als Sensor hinzu")
     }
 
@@ -351,5 +356,20 @@ struct SensorSettingsView: View {
         .background(AppColor.surface)
         .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
         .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
+    }
+}
+
+
+// MARK: - Sensor-ID
+
+/// Sensor-ID in Festbreitenschrift — zum Abgleich mit der Nummer auf dem Gurt.
+struct SensorIdText: View {
+    let id: String
+    var body: some View {
+        Text("ID \(id)")
+            .font(.app(12, weight: .semibold, design: .monospaced))
+            .foregroundStyle(AppColor.text.opacity(0.8))
+            .textSelection(.enabled)
+            .accessibilityLabel("Sensor-ID \(id.map(String.init).joined(separator: " "))")
     }
 }
