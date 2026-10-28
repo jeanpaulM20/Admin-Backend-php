@@ -5,7 +5,8 @@ import SwiftUI
 /// Training-Tracking: Herzfrequenz (Polar H10 / BLE-Gurt) + GPS-Route
 /// bei Outdoor-Aktivitäten. Die Sensor-Einrichtung liegt im Profil
 /// (Profil → Sensoren) — hier wird gewählt und gestartet; die
-/// Trainingspläne öffnen sich über den ersten Reiter der Aktivitätsreihe.
+/// Trainingspläne sind ein Reiter in der Aktivitätsreihe und sortieren
+/// sich wie die Aktivitäten nach letzter Nutzung.
 struct RecordWorkoutView: View {
     @Environment(AuthViewModel.self) private var auth
     @Environment(RecordingLauncher.self) private var launcher
@@ -22,9 +23,10 @@ struct RecordWorkoutView: View {
     @State private var isVisible = false
 
     @State private var activity: WorkoutActivity = WorkoutActivity.lastUsed ?? .joggen
-    /// Einmal beim Erscheinen festgelegt — sonst würden die Chips während
-    /// der Auswahl unter dem Finger die Plätze tauschen.
-    @State private var activityOrder: [WorkoutActivity] = WorkoutActivity.orderedByRecency()
+    /// Beim Erscheinen festgelegt (Rückkehr aus Plänen, Tab-Wechsel) —
+    /// nie beim Antippen, sonst tauschten die Chips unter dem Finger.
+    @State private var chipOrder: [StartChip] = StartChip.orderedByRecency()
+    @State private var showPlans = false
     @State private var recorder: WorkoutRecorder?
     @State private var showSession = false
     @State private var recovered: WorkoutRecorder.Snapshot?
@@ -45,8 +47,8 @@ struct RecordWorkoutView: View {
                     source: Self.makeHeartRateSource(demo: isDemo),
                     gpsSource: Self.makeLocationSource(demo: isDemo)
                 )
-                activityOrder = WorkoutActivity.orderedByRecency(preferring: activity)
             }
+            chipOrder = StartChip.orderedByRecency()
             recovered = WorkoutRecorder.pendingSnapshot()
             isVisible = true
             takeLaunchedRoute()
@@ -116,6 +118,9 @@ struct RecordWorkoutView: View {
                 .padding(.top, 16)
                 .padding(.bottom, AppSpacing.bottomInset)
         }
+        .navigationDestination(isPresented: $showPlans) {
+            TrainingView().navigationTitle("Trainingspläne")
+        }
     }
 
     // MARK: Übergabe einer Route (Phase 5.1)
@@ -132,7 +137,7 @@ struct RecordWorkoutView: View {
         tour = route
         recorder.setRoute(route)
         activity = route.workoutActivity
-        activityOrder = WorkoutActivity.orderedByRecency(preferring: activity)
+        chipOrder = StartChip.orderedByRecency(preferring: .activity(activity))
         // Liegt ein unterbrochenes Training zur Rückfrage an, nicht automatisch
         // starten: Alert und Vollbild-Session zugleich würden sich blockieren.
         // Die Route bleibt liegen — „Training starten" nimmt sie mit.
@@ -242,34 +247,17 @@ struct RecordWorkoutView: View {
 
     /// Aktivitätsauswahl im selben Kachel-Schema wie die Touren-Discovery
     /// (scrollbare Chip-Reihe) — einheitlicher Look über beide Screens.
-    /// Vorne der Reiter „Trainingspläne": öffnet die Pläne, statt eine
-    /// Aktivität zu wählen — der Trenner zeigt, dass er nicht dazugehört.
+    /// „Trainingspläne" ist ein Chip wie die anderen und wandert nach
+    /// Nutzung nach vorne; er öffnet die Pläne, statt eine Aktivität zu
+    /// wählen, und ist darum nie hervorgehoben.
     private var activityGrid: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                trainingPlansChip
-
-                Rectangle()
-                    .fill(AppColor.border)
-                    .frame(width: 1, height: 24)
-                    .padding(.horizontal, 2)
-                    .accessibilityHidden(true)
-
-                ForEach(activityOrder) { a in
-                    let selected = a == activity
-                    HStack(spacing: 6) {
-                        Image(systemName: a.icon).font(.app(13))
-                        Text(a.rawValue).font(.footnote.weight(selected ? .bold : .medium))
+                ForEach(chipOrder) { chip in
+                    switch chip {
+                    case .plans:           trainingPlansChip
+                    case .activity(let a): activityChip(a)
                     }
-                    .foregroundStyle(selected ? AppColor.white : AppColor.muted)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(selected ? AppColor.primary : AppColor.surface,
-                                in: RoundedRectangle(cornerRadius: AppRadius.control))
-                    .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
-                        .stroke(selected ? AppColor.primary : AppColor.border, lineWidth: 1))
-                    .contentShape(Rectangle())
-                    .onTapGesture { activity = a }
                 }
             }
             .padding(.horizontal, AppSpacing.screen)
@@ -277,11 +265,29 @@ struct RecordWorkoutView: View {
         .padding(.horizontal, -AppSpacing.screen)
     }
 
-    /// Gleiche Form wie die Aktivitäts-Chips (nie „ausgewählt"), Icon in
-    /// Brass wie bisher die Trainingspläne-Zeile.
+    private func activityChip(_ a: WorkoutActivity) -> some View {
+        let selected = a == activity
+        return HStack(spacing: 6) {
+            Image(systemName: a.icon).font(.app(13))
+            Text(a.rawValue).font(.footnote.weight(selected ? .bold : .medium))
+        }
+        .foregroundStyle(selected ? AppColor.white : AppColor.muted)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(selected ? AppColor.primary : AppColor.surface,
+                    in: RoundedRectangle(cornerRadius: AppRadius.control))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
+            .stroke(selected ? AppColor.primary : AppColor.border, lineWidth: 1))
+        .contentShape(Rectangle())
+        .onTapGesture { activity = a }
+    }
+
+    /// Gleiche Form wie die Aktivitäts-Chips, Icon in Brass. Öffnen zählt
+    /// als Nutzung — beim nächsten Erscheinen steht der Chip vorne.
     private var trainingPlansChip: some View {
-        NavigationLink {
-            TrainingView().navigationTitle("Trainingspläne")
+        Button {
+            StartChip.rememberUsed(.plans)
+            showPlans = true
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: "list.clipboard").font(.app(13))
