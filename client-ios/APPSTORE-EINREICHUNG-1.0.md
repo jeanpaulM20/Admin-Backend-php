@@ -11,15 +11,15 @@ Angaben zum Übertragen in App Store Connect → SIHLMOVE → Vertrieb → iOS-A
 - **Kategorie:** Gesundheit und Fitness (Zweitkategorie: Navigation oder Sport)
 - **Datenschutzrichtlinie-URL:** https://admin-backend-php-production.up.railway.app/legal/datenschutz.html
 - **Support-URL:** https://sihltraining.ch
-- **Copyright:** 2026 Sihl Training
+- **Copyright:** 2026 Jean-Paul Mvongo
 
 ## Werbetext (max. 170 Zeichen)
 
-Zeichne Läufe, Velotouren und Wanderungen auf, plane Routen per Fingertipp und folge ihnen mit Abbiegehinweisen – dein Training bei Sihl Training, immer dabei.
+Zeichne Läufe, Velotouren und Wanderungen auf, plane Routen per Fingertipp und folge ihnen mit Abbiegehinweisen – dein Training bei Jean-Paul Mvongo, immer dabei.
 
 ## Beschreibung
 
-SIHLMOVE ist die App für Kundinnen und Kunden von Sihl Training. Sie verbindet dein persönliches Training mit Bewegung draussen: Du zeichnest Läufe, Velotouren und Wanderungen mit GPS und Herzfrequenz auf, planst neue Routen per Fingertipp und folgst ihnen unterwegs mit Abbiegehinweisen und Sprachansagen. Dein Trainer sieht deine Fortschritte und bleibt per Chat erreichbar.
+SIHLMOVE ist die App für Kundinnen und Kunden von Jean-Paul Mvongo, Personal Training in Zürich. Sie verbindet dein persönliches Training mit Bewegung draussen: Du zeichnest Läufe, Velotouren und Wanderungen mit GPS und Herzfrequenz auf, planst neue Routen per Fingertipp und folgst ihnen unterwegs mit Abbiegehinweisen und Sprachansagen. Dein Trainer sieht deine Fortschritte und bleibt per Chat erreichbar.
 
 TRAINING AUFZEICHNEN
 Joggen, Radfahren, Wandern oder Krafttraining mit Dauer, Distanz, Tempo, Höhenmetern und Herzfrequenz vom Brustgurt. Nach dem Training ein Foto dazu – fertig.
@@ -39,7 +39,7 @@ Die Übungen deines Trainers mit Bildern, Timer und Hinweisen. Lektionen im Stud
 AUSWERTUNG
 Körperwerte und Trainings im Verlauf, einzelne Einheiten vergleichen.
 
-Für die Anmeldung brauchst du ein Konto von Sihl Training. Mit „Demo ansehen“ kannst du die App ohne Konto ausprobieren.
+Für die Anmeldung brauchst du ein Konto von Jean-Paul Mvongo, Personal Training. Mit „Demo ansehen“ kannst du die App ohne Konto ausprobieren.
 
 ## Schlüsselwörter (max. 100 Zeichen)
 
@@ -78,7 +78,7 @@ Nicht erhoben: Zahlungsinformationen (keine Zahlung in der App, Rechnung mit QR-
 
 **Hinweise (auf Englisch für das Review-Team):**
 
-SIHLMOVE is the companion app for clients of Sihl Training, a personal-training studio in Zurich, Switzerland. Accounts are created by the studio after a client signs up in person; there is no in-app registration. "Demo ansehen" on the login screen shows sample data without an account. Please use the review account provided for full access.
+SIHLMOVE is the companion app for clients of Jean-Paul Mvongo, an independent personal trainer in Zurich, Switzerland. Accounts are created by the trainer after a client signs up in person; there is no in-app registration. "Demo ansehen" on the login screen shows sample data without an account. Please use the review account provided for full access.
 
 Payments: The app sells no digital content and processes no payments. "Lektionen & Guthaben" are packages for one-on-one personal-training sessions that take place in person at the studio (guideline 3.1.3(e)); ordering one creates an invoice with a Swiss QR payment slip, paid outside the app. Online coaching content (training plans) is arranged with the trainer outside the app and only displayed in the app.
 

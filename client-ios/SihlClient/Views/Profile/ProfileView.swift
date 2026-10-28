@@ -750,7 +750,7 @@ private struct ProfileRowLabel: View {
 
 // MARK: - Konto löschen
 
-/// Bestätigung mit Erklärung; die Löschung läuft per E-Mail an Sihl Training.
+/// Bestätigung mit Erklärung; die Löschung läuft per E-Mail an Jean-Paul Mvongo.
 private struct DeleteAccountSheet: View {
     let clientId: String
 
@@ -761,7 +761,7 @@ private struct DeleteAccountSheet: View {
     private var mailURL: URL? {
         AppLinks.supportMail(
             subject: "Konto löschen – Kunden-ID \(clientId)",
-            body: "Bitte löscht mein Konto bei Sihl Training und die dazugehörigen Daten.\n\nKunden-ID: \(clientId)"
+            body: "Bitte löscht mein Konto bei Jean-Paul Mvongo, Personal Training, und die dazugehörigen Daten.\n\nKunden-ID: \(clientId)"
         )
     }
 

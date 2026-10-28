@@ -16,7 +16,7 @@ struct LoginView: View {
             ScrollView {
                 VStack(spacing: 0) {
                     logo
-                    Text("Sihl Training")
+                    Text("Jean-Paul Mvongo")
                         .font(.title2.weight(.heavy))
                         .foregroundStyle(AppColor.text)
                         .padding(.top, 24)
@@ -85,7 +85,7 @@ struct LoginView: View {
     /// Hinweis zum Konto + Datenschutz
     private var footer: some View {
         VStack(spacing: 10) {
-            Text("Dein Konto erhältst du von Sihl Training.")
+            Text("Dein Konto erhältst du von Jean-Paul Mvongo, Personal Training.")
                 .font(.footnote)
                 .foregroundStyle(AppColor.muted)
             if let mail = AppLinks.supportMail() {
