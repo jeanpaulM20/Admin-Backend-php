@@ -123,7 +123,7 @@ struct ProfileView: View {
         ScrollView {
             VStack(spacing: AppSpacing.stack) {
                 avatarHeader
-                    .padding(.bottom, 18)
+                    .padding(.bottom, 20)
 
                 creditsSection
                 creditsBuyRow
@@ -373,7 +373,8 @@ struct ProfileView: View {
     private var notificationsSection: some View {
         SectionDisclosure(
             icon: "bell.fill",
-            title: "Benachrichtigungen"
+            title: "Benachrichtigungen",
+            subtitle: pushDenied ? "In iOS ausgeschaltet" : (pushEnabled ? "Push eingeschaltet" : "Push ausgeschaltet")
         ) {
             PushNotificationCard(
                 enabled:   pushEnabled,
@@ -451,6 +452,7 @@ struct SectionDisclosure<Content: View>: View {
     let icon: String
     let title: String
     var subtitle: String? = nil
+    var tint: Color = AppColor.primary
     @ViewBuilder let content: () -> Content
 
     @State private var expanded = false
@@ -461,10 +463,8 @@ struct SectionDisclosure<Content: View>: View {
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() }
             } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: icon)
-                        .font(.app(18))
-                        .foregroundStyle(AppColor.primary)
+                HStack(spacing: ProfileGrid.gap) {
+                    ProfileIconTile(icon: icon, tint: tint)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(title)
                             .font(.app(15, weight: .bold))
@@ -477,12 +477,15 @@ struct SectionDisclosure<Content: View>: View {
                     }
                     Spacer()
                     Image(systemName: expanded ? "chevron.up" : "chevron.down")
-                        .font(.app(13))
+                        .font(.app(14))
                         .foregroundStyle(AppColor.muted)
                 }
-                .padding(16)
+                .padding(.horizontal, AppSpacing.card)
+                .padding(.vertical, ProfileGrid.rowVertical)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityHint(expanded ? "Zuklappen" : "Aufklappen")
 
             // Body
             if expanded {
@@ -490,9 +493,8 @@ struct SectionDisclosure<Content: View>: View {
                 VStack(spacing: 0) {
                     content()
                 }
-                .padding(.horizontal, 12)
-                .padding(.top, 10)
-                .padding(.bottom, 12)
+                .padding(.horizontal, AppSpacing.card)
+                .padding(.vertical, ProfileGrid.bodyVertical)
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
@@ -508,13 +510,11 @@ private struct CreditPackCard: View {
     let pack: CreditPack
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 10) {
-                Image(systemName: "creditcard")
-                    .font(.app(16))
-                    .foregroundStyle(AppColor.primary)
+        VStack(alignment: .leading, spacing: ProfileGrid.gap) {
+            HStack(spacing: ProfileGrid.gap) {
+                ProfileIconTile(icon: "creditcard", tint: AppColor.primary)
                 Text(pack.title)
-                    .font(.app(15, weight: .bold))
+                    .font(.app(14, weight: .bold))
                     .foregroundStyle(AppColor.text)
                 Spacer()
                 Text("\(pack.remainingCredits) / \(pack.prepaidCredits)")
@@ -538,8 +538,10 @@ private struct CreditPackCard: View {
                 }
             }
             .frame(height: 6)
+            // Balken bündig mit dem Titel, nicht mit der Kachel
+            .padding(.leading, ProfileGrid.tile + ProfileGrid.gap)
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, ProfileGrid.itemVertical)
     }
 }
 
@@ -556,13 +558,8 @@ private struct InvoiceRow: View {
         let isPaid = invoice.isPaid
         let color: Color = isPaid ? AppColor.green : AppColor.primary
 
-        HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: AppRadius.control)
-                .fill(AppColor.primary.opacity(0.12))
-                .frame(width: 40, height: 40)
-                .overlay(Image(systemName: "receipt")
-                    .font(.app(18))
-                    .foregroundStyle(AppColor.primary))
+        HStack(spacing: ProfileGrid.gap) {
+            ProfileIconTile(icon: "receipt", tint: AppColor.primary)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Rechnung \(invoice.invoiceNumber)")
@@ -585,16 +582,16 @@ private struct InvoiceRow: View {
                     .font(.app(11, weight: .bold))
                     .foregroundStyle(color)
                     .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(color.opacity(0.12))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .padding(.vertical, 4)
+                    .background(color.opacity(0.14))
+                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
             }
 
             Image(systemName: "chevron.right")
                 .font(.app(14))
                 .foregroundStyle(AppColor.muted)
         }
-        .padding(.vertical, 10)
+        .padding(.vertical, ProfileGrid.itemVertical)
         .contentShape(Rectangle())
     }
 }
@@ -612,13 +609,11 @@ private struct FileRow: View {
 
     var body: some View {
         Button(action: onOpen) {
-            HStack(spacing: 10) {
-                Image(systemName: "doc.fill")
-                    .font(.app(18))
-                    .foregroundStyle(AppColor.primary)
+            HStack(spacing: ProfileGrid.gap) {
+                ProfileIconTile(icon: "doc.fill", tint: AppColor.primary)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(file.name)
-                        .font(.app(13, weight: .semibold))
+                        .font(.app(14, weight: .bold))
                         .foregroundStyle(AppColor.text)
                     Text(file.date.map { Self.dateFmt.string(from: $0) } ?? "-")
                         .font(.app(12))
@@ -633,7 +628,7 @@ private struct FileRow: View {
                         .foregroundStyle(AppColor.primary)
                 }
             }
-            .padding(.vertical, 10)
+            .padding(.vertical, ProfileGrid.itemVertical)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -652,13 +647,8 @@ private struct ProfileRowLabel: View {
     let trailingIcon: String
 
     var body: some View {
-        HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: AppRadius.control)
-                .fill(tint.opacity(0.14))
-                .frame(width: 36, height: 36)
-                .overlay(Image(systemName: icon)
-                    .font(.app(16))
-                    .foregroundStyle(tint))
+        HStack(spacing: ProfileGrid.gap) {
+            ProfileIconTile(icon: icon, tint: tint)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.app(15, weight: .bold))
@@ -673,8 +663,8 @@ private struct ProfileRowLabel: View {
                 .font(.app(14))
                 .foregroundStyle(AppColor.muted)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .padding(.horizontal, AppSpacing.card)
+        .padding(.vertical, ProfileGrid.rowVertical)
         .background(AppColor.surface)
         .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
         .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
@@ -762,69 +752,61 @@ private struct PolarCard: View {
     private let polarRed = Color(hex: 0xD4002A)
 
     var body: some View {
-        HStack(spacing: 14) {
-            // Polar "P" Logo
-            RoundedRectangle(cornerRadius: AppRadius.control)
-                .fill(polarRed.opacity(0.12))
-                .frame(width: 44, height: 44)
-                .overlay(
+        VStack(alignment: .leading, spacing: ProfileGrid.gap) {
+            // Kopfzeile wie jede Profil-Zeile: Kachel · Titel/Status
+            HStack(spacing: ProfileGrid.gap) {
+                ProfileIconTile(tint: polarRed) {
                     Text("P")
-                        .font(.app(22, weight: .black))
+                        .font(.app(18, weight: .black))
                         .foregroundStyle(polarRed)
-                )
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Polar")
-                    .font(.app(15, weight: .bold))
-                    .foregroundStyle(AppColor.text)
-                Text(statusText)
-                    .font(.app(12))
-                    .foregroundStyle(connected ? AppColor.green : AppColor.muted)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Polar")
+                        .font(.app(15, weight: .bold))
+                        .foregroundStyle(AppColor.text)
+                    Text(statusText)
+                        .font(.app(12))
+                        .foregroundStyle(connected ? AppColor.green : AppColor.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+                if loading {
+                    ProgressView().tint(AppColor.primary)
+                }
             }
 
-            Spacer()
-
-            if loading {
-                ProgressView().tint(AppColor.primary).frame(width: 20, height: 20)
-            } else if connected {
-                HStack(spacing: 8) {
-                    Button(action: onSync) {
-                        Label("Abgleichen", systemImage: "arrow.clockwise")
-                            .font(.app(13, weight: .semibold))
-                            .foregroundStyle(AppColor.primary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(AppColor.primary.opacity(0.15))
-                            .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
+            // Aktionen in eigener Zeile, gleich breit — nebeneinander mit dem
+            // Text gequetscht brachen die Beschriftungen Buchstabe für Buchstabe
+            if !loading {
+                if connected {
+                    HStack(spacing: ProfileGrid.gap) {
+                        actionButton("Abgleichen", icon: "arrow.clockwise",
+                                     tint: AppColor.primary, action: onSync)
+                        actionButton("Trennen", icon: "link.badge.minus",
+                                     tint: AppColor.red, action: onDisconnect)
                     }
-                    .buttonStyle(.plain)
-
-                    Button(action: onDisconnect) {
-                        Label("Trennen", systemImage: "link.badge.minus")
-                            .font(.app(13, weight: .semibold))
-                            .foregroundStyle(AppColor.red)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(AppColor.red.opacity(0.12))
-                            .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
-                    }
-                    .buttonStyle(.plain)
+                } else if let onConnect {
+                    actionButton("Verbinden", icon: "link",
+                                 tint: AppColor.primary, action: onConnect)
                 }
-            } else if let onConnect {
-                // Getrennt: rechte Spalte zeigt die Aktion
-                Button(action: onConnect) {
-                    Label("Verbinden", systemImage: "link")
-                        .font(.app(13, weight: .semibold))
-                        .foregroundStyle(AppColor.primary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(AppColor.primary.opacity(0.15))
-                        .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
-                }
-                .buttonStyle(.plain)
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, ProfileGrid.itemVertical)
+    }
+
+    private func actionButton(_ title: String, icon: String, tint: Color,
+                              action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: icon)
+                .font(.app(14, weight: .semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)   // grosse Schrift: lieber kleiner als umbrechen
+                .foregroundStyle(tint)
+                .frame(maxWidth: .infinity, minHeight: ProfileGrid.control)
+                .background(tint.opacity(0.14))
+                .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
+        }
+        .buttonStyle(.plain)
     }
 
     private var statusText: String {
@@ -860,17 +842,10 @@ private struct PushNotificationCard: View {
     let onToggle: (Bool) -> Void
 
     var body: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(AppColor.primary.opacity(0.12))
-                    .frame(width: 44, height: 44)
-                Image(systemName: "bell.badge.fill")
-                    .font(.app(18))
-                    .foregroundStyle(AppColor.primary)
-            }
+        HStack(spacing: ProfileGrid.gap) {
+            ProfileIconTile(icon: "bell.badge.fill", tint: AppColor.primary)
 
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text("Push-Benachrichtigungen")
                     .font(.app(15, weight: .bold))
                     .foregroundStyle(AppColor.text)
@@ -892,12 +867,13 @@ private struct PushNotificationCard: View {
                     onToggle(true)
                 } label: {
                     Text("Einstellungen")
-                        .font(.app(12, weight: .semibold))
+                        .font(.app(14, weight: .semibold))
+                        .lineLimit(1)
                         .foregroundStyle(AppColor.primary)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(AppColor.primary.opacity(0.12))
-                        .clipShape(Capsule())
+                        .padding(.horizontal, 12)
+                        .frame(minHeight: ProfileGrid.control)
+                        .background(AppColor.primary.opacity(0.14))
+                        .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
                 }
             } else {
                 Toggle("", isOn: Binding(
@@ -908,7 +884,53 @@ private struct PushNotificationCard: View {
                 .labelsHidden()
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, ProfileGrid.itemVertical)
     }
 }
 
+
+
+// MARK: - Profil-Raster
+
+/// Rasterwerte des Profils (4-pt-Raster, Werte aus AppSpacing wo vorhanden):
+/// jede Zeile beginnt mit derselben 36-pt-Kachel, Titel stehen daher in
+/// allen Karten auf derselben Fluchtlinie.
+enum ProfileGrid {
+    /// Kachel → Text und Knopf → Knopf
+    static let gap: CGFloat = 12
+    /// Vertikales Innenpadding einer Karten-Kopfzeile (36 + 2×14 = 64 pt)
+    static let rowVertical: CGFloat = 14
+    /// Innenpadding des aufgeklappten Inhalts
+    static let bodyVertical: CGFloat = 12
+    /// Abstand einzelner Einträge im aufgeklappten Inhalt
+    static let itemVertical: CGFloat = 8
+    /// Mindesthöhe von Knöpfen (Apple-Tippfläche)
+    static let control: CGFloat = 44
+    /// Kantenlänge der Icon-Kachel
+    static let tile: CGFloat = 36
+}
+
+/// Einheitliche Icon-Kachel am Zeilenanfang.
+struct ProfileIconTile<Glyph: View>: View {
+    let tint: Color
+    @ViewBuilder let glyph: () -> Glyph
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: AppRadius.control)
+            .fill(tint.opacity(0.14))
+            .frame(width: ProfileGrid.tile, height: ProfileGrid.tile)
+            .overlay(glyph())
+            .accessibilityHidden(true)
+    }
+}
+
+extension ProfileIconTile where Glyph == AnyView {
+    init(icon: String, tint: Color) {
+        self.tint = tint
+        self.glyph = {
+            AnyView(Image(systemName: icon)
+                .font(.app(16))
+                .foregroundStyle(tint))
+        }
+    }
+}
