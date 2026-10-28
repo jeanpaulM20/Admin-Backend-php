@@ -214,18 +214,31 @@ struct OverlineHeader: View {
 
 // MARK: - TokenImage
 
-/// Lädt ein Bild per URLSession mit X-Auth-Token-Header und hält es im
-/// gemeinsamen Speicher (`TokenImageStore`), damit Kachel, Vorschau und
-/// Vollbild dasselbe Bild nutzen statt es dreimal zu laden.
-/// Fallback: übergebenes `placeholder`-ViewBuilder.
+/// Token-geschütztes Bild in fester Kachelgrösse. Lädt über den
+/// gemeinsamen `TokenImageStore` ein Thumbnail in Pixelgrösse der Kachel
+/// (nicht das Vollbild) und zeigt ein schon geladenes Bild sofort, ohne
+/// Platzhalter-Frame. Fallback: übergebenes `placeholder`-ViewBuilder.
 struct TokenImage<Placeholder: View>: View {
     let urlString: String
     let token: String?
     let size: CGFloat
     let cornerRadius: CGFloat
-    @ViewBuilder let placeholder: () -> Placeholder
+    let placeholder: () -> Placeholder
 
     @State private var image: UIImage?
+
+    /// Pixelgrösse des Thumbnails — @3x deckt jedes aktuelle iPhone ab.
+    static func pixels(for size: CGFloat) -> Int { Int((size * 3).rounded(.up)) }
+
+    init(urlString: String, token: String?, size: CGFloat, cornerRadius: CGFloat,
+         @ViewBuilder placeholder: @escaping () -> Placeholder) {
+        self.urlString = urlString
+        self.token = token
+        self.size = size
+        self.cornerRadius = cornerRadius
+        self.placeholder = placeholder
+        _image = State(initialValue: TokenImageStore.shared.cached(urlString, maxPixel: Self.pixels(for: size)))
+    }
 
     var body: some View {
         Group {
@@ -240,43 +253,15 @@ struct TokenImage<Placeholder: View>: View {
                     .frame(width: size, height: size)
             }
         }
-        .task(id: urlString) {
-            image = await TokenImageStore.shared.image(for: urlString, token: token)
-        }
-    }
-}
-
-/// Bild-Speicher für Token-geschützte Bilder: ein Download je URL,
-/// danach aus dem Speicher (NSCache räumt bei Speicherdruck selbst auf).
-actor TokenImageStore {
-    static let shared = TokenImageStore()
-
-    private let cache = NSCache<NSString, UIImage>()
-    private var inFlight: [String: Task<UIImage?, Never>] = [:]
-
-    func cached(_ urlString: String) -> UIImage? {
-        cache.object(forKey: urlString as NSString)
-    }
-
-    func image(for urlString: String, token: String?) async -> UIImage? {
-        if let hit = cache.object(forKey: urlString as NSString) { return hit }
-        if let running = inFlight[urlString] { return await running.value }
-        let task = Task<UIImage?, Never> {
-            guard let url = URL(string: urlString) else { return nil }
-            var request = URLRequest(url: url)
-            if let t = token, !t.isEmpty {
-                request.setValue(t, forHTTPHeaderField: APIConfig.authHeader)
+        // Token gehört zur Kennung: nach erneutem Login (oder einem
+        // Fehlversuch ohne Token beim Start) wird neu geladen
+        .task(id: "\(urlString)|\(token ?? "")") {
+            let px = Self.pixels(for: size)
+            if let hit = TokenImageStore.shared.cached(urlString, maxPixel: px) { image = hit; return }
+            if let loaded = await TokenImageStore.shared.image(for: urlString, token: token, maxPixel: px) {
+                image = loaded
             }
-            guard let (data, resp) = try? await URLSession.shared.data(for: request),
-                  let http = resp as? HTTPURLResponse, (200..<300).contains(http.statusCode),
-                  let img = UIImage(data: data) else { return nil }
-            return img
         }
-        inFlight[urlString] = task
-        let result = await task.value
-        inFlight[urlString] = nil
-        if let result { cache.setObject(result, forKey: urlString as NSString) }
-        return result
     }
 }
 
@@ -300,8 +285,8 @@ struct ExerciseBadge: View {
     }
 
     /// Bild-URL einer Übung — das Backend liefert unter icon.png das Bild in
-    /// voller Grösse (1024 px bei KI-Bildern), also dieselbe Quelle für
-    /// Kachel, Vorschau und Vollbild.
+    /// voller Grösse (1024 px bei KI-Bildern). Kacheln laden daraus ein
+    /// Thumbnail, Vorschau und Vollbild das volle Bild.
     static func imageURL(exerciseId: Int) -> String {
         let base = APIConfig.baseURL.absoluteString
             .trimmingCharacters(in: CharacterSet(charactersIn: "/"))

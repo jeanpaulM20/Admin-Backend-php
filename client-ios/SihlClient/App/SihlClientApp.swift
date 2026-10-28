@@ -54,6 +54,8 @@ struct SihlClientApp: App {
                         analytics = AnalyticsViewModel()
                         creditsVM = CreditsViewModel()
                         launcher  = RecordingLauncher()
+                        // Übungsbilder des vorigen Kontos nicht weiterzeigen
+                        Task { await TokenImageStore.shared.removeAll() }
                     }
                 }
         }

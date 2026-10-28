@@ -103,10 +103,11 @@ struct TrainingView: View {
     }
 
     /// Ziel je Plan — direkte Destination statt wertbasierter Navigation:
-    /// Seit die Liste selbst als NavigationLink-Destination gepusht wird
-    /// (Start → Trainingspläne), findet SwiftUI ein hier registriertes
-    /// `navigationDestination(for:)` nicht mehr zuverlässig — der Tipp
-    /// auf einen Plan verpuffte dann kommentarlos.
+    /// Die Liste wird selbst als Destination gepusht (Start → Trainingspläne
+    /// per `navigationDestination(isPresented:)`); ein hier, in der
+    /// gepushten Ansicht, registriertes `navigationDestination(for:)` findet
+    /// SwiftUI nicht zuverlässig — der Tipp auf einen Plan verpuffte dann
+    /// kommentarlos. Direkte NavigationLink-Ziele haben das Problem nicht.
     @ViewBuilder
     private func planDestination(_ plan: ClientTrainingPlan) -> some View {
         if plan.locked {

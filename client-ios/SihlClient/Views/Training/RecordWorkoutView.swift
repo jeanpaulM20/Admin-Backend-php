@@ -23,9 +23,11 @@ struct RecordWorkoutView: View {
     @State private var isVisible = false
 
     @State private var activity: WorkoutActivity = WorkoutActivity.lastUsed ?? .joggen
-    /// Beim Erscheinen festgelegt (Rückkehr aus Plänen, Tab-Wechsel) —
-    /// nie beim Antippen, sonst tauschten die Chips unter dem Finger.
-    @State private var chipOrder: [StartChip] = StartChip.orderedByRecency()
+    /// Neu sortiert bei jedem Erscheinen der Startseite — nach Rückkehr aus
+    /// den Plänen, nach Tab-Wechsel und nach dem Ende einer Aufzeichnung
+    /// (die gestartete Aktivität rückt dann nach vorne). Nie beim Antippen,
+    /// sonst tauschten die Chips unter dem Finger die Plätze.
+    @State private var chipOrder: [StartChip] = StartChip.ordered(selected: WorkoutActivity.lastUsed ?? .joggen)
     @State private var showPlans = false
     @State private var recorder: WorkoutRecorder?
     @State private var showSession = false
@@ -48,14 +50,20 @@ struct RecordWorkoutView: View {
                     gpsSource: Self.makeLocationSource(demo: isDemo)
                 )
             }
-            chipOrder = StartChip.orderedByRecency()
+            // Eine liegende Route hält ihre Aktivität vorne (abgebrochener
+            // Countdown, Tab-Wechsel) — bis sie gestartet oder entfernt ist
+            chipOrder = StartChip.ordered(selected: activity, routeActivity: tour?.workoutActivity)
             recovered = WorkoutRecorder.pendingSnapshot()
             isVisible = true
             takeLaunchedRoute()
         }
         // „Tour starten" aus Planer/Detail/Assistent, während die Startseite
-        // schon sichtbar ist (der Tab-Wechsel allein löst kein onAppear aus)
-        .onChange(of: launcher.requestCount) { _, _ in takeLaunchedRoute() }
+        // schon sichtbar ist (der Tab-Wechsel allein löst kein onAppear aus).
+        // Sind im Start-Tab gerade die Pläne offen, zurück zur Startseite —
+        // deren onAppear übernimmt dann die Route.
+        .onChange(of: launcher.requestCount) { _, _ in
+            if showPlans { showPlans = false } else { takeLaunchedRoute() }
+        }
         .onDisappear {
             isVisible = false
             // Tab gewechselt während des Countdowns: nicht im Hintergrund
@@ -105,7 +113,7 @@ struct RecordWorkoutView: View {
                     // Trainings-Galerie (F1): Fotos der gewählten Aktivität
                     WorkoutGalleryView(activity: activity) { photo in
                         activity = photo.workoutActivity
-                        WorkoutActivity.rememberUsed(photo.workoutActivity)
+                        StartChip.noteStarted(photo.workoutActivity)
                         Task { @MainActor in
                             try? await Task.sleep(nanoseconds: 400_000_000)
                             recorder?.startRecording(photo.workoutActivity, clientId: auth.clientId)
@@ -137,7 +145,7 @@ struct RecordWorkoutView: View {
         tour = route
         recorder.setRoute(route)
         activity = route.workoutActivity
-        chipOrder = StartChip.orderedByRecency(preferring: .activity(activity))
+        chipOrder = StartChip.ordered(selected: activity, routeActivity: activity)
         // Liegt ein unterbrochenes Training zur Rückfrage an, nicht automatisch
         // starten: Alert und Vollbild-Session zugleich würden sich blockieren.
         // Die Route bleibt liegen — „Training starten" nimmt sie mit.
@@ -169,7 +177,7 @@ struct RecordWorkoutView: View {
 
     private func beginRecording() {
         guard !showSession, recovered == nil else { return }
-        WorkoutActivity.rememberUsed(activity)
+        StartChip.noteStarted(activity)
         recorder?.startRecording(activity, clientId: auth.clientId)
         showSession = true
     }
@@ -267,26 +275,30 @@ struct RecordWorkoutView: View {
 
     private func activityChip(_ a: WorkoutActivity) -> some View {
         let selected = a == activity
-        return HStack(spacing: 6) {
-            Image(systemName: a.icon).font(.app(13))
-            Text(a.rawValue).font(.footnote.weight(selected ? .bold : .medium))
+        return Button { activity = a } label: {
+            HStack(spacing: 6) {
+                Image(systemName: a.icon).font(.app(13))
+                Text(a.rawValue).font(.footnote.weight(selected ? .bold : .medium))
+            }
+            .foregroundStyle(selected ? AppColor.white : AppColor.muted)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(selected ? AppColor.primary : AppColor.surface,
+                        in: RoundedRectangle(cornerRadius: AppRadius.control))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
+                .stroke(selected ? AppColor.primary : AppColor.border, lineWidth: 1))
+            .contentShape(Rectangle())
         }
-        .foregroundStyle(selected ? AppColor.white : AppColor.muted)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(selected ? AppColor.primary : AppColor.surface,
-                    in: RoundedRectangle(cornerRadius: AppRadius.control))
-        .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
-            .stroke(selected ? AppColor.primary : AppColor.border, lineWidth: 1))
-        .contentShape(Rectangle())
-        .onTapGesture { activity = a }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityHint(selected ? "" : "Wählt \(a.rawValue) für das nächste Training")
     }
 
     /// Gleiche Form wie die Aktivitäts-Chips, Icon in Brass. Öffnen zählt
     /// als Nutzung — beim nächsten Erscheinen steht der Chip vorne.
     private var trainingPlansChip: some View {
         Button {
-            StartChip.rememberUsed(.plans)
+            StartChip.noteOpenedPlans()
             showPlans = true
         } label: {
             HStack(spacing: 6) {

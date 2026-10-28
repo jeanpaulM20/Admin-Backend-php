@@ -45,56 +45,6 @@ enum WorkoutActivity: String, CaseIterable, Identifiable, Codable {
     /// sonst würde blosses Durchblättern die Reihenfolge verändern.
     static func rememberUsed(_ activity: WorkoutActivity) {
         UserDefaults.standard.set(activity.rawValue, forKey: lastUsedKey)
-        StartChip.rememberUsed(.activity(activity))
-    }
-}
-
-// MARK: - StartChip
-
-/// Die Reihe auf der Startseite: „Trainingspläne" und die Aktivitäten
-/// teilen sich EINE Reihenfolge nach letzter Nutzung — wer zuletzt die
-/// Pläne geöffnet hat, sieht sie vorne; wer zuletzt gewandert ist, sieht
-/// „Wandern" vorne und die Pläne an ihrem Stammplatz dahinter.
-enum StartChip: Hashable, Identifiable {
-    case plans
-    case activity(WorkoutActivity)
-
-    var id: String { key }
-
-    /// Gespeicherter Schlüssel (Aktivitäten unter ihrem Namen).
-    var key: String {
-        switch self {
-        case .plans:            return "plans"
-        case .activity(let a):  return a.rawValue
-        }
-    }
-
-    /// Stammreihenfolge: Pläne zuerst, dann die Aktivitäten wie definiert.
-    static let defaultOrder: [StartChip] = [.plans] + WorkoutActivity.allCases.map(StartChip.activity)
-
-    private static let lastUsedKey = "lastStartChip"
-
-    /// Zuletzt genutzter Chip — ohne eigenen Eintrag (Bestand vor dieser
-    /// Änderung) zählt die zuletzt gestartete Aktivität.
-    static var lastUsed: StartChip? {
-        if let raw = UserDefaults.standard.string(forKey: lastUsedKey) {
-            if raw == StartChip.plans.key { return .plans }
-            if let a = WorkoutActivity(rawValue: raw) { return .activity(a) }
-        }
-        return WorkoutActivity.lastUsed.map(StartChip.activity)
-    }
-
-    /// Pläne: beim Öffnen merken. Aktivitäten: beim Start der Aufzeichnung
-    /// (läuft über `WorkoutActivity.rememberUsed`).
-    static func rememberUsed(_ chip: StartChip) {
-        UserDefaults.standard.set(chip.key, forKey: lastUsedKey)
-    }
-
-    /// Reihenfolge: der zuletzt genutzte Chip zuerst, danach die übrigen
-    /// in der Stammreihenfolge.
-    static func orderedByRecency(preferring first: StartChip? = nil) -> [StartChip] {
-        guard let first = first ?? lastUsed else { return defaultOrder }
-        return [first] + defaultOrder.filter { $0 != first }
     }
 }
 

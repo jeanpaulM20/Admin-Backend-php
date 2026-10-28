@@ -88,6 +88,9 @@ struct TrainingPlanDetailView: View {
     @State private var selectedSection = "sonsomo"
     @State private var expanded = Set<String>()
     @State private var commentsTarget: CommentsSheetItem?
+    /// Offenes Übungsbild im Vollbild — hier statt in der Karte präsentiert,
+    /// damit ein Neuladen des Plans (SSE) das offene Bild nicht schliesst
+    @State private var viewerItem: ExerciseImageItem?
     @State private var sse = SSEClient()
 
     init(planId: Int, planName: String?, exerciseIdMap: [String: Int]) {
@@ -131,6 +134,9 @@ struct TrainingPlanDetailView: View {
             ) {
                 Task { await vm.loadCommentCounts() }
             }
+        }
+        .fullScreenCover(item: $viewerItem) { item in
+            ExerciseImageViewer(image: item.image, title: item.title)
         }
     }
 
@@ -293,6 +299,12 @@ struct TrainingPlanDetailView: View {
                                         exerciseKey: "\(meta.key)-\(i)",
                                         exerciseName: row.exercise.isEmpty ? "Übung \(i+1)" : row.exercise
                                     )
+                                },
+                                onOpenImage: { image in
+                                    viewerItem = ExerciseImageItem(
+                                        image: image,
+                                        title: row.exercise.isEmpty ? "Übung \(i+1)" : row.exercise
+                                    )
                                 }
                             )
                         }
@@ -342,10 +354,11 @@ private struct ExerciseTile: View {
     let onToggle:  () -> Void
     let onLike:    (String) -> Void
     let onComment: () -> Void
+    let onOpenImage: (UIImage) -> Void
 
     @Environment(AuthViewModel.self) private var auth
-    /// Übungsbild in voller Grösse (gleiche Quelle wie die Kachel, aus dem
-    /// gemeinsamen Speicher) — nur gesetzt, wenn die Übung ein Bild hat.
+    /// Übungsbild in voller Grösse — nur bei aufgeklappter Karte geladen und
+    /// gehalten (sonst hielte jede je sichtbare Kachel ein 1024-px-Bild fest).
     @State private var previewImage: UIImage?
 
     private var key: String { "\(meta.key)-\(index)" }
@@ -428,7 +441,7 @@ private struct ExerciseTile: View {
                     // Übungsbild gross — Tipp öffnet das Vollbild mit Zoom
                     if let previewImage {
                         ExerciseImagePreview(image: previewImage, exerciseName: row.exercise,
-                                             accent: meta.color)
+                                             accent: meta.color) { onOpenImage(previewImage) }
                             .padding(.horizontal, 16)
                     }
 
@@ -535,9 +548,13 @@ private struct ExerciseTile: View {
         )
         .animation(.easeInOut(duration: 0.2), value: isExpanded)
         .animation(.easeInOut(duration: 0.2), value: borderColor.description)
-        .task(id: imageURL) {
-            guard let imageURL else { previewImage = nil; return }
-            previewImage = await TokenImageStore.shared.image(for: imageURL, token: auth.token)
+        // Nur aufgeklappt laden; zugeklappt wieder freigeben (der Speicher
+        // behält das Bild, solange Platz ist — erneutes Aufklappen ist sofort da)
+        .task(id: isExpanded ? imageURL.map { "\($0)|\(auth.token ?? "")" } : nil) {
+            guard isExpanded, let imageURL else { previewImage = nil; return }
+            if let hit = TokenImageStore.shared.cached(imageURL) { previewImage = hit; return }
+            let loaded = await TokenImageStore.shared.image(for: imageURL, token: auth.token)
+            withAnimation(.easeInOut(duration: 0.2)) { previewImage = loaded }
         }
     }
 }
