@@ -351,6 +351,33 @@ export class ClientAppService {
              VALUES (?, ?, ?, 'active', ?, ?, ?)`,
             [clientId, packageId, tier, startDate, expiresStr, invoiceNumber],
           );
+        } else if (Number(pkg.includes_coaching) === 1) {
+          // 4d. Lektionen-Paket mit inklusivem Online-Coaching (Advanced):
+          //     Coaching für dieselbe Laufzeit freischalten. Bewusst OHNE
+          //     invoice_number — sonst gälte die Rechnung als Coaching-Beleg
+          //     (ohne Einzahlungsschein) und die Startmigration würde die
+          //     Lektionen als Coaching-Guthaben markieren.
+          const [covering]: any = await queryRunner.query(
+            `SELECT id FROM coaching_subscription
+             WHERE client_id = ? AND status = 'active' AND valid_to >= ?
+             LIMIT 1`,
+            [clientId, expiresStr],
+          );
+          if (!covering) {
+            // Kürzer laufende aktive Abos ablösen — nie zwei aktive Zeilen
+            await queryRunner.query(
+              `UPDATE coaching_subscription SET status = 'cancelled'
+               WHERE client_id = ? AND status = 'active'`,
+              [clientId],
+            );
+            logger.log(`Including coaching: valid ${startDate}..${expiresStr}`);
+            await queryRunner.query(
+              `INSERT INTO coaching_subscription
+                 (client_id, package_id, tier, status, valid_from, valid_to, invoice_number)
+               VALUES (?, ?, 'included', 'active', ?, ?, NULL)`,
+              [clientId, packageId, startDate, expiresStr],
+            );
+          }
         }
 
         await queryRunner.commitTransaction();

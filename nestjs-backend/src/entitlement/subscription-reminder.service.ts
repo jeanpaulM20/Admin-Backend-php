@@ -82,9 +82,15 @@ export class SubscriptionReminderService {
     );
 
     const title = 'Online Coaching läuft bald ab';
-    const body = daysLeft === 0
-      ? 'Dein Coaching endet heute. Verlängere jetzt, um nahtlos weiterzutrainieren.'
-      : `Dein Coaching endet in ${daysLeft} ${daysLeft === 1 ? 'Tag' : 'Tagen'}. Verlängere jetzt.`;
+    const when = daysLeft === 0
+      ? 'endet heute'
+      : `endet in ${daysLeft} ${daysLeft === 1 ? 'Tag' : 'Tagen'}`;
+    // Im Advanced-Abo inklusives Coaching: Verlängerung läuft über das Abo
+    const body = sub.tier === 'included'
+      ? `Dein Online Coaching aus dem Advanced-Abo ${when}. Sprich deinen Trainer auf eine Verlängerung an.`
+      : daysLeft === 0
+        ? 'Dein Coaching endet heute. Verlängere jetzt, um nahtlos weiterzutrainieren.'
+        : `Dein Coaching ${when}. Verlängere jetzt.`;
 
     // 1. Persistent system chat message via assigned trainers
     const trainerRows: { trainer_id: number }[] = await this.dataSource.query(

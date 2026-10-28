@@ -246,6 +246,8 @@ export class StartupMigrationService implements OnApplicationBootstrap {
           AND cs.valid_to = cc.expires AND cs.invoice_number IS NOT NULL
         SET cc.coaching_invoice_number = cs.invoice_number
         WHERE cc.coaching_invoice_number IS NULL AND cc.sell_date < '2026-10-29'`,
+      // Lektionen-Paket mit inklusivem Online-Coaching (Advanced)
+      `ALTER TABLE credit_package ADD COLUMN includes_coaching TINYINT(1) NOT NULL DEFAULT 0`,
     ];
 
     // Create training_plan_comment table if not exists
@@ -645,6 +647,7 @@ export class StartupMigrationService implements OnApplicationBootstrap {
           \`includes\` TEXT DEFAULT NULL,
           sort_order INT DEFAULT 0,
           kind VARCHAR(20) DEFAULT 'credits',
+          includes_coaching TINYINT(1) NOT NULL DEFAULT 0,
           active TINYINT(1) DEFAULT 1
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);
@@ -659,6 +662,7 @@ export class StartupMigrationService implements OnApplicationBootstrap {
           description: '1 × 60 Min. Personal Training',
           includes: 'Training Service',
           sortOrder: 1,
+          includesCoaching: false,
         },
         {
           name: 'Basic',
@@ -669,6 +673,7 @@ export class StartupMigrationService implements OnApplicationBootstrap {
           description: '10 × 60 Min. Personal Training',
           includes: '1× Leistungsanalyse, Training Service',
           sortOrder: 2,
+          includesCoaching: false,
         },
         {
           name: 'Advanced',
@@ -677,8 +682,10 @@ export class StartupMigrationService implements OnApplicationBootstrap {
           pricePerSession: 125.00,
           durationMonths: 6,
           description: '30 × 60 Min. Personal Training',
-          includes: 'Spiroergometrie, 2× Leistungsanalyse, Training Service',
+          includes: 'Spiroergometrie, 2× Leistungsanalyse, Online Coaching, Training Service',
           sortOrder: 3,
+          // Online-Coaching für die Laufzeit des Pakets inklusive
+          includesCoaching: true,
         },
       ];
 
@@ -689,14 +696,14 @@ export class StartupMigrationService implements OnApplicationBootstrap {
         );
         if (existing) {
           await this.dataSource.query(
-            'UPDATE credit_package SET credits = ?, price = ?, price_per_session = ?, duration_months = ?, description = ?, `includes` = ?, sort_order = ?, active = 1 WHERE id = ?',
-            [pkg.credits, pkg.price, pkg.pricePerSession, pkg.durationMonths, pkg.description, pkg.includes, pkg.sortOrder, existing.id],
+            'UPDATE credit_package SET credits = ?, price = ?, price_per_session = ?, duration_months = ?, description = ?, `includes` = ?, sort_order = ?, includes_coaching = ?, active = 1 WHERE id = ?',
+            [pkg.credits, pkg.price, pkg.pricePerSession, pkg.durationMonths, pkg.description, pkg.includes, pkg.sortOrder, pkg.includesCoaching ? 1 : 0, existing.id],
           );
           this.logger.log(`Package "${pkg.name}" updated`);
         } else {
           await this.dataSource.query(
-            'INSERT INTO credit_package (name, credits, price, price_per_session, duration_months, description, `includes`, sort_order, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)',
-            [pkg.name, pkg.credits, pkg.price, pkg.pricePerSession, pkg.durationMonths, pkg.description, pkg.includes, pkg.sortOrder],
+            'INSERT INTO credit_package (name, credits, price, price_per_session, duration_months, description, `includes`, sort_order, includes_coaching, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)',
+            [pkg.name, pkg.credits, pkg.price, pkg.pricePerSession, pkg.durationMonths, pkg.description, pkg.includes, pkg.sortOrder, pkg.includesCoaching ? 1 : 0],
           );
           this.logger.log(`Package "${pkg.name}" created`);
         }

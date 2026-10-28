@@ -5,7 +5,8 @@ import { Client } from './client.entity';
  * An online-coaching entitlement period. A client has coaching access
  * iff a row exists with status='active' AND valid_to >= today.
  * Created atomically alongside ClientCredits + Invoice on purchase of a
- * credit_package whose kind = 'coaching'.
+ * credit_package whose kind = 'coaching', or with tier 'included' (no
+ * invoice_number) for a lesson package with includes_coaching = 1 (Advanced).
  */
 @Entity({ name: 'coaching_subscription' })
 export class CoachingSubscription {
@@ -15,7 +16,7 @@ export class CoachingSubscription {
 
   @Column({ name: 'package_id', nullable: true }) packageId: number;
 
-  /** 'monthly' | 'yearly' */
+  /** 'monthly' | 'yearly' | 'trial' | 'included' */
   @Column() tier: string;
 
   /** 'active' | 'cancelled' | 'expired' */
