@@ -13,4 +13,14 @@ Abgeleitet 1:1 vom SIHLTRAINING-Logo (`logo_st_R_sw.eps.jpg`):
 | `sihlmove-wordmark-black.svg` / `.png` | helle Hintergründe, Druck, Website |
 | `sihlmove-wordmark-white.svg` / `.png` | dunkle Hintergründe, App |
 | `app-icon-S-1024.png` | App-Icon (ohne Alphakanal) |
+| `sihlmove-mark.svg` | S-Marke als Vektor, gerundet wie in der App (Favicon, Website, Social Media) |
+| `sihlmove-mark-square.svg` | S-Marke eckig, für Plattformen mit eigener Rundung |
+| `sihlmove-tokens.css` | alle Farben, Abstände, Radien, Textstile und Bausteine als CSS-Variablen für Website und Web-Apps |
+| `sihlmove-tokens.json` | dieselben Werte als JSON (z. B. für Flutter oder Mail-Vorlagen) |
 | `app-icon-ST-alt.png` | bisheriges ST-Icon (Archiv) |
+
+## Corporate Identity
+
+Das vollständige Brand-Book mit Farbrollen, Logo-Regeln, Typografie, Sprache und Bausteinen liegt im Design System: https://claude.ai/artifact/8a8MeseVuQjGUbUqQ5Vg36
+
+Auf der Website `sihlmove-tokens.css` einbinden. Hell ist Standard, dunkle Bereiche erhalten `data-theme="dark"`.

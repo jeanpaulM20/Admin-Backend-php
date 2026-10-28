@@ -1,0 +1,128 @@
+/* SIHLMOVE – Design-Tokens für Web (Website, Flutter-Web-Hülle, E-Mails)
+   Quelle: iOS-App Theme.swift, Build 6. Helles Thema = Standard, dunkles über data-theme="dark".
+   Design System: https://claude.ai/artifact/8a8MeseVuQjGUbUqQ5Vg36 */
+
+:root, [data-theme="light"] {
+  color-scheme: light;
+  --background: #FFFFFC;
+  --surface: #F5F3EE;
+  --surface-2: #ECE9E1;
+  --border: #D9D5C9;
+  --border-strong: #8F947F;
+  --text: #283618;
+  --muted: #5C6450;
+  --primary: #636B2F;
+  --primary-light: #7A8438;
+  --primary-dark: #4D5324;
+  --primary-text: #636B2F;
+  --on-primary: #FFFFFF;
+  --cta: #C8532B;
+  --on-cta: #FFFFFF;
+  --track: var(--cta);
+  --brass: #B89A56;
+  --brass-text: #7A622E;
+  --success: #15803D;
+  --danger: #B91C1C;
+  --warning: #B45309;
+  --info: #1D4ED8;
+  --zone-max: #C2234D;
+  --zone-intense: #D18B37;
+  --zone-moderate: #839C4D;
+  --zone-light: #03A4B6;
+  --zone-very-light: #9E9E9E;
+  --chart-1: #EF5350;
+  --chart-2: #42A5F5;
+  --chart-3: #66BB6A;
+  --chart-4: #FF7043;
+  --chart-5: #AB47BC;
+  --logo-ink: #1D1D1B;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --radius-control: 10px;
+  --radius-card: 14px;
+  --radius-hero: 20px;
+  --radius-pill: 999px;
+  --size-control: 44px;
+  --size-button: 50px;
+  --size-tile: 36px;
+  --size-mark: 72px;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-logo: "Times New Roman", Times, serif;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #12140F;
+  --surface: #1B2016;
+  --surface-2: #252C1E;
+  --border: #363E2A;
+  --border-strong: #646F52;
+  --text: #F5F3EE;
+  --muted: #9AA38C;
+  --primary-text: #9AA455;
+  --brass-text: #B89A56;
+  --success: #34D399;
+  --danger: #F87171;
+  --warning: #FFAA33;
+  --info: #60A5FA;
+  --logo-ink: #FFFFFF;
+}
+
+/* Textstile */
+.sm-title-xl { font-family: var(--font-sans); font-size: 28px; line-height: 34px; font-weight: 800; }
+.sm-title { font-family: var(--font-sans); font-size: 22px; line-height: 28px; font-weight: 800; }
+.sm-headline { font-family: var(--font-sans); font-size: 17px; line-height: 22px; font-weight: 600; }
+.sm-row-title { font-family: var(--font-sans); font-size: 15px; line-height: 20px; font-weight: 700; }
+.sm-body { font-family: var(--font-sans); font-size: 15px; line-height: 22px; font-weight: 400; }
+.sm-control { font-family: var(--font-sans); font-size: 15px; line-height: 20px; font-weight: 500; }
+.sm-chip { font-family: var(--font-sans); font-size: 13px; line-height: 18px; font-weight: 500; }
+.sm-caption { font-family: var(--font-sans); font-size: 12px; line-height: 16px; font-weight: 400; }
+.sm-overline { font-family: var(--font-sans); font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.sm-badge { font-family: var(--font-sans); font-size: 10px; line-height: 14px; font-weight: 700; }
+.sm-metric { font-family: var(--font-sans); font-size: 34px; line-height: 38px; font-weight: 800; }
+.sm-wordmark { font-family: var(--font-logo); font-size: 40px; line-height: 44px; font-weight: 400; }
+.sm-metric { font-variant-numeric: tabular-nums; }
+
+/* Bausteine (Button, Chip, ListRow, Badge) */
+.sm-root{font-family:var(--font-sans);color:var(--text);-webkit-font-smoothing:antialiased}
+.sm-btn{font-family:var(--font-sans);display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:var(--radius-control);cursor:pointer;border:1px solid transparent;text-decoration:none;transition:opacity .15s}
+.sm-btn:focus-visible{outline:2px solid var(--primary-text);outline-offset:2px}
+.sm-btn[disabled]{opacity:.45;cursor:default}
+.sm-btn svg{width:18px;height:18px;flex:none}
+.sm-btn{white-space:nowrap}
+.sm-btn--primary{background:var(--cta);color:var(--on-cta);font-size:17px;line-height:22px;font-weight:600;min-height:var(--size-button);padding:0 var(--space-5)}
+.sm-btn--primary:active{opacity:.85}
+.sm-btn--secondary{background:transparent;color:var(--primary-text);border-color:var(--primary);font-size:15px;line-height:20px;font-weight:500;min-height:var(--size-control);padding:var(--space-3) var(--space-5)}
+.sm-btn--secondary:active{background:var(--surface-2)}
+.sm-btn--full{display:flex;width:100%}
+.sm-spin{width:18px;height:18px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:sm-spin .8s linear infinite}
+@keyframes sm-spin{to{transform:rotate(360deg)}}
+.sm-chips{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+.sm-chip{font-family:var(--font-sans);display:inline-flex;align-items:center;gap:6px;padding:10px 14px;border-radius:var(--radius-control);border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:13px;line-height:18px;font-weight:500;cursor:pointer;min-height:var(--size-control);box-sizing:border-box}
+.sm-chip svg{width:13px;height:13px}
+.sm-chip[aria-pressed="true"]{background:var(--primary);border-color:var(--primary);color:var(--on-primary);font-weight:700}
+.sm-chip:focus-visible{outline:2px solid var(--primary-text);outline-offset:2px}
+.sm-list{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card);overflow:hidden}
+.sm-row{display:flex;align-items:center;gap:var(--space-3);padding:14px var(--space-4);min-height:var(--size-control);color:var(--text);text-decoration:none;font-family:var(--font-sans)}
+.sm-row+.sm-row{border-top:1px solid var(--border)}
+.sm-tile{flex:none;width:var(--size-tile);height:var(--size-tile);border-radius:var(--radius-control);display:grid;place-items:center;position:relative;color:var(--tile-ink)}
+.sm-tile::before{content:"";position:absolute;inset:0;border-radius:inherit;background:currentColor;opacity:.14}
+.sm-tile svg{width:16px;height:16px;position:relative}
+.sm-row__text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.sm-row__title{font-size:15px;line-height:20px;font-weight:700}
+.sm-row__sub{font-size:12px;line-height:16px;color:var(--muted)}
+.sm-row__end{flex:none;color:var(--muted);font-size:13px;display:flex;align-items:center;gap:6px}
+.sm-row__end svg{width:14px;height:14px}
+.sm-row__end .sm-badge svg{width:11px;height:11px}
+.sm-badge{display:inline-flex;align-items:center;gap:4px;font-family:var(--font-sans);font-size:10px;line-height:14px;font-weight:700;white-space:nowrap}
+.sm-badge--level{background:var(--primary-dark);color:var(--on-primary);padding:3px 8px;border-radius:var(--radius-pill)}
+.sm-badge--brass{color:var(--brass-text);font-weight:500}
+.sm-badge--success{color:var(--success)}
+.sm-badge--danger{color:var(--danger)}
+.sm-badge--warning{color:var(--warning)}
+.sm-badge svg{width:11px;height:11px}
