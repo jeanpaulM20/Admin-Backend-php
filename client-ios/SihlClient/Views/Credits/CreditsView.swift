@@ -296,12 +296,12 @@ private struct AGBSheet: View {
 
     private let agbItems: [(num: String, title: String, text: String)] = [
         ("1", "Terminvereinbarung", "Für den Bezug sämtlicher Leistungen ist eine Terminvereinbarung (online oder telefonisch) erforderlich."),
-        ("2", "Absagefrist", "Verhindert der Klient die Wahrnehmung eines Termins, ist die SIHLHEALTH GmbH spätestens 24 Stunden im Voraus zu informieren. Bei verspäteter Absage oder Nichterscheinen gilt die Leistung als erbracht und ist vollumfänglich geschuldet – auch bei unverschuldeter Verhinderung (ausgenommen ärztlich belegte Krankheit oder Unfall). Verspätungen führen nicht zu einer Verlängerung der Trainingszeit."),
-        ("3", "Zahlungskonditionen", "Der Preis ist vor Leistungsbezug fällig. Abos sind innert 7 Tagen ab Unterzeichnung zahlbar. Die SIHLHEALTH GmbH behält sich vor, Leistungen bei Zahlungsverzug auszusetzen."),
+        ("2", "Absagefrist", "Verhindert der Klient die Wahrnehmung eines Termins, ist Jean Paul Mvongo, Personal Training, spätestens 24 Stunden im Voraus zu informieren. Bei verspäteter Absage oder Nichterscheinen gilt die Leistung als erbracht und ist vollumfänglich geschuldet – auch bei unverschuldeter Verhinderung (ausgenommen ärztlich belegte Krankheit oder Unfall). Verspätungen führen nicht zu einer Verlängerung der Trainingszeit."),
+        ("3", "Zahlungskonditionen", "Der Preis ist vor Leistungsbezug fällig. Abos sind innert 7 Tagen ab Unterzeichnung zahlbar. Jean Paul Mvongo, Personal Training, behält sich vor, Leistungen bei Zahlungsverzug auszusetzen."),
         ("4", "Gültigkeit", "Nicht genutzte Leistungen verfallen nach Ablauf der Abo-Gültigkeit ohne Anspruch auf Rückerstattung."),
         ("5", "Depot", "Für den Herzfrequenzsensor wird ein Depot von CHF 20.00 erhoben, welches bei unbeschädigter Rückgabe nach Vertragsende erstattet wird."),
-        ("6", "Gesundheitszustand", "Der Klient bestätigt seine Sporttauglichkeit. Er verpflichtet sich, die SIHLHEALTH GmbH über körperliche Einschränkungen oder gesundheitliche Risiken proaktiv zu informieren. Das Training erfolgt auf eigenes Risiko."),
-        ("7", "Versicherung & Haftung", "Versicherung ist Sache des Klienten. Soweit gesetzlich zulässig, wird jegliche Haftung der SIHLHEALTH GmbH für Personen- oder Sachschäden ausgeschlossen."),
+        ("6", "Gesundheitszustand", "Der Klient bestätigt seine Sporttauglichkeit. Er verpflichtet sich, Jean Paul Mvongo, Personal Training, über körperliche Einschränkungen oder gesundheitliche Risiken proaktiv zu informieren. Das Training erfolgt auf eigenes Risiko."),
+        ("7", "Versicherung & Haftung", "Versicherung ist Sache des Klienten. Soweit gesetzlich zulässig, wird jegliche Haftung von Jean Paul Mvongo, Personal Training, für Personen- oder Sachschäden ausgeschlossen."),
         ("8", "Wertsachen", "Für Verlust oder Beschädigung von persönlichen Gegenständen wird keine Haftung übernommen."),
         ("9", "Übertragbarkeit", "Leistungsansprüche sind persönlich und nicht auf Dritte übertragbar."),
         ("10", "Datenschutz", "Personenbezogene Daten werden nur im Rahmen der Leistungserbringung erhoben und verarbeitet."),

@@ -16,10 +16,15 @@ struct LoginView: View {
             ScrollView {
                 VStack(spacing: 0) {
                     logo
-                    Text("Jean-Paul Mvongo")
+                    // Name wie im UID-Register: „Jean Paul Mvongo, Personal Training"
+                    Text("Jean Paul Mvongo")
                         .font(.title2.weight(.heavy))
                         .foregroundStyle(AppColor.text)
                         .padding(.top, 24)
+                    Text("Personal Training")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(AppColor.brass)
+                        .padding(.top, 2)
                     Text("Melde dich mit deinem Konto an")
                         .font(.subheadline)
                         .foregroundStyle(AppColor.muted)
@@ -85,7 +90,7 @@ struct LoginView: View {
     /// Hinweis zum Konto + Datenschutz
     private var footer: some View {
         VStack(spacing: 10) {
-            Text("Dein Konto erhältst du von Jean-Paul Mvongo, Personal Training.")
+            Text("Dein Konto erhältst du von Jean Paul Mvongo, Personal Training.")
                 .font(.footnote)
                 .foregroundStyle(AppColor.muted)
             if let mail = AppLinks.supportMail() {

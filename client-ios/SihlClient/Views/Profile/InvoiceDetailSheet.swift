@@ -123,7 +123,7 @@ struct InvoiceDetailSheet: View {
             Text("Zahlungsinformationen")
                 .font(.app(13, weight: .bold))
                 .foregroundStyle(AppColor.text)
-            Text("Personal Training vor Ort\nSIHLHEALTH GmbH\nVerwendungszweck: \(invoice.invoiceNumber)")
+            Text("Personal Training vor Ort\nJean Paul Mvongo, Personal Training\nVerwendungszweck: \(invoice.invoiceNumber)")
                 .font(.app(12))
                 .foregroundStyle(AppColor.muted)
                 .lineSpacing(4)
