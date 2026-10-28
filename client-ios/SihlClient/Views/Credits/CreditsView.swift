@@ -93,7 +93,7 @@ struct CreditsView: View {
                 } else {
                     VStack(alignment: .leading, spacing: 4) {
                         OverlineHeader(title: "LEKTIONEN-PAKETE")
-                        Text("Gilt für Personal-Training-Lektionen im Studio.")
+                        Text("Gilt für deine Personal-Training-Lektionen.")
                             .font(.app(13))
                             .foregroundStyle(AppColor.muted)
                     }
@@ -195,8 +195,8 @@ private struct SummaryCard: View {
                     .font(.headline)
                     .foregroundStyle(has ? AppColor.primary : AppColor.orange)
                 Text(has
-                     ? "Aus \(packCount) \(packCount == 1 ? "Paket" : "Paketen") · Personal Training im Studio"
-                     : "Wähle ein Paket für dein Personal Training im Studio")
+                     ? "Aus \(packCount) \(packCount == 1 ? "Paket" : "Paketen") · Personal Training"
+                     : "Wähle ein Paket für dein Personal Training")
                     .font(.caption)
                     .foregroundStyle(AppColor.muted)
             }

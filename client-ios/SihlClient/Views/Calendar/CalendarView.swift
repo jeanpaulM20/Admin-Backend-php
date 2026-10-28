@@ -100,7 +100,7 @@ struct CalendarView: View {
         .alert("Kein Guthaben für Lektionen", isPresented: $showNoCreditsAlert) {
             Button("Schliessen", role: .cancel) {}
         } message: {
-            Text("Für eine Buchung brauchst du Guthaben für Lektionen im Studio. Pakete findest du im Profil unter „Lektionen & Guthaben“.")
+            Text("Für eine Buchung brauchst du Guthaben für Trainingslektionen. Pakete findest du im Profil unter „Lektionen & Guthaben“.")
         }
         // Toast overlay
         .appToast($vm.toast)

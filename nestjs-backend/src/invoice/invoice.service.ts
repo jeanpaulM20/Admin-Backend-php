@@ -58,7 +58,7 @@ export class InvoiceService {
    */
   async getInvoices(clientId: number) {
     // kind: 'coaching' für Rechnungen eines Online-Coaching-Abos (verknüpft
-    // über die Rechnungsnummer), sonst 'credits' (Lektionen im Studio) —
+    // über die Rechnungsnummer), sonst 'credits' (Trainingslektionen) —
     // die App zeigt Coaching-Rechnungen nur als Beleg ohne Zahlungsweg.
     const rows: any[] = await this.dataSource.query(
       `SELECT i.invoice_number, i.package_name, i.amount, i.credits, i.duration_months, i.status, i.created_at,

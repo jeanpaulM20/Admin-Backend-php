@@ -51,4 +51,4 @@ Unterbrochenes Training geht bei „Abbrechen" verloren; jeder Upload-Fehler hei
 
 - App-Datenschutz: Kontaktdaten, Gesundheit und Fitness, genauer Standort, Fotos, andere Nutzerinhalte, Kaufhistorie, User-ID, Geräte-ID (Push); alles mit Identität verknüpft, kein Tracking.
 - Altersfreigabe: Wellness/Fitness, Chat; voraussichtlich 13+.
-- Prüfhinweise: Prüfkonto, keine Registrierung in der App (Konten vom Studio), Lektionen = Training vor Ort (3.1.3(e)), Hintergrundmodi mit Testweg, KI-Assistent mit Anbieter.
+- Prüfhinweise: Prüfkonto, keine Registrierung in der App (Konten vom Trainer), Lektionen = Training vor Ort (3.1.3(e)), Hintergrundmodi mit Testweg, KI-Assistent mit Anbieter.

@@ -212,7 +212,7 @@ struct ProfileView: View {
 
     private var creditsBuyRow: some View {
         NavRow(icon: "cart", tint: AppColor.primary,
-               title: "Lektionen & Guthaben", subtitle: "Pakete für Training im Studio") {
+               title: "Lektionen & Guthaben", subtitle: "Pakete für dein Personal Training") {
             CreditsView()
         }
     }

@@ -96,7 +96,7 @@ enum StrapIdentity {
 
 /// Liste der gespeicherten Sensoren (geräteweit, nicht je Konto: der Gurt
 /// gehört zum Gerät der Person). Nur mit diesen verbindet sich die App
-/// automatisch — im Studio liegen oft fremde Gurte in Reichweite.
+/// automatisch — beim Training draussen sind oft fremde Gurte in Reichweite.
 enum SavedStraps {
     private static let key = "hr_saved_straps"
     /// Vorgänger: ein einzelner gemerkter Gurt

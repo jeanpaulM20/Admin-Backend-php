@@ -34,7 +34,7 @@ TOUREN-ASSISTENT
 Beschreibe deine Wunschtour in eigenen Worten und erhalte einen fertigen Routenvorschlag.
 
 TRAININGSPLAN, KALENDER UND CHAT
-Die Übungen deines Trainers mit Bildern, Timer und Hinweisen. Lektionen im Studio buchen, Termine im Blick, Fragen direkt an deinen Trainer.
+Die Übungen deines Trainers mit Bildern, Timer und Hinweisen. Trainingslektionen buchen, Termine im Blick, Fragen direkt an deinen Trainer.
 
 AUSWERTUNG
 Körperwerte und Trainings im Verlauf, einzelne Einheiten vergleichen.
@@ -80,7 +80,7 @@ Nicht erhoben: Zahlungsinformationen (keine Zahlung in der App, Rechnung mit QR-
 
 SIHLMOVE is the companion app for clients of Jean Paul Mvongo, Personal Training, an independent personal trainer in Zurich, Switzerland. Accounts are created by the trainer after a client signs up in person; there is no in-app registration. "Demo ansehen" on the login screen shows sample data without an account. Please use the review account provided for full access.
 
-Payments: The app sells no digital content and processes no payments. "Lektionen & Guthaben" are packages for one-on-one personal-training sessions that take place in person at the studio (guideline 3.1.3(e)); ordering one creates an invoice with a Swiss QR payment slip, paid outside the app. Online coaching content (training plans) is arranged with the trainer outside the app and only displayed in the app.
+Payments: The app sells no digital content and processes no payments. "Lektionen & Guthaben" are packages for one-on-one personal-training sessions that take place in person, outdoors (guideline 3.1.3(e)); ordering one creates an invoice with a Swiss QR payment slip, paid outside the app. Online coaching content (training plans) is arranged with the trainer outside the app and only displayed in the app.
 
 Background modes:
 - Location: recording the route and turn-by-turn guidance during an active workout only (blue indicator).
