@@ -4,12 +4,14 @@ import SwiftUI
 
 /// Training-Tracking: Herzfrequenz (Polar H10 / BLE-Gurt) + GPS-Route
 /// bei Outdoor-Aktivitäten. Die Sensor-Einrichtung liegt im Profil
-/// (Profil → Sensoren) — hier wird gewählt und gestartet; die
-/// Trainingspläne sind ein Reiter in der Aktivitätsreihe und sortieren
-/// sich wie die Aktivitäten nach letzter Nutzung.
+/// (Profil → Sensoren) — hier wird gewählt und gestartet. „Trainingspläne"
+/// ist ein Reiter in derselben Reihe: gewählt zeigt er die Pläne an Stelle
+/// von Start-Knopf und Galerie und sortiert sich wie die Aktivitäten nach
+/// letzter Nutzung.
 struct RecordWorkoutView: View {
     @Environment(AuthViewModel.self) private var auth
     @Environment(RecordingLauncher.self) private var launcher
+    @Environment(TrainingViewModel.self) private var training
 
     /// Route, der gefolgt wird (T3/Phase 5): kommt über den Startbefehl
     /// von Planer, Tour-Detail oder Assistent und bleibt bis zum Ende der
@@ -28,7 +30,10 @@ struct RecordWorkoutView: View {
     /// (die gestartete Aktivität rückt dann nach vorne). Nie beim Antippen,
     /// sonst tauschten die Chips unter dem Finger die Plätze.
     @State private var chipOrder: [StartChip] = StartChip.ordered(selected: WorkoutActivity.lastUsed ?? .joggen)
-    @State private var showPlans = false
+    /// Reiter „Trainingspläne" gewählt? Startet so, wie zuletzt verlassen.
+    @State private var showingPlans = StartChip.plansFirst
+    /// Erhöhen lädt die Galerie neu (Ziehen zum Aktualisieren)
+    @State private var galleryReload = 0
     @State private var recorder: WorkoutRecorder?
     @State private var showSession = false
     @State private var recovered: WorkoutRecorder.Snapshot?
@@ -41,7 +46,7 @@ struct RecordWorkoutView: View {
             content
             if let countdown { countdownOverlay(countdown) }
         }
-        .navigationTitle("Training aufzeichnen")
+        .navigationTitle(showingPlans ? "Trainingspläne" : "Training aufzeichnen")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             if recorder == nil {
@@ -58,12 +63,8 @@ struct RecordWorkoutView: View {
             takeLaunchedRoute()
         }
         // „Tour starten" aus Planer/Detail/Assistent, während die Startseite
-        // schon sichtbar ist (der Tab-Wechsel allein löst kein onAppear aus).
-        // Sind im Start-Tab gerade die Pläne offen, zurück zur Startseite —
-        // deren onAppear übernimmt dann die Route.
-        .onChange(of: launcher.requestCount) { _, _ in
-            if showPlans { showPlans = false } else { takeLaunchedRoute() }
-        }
+        // schon sichtbar ist (der Tab-Wechsel allein löst kein onAppear aus)
+        .onChange(of: launcher.requestCount) { _, _ in takeLaunchedRoute() }
         .onDisappear {
             isVisible = false
             // Tab gewechselt während des Countdowns: nicht im Hintergrund
@@ -101,33 +102,45 @@ struct RecordWorkoutView: View {
 
                     activityGrid
 
-                    Button("Training starten") { beginRecording() }
-                    .buttonStyle(PrimaryButtonStyle())
-                    .padding(.top, 12)
+                    if showingPlans {
+                        // Reiter „Trainingspläne": die Pläne an Stelle von
+                        // Start-Knopf und Galerie
+                        TrainingView(embedded: true)
+                            .padding(.top, 4)
+                    } else {
+                        Button("Training starten") { beginRecording() }
+                        .buttonStyle(PrimaryButtonStyle())
+                        .padding(.top, 12)
 
-                    Text("Der gekoppelte Gurt verbindet sich beim Start. Ohne Gurt werden nur Dauer\(activity.usesGPS ? " und Route" : "") erfasst.")
-                        .font(.caption)
-                        .foregroundStyle(AppColor.muted)
-                        .frame(maxWidth: .infinity, alignment: .center)
+                        Text("Der gekoppelte Gurt verbindet sich beim Start. Ohne Gurt werden nur Dauer\(activity.usesGPS ? " und Route" : "") erfasst.")
+                            .font(.caption)
+                            .foregroundStyle(AppColor.muted)
+                            .frame(maxWidth: .infinity, alignment: .center)
 
-                    // Trainings-Galerie (F1): Fotos der gewählten Aktivität
-                    WorkoutGalleryView(activity: activity) { photo in
-                        activity = photo.workoutActivity
-                        StartChip.noteStarted(photo.workoutActivity)
-                        Task { @MainActor in
-                            try? await Task.sleep(nanoseconds: 400_000_000)
-                            recorder?.startRecording(photo.workoutActivity, clientId: auth.clientId)
-                            showSession = true
+                        // Trainings-Galerie (F1): Fotos der gewählten Aktivität
+                        WorkoutGalleryView(activity: activity, reloadToken: galleryReload) { photo in
+                            activity = photo.workoutActivity
+                            StartChip.noteStarted(photo.workoutActivity)
+                            Task { @MainActor in
+                                try? await Task.sleep(nanoseconds: 400_000_000)
+                                recorder?.startRecording(photo.workoutActivity, clientId: auth.clientId)
+                                showSession = true
+                            }
                         }
+                        .padding(.top, AppSpacing.card)
                     }
-                    .padding(.top, AppSpacing.card)
                 }
                 .padding(.horizontal, AppSpacing.screen)
                 .padding(.top, 16)
                 .padding(.bottom, AppSpacing.bottomInset)
         }
-        .navigationDestination(isPresented: $showPlans) {
-            TrainingView().navigationTitle("Trainingspläne")
+        // Ziehen lädt, was gerade gezeigt wird: Pläne bzw. Galerie
+        .refreshable {
+            if showingPlans {
+                if !isDemo, let id = auth.clientId { await training.fetch(clientId: id) }
+            } else {
+                galleryReload += 1
+            }
         }
     }
 
@@ -145,6 +158,11 @@ struct RecordWorkoutView: View {
         tour = route
         recorder.setRoute(route)
         activity = route.workoutActivity
+        // Route kommt → zurück auf die Aktivität (auch wenn Pläne gewählt waren)
+        if showingPlans {
+            showingPlans = false
+            StartChip.noteSelectedActivity()
+        }
         chipOrder = StartChip.ordered(selected: activity, routeActivity: activity)
         // Liegt ein unterbrochenes Training zur Rückfrage an, nicht automatisch
         // starten: Alert und Vollbild-Session zugleich würden sich blockieren.
@@ -255,9 +273,9 @@ struct RecordWorkoutView: View {
 
     /// Aktivitätsauswahl im selben Kachel-Schema wie die Touren-Discovery
     /// (scrollbare Chip-Reihe) — einheitlicher Look über beide Screens.
-    /// „Trainingspläne" ist ein Chip wie die anderen und wandert nach
-    /// Nutzung nach vorne; er öffnet die Pläne, statt eine Aktivität zu
-    /// wählen, und ist darum nie hervorgehoben.
+    /// „Trainingspläne" ist ein Reiter wie die anderen: gewählt grün
+    /// hervorgehoben, zeigt die Pläne darunter und wandert nach Nutzung nach
+    /// vorne.
     private var activityGrid: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
@@ -274,8 +292,14 @@ struct RecordWorkoutView: View {
     }
 
     private func activityChip(_ a: WorkoutActivity) -> some View {
-        let selected = a == activity
-        return Button { activity = a } label: {
+        let selected = !showingPlans && a == activity
+        return Button {
+            activity = a
+            if showingPlans {
+                showingPlans = false
+                StartChip.noteSelectedActivity()
+            }
+        } label: {
             HStack(spacing: 6) {
                 Image(systemName: a.icon).font(.app(13))
                 Text(a.rawValue).font(.footnote.weight(selected ? .bold : .medium))
@@ -294,28 +318,33 @@ struct RecordWorkoutView: View {
         .accessibilityHint(selected ? "" : "Wählt \(a.rawValue) für das nächste Training")
     }
 
-    /// Gleiche Form wie die Aktivitäts-Chips, Icon in Brass. Öffnen zählt
-    /// als Nutzung — beim nächsten Erscheinen steht der Chip vorne.
+    /// Reiter wie die Aktivitäts-Chips: gewählt grün hervorgehoben (Icon
+    /// dann weiss statt Brass). Wählen zählt als Nutzung — beim nächsten
+    /// Erscheinen steht der Chip vorne und ist wieder gewählt.
     private var trainingPlansChip: some View {
-        Button {
-            StartChip.noteOpenedPlans()
-            showPlans = true
+        let selected = showingPlans
+        return Button {
+            guard !showingPlans else { return }
+            showingPlans = true
+            StartChip.noteSelectedPlans()
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: "list.clipboard").font(.app(13))
-                    .foregroundStyle(AppColor.brass)
-                Text("Trainingspläne").font(.footnote.weight(.medium))
-                    .foregroundStyle(AppColor.text)
+                    .foregroundStyle(selected ? AppColor.white : AppColor.brass)
+                Text("Trainingspläne").font(.footnote.weight(selected ? .bold : .medium))
+                    .foregroundStyle(selected ? AppColor.white : AppColor.muted)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.control))
+            .background(selected ? AppColor.primary : AppColor.surface,
+                        in: RoundedRectangle(cornerRadius: AppRadius.control))
             .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
-                .stroke(AppColor.border, lineWidth: 1))
+                .stroke(selected ? AppColor.primary : AppColor.border, lineWidth: 1))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityHint("Öffnet deine Trainingspläne")
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityHint(selected ? "" : "Zeigt deine Trainingspläne")
     }
 
     // MARK: Helfer

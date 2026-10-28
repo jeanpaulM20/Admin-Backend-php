@@ -3,14 +3,14 @@ import Foundation
 // MARK: - StartChip
 
 /// Die Reihe auf der Startseite: „Trainingspläne" und die Aktivitäten.
-/// „Trainingspläne" verhält sich wie eine Aktivität — wer die Pläne zuletzt
-/// geöffnet hat, sieht sie vorne. Die zuletzt GESTARTETE Aktivität bleibt
-/// dabei immer gleich dahinter sichtbar, denn sie ist vorgewählt und
-/// „Training starten" startet genau sie.
+/// „Trainingspläne" ist ein Reiter wie die Aktivitäten: antippen wählt ihn
+/// (grün hervorgehoben) und zeigt die Pläne darunter. Wer zuletzt die Pläne
+/// gewählt hat, sieht sie vorne — und beim nächsten Öffnen wieder gewählt.
+/// Die vorgewählte Aktivität bleibt dabei immer gleich dahinter sichtbar.
 ///
 /// Gespeichert werden zwei getrennte Fakten, jeder an einem Ort:
 /// - welche Aktivität zuletzt gestartet wurde (`WorkoutActivity.lastUsed`)
-/// - ob die Pläne danach noch geöffnet wurden (`plansFirst`)
+/// - ob danach die Pläne der gewählte Reiter waren (`plansFirst`)
 enum StartChip: Hashable, Identifiable {
     case plans
     case activity(WorkoutActivity)
@@ -31,19 +31,32 @@ enum StartChip: Hashable, Identifiable {
     /// Vorgänger-Schlüssel (Commit 4e05d53d) — nur noch zur Übernahme gelesen
     private static let legacyKey = "lastStartChip"
 
-    /// Pläne nach der letzten gestarteten Aktivität geöffnet?
+    private static let migratedKey = "startChipMigrated"
+
+    /// Pläne nach der letzten gestarteten Aktivität gewählt?
     static var plansFirst: Bool {
         let defaults = UserDefaults.standard
-        if let legacy = defaults.string(forKey: legacyKey) {
-            defaults.set(legacy == "plans", forKey: plansFirstKey)
-            defaults.removeObject(forKey: legacyKey)
+        // Bisherigen Schlüssel genau einmal übernehmen — nie erneut, sonst
+        // überschriebe ein nicht löschbarer Altwert jede spätere Wahl
+        if !defaults.bool(forKey: migratedKey) {
+            if let legacy = defaults.string(forKey: legacyKey) {
+                defaults.set(legacy == "plans", forKey: plansFirstKey)
+                defaults.removeObject(forKey: legacyKey)
+            }
+            defaults.set(true, forKey: migratedKey)
         }
         return defaults.bool(forKey: plansFirstKey)
     }
 
-    /// Pläne geöffnet — zählt als Nutzung.
-    static func noteOpenedPlans() {
+    /// Pläne gewählt — zählt als Nutzung (dort wird nichts „gestartet").
+    static func noteSelectedPlans() {
         UserDefaults.standard.set(true, forKey: plansFirstKey)
+    }
+
+    /// Von den Plänen zurück auf eine Aktivität gewechselt — die Pläne geben
+    /// den ersten Platz wieder ab. Die Aktivität selbst zählt erst beim Start.
+    static func noteSelectedActivity() {
+        UserDefaults.standard.set(false, forKey: plansFirstKey)
     }
 
     /// Aufzeichnung gestartet — die Aktivität wird vorgewählt und rückt nach vorne.

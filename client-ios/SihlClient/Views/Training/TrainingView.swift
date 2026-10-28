@@ -1,8 +1,14 @@
 import SwiftUI
 
-/// "Training"-Tab — Liste der Trainingspläne mit Abo-Banner.
+/// Liste der Trainingspläne mit Abo-Banner.
 /// Pendant zu `screens/training_plan_list_screen.dart`.
+///
+/// `embedded`: Inhalt der Startseite (Chip „Trainingspläne") — ohne eigenen
+/// Scroll-Bereich, eigenen Hintergrund und seitliche Ränder; die Startseite
+/// scrollt, randet ein und lädt per Ziehen neu (`TrainingViewModel`).
 struct TrainingView: View {
+    var embedded = false
+
     @Environment(AuthViewModel.self)      private var auth
     @Environment(TrainingViewModel.self)  private var vm
 
@@ -12,29 +18,35 @@ struct TrainingView: View {
     @State private var showCreditsSheet = false
 
     private var isDemo: Bool { auth.clientId == "demo" }
+    /// Seitlicher Rand der Elemente — eingebettet randet die Startseite ein
+    private var hPad: CGFloat { embedded ? 0 : AppSpacing.screen }
 
     var body: some View {
+        if embedded {
+            main
+        } else {
+            main.refreshable { await refresh() }
+        }
+    }
+
+    private var main: some View {
         @Bindable var vm = vm
-        ZStack {
-            AppColor.background.ignoresSafeArea()
+        return ZStack {
+            if !embedded { AppColor.background.ignoresSafeArea() }
             if isDemo {
                 // Wie Kalender/Chat: Pläne kommen vom Trainer, ohne Konto gibt
                 // es keine — statt „E-Mail oder Passwort falsch" ein Hinweis
                 DemoUnavailableView(message: "Hier erscheinen die Trainingspläne deines Trainers.")
+                    .frame(minHeight: embedded ? 320 : nil)
             } else if vm.isLoading && vm.plans.isEmpty {
                 LoadingView(message: "Lade Trainingspläne…")
+                    .frame(minHeight: embedded ? 320 : nil)
             } else {
                 content
             }
         }
         .task {
             if !isDemo, vm.plans.isEmpty, let id = auth.clientId {
-                await vm.fetch(clientId: id)
-                maybeShowExpiryAlert()
-            }
-        }
-        .refreshable {
-            if !isDemo, let id = auth.clientId {
                 await vm.fetch(clientId: id)
                 maybeShowExpiryAlert()
             }
@@ -71,43 +83,55 @@ struct TrainingView: View {
         .appToast($vm.toast)
     }
 
+    private func refresh() async {
+        guard !isDemo, let id = auth.clientId else { return }
+        await vm.fetch(clientId: id)
+        maybeShowExpiryAlert()
+    }
+
     // MARK: - Content
 
+    @ViewBuilder
     private var content: some View {
-        ScrollView {
-            LazyVStack(spacing: 0, pinnedViews: []) {
-                subscriptionBanner
-                    .padding(.top, 12)
+        if embedded {
+            planStack
+        } else {
+            ScrollView { planStack.padding(.bottom, AppSpacing.bottomInset) }
+        }
+    }
 
-                if let err = vm.error {
-                    InlineErrorBanner(message: err)
-                        .padding(.horizontal, AppSpacing.screen).padding(.top, 8)
-                }
+    private var planStack: some View {
+        LazyVStack(spacing: 0, pinnedViews: []) {
+            subscriptionBanner
+                .padding(.top, embedded ? 0 : 12)
 
-                if vm.plans.isEmpty && !vm.isLoading {
-                    emptyState
-                } else {
-                    ForEach(vm.plans) { plan in
-                        NavigationLink(destination: planDestination(plan)) {
-                            PlanCard(plan: plan, exerciseIdMap: vm.exerciseIdMap)
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.horizontal, AppSpacing.screen)
-                        .padding(.bottom, AppSpacing.stack)
+            if let err = vm.error {
+                InlineErrorBanner(message: err)
+                    .padding(.horizontal, hPad).padding(.top, 8)
+            }
+
+            if vm.plans.isEmpty && !vm.isLoading {
+                emptyState
+            } else {
+                ForEach(vm.plans) { plan in
+                    NavigationLink(destination: planDestination(plan)) {
+                        PlanCard(plan: plan, exerciseIdMap: vm.exerciseIdMap)
                     }
-                    .padding(.top, 4)
-                    .padding(.bottom, AppSpacing.bottomInset)
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, hPad)
+                    .padding(.bottom, AppSpacing.stack)
                 }
+                .padding(.top, 4)
             }
         }
     }
 
     /// Ziel je Plan — direkte Destination statt wertbasierter Navigation:
-    /// Die Liste wird selbst als Destination gepusht (Start → Trainingspläne
-    /// per `navigationDestination(isPresented:)`); ein hier, in der
-    /// gepushten Ansicht, registriertes `navigationDestination(for:)` findet
-    /// SwiftUI nicht zuverlässig — der Tipp auf einen Plan verpuffte dann
-    /// kommentarlos. Direkte NavigationLink-Ziele haben das Problem nicht.
+    /// Die Liste steckt in der Startseite (Chip „Trainingspläne"), nicht an
+    /// der Wurzel eines eigenen NavigationStack; ein hier registriertes
+    /// `navigationDestination(for:)` fand SwiftUI in dieser Lage nicht
+    /// zuverlässig — der Tipp auf einen Plan verpuffte dann kommentarlos.
+    /// Direkte NavigationLink-Ziele haben das Problem nicht.
     @ViewBuilder
     private func planDestination(_ plan: ClientTrainingPlan) -> some View {
         if plan.locked {
@@ -130,12 +154,14 @@ struct TrainingView: View {
         if !vm.isLoading && !vm.subscription.active {
             if vm.subscription.canStartTrial {
                 SubBanner(
+                    hPad:     hPad,
                     title: "1 Monat gratis testen",
                     subtitle: "Trainingsplan · HR-Analyse · Chat-Feedback",
                     onTap: { showTrialSheet = true }
                 )
             } else {
                 SubBanner(
+                    hPad:     hPad,
                     title: "Trainingsplan · HR-Analyse · Chat-Feedback",
                     subtitle: "Online Coaching starten",
                     onTap: { showCreditsSheet = true }
@@ -183,6 +209,7 @@ struct TrainingView: View {
 // MARK: - Subscription Banner
 
 private struct SubBanner: View {
+    var hPad: CGFloat = AppSpacing.screen
     let title: String
     let subtitle: String
     let onTap: () -> Void
@@ -205,7 +232,7 @@ private struct SubBanner: View {
             .background(AppColor.surface)
             .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
             .overlay(RoundedRectangle(cornerRadius: AppRadius.control).stroke(AppColor.border, lineWidth: 1))
-            .padding(.horizontal, AppSpacing.screen).padding(.top, 16).padding(.bottom, 8)
+            .padding(.horizontal, hPad).padding(.top, 16).padding(.bottom, 8)
         }
         .buttonStyle(.plain)
     }

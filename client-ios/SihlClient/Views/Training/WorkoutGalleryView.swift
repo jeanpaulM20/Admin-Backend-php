@@ -16,6 +16,8 @@ private enum GalleryCardSize {
 struct WorkoutGalleryView: View {
     @Environment(AuthViewModel.self) private var auth
     let activity: WorkoutActivity
+    /// Erhöhen lädt neu (Ziehen zum Aktualisieren auf der Startseite)
+    var reloadToken = 0
     /// Startet dieselbe Einheit erneut (Aktivität übernehmen).
     let onRepeat: (WorkoutPhoto) -> Void
 
@@ -73,7 +75,7 @@ struct WorkoutGalleryView: View {
                 .padding(.horizontal, -AppSpacing.screen)
             }
         }
-        .task(id: activity) { await load() }
+        .task(id: "\(activity.rawValue)#\(reloadToken)") { await load() }
         .sheet(item: $detail) { photo in
             WorkoutPhotoDetailView(photo: photo) {
                 detail = nil
