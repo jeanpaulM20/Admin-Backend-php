@@ -179,7 +179,7 @@ class _InvoiceDetailSheetState extends State<InvoiceDetailSheet> {
                           fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
                   Text(
-                      'SIHLHEALTH GmbH\nVerwendungszweck: ${inv.invoiceNumber}',
+                      'Jean Paul Mvongo, Personal Training\nVerwendungszweck: ${inv.invoiceNumber}',
                       style: const TextStyle(
                           color: AppColors.muted,
                           fontSize: 12,

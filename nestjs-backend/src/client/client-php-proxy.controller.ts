@@ -563,7 +563,7 @@ export class ClientAppController {
     const result = await this.saferpayService.initialize({
       invoiceNumber: purchaseResult.invoiceNumber,
       amount: parseFloat(invoice.amount),
-      description: `SIHLHEALTH – ${invoice.package_name}`,
+      description: `Jean Paul Mvongo, Personal Training – ${invoice.package_name}`,
       clientId,
     });
 
@@ -663,7 +663,7 @@ export class ClientAppController {
     const safeInvoice = this.esc(invoiceNumber);
     return `<!DOCTYPE html>
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${safeTitle} – SIHLHEALTH</title>
+<title>${safeTitle} – Jean Paul Mvongo, Personal Training</title>
 <style>
 body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0a0a0a;color:#e5e5e5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
 .card{text-align:center;padding:40px;max-width:420px;background:#171717;border-radius:16px;border:1px solid #262626}

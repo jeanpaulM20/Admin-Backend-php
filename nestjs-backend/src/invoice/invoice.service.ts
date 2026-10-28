@@ -127,8 +127,10 @@ export class InvoiceService {
   // ── QR-Rechnung (Swiss QR Bill) ─────────────────────────────────
   private static readonly QR_API_URL = 'https://qr-rechnung-api.ch/api/v1/qr-bill/create';
   private static readonly CREDITOR = {
-    Account: 'CH260020620655003901Z',
-    CreditorName: 'SIHLHEALTH GmbH',
+    // Konto des Einzelunternehmens (UBS, Inhaber Jean Paul Mvongo). Normale
+    // IBAN genügt: die Rechnung nutzt keine QR-Referenz, nur eine Mitteilung.
+    Account: 'CH820023423417385140W',
+    CreditorName: 'Jean Paul Mvongo, Personal Training',
     CreditorStreetName: 'Nidelbadstrasse',
     CreditorHouseNumber: '50',
     CreditorZip: '8038',
@@ -250,7 +252,7 @@ export class InvoiceService {
 
     try {
       await transporter.sendMail({
-        from: `"SIHLHEALTH GmbH" <${fromEmail}>`,
+        from: `"Jean Paul Mvongo, Personal Training" <${fromEmail}>`,
         to: data.clientEmail,
         subject: `Rechnung ${data.invoiceNumber} – ${data.packageName}`,
         html,
@@ -306,8 +308,8 @@ export class InvoiceService {
         bufferPages: true,
         info: {
           Title: `Rechnung ${data.invoiceNumber}`,
-          Author: 'SIHLHEALTH GmbH',
-          Creator: 'Sihl Training',
+          Author: 'Jean Paul Mvongo, Personal Training',
+          Creator: 'Jean Paul Mvongo, Personal Training',
         },
       });
 
@@ -322,9 +324,9 @@ export class InvoiceService {
       // Shorthand: positioned text that must NOT advance the cursor
       const NB = { lineBreak: false } as const;
 
-      // ─── HEADER: SIHLHEALTH GmbH (right-aligned) ───
+      // ─── HEADER: Name des Einzelunternehmens (rechtsbündig) ───
       doc.fontSize(18).font('Helvetica-Bold')
-        .text('SIHLHEALTH GmbH', leftX, 50, { align: 'right', width: pageWidth, lineBreak: false });
+        .text('Jean Paul Mvongo, Personal Training', leftX, 50, { align: 'right', width: pageWidth, lineBreak: false });
 
       // ─── META SECTION ───
       let y = 110;
@@ -409,7 +411,7 @@ export class InvoiceService {
       // ─── VAT note ───
       y += 6;
       doc.fontSize(7).font('Helvetica')
-        .text('SIHLHEALTH GmbH ist nicht MWST-pflichtig.', leftX, y, { align: 'right', width: pageWidth, lineBreak: false });
+        .text('Jean Paul Mvongo, Personal Training ist nicht MWST-pflichtig.', leftX, y, { align: 'right', width: pageWidth, lineBreak: false });
 
       // ─── Payment text ───
       y += 28;
@@ -425,7 +427,7 @@ export class InvoiceService {
       // ─── Signature ───
       y += 24;
       doc.fontSize(10).font('Helvetica')
-        .text('Jean-Paul Mvongo', leftX, y, NB);
+        .text('Jean Paul Mvongo', leftX, y, NB);
 
       // ─── FOOTER (fixed at bottom of page 1) ───
       const footerY = doc.page.height - 75;
@@ -435,7 +437,7 @@ export class InvoiceService {
       doc.fontSize(8).font('Helvetica');
 
       // Col 1: Address
-      doc.text('Jean-Paul Mvongo', leftX, fY, NB);
+      doc.text('Jean Paul Mvongo, Personal Training', leftX, fY, NB);
       doc.text('Nidelbadstrasse 50', leftX, fY + 11, NB);
       doc.text('8038 Zürich', leftX, fY + 22, NB);
 
@@ -446,7 +448,7 @@ export class InvoiceService {
 
       // Col 3: Bank
       doc.text('Bank: UBS SWITZERLAND AG', 400, fY, NB);
-      doc.text('IBAN: CH26 0020 6206 5500 3901 Z', 400, fY + 11, NB);
+      doc.text('IBAN: CH82 0023 4234 1738 5140 W', 400, fY + 11, NB);
       doc.text('BIC: UBSWCHZH80A', 400, fY + 22, NB);
 
       // ─── PAGE 2: QR Payment Slip (if available) ───
@@ -497,7 +499,7 @@ export class InvoiceService {
   .footer { margin-top: 28px; font-size: 12px; color: #888; border-top: 1px solid #ddd; padding-top: 14px; }
 </style></head>
 <body>
-  <div class="logo">SIHLHEALTH GmbH</div>
+  <div class="logo">Jean Paul Mvongo, Personal Training</div>
 
   <p>Guten Tag ${data.clientName},</p>
 
@@ -514,10 +516,10 @@ export class InvoiceService {
   <p>Bitte &uuml;berweisen Sie den Betrag innerhalb von <strong>7 Tagen</strong> (bis ${dueDateStr}).<br>
   Alle Zahlungsdetails finden Sie in der beigef&uuml;gten Rechnung.</p>
 
-  <p>Freundliche Gr&uuml;sse<br>Jean-Paul Mvongo</p>
+  <p>Freundliche Gr&uuml;sse<br>Jean Paul Mvongo</p>
 
   <div class="footer">
-    SIHLHEALTH GmbH &middot; Nidelbadstrasse 50 &middot; 8038 Z&uuml;rich<br>
+    Jean Paul Mvongo, Personal Training &middot; Nidelbadstrasse 50 &middot; 8038 Z&uuml;rich<br>
     jean-paul.mvongo@sihltraining.ch &middot; www.sihltraining.ch
   </div>
 </body>
