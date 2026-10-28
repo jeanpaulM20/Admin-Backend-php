@@ -14,11 +14,8 @@ struct CreditsView: View {
     @State private var selectedId:   String?               // gewähltes Paket
     @State private var purchasing    = false               // Doppeltipp-Schutz
     @State private var agbTarget:    CreditPackage?        // welches Paket → AGB-Sheet
-    @State private var methodTarget: CreditPackage?        // welches Paket → Zahlungsart-Sheet
-    @State private var confirmTarget: CreditPackage?       // welches Paket → Bestätigungsdialog (Bank)
-    @State private var pendingPayment: PendingPayment?     // für Polling-Sheet
-    @State private var nextAfterAgb: CreditPackage?        // AGB akzeptiert → nach Dismiss Zahlungsart öffnen
-    @State private var nextConfirm: CreditPackage?         // Bank gewählt → nach Dismiss Bestätigung öffnen
+    @State private var confirmTarget: CreditPackage?       // welches Paket → Bestätigungsdialog
+    @State private var nextAfterAgb: CreditPackage?        // AGB akzeptiert → nach Dismiss Bestätigung öffnen
     @State private var toast: AppToast? = nil
 
     private var selectedPackage: CreditPackage? {
@@ -48,13 +45,14 @@ struct CreditsView: View {
             }
         }
         .refreshable { await credits.fetch(clientId: auth.clientId ?? "") }
-        // AGB-Sheet → danach Zahlungsart-Sheet. Verkettung über onDismiss statt
-        // eines 0.3s-Timers: onDismiss läuft erst NACH der Dismiss-Animation,
-        // die Folge-Präsentation kann also nicht verschluckt werden.
+        // AGB-Sheet → danach Bestätigung. Bezahlt wird nicht in der App,
+        // sondern per Rechnung mit QR-Einzahlungsschein. Verkettung über
+        // onDismiss: läuft erst NACH der Dismiss-Animation, die Bestätigung
+        // kann also nicht verschluckt werden.
         .sheet(item: $agbTarget, onDismiss: {
             if let pkg = nextAfterAgb {
                 nextAfterAgb = nil
-                methodTarget = pkg
+                confirmTarget = pkg
             }
         }) { pkg in
             AGBSheet(package: pkg) { accepted in
@@ -62,48 +60,18 @@ struct CreditsView: View {
                 agbTarget = nil
             }
         }
-        // Zahlungsart wählen
-        .sheet(item: $methodTarget, onDismiss: {
-            if let pkg = nextConfirm {
-                nextConfirm = nil
-                confirmTarget = pkg
-            }
-        }) { pkg in
-            PaymentMethodSheet(package: pkg) { method in
-                methodTarget = nil
-                guard let method else { return }
-                if method == "online" {
-                    Task { await startOnlinePayment(pkg) }
-                } else {
-                    nextConfirm = pkg
-                }
-            }
-        }
-        // Bestätigungsdialog vor Banküberweisung (wie Flutter `_showConfirmDialog`)
+        // Bestätigung der Bestellung auf Rechnung (wie Flutter `_showConfirmDialog`)
         .alert("Kauf bestätigen", isPresented: Binding(
             get: { confirmTarget != nil },
             set: { if !$0 { confirmTarget = nil } }
         ), presenting: confirmTarget) { pkg in
             Button("Abbrechen", role: .cancel) { confirmTarget = nil }
-            Button("Kauf bestätigen") {
+            Button("Auf Rechnung bestellen") {
                 confirmTarget = nil
-                Task { await startBankTransfer(pkg) }
+                Task { await orderOnInvoice(pkg) }
             }
         } message: { pkg in
             Text(confirmMessage(for: pkg))
-        }
-        // Online-Zahlung: Polling mit sauberem Abschluss
-        .sheet(item: $pendingPayment) { pending in
-            PaymentPendingSheet(invoiceNumber: pending.id) { outcome in
-                pendingPayment = nil
-                switch outcome {
-                case .paid:
-                    showToast("Zahlung erfolgreich. Deine Lektionen sind gutgeschrieben.", ok: true)
-                case .open:
-                    showToast("Rechnung \(pending.id) bleibt offen. Du findest sie im Profil unter Rechnungen.", ok: false)
-                }
-                Task { await credits.fetch(clientId: auth.clientId ?? "") }
-            }
         }
     }
 
@@ -179,12 +147,12 @@ struct CreditsView: View {
         }
         lines.append("Preis: \(pkg.priceFormattedExact)")
         lines.append("")
-        lines.append("Die Rechnung wird per E-Mail zugestellt und ist innert 7 Tagen zahlbar.")
+        lines.append("Du erhältst eine Rechnung mit QR-Einzahlungsschein per E-Mail, zahlbar innert 7 Tagen. Die Rechnung findest du auch im Profil unter Rechnungen.")
         return lines.joined(separator: "\n")
     }
 
-    /// Banküberweisung: Bestätigung → API-Call
-    private func startBankTransfer(_ pkg: CreditPackage) async {
+    /// Bestellung auf Rechnung (QR-Einzahlungsschein): Bestätigung → API-Call
+    private func orderOnInvoice(_ pkg: CreditPackage) async {
         purchasing = true
         do {
             let r = try await CreditsService.shared.purchasePackage(
@@ -192,31 +160,6 @@ struct CreditsView: View {
             showToast(r.message, ok: r.success)
             if r.success { await credits.fetch(clientId: auth.clientId ?? "") }
         } catch {
-            showToast("Fehler: \(error.localizedDescription)", ok: false)
-        }
-        purchasing = false
-    }
-
-    /// Online-Zahlung (Saferpay): URL im Browser öffnen, dann Polling-Sheet anzeigen.
-    private func startOnlinePayment(_ pkg: CreditPackage) async {
-        purchasing = true
-        showToast("Zahlung wird vorbereitet…", ok: true)
-        do {
-            let result = try await CreditsService.shared.initializePayment(
-                clientId: auth.clientId ?? "",
-                packageId: Int(pkg.id) ?? 0
-            )
-            withAnimation { toast = nil }
-            guard let url = URL(string: result.redirectUrl),
-                  await UIApplication.shared.open(url) else {
-                showToast("Die Zahlungsseite konnte nicht geöffnet werden. Rechnung \(result.invoiceNumber) bleibt offen.", ok: false)
-                await credits.fetch(clientId: auth.clientId ?? "")
-                purchasing = false
-                return
-            }
-            pendingPayment = PendingPayment(id: result.invoiceNumber)
-        } catch {
-            withAnimation { toast = nil }
             showToast("Fehler: \(error.localizedDescription)", ok: false)
         }
         purchasing = false
@@ -475,307 +418,4 @@ private struct AGBItemView: View {
         }
         .padding(.bottom, 14)
     }
-}
-
-// MARK: - PaymentMethodSheet
-
-private struct PaymentMethodSheet: View {
-    let package:   CreditPackage
-    let onSelect:  (String?) -> Void
-    @Environment(\.dismiss) private var dismiss
-    @State private var didSelect = false
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // Handle
-            Capsule()
-                .fill(AppColor.muted.opacity(0.3))
-                .frame(width: 40, height: 4)
-                .padding(.top, 12)
-
-            VStack(spacing: 6) {
-                Text("Zahlungsmethode wählen")
-                    .font(.title3.bold()).foregroundStyle(AppColor.text)
-                Text("\(package.name) – \(package.priceFormattedExact)")
-                    .font(.callout).foregroundStyle(AppColor.muted)
-                Text("Personal-Training-Lektionen im Studio")
-                    .font(.caption).foregroundStyle(AppColor.muted)
-            }
-            .multilineTextAlignment(.center)
-            .padding(.vertical, 20)
-
-            // Online
-            PaymentMethodTile(
-                icon: "creditcard.fill",
-                title: "Online bezahlen",
-                subtitle: "Kreditkarte, TWINT, PostFinance, Apple Pay"
-            ) {
-                didSelect = true
-                dismiss(); onSelect("online")
-            }
-            .padding(.horizontal, 20)
-
-            Spacer(minLength: 12)
-
-            // Bank
-            PaymentMethodTile(
-                icon: "building.columns.fill",
-                title: "Banküberweisung",
-                subtitle: "Rechnung per E-Mail mit QR-Einzahlungsschein"
-            ) {
-                didSelect = true
-                dismiss(); onSelect("bank")
-            }
-            .padding(.horizontal, 20)
-
-            Spacer(minLength: 32)
-        }
-        .background(AppColor.surface)
-        .presentationDetents([.height(360)])
-        .onDisappear { if !didSelect { onSelect(nil) } }
-    }
-}
-
-private struct PaymentMethodTile: View {
-    let icon:     String
-    let title:    String
-    let subtitle: String
-    let onTap:    () -> Void
-
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 14) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: AppRadius.control)
-                        .fill(AppColor.primary.opacity(0.12))
-                        .frame(width: 44, height: 44)
-                    Image(systemName: icon)
-                        .font(.app(20))
-                        .foregroundStyle(AppColor.primary)
-                }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.callout.bold()).foregroundStyle(AppColor.text)
-                    Text(subtitle)
-                        .font(.caption).foregroundStyle(AppColor.muted)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption).foregroundStyle(AppColor.muted)
-            }
-            .padding(AppSpacing.card)
-            .background(AppColor.background, in: RoundedRectangle(cornerRadius: AppRadius.card))
-            .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.muted.opacity(0.2), lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - PaymentPendingSheet
-
-/// Pendant zu `_PaymentPendingDialog` — fragt den Status ab, während im Browser
-/// bezahlt wird. Meldet Erfolg, Fehlschlag und Zeitüberschreitung mit Ausweg.
-private struct PaymentPendingSheet: View {
-    enum Outcome { case paid, open }
-
-    private enum Phase: Equatable {
-        case waiting
-        case timedOut
-        case failed(String)
-    }
-
-    let invoiceNumber: String
-    let onResult:      (Outcome) -> Void
-
-    @Environment(\.dismiss)    private var dismiss
-    @Environment(\.scenePhase) private var scenePhase
-    @State private var pollTask: Task<Void, Never>? = nil
-    @State private var phase: Phase = .waiting
-    @State private var isChecking = false
-    @State private var hint: String?
-    @State private var reported = false
-
-    private static let interval: UInt64   = 3_000_000_000  // 3 s
-    private static let maxAttempts        = 120             // ~6 min
-    private static let maxNetworkErrors   = 10              // ~30 s ohne Verbindung
-
-    var body: some View {
-        NavigationStack {
-            ZStack {
-                AppColor.background.ignoresSafeArea()
-                VStack(spacing: 24) {
-                    Spacer()
-                    statusIcon
-                    VStack(spacing: 8) {
-                        Text(title)
-                            .font(.headline).foregroundStyle(AppColor.text)
-                        Text(message)
-                            .font(.callout).foregroundStyle(AppColor.muted)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 32)
-                        if let hint {
-                            Text(hint)
-                                .font(.footnote).foregroundStyle(AppColor.muted)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 32)
-                        }
-                    }
-                    Spacer()
-                    HStack(spacing: 12) {
-                        Button(phase == .waiting ? "Abbrechen" : "Schliessen") {
-                            finish(.open)
-                        }
-                        .buttonStyle(.bordered).tint(AppColor.muted)
-
-                        Button {
-                            if phase == .waiting {
-                                Task { await checkManually() }
-                            } else {
-                                startPolling()
-                            }
-                        } label: {
-                            if isChecking {
-                                ProgressView().tint(AppColor.white).scaleEffect(0.8)
-                                    .frame(width: 80)
-                            } else {
-                                Text(phase == .waiting ? "Status prüfen" : "Erneut prüfen")
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(AppColor.primary)
-                        .disabled(isChecking)
-                    }
-                    .padding(.bottom, 32)
-                }
-            }
-            .navigationTitle("Zahlung ausstehend")
-            .navigationBarTitleDisplayMode(.inline)
-        }
-        .task { startPolling() }
-        // Rückkehr aus dem Browser → sofort prüfen statt bis zum nächsten Takt zu warten
-        .onChange(of: scenePhase) { _, newPhase in
-            if newPhase == .active, phase == .waiting { Task { await checkOnce(manual: false) } }
-        }
-        .onDisappear {
-            pollTask?.cancel()
-            // Wegwischen zählt wie Schliessen — Ergebnis immer melden
-            if !reported { reported = true; onResult(.open) }
-        }
-    }
-
-    // MARK: - Darstellung
-
-    @ViewBuilder
-    private var statusIcon: some View {
-        switch phase {
-        case .waiting:
-            ProgressView().scaleEffect(1.5).tint(AppColor.primary)
-        case .timedOut:
-            Image(systemName: "clock.badge.questionmark")
-                .font(.app(40)).foregroundStyle(AppColor.muted)
-                .accessibilityHidden(true)
-        case .failed:
-            Image(systemName: "exclamationmark.triangle")
-                .font(.app(40)).foregroundStyle(AppColor.orange)
-                .accessibilityHidden(true)
-        }
-    }
-
-    private var title: String {
-        switch phase {
-        case .waiting:  return "Zahlung läuft…"
-        case .timedOut: return "Zahlung noch nicht bestätigt"
-        case .failed:   return "Zahlung nicht abgeschlossen"
-        }
-    }
-
-    private var openInvoiceHint: String {
-        "Ohne Zahlungseingang bleibt die Rechnung \(invoiceNumber) offen. Du findest sie im Profil unter Rechnungen und kannst sie dort per QR-Rechnung bezahlen."
-    }
-
-    private var message: String {
-        switch phase {
-        case .waiting:
-            return "Bitte schliesse die Zahlung im Browser ab.\nDieses Fenster schliesst automatisch, sobald die Zahlung eingegangen ist."
-        case .timedOut:
-            return "Wir haben noch keinen Zahlungseingang erhalten. Falls du bezahlt hast, prüfe den Status erneut.\n\n\(openInvoiceHint)"
-        case .failed(let reason):
-            return "\(reason)\n\n\(openInvoiceHint)"
-        }
-    }
-
-    // MARK: - Ablauf
-
-    private func startPolling() {
-        pollTask?.cancel()
-        phase = .waiting
-        hint  = nil
-        pollTask = Task { @MainActor in
-            var networkErrors = 0
-            for _ in 0..<Self.maxAttempts {
-                try? await Task.sleep(nanoseconds: Self.interval)
-                if Task.isCancelled { return }
-                do {
-                    let status = try await CreditsService.shared.checkPaymentStatus(invoiceNumber: invoiceNumber)
-                    networkErrors = 0
-                    if Task.isCancelled { return }
-                    if handle(status) { return }
-                } catch {
-                    if Task.isCancelled { return }
-                    networkErrors += 1
-                    if networkErrors >= Self.maxNetworkErrors {
-                        phase = .failed("Der Zahlungsstatus konnte nicht abgefragt werden. Bitte prüfe deine Internetverbindung.")
-                        return
-                    }
-                }
-            }
-            if !Task.isCancelled { phase = .timedOut }
-        }
-    }
-
-    /// true = Ablauf beendet (bezahlt oder fehlgeschlagen)
-    @discardableResult
-    private func handle(_ status: PaymentStatus) -> Bool {
-        switch status {
-        case .paid:
-            finish(.paid)
-            return true
-        case .failed(let reason):
-            pollTask?.cancel()
-            phase = .failed(reason)
-            return true
-        case .pending:
-            return false
-        }
-    }
-
-    private func checkManually() async {
-        isChecking = true
-        await checkOnce(manual: true)
-        isChecking = false
-    }
-
-    private func checkOnce(manual: Bool) async {
-        do {
-            let status = try await CreditsService.shared.checkPaymentStatus(invoiceNumber: invoiceNumber)
-            if !handle(status), manual { hint = "Noch kein Zahlungseingang." }
-        } catch {
-            if manual { hint = "Status konnte nicht abgefragt werden. Bitte prüfe deine Internetverbindung." }
-        }
-    }
-
-    private func finish(_ outcome: Outcome) {
-        pollTask?.cancel()
-        guard !reported else { return }
-        reported = true
-        dismiss()
-        onResult(outcome)
-    }
-}
-
-// MARK: - PendingPayment (sheet item)
-
-/// Kapselt die Invoice-Nummer für das `.sheet(item:)` Binding.
-struct PendingPayment: Identifiable {
-    let id: String   // = invoiceNumber
 }

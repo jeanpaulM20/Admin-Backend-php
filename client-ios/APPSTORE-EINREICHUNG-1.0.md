@@ -62,7 +62,7 @@ Alle folgenden Datentypen: **mit Identität verknüpft**, Zweck **App-Funktional
 | Käufe | Kaufhistorie (Lektionen-Pakete) |
 | Kennungen | Benutzer-ID, Geräte-ID (Push-Token) |
 
-Nicht erhoben: Zahlungsinformationen (Zahlung im Browser beim Zahlungsanbieter), Diagnose- und Absturzdaten, Browserverlauf, Suchverlauf, Kontakte.
+Nicht erhoben: Zahlungsinformationen (keine Zahlung in der App, Rechnung mit QR-Einzahlungsschein), Diagnose- und Absturzdaten, Browserverlauf, Suchverlauf, Kontakte.
 
 ## Altersfreigabe
 
@@ -80,7 +80,7 @@ Nicht erhoben: Zahlungsinformationen (Zahlung im Browser beim Zahlungsanbieter),
 
 SIHLMOVE is the companion app for clients of Sihl Training, a personal-training studio in Zurich, Switzerland. Accounts are created by the studio after a client signs up in person; there is no in-app registration. "Demo ansehen" on the login screen shows sample data without an account. Please use the review account provided for full access.
 
-Payments: The app sells no digital content. "Lektionen & Guthaben" are packages for one-on-one personal-training sessions that take place in person at the studio (guideline 3.1.3(e)); they are paid in the browser. Online coaching content (training plans) is arranged with the trainer outside the app and only displayed in the app.
+Payments: The app sells no digital content and processes no payments. "Lektionen & Guthaben" are packages for one-on-one personal-training sessions that take place in person at the studio (guideline 3.1.3(e)); ordering one creates an invoice with a Swiss QR payment slip, paid outside the app. Online coaching content (training plans) is arranged with the trainer outside the app and only displayed in the app.
 
 Background modes:
 - Location: recording the route and turn-by-turn guidance during an active workout only (blue indicator).

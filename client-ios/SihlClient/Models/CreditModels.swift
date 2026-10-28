@@ -92,17 +92,3 @@ struct ClientCredit: Identifiable {
         return true
     }
 }
-
-// MARK: - Online-Zahlung (Saferpay, nur Lektionen vor Ort)
-
-struct PaymentInitResult {
-    let redirectUrl:   String
-    let invoiceNumber: String
-}
-
-/// Ergebnis einer Status-Abfrage `GET /payment/status/{invoiceNumber}`.
-enum PaymentStatus: Equatable {
-    case paid
-    case pending
-    case failed(String)
-}
