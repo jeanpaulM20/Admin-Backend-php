@@ -24,7 +24,7 @@ enum KeychainStore {
     private static let existingInstallKeys = [
         "client_id", "sihl_apns_token", "libre_patient_id", "libre_email",
         "lastWorkoutActivity", "routeVoiceEnabled",
-        "hr_peripheral_uuid", "startChipPlansFirst",
+        "hr_peripheral_uuid", "hr_saved_straps", "startChipPlansFirst",
     ]
 
     /// Läuft genau einmal vor dem ersten Keychain-Zugriff. Die Keychain

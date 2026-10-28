@@ -17,8 +17,8 @@ enum HeartRateSourceState: Equatable {
     case disconnected          // Verbindung verloren (Reconnect läuft)
     case bluetoothOff
     case unauthorized
-    /// Mehrere Gurte in Reichweite, keiner gewählt — ohne Gurt aufzeichnen
-    case chooseStrap
+    /// Kein Sensor gespeichert — ohne Puls aufzeichnen (nie fremd verbinden)
+    case noSavedStrap
 
     var label: String {
         switch self {
@@ -29,7 +29,7 @@ enum HeartRateSourceState: Equatable {
         case .disconnected:      return "Verbindung verloren — verbinde neu…"
         case .bluetoothOff:      return "Bluetooth ist ausgeschaltet"
         case .unauthorized:      return "Kein Bluetooth-Zugriff (Einstellungen)"
-        case .chooseStrap:       return "Mehrere Gurte gefunden — Gurt in Profil → Sensoren wählen"
+        case .noSavedStrap:      return "Kein Sensor gespeichert — in Profil → Sensoren hinzufügen"
         }
     }
 
@@ -51,6 +51,70 @@ struct DiscoveredStrap: Identifiable, Equatable {
     var signalLabel: String { ["schwach", "mittel", "stark"][signalLevel - 1] }
 }
 
+/// Gespeicherter (vom Nutzer hinzugefügter) Herzfrequenz-Sensor.
+struct SavedStrap: Codable, Identifiable, Equatable {
+    let id: UUID
+    var name: String
+    /// Zuletzt verbunden — der jüngste wird beim Training zuerst versucht
+    var lastUsed: Date?
+}
+
+/// Liste der gespeicherten Sensoren (geräteweit, nicht je Konto: der Gurt
+/// gehört zum Gerät der Person). Nur mit diesen verbindet sich die App
+/// automatisch — im Studio liegen oft fremde Gurte in Reichweite.
+enum SavedStraps {
+    private static let key = "hr_saved_straps"
+    /// Vorgänger: ein einzelner gemerkter Gurt
+    private static let legacyIdKey = "hr_peripheral_uuid"
+    private static let legacyNameKey = "hr_peripheral_name"
+
+    /// Jüngst verbundener zuerst.
+    static var all: [SavedStrap] {
+        let ud = UserDefaults.standard
+        if let data = ud.data(forKey: key),
+           let list = try? JSONDecoder().decode([SavedStrap].self, from: data) {
+            return list.sorted { ($0.lastUsed ?? .distantPast) > ($1.lastUsed ?? .distantPast) }
+        }
+        // Einmalige Übernahme des bisher gemerkten Gurts
+        if let raw = ud.string(forKey: legacyIdKey), let id = UUID(uuidString: raw) {
+            let list = [SavedStrap(id: id, name: ud.string(forKey: legacyNameKey) ?? "Herzfrequenz-Gurt", lastUsed: nil)]
+            save(list)
+            ud.removeObject(forKey: legacyIdKey)
+            ud.removeObject(forKey: legacyNameKey)
+            return list
+        }
+        return []
+    }
+
+    static var ids: Set<UUID> { Set(all.map(\.id)) }
+    static func contains(_ id: UUID) -> Bool { all.contains { $0.id == id } }
+
+    static func add(id: UUID, name: String) {
+        var list = all.filter { $0.id != id }
+        list.insert(SavedStrap(id: id, name: name, lastUsed: Date()), at: 0)
+        save(list)
+    }
+
+    static func remove(_ id: UUID) {
+        save(all.filter { $0.id != id })
+    }
+
+    /// Verbindung hergestellt: als zuletzt genutzt markieren, Namen nachführen.
+    static func touch(_ id: UUID, name: String?) {
+        var list = all
+        guard let i = list.firstIndex(where: { $0.id == id }) else { return }
+        list[i].lastUsed = Date()
+        if let name, !name.isEmpty { list[i].name = name }
+        save(list)
+    }
+
+    private static func save(_ list: [SavedStrap]) {
+        if let data = try? JSONEncoder().encode(list) {
+            UserDefaults.standard.set(data, forKey: key)
+        }
+    }
+}
+
 /// Quelle für Herzfrequenz-Daten — echter BLE-Gurt oder Simulation (Demo/Simulator).
 @MainActor
 protocol HeartRateSource: AnyObject {
@@ -66,24 +130,16 @@ protocol HeartRateSource: AnyObject {
 /// (0x180D / Characteristic 0x2A37) sprechen — Polar H10, Garmin, Wahoo etc.
 /// Kein Polar-SDK nötig.
 ///
-/// Gemerkt wird ein Gurt nur nach ausdrücklicher Wahl in Profil → Sensoren
-/// (`startDiscovery()` + `select(_:)`) — im Studio liegen oft fremde Gurte in
-/// Reichweite. Beim Training (`start()`) wird nur der gemerkte Gurt
-/// verbunden; ohne gemerkten Gurt nur dann automatisch, wenn genau einer in
-/// Reichweite ist (ohne ihn zu merken), sonst wird ohne Gurt aufgezeichnet.
+/// Sensoren werden nur nach ausdrücklichem Hinzufügen in Profil → Sensoren
+/// gespeichert (`startDiscovery()` + `add(_:)`). Beim Training (`start()`)
+/// verbindet sich die App AUSSCHLIESSLICH mit gespeicherten Sensoren, der
+/// zuletzt genutzte zuerst; ohne gespeicherten Sensor wird ohne Puls
+/// aufgezeichnet — nie mit einem fremden Gurt in Reichweite.
 final class BleHeartRateSource: NSObject, HeartRateSource {
     private static let hrService        = CBUUID(string: "180D")
     private static let hrMeasurement    = CBUUID(string: "2A37")
-    private nonisolated static let rememberedKey    = "hr_peripheral_uuid"
-    private nonisolated static let rememberedNameKey = "hr_peripheral_name"
-
-    /// Gemerkter (gewählter) Gurt.
-    nonisolated static var rememberedId: UUID? {
-        UserDefaults.standard.string(forKey: rememberedKey).flatMap(UUID.init(uuidString:))
-    }
-    nonisolated static var rememberedName: String? {
-        UserDefaults.standard.string(forKey: rememberedNameKey)
-    }
+    /// Name des aktuell verbundenen Sensors (für die Anzeige).
+    private(set) var connectedId: UUID?
 
     var onSample: ((Int) -> Void)?
     var onStateChange: ((HeartRateSourceState) -> Void)?
@@ -99,34 +155,35 @@ final class BleHeartRateSource: NSObject, HeartRateSource {
     /// Gefundene Gurte (Kennung → Gerät + Anzeige)
     private var found: [UUID: (peripheral: CBPeripheral, strap: DiscoveredStrap)] = [:]
     private var lastPublish = Date.distantPast
-    /// Entscheid ohne gemerkten Gurt: erst nach kurzem Suchfenster, damit ein
-    /// zweiter Gurt in Reichweite sicher mitgezählt wird
-    private var autoPick: DispatchWorkItem?
-    private static let autoPickWindow: Double = 4
     /// Wächter für den Direktverbindungsversuch zum gemerkten Gurt:
     /// CBCentralManager.connect hat KEIN Timeout — liegt der Gurt in der
     /// Schublade, bliebe der Zustand sonst ewig auf „Verbinde…".
     private var connectTimeout: DispatchWorkItem?
     private static let connectTimeoutSeconds: Double = 10
 
-    /// Aufzeichnung: nur gemerkter Gurt (bzw. genau einer in Reichweite).
+    /// Aufzeichnung: nur gespeicherte Sensoren.
     func start() {
         mode = .recording
+        guard !SavedStraps.all.isEmpty else {
+            // Nichts zu verbinden — Bluetooth gar nicht erst suchen lassen
+            stopped = true
+            emit(.noSavedStrap)
+            return
+        }
         startCentral()
     }
 
-    /// Sensor-Einstellungen: alle Gurte in Reichweite auflisten; der gemerkte
-    /// wird verbunden, um den Puls zu zeigen.
+    /// Sensor-Einstellungen: gespeicherte Sensoren verbinden (Puls zeigen)
+    /// und alle Gurte in Reichweite auflisten, um neue hinzuzufügen.
     func startDiscovery() {
         mode = .discovery
         startCentral()
     }
 
-    /// Gurt aus der Suchliste wählen: merken und verbinden.
-    func select(_ id: UUID) {
+    /// Gefundenen Gurt als Sensor hinzufügen und verbinden.
+    func add(_ id: UUID) {
         guard let entry = found[id] else { return }
-        UserDefaults.standard.set(id.uuidString, forKey: Self.rememberedKey)
-        UserDefaults.standard.set(entry.strap.name, forKey: Self.rememberedNameKey)
+        SavedStraps.add(id: id, name: entry.strap.name)
         if let p = peripheral, p.identifier != id {
             central?.cancelPeripheralConnection(p)
             peripheral = nil
@@ -135,24 +192,26 @@ final class BleHeartRateSource: NSObject, HeartRateSource {
         publishStraps(force: true)
     }
 
-    /// Gemerkten Gurt vergessen und trennen.
-    func forget() {
-        UserDefaults.standard.removeObject(forKey: Self.rememberedKey)
-        UserDefaults.standard.removeObject(forKey: Self.rememberedNameKey)
-        connectTimeout?.cancel(); connectTimeout = nil
-        if let p = peripheral { central?.cancelPeripheralConnection(p) }
-        peripheral = nil
-        emit(mode == .discovery ? .scanning : .idle)
+    /// Gespeicherten Sensor entfernen; ist er verbunden, trennen.
+    func remove(_ id: UUID) {
+        SavedStraps.remove(id)
+        if let p = peripheral, p.identifier == id {
+            connectTimeout?.cancel(); connectTimeout = nil
+            central?.cancelPeripheralConnection(p)
+            peripheral = nil
+            connectedId = nil
+            emit(mode == .discovery ? .scanning : .idle)
+        }
         publishStraps(force: true)
     }
 
     func stop() {
         stopped = true
         connectTimeout?.cancel(); connectTimeout = nil
-        autoPick?.cancel(); autoPick = nil
         central?.stopScan()
         if let p = peripheral { central?.cancelPeripheralConnection(p) }
         peripheral = nil
+        connectedId = nil
         found = [:]
         emit(.idle)
     }
@@ -172,19 +231,20 @@ final class BleHeartRateSource: NSObject, HeartRateSource {
 
     private func beginScanOrReconnect() {
         guard let central, central.state == .poweredOn, !stopped else { return }
-        // Bekannten Gurt direkt verbinden (schneller als Scan)
-        if let uuid = Self.rememberedId,
-           let known = central.retrievePeripherals(withIdentifiers: [uuid]).first {
+        // Zuletzt genutzten gespeicherten Sensor direkt verbinden (schneller
+        // als Scan); die übrigen gespeicherten findet die Suche
+        if let latest = SavedStraps.all.first,
+           let known = central.retrievePeripherals(withIdentifiers: [latest.id]).first {
             connect(known)
-            // In der Suche trotzdem weiter auflisten (Gurt wechseln)
+            // In der Suche trotzdem weiter auflisten (Sensor hinzufügen)
             if mode == .discovery { scan() }
             return
         }
         scan()
     }
 
-    /// Suche starten. Aufzeichnung ohne gemerkten Gurt: nach dem Suchfenster
-    /// entscheiden (genau einer → verbinden, mehrere → ohne Gurt + Hinweis).
+    /// Suche starten. In der Aufzeichnung wird jeder Fund verworfen, der
+    /// kein gespeicherter Sensor ist.
     private func scan() {
         guard let central else { return }
         found = [:]
@@ -192,30 +252,6 @@ final class BleHeartRateSource: NSObject, HeartRateSource {
         // Doppelte Meldungen nur in der Suche (laufende Signalstärke)
         central.scanForPeripherals(withServices: [Self.hrService],
                                    options: [CBCentralManagerScanOptionAllowDuplicatesKey: mode == .discovery])
-        if mode == .recording, Self.rememberedId == nil { armAutoPick(after: Self.autoPickWindow) }
-    }
-
-    private func armAutoPick(after seconds: Double) {
-        autoPick?.cancel()
-        let work = DispatchWorkItem { [weak self] in self?.evaluateAutoPick() }
-        autoPick = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: work)
-    }
-
-    private func evaluateAutoPick() {
-        autoPick = nil
-        guard !stopped, mode == .recording, Self.rememberedId == nil, peripheral == nil else { return }
-        switch found.count {
-        case 0:
-            break   // weiter suchen; der erste Fund startet ein neues Fenster
-        case 1:
-            central?.stopScan()
-            if let only = found.values.first { connect(only.peripheral) }
-        default:
-            // Nicht raten, welcher Gurt der eigene ist
-            central?.stopScan()
-            emit(.chooseStrap)
-        }
     }
 
     private func connect(_ p: CBPeripheral) {
@@ -272,21 +308,17 @@ extension BleHeartRateSource: CBCentralManagerDelegate {
             ?? "Herzfrequenz-Gurt"
         found[id] = (peripheral, DiscoveredStrap(id: id, name: name, rssi: rssi))
 
+        let saved = SavedStraps.contains(id)
         switch mode {
         case .discovery:
             publishStraps(force: isNew)
-            // Gemerkter Gurt taucht auf (nicht direkt abrufbar gewesen)
-            if id == Self.rememberedId, self.peripheral == nil { connect(peripheral) }
+            // Gespeicherter Sensor taucht auf (nicht direkt abrufbar gewesen)
+            if saved, self.peripheral == nil { connect(peripheral) }
         case .recording:
-            if let remembered = Self.rememberedId {
-                // Nur der gewählte Gurt — fremde Gurte ignorieren
-                guard id == remembered, self.peripheral == nil else { return }
-                central.stopScan()
-                connect(peripheral)
-            } else if isNew, autoPick == nil, self.peripheral == nil {
-                // Fund nach leerem Suchfenster: kurz weitersuchen, dann entscheiden
-                armAutoPick(after: 3)
-            }
+            // Nur gespeicherte Sensoren — fremde Gurte ignorieren
+            guard saved, self.peripheral == nil else { return }
+            central.stopScan()
+            connect(peripheral)
         }
     }
 
@@ -329,7 +361,10 @@ extension BleHeartRateSource: CBPeripheralDelegate {
                     didDiscoverCharacteristicsFor service: CBService, error: Error?) {
         guard let char = service.characteristics?.first(where: { $0.uuid == Self.hrMeasurement }) else { return }
         peripheral.setNotifyValue(true, for: char)
+        connectedId = peripheral.identifier
+        SavedStraps.touch(peripheral.identifier, name: peripheral.name)
         emit(.connected(peripheral.name ?? "Herzfrequenz-Gurt"))
+        publishStraps(force: true)
     }
 
     func peripheral(_ peripheral: CBPeripheral,

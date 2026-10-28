@@ -20,6 +20,10 @@ struct ProfileView: View {
     @State private var previewURL: URL?
     @State private var openingFileId: String?
 
+    /// Gespeicherte Herzfrequenz-Sensoren (beim Erscheinen nachgeführt,
+    /// z. B. nach Rückkehr aus Profil → Sensoren)
+    @State private var savedStraps: [SavedStrap] = SavedStraps.all
+
     // Push Notifications
     @State private var pushEnabled  = false
     @State private var pushLoading  = false
@@ -49,6 +53,7 @@ struct ProfileView: View {
         }
         .navigationTitle("Profil")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { savedStraps = SavedStraps.all }
         .task {
             if vm.data == nil, let id = auth.clientId {
                 await vm.load(clientId: id)
@@ -262,8 +267,17 @@ struct ProfileView: View {
 
     private var sensorsRow: some View {
         NavRow(icon: "sensor.tag.radiowaves.forward", tint: AppColor.primary,
-               title: "Sensoren", subtitle: "Herzfrequenz-Gurt und Standort") {
+               title: "Sensoren", subtitle: sensorsSubtitle) {
             SensorSettingsView()
+        }
+    }
+
+    /// Gespeicherter Sensor auf einen Blick
+    private var sensorsSubtitle: String {
+        switch savedStraps.count {
+        case 0:  return "Kein Herzfrequenz-Sensor gespeichert"
+        case 1:  return "\(savedStraps[0].name) gespeichert"
+        default: return "\(savedStraps[0].name) und \(savedStraps.count - 1) weitere"
         }
     }
 
@@ -334,7 +348,7 @@ struct ProfileView: View {
         SectionDisclosure(
             icon: "link",
             title: "Verbindungen",
-            subtitle: vm.polarConnected ? "Polar verbunden" : nil
+            subtitle: connectionsSubtitle
         ) {
             PolarCard(
                 available: vm.polarAvailable,
@@ -365,7 +379,68 @@ struct ProfileView: View {
                     }
                 }
             )
+
+            Divider().overlay(AppColor.border)
+                .padding(.vertical, ProfileGrid.itemVertical)
+
+            // Herzfrequenz-Sensoren: gespeicherte sichtbar, neue hinzufügen
+            ForEach(savedStraps) { strap in
+                HStack(spacing: ProfileGrid.gap) {
+                    ProfileIconTile(icon: "heart.fill", tint: AppColor.red)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(strap.name)
+                            .font(.app(15, weight: .bold))
+                            .foregroundStyle(AppColor.text)
+                            .lineLimit(1)
+                        Text(strap.lastUsed.map {
+                            "Gespeichert · zuletzt verbunden \($0.formatted(.relative(presentation: .named)))"
+                        } ?? "Gespeichert · verbindet sich beim Training")
+                            .font(.app(12))
+                            .foregroundStyle(AppColor.muted)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.vertical, ProfileGrid.itemVertical)
+                .accessibilityElement(children: .combine)
+            }
+            if savedStraps.isEmpty {
+                HStack(spacing: ProfileGrid.gap) {
+                    ProfileIconTile(icon: "heart", tint: AppColor.muted)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Herzfrequenz-Sensor")
+                            .font(.app(15, weight: .bold))
+                            .foregroundStyle(AppColor.text)
+                        Text("Kein Sensor gespeichert")
+                            .font(.app(12))
+                            .foregroundStyle(AppColor.muted)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.vertical, ProfileGrid.itemVertical)
+            }
+            NavigationLink {
+                SensorSettingsView()
+            } label: {
+                Label(savedStraps.isEmpty ? "Sensor hinzufügen" : "Sensoren verwalten",
+                      systemImage: savedStraps.isEmpty ? "plus" : "slider.horizontal.3")
+                    .font(.app(14, weight: .semibold))
+                    .lineLimit(1)
+                    .foregroundStyle(AppColor.primary)
+                    .frame(maxWidth: .infinity, minHeight: ProfileGrid.control)
+                    .background(AppColor.primary.opacity(0.14))
+                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.control))
+            }
+            .buttonStyle(.plain)
+            .padding(.top, ProfileGrid.itemVertical)
         }
+    }
+
+    /// Kurzstatus der Verbindungen: Polar und gespeicherter Sensor
+    private var connectionsSubtitle: String {
+        var parts: [String] = []
+        if vm.polarConnected { parts.append("Polar verbunden") }
+        if let first = savedStraps.first { parts.append(first.name) }
+        return parts.isEmpty ? "Polar und Herzfrequenz-Sensor" : parts.joined(separator: " · ")
     }
 
     // MARK: - Notifications

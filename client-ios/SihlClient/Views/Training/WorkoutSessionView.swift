@@ -58,10 +58,10 @@ struct WorkoutSessionView: View {
         .onChange(of: recorder.phase) { _, phase in
             if phase == .finished { RouteVoice.shared.stop() }
         }
-        // Mehrere Gurte in Reichweite, keiner gewählt: ohne Gurt weiter
+        // Kein Sensor gespeichert: ohne Puls weiter, Hinweis wo man ihn hinzufügt
         .onChange(of: recorder.hrState) { _, state in
-            if state == .chooseStrap {
-                routeToast = AppToast(message: "Mehrere Gurte gefunden — Gurt in Profil → Sensoren wählen",
+            if state == .noSavedStrap {
+                routeToast = AppToast(message: "Ohne Puls — Sensor in Profil → Sensoren hinzufügen",
                                       style: .neutral)
             }
         }
