@@ -1,6 +1,5 @@
 import { Injectable, OnApplicationBootstrap, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import * as mysql2 from 'mysql2/promise';
 
 /**
  * Runs safe ALTER TABLE statements on startup to add missing columns.
@@ -474,11 +473,8 @@ export class StartupMigrationService implements OnApplicationBootstrap {
     // Ensure online-coaching subscription packages (kind='coaching')
     await this.ensureCoachingPackages();
 
-    // Sync trainer-client assignments from old PHP database
+    // Ensure every active client has a trainer assigned
     await this.syncTrainerClients();
-
-    // Copy missing file records from old PHP database
-    await this.copyMissingFiles();
   }
 
   /**
@@ -771,74 +767,11 @@ export class StartupMigrationService implements OnApplicationBootstrap {
   }
 
   /**
-   * Ensures every active client has at least one trainer assigned.
-   * 1) Syncs trainer_client from the old PHP DB (if reachable).
-   * 2) Fallback: infers assignments from training history for clients
-   *    that still have zero trainers assigned.
+   * Ensures every active client has at least one trainer assigned by
+   * inferring assignments from training history for clients that still
+   * have zero trainers assigned.
    */
   private async syncTrainerClients() {
-    // ── Step 1: sync from old PHP DB ──────────────────────────────
-    let oldConn: mysql2.Connection | null = null;
-    try {
-      oldConn = await mysql2.createConnection({
-        host: 'sihltrai.mysql.db.internal',
-        user: 'sihltrai_admin',
-        password: 'sihltrai_admin',
-        database: 'sihltrai_admin',
-        connectTimeout: 5000,
-      });
-
-      const [oldRows]: any = await oldConn.execute(
-        'SELECT trainer_id, client_id FROM trainer_client',
-      );
-
-      const [existingRows]: any = await this.dataSource.query(
-        'SELECT trainer_id, client_id FROM trainer_client',
-      );
-      const existingSet = new Set(
-        existingRows.map((r: any) => `${r.trainer_id}:${r.client_id}`),
-      );
-
-      let inserted = 0;
-      for (const row of oldRows) {
-        const key = `${row.trainer_id}:${row.client_id}`;
-        if (existingSet.has(key)) continue;
-
-        try {
-          await this.dataSource.query(
-            'INSERT INTO trainer_client (trainer_id, client_id) VALUES (?, ?)',
-            [row.trainer_id, row.client_id],
-          );
-          inserted++;
-        } catch (err: any) {
-          if (err?.errno !== 1062) {
-            this.logger.warn(`Failed to sync trainer_client ${row.trainer_id}→${row.client_id}: ${err.message}`);
-          }
-        }
-      }
-
-      if (inserted > 0) {
-        this.logger.log(`Synced ${inserted} trainer_client assignments from old DB`);
-      } else {
-        this.logger.log('All trainer_client assignments already present');
-      }
-    } catch (err: any) {
-      if (
-        err.code === 'ENOTFOUND' ||
-        err.code === 'ECONNREFUSED' ||
-        err.code === 'ETIMEDOUT'
-      ) {
-        this.logger.log('Old PHP DB not reachable, skipping trainer_client sync');
-      } else {
-        this.logger.warn(`Trainer_client sync error: ${err.message}`);
-      }
-    } finally {
-      if (oldConn) {
-        try { await oldConn.end(); } catch (_) {}
-      }
-    }
-
-    // ── Step 2: infer from training history ───────────────────────
     // For any active client with zero trainers, assign trainers they
     // have trained with (based on the training table).
     try {
@@ -889,81 +822,6 @@ export class StartupMigrationService implements OnApplicationBootstrap {
       }
     } catch (err: any) {
       this.logger.warn(`Trainer_client inference error: ${err.message}`);
-    }
-  }
-
-  /**
-   * Copies file records that are in the old PHP DB but missing in Railway.
-   * Only runs when the old DB is reachable (i.e. inside Railway network).
-   */
-  private async copyMissingFiles() {
-    let oldConn: mysql2.Connection | null = null;
-    try {
-      oldConn = await mysql2.createConnection({
-        host: 'sihltrai.mysql.db.internal',
-        user: 'sihltrai_admin',
-        password: 'sihltrai_admin',
-        database: 'sihltrai_admin',
-        connectTimeout: 5000,
-      });
-
-      // Find IDs that exist in old DB but not in Railway
-      const [oldRows]: any = await oldConn.execute(
-        'SELECT id, name, date, file, client_id FROM file ORDER BY id',
-      );
-
-      const [existingRows]: any = await this.dataSource.query(
-        'SELECT id FROM file',
-      );
-      const existingIds = new Set(existingRows.map((r: any) => r.id));
-
-      let inserted = 0;
-      for (const row of oldRows) {
-        if (existingIds.has(row.id)) continue;
-
-        // Fix invalid dates (0000-00-00 00:00:00)
-        let dateVal = row.date;
-        if (
-          dateVal &&
-          (dateVal.toString().startsWith('0000') ||
-            dateVal.toString() === 'Invalid Date')
-        ) {
-          dateVal = null;
-        }
-
-        try {
-          await this.dataSource.query(
-            'INSERT INTO file (id, name, date, file, client_id) VALUES (?, ?, ?, ?, ?)',
-            [row.id, row.name, dateVal, row.file, row.client_id],
-          );
-          inserted++;
-        } catch (err: any) {
-          this.logger.warn(`Failed to copy file ${row.id}: ${err.message}`);
-        }
-      }
-
-      if (inserted > 0) {
-        this.logger.log(`Copied ${inserted} missing file records from old DB`);
-      } else {
-        this.logger.log('All file records already present');
-      }
-    } catch (err: any) {
-      // Old DB not reachable (e.g. running locally) — skip silently
-      if (
-        err.code === 'ENOTFOUND' ||
-        err.code === 'ECONNREFUSED' ||
-        err.code === 'ETIMEDOUT'
-      ) {
-        this.logger.log('Old PHP DB not reachable, skipping file sync');
-      } else {
-        this.logger.warn(`File sync error: ${err.message}`);
-      }
-    } finally {
-      if (oldConn) {
-        try {
-          await oldConn.end();
-        } catch (_) {}
-      }
     }
   }
 
