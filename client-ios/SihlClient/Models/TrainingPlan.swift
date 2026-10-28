@@ -2,51 +2,23 @@ import Foundation
 
 // MARK: - SubscriptionStatus
 
+/// Online-Coaching-Status — in der App nur zur Info (kein Kauf, App-Store 3.1.1).
 /// Pendant zu `models/subscription.dart`.
 struct SubscriptionStatus {
     let active:       Bool
-    let tier:         String?   // 'trial' | 'monthly' | 'yearly'
-    let validFrom:    String?
-    let validTo:      String?
-    let daysLeft:     Int?
-    let isTrial:      Bool
-    let trialUsed:    Bool
-    let canStartTrial: Bool
+    let validTo:      String?   // "yyyy-MM-dd"
     let expiringSoon: Bool
 
-    init(
-        active: Bool = false, tier: String? = nil,
-        validFrom: String? = nil, validTo: String? = nil, daysLeft: Int? = nil,
-        isTrial: Bool = false, trialUsed: Bool = false,
-        canStartTrial: Bool = false, expiringSoon: Bool = false
-    ) {
-        self.active       = active;  self.tier         = tier
-        self.validFrom    = validFrom; self.validTo      = validTo
-        self.daysLeft     = daysLeft; self.isTrial       = isTrial
-        self.trialUsed    = trialUsed; self.canStartTrial = canStartTrial
+    init(active: Bool = false, validTo: String? = nil, expiringSoon: Bool = false) {
+        self.active       = active
+        self.validTo      = validTo
         self.expiringSoon = expiringSoon
     }
 
     init(json: [String: Any]) {
         self.active       = json["active"]       as? Bool ?? false
-        self.tier         = json["tier"]         as? String
-        self.validFrom    = json["validFrom"]     as? String
-        self.validTo      = json["validTo"]       as? String
-        let raw           = json["daysLeft"]
-        self.daysLeft     = (raw as? Int) ?? (raw as? String).flatMap(Int.init)
-        self.isTrial      = json["isTrial"]      as? Bool ?? false
-        self.trialUsed    = json["trialUsed"]    as? Bool ?? false
-        self.canStartTrial = json["canStartTrial"] as? Bool ?? false
+        self.validTo      = json["validTo"]      as? String
         self.expiringSoon = json["expiringSoon"] as? Bool ?? false
-    }
-
-    var tierLabel: String {
-        switch tier {
-        case "trial":   return "Test-Abo"
-        case "yearly":  return "Jahres-Abo"
-        case "monthly": return "Monats-Abo"
-        default:        return "Online Coaching"
-        }
     }
 }
 

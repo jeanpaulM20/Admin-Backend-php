@@ -31,7 +31,7 @@ struct TrainingReviewDetailView: View {
             AppColor.background.ignoresSafeArea()
             ScrollView {
                 VStack(spacing: 20) {
-                    // ── Stat-Karten (Max HF | Avg HF | Training Load) ──────────
+                    // ── Stat-Karten (Max HF | Ø HF | Trainingsbelastung) ──────
                     statRow
 
                     // ── Outdoor-Stats (nur mit GPS-Daten) ─────────────────────
@@ -67,8 +67,9 @@ struct TrainingReviewDetailView: View {
             }
         }
         .task {
-            // Track nur für App-Aufzeichnungen abfragen; leer = keine Karte
-            guard let clientId = auth.clientId else { return }
+            // Track nur für App-Aufzeichnungen abfragen; leer = keine Karte.
+            // Demo-Modus: keine echten Requests
+            guard !isDemo, let clientId = auth.clientId else { return }
             track = (try? await PerformanceService.shared.getTrack(
                 clientId: clientId, reviewId: review.id)) ?? []
             await loadPhoto()
@@ -103,7 +104,7 @@ struct TrainingReviewDetailView: View {
             StatCard(label: "Max HF",
                      value: review.hrMax.map { "\($0)" } ?? "-",
                      unit: "bpm", color: .red)
-            StatCard(label: "Avg HF",
+            StatCard(label: "Ø HF",
                      value: review.hrAvg.map { "\($0)" } ?? "-",
                      unit: "bpm", color: AppColor.primary)
             TrainingLoadCard(trimp: review.edwardsTrimp)
@@ -412,7 +413,7 @@ private struct TrainingLoadCard: View {
             Text(value)
                 .font(.app(18, weight: .black))
                 .foregroundStyle(color)
-            Text("Load")
+            Text("Belastung")
                 .font(.caption2).foregroundStyle(AppColor.muted)
             if !rating.isEmpty {
                 Text(rating)
@@ -420,7 +421,7 @@ private struct TrainingLoadCard: View {
             } else {
                 Spacer(minLength: 14)
             }
-            Text("Training Load")
+            Text("Trainingsbelastung")
                 .font(.caption2).foregroundStyle(AppColor.muted)
         }
         .frame(maxWidth: .infinity)
@@ -484,7 +485,7 @@ struct HrLineChart: View {
 
         // Uhrzeit-Labels bei 0 / 25 / 50 / 75 / 100 % der Kurve — auf die
         // tatsächlich geplotteten (gesampelten) Indizes gesnappt, sonst läge
-        // das Endlabel außerhalb der Daten-Domain und würde nicht gerendert.
+        // das Endlabel ausserhalb der Daten-Domain und würde nicht gerendert.
         let idxs = sampled.map(\.index)
         if idxs.count >= 2 {
             let n = idxs.count
@@ -622,7 +623,7 @@ struct HrLineChart: View {
 
 // MARK: - FullscreenHrChart Sheet
 
-/// Großer HR-Chart in einem Sheet (Ersatz für Flutter's Landscape-Vollbildmodus).
+/// Grosser HR-Chart in einem Sheet (Ersatz für Flutter's Landscape-Vollbildmodus).
 private struct FullscreenHrChart: View {
     let review: TrainingReview
     @Environment(\.dismiss) private var dismiss
@@ -637,7 +638,7 @@ private struct FullscreenHrChart: View {
                             chipStat("Max", "\(max) bpm", .red)
                         }
                         if let avg = review.hrAvg {
-                            chipStat("Avg", "\(avg) bpm", AppColor.primary)
+                            chipStat("Ø", "\(avg) bpm", AppColor.primary)
                         }
                         if let dur = review.duration {
                             chipStat("Dauer", dur, AppColor.muted)

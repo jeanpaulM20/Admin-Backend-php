@@ -9,7 +9,7 @@ struct TrainingType: Identifiable {
     var durationMinutes: Int { duration / 60 }
 
     init(json: [String: Any]) {
-        self.id       = "\(json["id"] ?? "")"
+        self.id       = jsonID(json["id"]) ?? ""
         self.name     = (json["name"] as? String) ?? ""
         self.duration = Int("\(json["duration"] ?? 3600)") ?? 3600
     }

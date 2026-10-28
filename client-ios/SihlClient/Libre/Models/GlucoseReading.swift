@@ -32,11 +32,23 @@ struct GlucoseReading: Codable, Identifiable {
         case isHigh, isLow
     }
 
+    /// Umrechnungsfaktor mg/dL → mmol/L (Glukose)
+    static let mgDlPerMmol = 18.0182
+
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = UUID()
-        valueMmol = (try? c.decode(Double.self, forKey: .valueMmol)) ?? 0
-        valueMgDl = (try? c.decode(Int.self, forKey: .valueMgDl)) ?? 0
+        // `ValueInMgPerDl` ist immer mg/dL; `Value` folgt der Einheit des
+        // Libre-Kontos (mg/dL ODER mmol/L) — daher mmol/L selbst berechnen
+        let mgDl = (try? c.decode(Double.self, forKey: .valueMgDl))
+            ?? (try? c.decode(Int.self, forKey: .valueMgDl)).map(Double.init)
+            ?? 0
+        valueMgDl = Int(mgDl.rounded())
+        if mgDl > 0 {
+            valueMmol = mgDl / Self.mgDlPerMmol
+        } else {
+            valueMmol = (try? c.decode(Double.self, forKey: .valueMmol)) ?? 0
+        }
         trendArrow = (try? c.decode(Int.self, forKey: .trendArrow)) ?? 4
         isHigh = (try? c.decode(Bool.self, forKey: .isHigh)) ?? false
         isLow  = (try? c.decode(Bool.self, forKey: .isLow))  ?? false

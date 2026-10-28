@@ -12,6 +12,7 @@ enum TourFormat {
 
     /// Kurze Bahnen metergenau, Routen in Kilometern.
     static func distance(_ km: Double) -> String {
-        km < 1 ? "\(Int((km * 1000).rounded())) m" : String(format: "%.1f km", km)
+        guard km.isFinite else { return "–" }
+        return km < 1 ? "\(Int((km * 1000).rounded())) m" : String(format: "%.1f km", km)
     }
 }

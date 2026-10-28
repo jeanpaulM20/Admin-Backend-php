@@ -22,7 +22,8 @@ struct ChatView: View {
                 ProgressView().tint(AppColor.primary)
             } else if let e = chat.error {
                 ErrorStateView(message: e) {
-                    Task { await chat.fetchConversations(clientId: auth.clientId ?? "") }
+                    guard let clientId = realClientId else { return }
+                    Task { await chat.fetchConversations(clientId: clientId) }
                 }
             } else if chat.conversations.isEmpty {
                 EmptyStateView(
@@ -40,9 +41,11 @@ struct ChatView: View {
             thread(for: conv)
         }
         .task {
+            // Demo/ohne Session: keine Requests ohne Token
+            guard let clientId = realClientId else { return }
             // Beim ersten Erscheinen laden; beim Tab-Wechsel wird .task nicht erneut ausgelöst
             if chat.conversations.isEmpty {
-                await chat.fetchConversations(clientId: auth.clientId ?? "")
+                await chat.fetchConversations(clientId: clientId)
             }
             // Bei genau einer Konversation direkt den Thread öffnen (wie Flutter)
             if !didAutoOpen, chat.conversations.count == 1, let only = chat.conversations.first {
@@ -51,8 +54,15 @@ struct ChatView: View {
             }
         }
         .refreshable {
-            await chat.fetchConversations(clientId: auth.clientId ?? "")
+            guard let clientId = realClientId else { return }
+            await chat.fetchConversations(clientId: clientId)
         }
+    }
+
+    /// Client-ID einer echten Session (nicht Demo, nicht leer).
+    private var realClientId: String? {
+        guard let id = auth.clientId, !id.isEmpty, id != "demo" else { return nil }
+        return id
     }
 
     private func thread(for conv: ChatConversation) -> some View {

@@ -46,10 +46,9 @@ func chatDateMatches(_ rawDbDate: String?, _ ddMMyyyy: String?) -> Bool {
     return raw.contains(target)
 }
 
+/// ISO 8601 mit/ohne Millisekunden, sonst Zürcher Ortszeit.
 func parseChatAPIDate(_ raw: String) -> Date? {
-    DateFormatter.chatISO8601.date(from: raw)
-        ?? DateFormatter.chatYYYYMMDDHHMMSS.date(from: raw)
-        ?? DateFormatter.chatYYYYMMDD.date(from: raw)
+    ZurichTime.parseTimestamp(raw)
 }
 
 /// Formatiert ein rohes API-Datum als "dd.MM.yyyy" (Flutter `_fmtDate`).
@@ -87,7 +86,8 @@ func nonZeroValue(_ v: Any?) -> String? {
     guard let v, !(v is NSNull) else { return nil }
     if let n = v as? NSNumber { return n.doubleValue == 0 ? nil : "\(n)" }
     let s = "\(v)"
-    if s.isEmpty || s == "0" || s == "0.0" { return nil }
+    if s.isEmpty { return nil }
+    if let d = Double(s), d == 0 { return nil }
     return s
 }
 
@@ -113,7 +113,7 @@ struct ReviewDetailSheet: View {
             } else if let review {
                 content(review)
             } else {
-                Text("Nicht gefunden").font(.callout).foregroundStyle(AppColor.muted)
+                Text("Aufzeichnung nicht gefunden").font(.callout).foregroundStyle(AppColor.muted)
             }
         }
         .presentationDetents([.fraction(0.7), .large])
@@ -124,11 +124,12 @@ struct ReviewDetailSheet: View {
     private func load() async {
         do {
             let rows = try await ChatService.shared.getReviews(clientId: clientId)
-            guard !rows.isEmpty else { isLoading = false; return }
-            // Datensatz per Datum aus dem Nachrichtentext suchen (Flutter `_dateMatches`)
-            let match = rows.first(where: { chatDateMatches($0["date"] as? String, matchDate) }) ?? rows[0]
-            rawDate = match["date"] as? String
-            review  = TrainingReview(json: match)
+            // Datensatz per Datum aus dem Nachrichtentext suchen (Flutter `_dateMatches`);
+            // ohne Treffer keine fremde Aufzeichnung zeigen
+            if let match = rows.first(where: { chatDateMatches($0["date"] as? String, matchDate) }) {
+                rawDate = match["date"] as? String
+                review  = TrainingReview(json: match)
+            }
         } catch {
             self.error = "Daten konnten nicht geladen werden"
         }
@@ -179,7 +180,7 @@ struct ReviewDetailSheet: View {
                     reviewStatCard(icon: "timer", label: "Dauer",
                                    value: r.duration ?? "--", color: AppColor.blue)
                     reviewStatCard(icon: "dumbbell.fill",
-                                   label: trimpRating.isEmpty ? "Training Load" : "Load · \(trimpRating)",
+                                   label: trimpRating.isEmpty ? "Belastung" : "Belastung · \(trimpRating)",
                                    value: trimpValue, color: trimpColor)
                 }
 
@@ -284,16 +285,18 @@ struct ReviewHrChartSection: View {
 
 // MARK: - PerformanceDetailSheet
 
-/// Pendant zu Flutter `_PerformanceDetailSheet`.
+/// Pendant zu Flutter `_PerformanceDetailSheet`: Messwerte des Tests vom
+/// Datum der Nachricht.
 struct PerformanceDetailSheet: View {
     let clientId:  String
     let matchDate: String?
 
     @State private var isLoading = true
-    @State private var test:     [String: Any]? = nil
+    @State private var test:     PerformanceTestEntry? = nil
+    @State private var error:    String? = nil
 
     private struct PerfField: Identifiable {
-        let id = UUID()
+        let id: Int
         let label: String
         let value: String
         let icon:  String
@@ -305,10 +308,12 @@ struct PerformanceDetailSheet: View {
             AppColor.surface.ignoresSafeArea()
             if isLoading {
                 ProgressView().tint(AppColor.primary)
+            } else if let error {
+                Text(error).font(.callout).foregroundStyle(AppColor.muted)
             } else if let test {
                 content(test)
             } else {
-                Text("Nicht gefunden").font(.callout).foregroundStyle(AppColor.muted)
+                Text("Test nicht gefunden").font(.callout).foregroundStyle(AppColor.muted)
             }
         }
         .presentationDetents([.fraction(0.7), .large])
@@ -318,35 +323,40 @@ struct PerformanceDetailSheet: View {
 
     private func load() async {
         do {
-            let rows = try await ChatService.shared.getPerformanceTests(clientId: clientId)
-            guard !rows.isEmpty else { isLoading = false; return }
-            test = rows.first(where: { chatDateMatches($0["date"] as? String, matchDate) }) ?? rows.last
-        } catch {}
+            let tests = try await ChatService.shared.getPerformanceTests(clientId: clientId)
+            // Nur den Test vom Datum der Nachricht zeigen
+            test = tests.first(where: { chatDateMatches($0.date, matchDate) })
+        } catch {
+            self.error = "Daten konnten nicht geladen werden"
+        }
         isLoading = false
     }
 
-    private func content(_ t: [String: Any]) -> some View {
-        let rawFields: [(label: String, raw: Any?, icon: String, color: Color)] = [
-            ("Punkte",         t["points"],                "star.fill",                  AppColor.primary),
-            ("Liegestuetz",    t["pushups"],               "dumbbell.fill",              AppColor.blue),
-            ("Klimmzuege",     t["pullups"],               "dumbbell.fill",              AppColor.green),
-            ("Unterarmstuetz", t["forearm_support"],       "timer",                      AppColor.orange),
-            ("Seitstuetz",     t["side_support"],          "timer",                      AppColor.orange),
-            ("Kniebeuge",      t["squat_on_wall"],         "figure.stand",               AppColor.blue),
-            ("Rumpfbeuge",     t["trunk_bending"],         "figure.stand",               AppColor.green),
-            ("Sensomotorik",   t["sensomotoric"],          "brain.head.profile",         AppColor.blue),
-            ("Symmetrie",      t["symmetry"],              "scalemass",                  AppColor.green),
-            ("Reaktion",       t["reaction"],              "bolt.fill",                  AppColor.orange),
-            ("CMJ",            t["counter_movement_jump"], "arrow.up",                   AppColor.red),
-            ("Tapping",        t["tapping"],               "hand.tap",                   AppColor.blue),
-            ("Sprint 10m",     t["sprint_10"],             "figure.run",                 AppColor.green),
-            ("Sprint 20m",     t["sprint_20"],             "figure.run",                 AppColor.green),
-            ("Sprint 30m",     t["sprint_30"],             "figure.run",                 AppColor.green),
-        ]
-        let fields: [PerfField] = rawFields.compactMap { entry in
-            nonZeroValue(entry.raw).map {
-                PerfField(label: entry.label, value: $0, icon: entry.icon, color: entry.color)
-            }
+    /// Icon + Farbe je Backend-Label.
+    private static func style(for label: String) -> (String, Color) {
+        switch label {
+        case "Gesamtpunkte":                         return ("star.fill", AppColor.primary)
+        case "Liegestütze", "Klimmzüge":             return ("dumbbell.fill", AppColor.blue)
+        case "Unterarmstütz", "Seitstütz", "Wandhocke": return ("timer", AppColor.orange)
+        case "Rumpfbeuge":                           return ("figure.stand", AppColor.green)
+        case "Sensomotorik":                         return ("brain.head.profile", AppColor.blue)
+        case "Symmetrie":                            return ("scalemass", AppColor.green)
+        case "Reaktion":                             return ("bolt.fill", AppColor.orange)
+        case "CMJ":                                  return ("arrow.up", AppColor.red)
+        case "Tapping":                              return ("hand.tap", AppColor.blue)
+        case let l where l.hasPrefix("Sprint"):      return ("figure.run", AppColor.green)
+        default:                                     return ("chart.bar.fill", AppColor.muted)
+        }
+    }
+
+    private func content(_ t: PerformanceTestEntry) -> some View {
+        // Gesamtpunkte zuerst, dann Backend-Reihenfolge; 0-Werte ausblenden
+        let sorted = t.values.filter { $0.label == "Gesamtpunkte" } + t.values.filter { $0.label != "Gesamtpunkte" }
+        let fields: [PerfField] = sorted.enumerated().compactMap { i, v in
+            guard let value = nonZeroValue(v.value) else { return nil }
+            let (icon, color) = Self.style(for: v.label)
+            let shown = v.unit.isEmpty ? value : "\(value) \(v.unit)"
+            return PerfField(id: i, label: v.label, value: shown, icon: icon, color: color)
         }
 
         return ScrollView {
@@ -361,14 +371,21 @@ struct PerformanceDetailSheet: View {
                             .foregroundStyle(AppColor.green)
                     }
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Performance Test")
+                        Text("Performance-Test")
                             .font(.app(18, weight: .semibold))
                             .foregroundStyle(AppColor.text)
-                        Text(fmtChatDate(t["date"] as? String))
+                        Text(fmtChatDate(t.date))
                             .font(.footnote)
                             .foregroundStyle(AppColor.muted)
                     }
                     Spacer()
+                }
+
+                if fields.isEmpty {
+                    Text("Keine Messwerte vorhanden")
+                        .font(.callout)
+                        .foregroundStyle(AppColor.muted)
+                        .frame(maxWidth: .infinity)
                 }
 
                 VStack(spacing: 8) {
@@ -440,7 +457,7 @@ struct MetricDetailSheet: View {
         let rawFields: [(label: String, raw: Any?, icon: String, color: Color)] = [
             ("Gewicht",       m["weight"] ?? m["gewicht"],            "scalemass",   AppColor.blue),
             ("BMI",           m["bmi"],                               "speedometer", AppColor.green),
-            ("Koerperfett %", m["body_fat"] ?? m["body_fat_percent"], "drop.fill",   AppColor.orange),
+            ("Körperfett %",  m["body_fat"] ?? m["body_fat_percent"], "drop.fill",   AppColor.orange),
             ("Ruhepuls",      m["calm_pulse"],                        "heart.fill",  AppColor.red),
         ]
         let fields: [MetricField] = rawFields.compactMap { entry in
@@ -460,7 +477,7 @@ struct MetricDetailSheet: View {
                             .font(.title3)
                             .foregroundStyle(AppColor.blue)
                     }
-                    Text("Koerperwerte")
+                    Text("Körperwerte")
                         .font(.app(18, weight: .semibold))
                         .foregroundStyle(AppColor.text)
                     Spacer()

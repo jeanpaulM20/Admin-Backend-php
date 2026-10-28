@@ -19,18 +19,9 @@ struct TrainingPlanService {
         return ClientTrainingPlan(json: dict)
     }
 
-    /// Aktueller Abo-Status des Clients.
+    /// Online-Coaching-Status des Clients (nur Info, z.B. Ablaufdatum).
     func getSubscription(clientId: String) async throws -> SubscriptionStatus {
         let data = try await APIClient.shared.get("api/client/subscription/\(clientId)")
-        guard let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return SubscriptionStatus()
-        }
-        return SubscriptionStatus(json: dict)
-    }
-
-    /// Einmaligen Gratis-Test-Monat aktivieren.
-    func activateTrial(clientId: String) async throws -> SubscriptionStatus {
-        let data = try await APIClient.shared.post("api/client/coaching/trial/\(clientId)")
         guard let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return SubscriptionStatus()
         }

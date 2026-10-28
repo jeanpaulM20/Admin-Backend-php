@@ -2,14 +2,17 @@ import SwiftUI
 
 // MARK: - CreditsView
 
+/// Lektionen & Guthaben für Personal Training vor Ort.
 /// Pendant zu `CreditsScreen` in Flutter `credits_screen.dart`.
-/// Wird aus dem Profil-Screen heraus via NavigationLink geöffnet.
+/// Online-Coaching-Abos werden hier bewusst nicht angeboten (App-Store 3.1.1);
+/// Lektionen vor Ort sind physische Leistungen (3.1.3(e)).
 struct CreditsView: View {
     @Environment(AuthViewModel.self)    private var auth
     @Environment(CreditsViewModel.self) private var credits
 
-    // Purchase-Flow State
-    @State private var purchasing    = false               // double-tap Guard
+    // Kauf-Ablauf
+    @State private var selectedId:   String?               // gewähltes Paket
+    @State private var purchasing    = false               // Doppeltipp-Schutz
     @State private var agbTarget:    CreditPackage?        // welches Paket → AGB-Sheet
     @State private var methodTarget: CreditPackage?        // welches Paket → Zahlungsart-Sheet
     @State private var confirmTarget: CreditPackage?       // welches Paket → Bestätigungsdialog (Bank)
@@ -18,12 +21,16 @@ struct CreditsView: View {
     @State private var nextConfirm: CreditPackage?         // Bank gewählt → nach Dismiss Bestätigung öffnen
     @State private var toast: AppToast? = nil
 
+    private var selectedPackage: CreditPackage? {
+        credits.packages.first { $0.id == selectedId } ?? credits.packages.first
+    }
+
     var body: some View {
         ZStack {
             AppColor.background.ignoresSafeArea()
 
             if credits.isLoading && credits.credits.isEmpty && credits.packages.isEmpty {
-                ProgressView("Lade Credits…").tint(AppColor.primary)
+                ProgressView("Lade Guthaben…").tint(AppColor.primary)
             } else if let e = credits.error {
                 ErrorStateView(message: e) {
                     Task { await credits.fetch(clientId: auth.clientId ?? "") }
@@ -33,7 +40,7 @@ struct CreditsView: View {
             }
         }
         .appToast($toast)
-        .navigationTitle("Credits & Abos")
+        .navigationTitle("Lektionen & Guthaben")
         .navigationBarTitleDisplayMode(.inline)
         .task {
             if credits.credits.isEmpty && credits.packages.isEmpty {
@@ -85,14 +92,17 @@ struct CreditsView: View {
         } message: { pkg in
             Text(confirmMessage(for: pkg))
         }
-        // Online-Zahlung Polling
+        // Online-Zahlung: Polling mit sauberem Abschluss
         .sheet(item: $pendingPayment) { pending in
-            PaymentPendingSheet(invoiceNumber: pending.id) { paid in
+            PaymentPendingSheet(invoiceNumber: pending.id) { outcome in
                 pendingPayment = nil
-                if paid {
-                    showToast("Zahlung erfolgreich! Abo aktiviert.", ok: true)
-                    Task { await credits.fetch(clientId: auth.clientId ?? "") }
+                switch outcome {
+                case .paid:
+                    showToast("Zahlung erfolgreich. Deine Lektionen sind gutgeschrieben.", ok: true)
+                case .open:
+                    showToast("Rechnung \(pending.id) bleibt offen. Du findest sie im Profil unter Rechnungen.", ok: false)
                 }
+                Task { await credits.fetch(clientId: auth.clientId ?? "") }
             }
         }
     }
@@ -101,32 +111,37 @@ struct CreditsView: View {
 
     private var contentList: some View {
         ScrollView {
-            LazyVStack(spacing: 12) {
+            LazyVStack(alignment: .leading, spacing: 12) {
                 SummaryCard(
                     activeCredits: credits.activeCredits,
-                    packCount:     credits.credits.count
+                    packCount:     credits.activePackCount
                 )
 
-                // Online Coaching Abos
-                let coaching = credits.packages.filter(\.isCoaching)
-                if !coaching.isEmpty {
-                    OverlineHeader(title: "ONLINE COACHING")
-                    ForEach(coaching) { pkg in
-                        PackageCard(package: pkg, purchasing: purchasing) {
-                            agbTarget = pkg
-                        }
+                if credits.packages.isEmpty {
+                    EmptyStateView(
+                        icon: "tag",
+                        message: "Zurzeit sind keine Lektionen-Pakete verfügbar."
+                    )
+                } else {
+                    VStack(alignment: .leading, spacing: 4) {
+                        OverlineHeader(title: "LEKTIONEN-PAKETE")
+                        Text("Gilt für Personal-Training-Lektionen im Studio.")
+                            .font(.app(13))
+                            .foregroundStyle(AppColor.muted)
                     }
-                }
+                    .padding(.top, 8)
 
-                // Lektionen & Pakete
-                let regular = credits.packages.filter { !$0.isCoaching }
-                if !regular.isEmpty {
-                    OverlineHeader(title: "LEKTIONEN & PAKETE")
-                    ForEach(regular) { pkg in
-                        PackageCard(package: pkg, purchasing: purchasing) {
-                            agbTarget = pkg
+                    ForEach(credits.packages) { pkg in
+                        PackageCard(
+                            package:    pkg,
+                            isSelected: pkg.id == selectedPackage?.id
+                        ) {
+                            selectedId = pkg.id
                         }
                     }
+
+                    buyButton
+                        .padding(.top, 4)
                 }
 
                 Spacer(minLength: 24)
@@ -136,13 +151,31 @@ struct CreditsView: View {
         }
     }
 
+    /// Die eine Hauptaktion des Screens (Ein-CTA-Prinzip)
+    private var buyButton: some View {
+        Button {
+            if let pkg = selectedPackage { agbTarget = pkg }
+        } label: {
+            if purchasing {
+                HStack(spacing: 8) {
+                    ProgressView().tint(AppColor.white).scaleEffect(0.8)
+                    Text("Wird verarbeitet…")
+                }
+            } else {
+                Text("Paket kaufen")
+            }
+        }
+        .buttonStyle(PrimaryButtonStyle(fill: purchasing ? AppColor.muted.opacity(0.3) : AppColor.cta))
+        .disabled(purchasing || selectedPackage == nil)
+    }
+
     // MARK: - Purchase flows
 
     /// Text des Bestätigungsdialogs: Lektionen / Gültigkeit / Preis + Zahlungsfrist-Hinweis.
     private func confirmMessage(for pkg: CreditPackage) -> String {
         var lines = [pkg.name, "", "Lektionen: \(pkg.credits)"]
         if let months = pkg.durationMonths {
-            lines.append("Gültigkeit: \(months) Monate")
+            lines.append("Gültigkeit: \(months) \(months == 1 ? "Monat" : "Monate")")
         }
         lines.append("Preis: \(pkg.priceFormattedExact)")
         lines.append("")
@@ -164,7 +197,7 @@ struct CreditsView: View {
         purchasing = false
     }
 
-    /// Online-Zahlung (Saferpay): URL in Safari öffnen, dann Polling-Sheet anzeigen.
+    /// Online-Zahlung (Saferpay): URL im Browser öffnen, dann Polling-Sheet anzeigen.
     private func startOnlinePayment(_ pkg: CreditPackage) async {
         purchasing = true
         showToast("Zahlung wird vorbereitet…", ok: true)
@@ -174,11 +207,13 @@ struct CreditsView: View {
                 packageId: Int(pkg.id) ?? 0
             )
             withAnimation { toast = nil }
-            // Safari öffnen
-            if let url = URL(string: result.redirectUrl) {
-                await UIApplication.shared.open(url)
+            guard let url = URL(string: result.redirectUrl),
+                  await UIApplication.shared.open(url) else {
+                showToast("Die Zahlungsseite konnte nicht geöffnet werden. Rechnung \(result.invoiceNumber) bleibt offen.", ok: false)
+                await credits.fetch(clientId: auth.clientId ?? "")
+                purchasing = false
+                return
             }
-            // Polling-Sheet anzeigen
             pendingPayment = PendingPayment(id: result.invoiceNumber)
         } catch {
             withAnimation { toast = nil }
@@ -212,13 +247,13 @@ private struct SummaryCard: View {
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(has
-                     ? "\(activeCredits) Credit\(activeCredits == 1 ? "" : "s") verfügbar"
-                     : "Keine aktiven Credits")
+                     ? "\(activeCredits) \(activeCredits == 1 ? "Lektion" : "Lektionen") verfügbar"
+                     : "Kein Guthaben für Lektionen")
                     .font(.headline)
                     .foregroundStyle(has ? AppColor.primary : AppColor.orange)
                 Text(has
-                     ? "Aus \(packCount) Abo\(packCount == 1 ? "" : "s")"
-                     : "Wähle ein Abo und bestelle direkt")
+                     ? "Aus \(packCount) \(packCount == 1 ? "Paket" : "Paketen") · Personal Training im Studio"
+                     : "Wähle ein Paket für dein Personal Training im Studio")
                     .font(.caption)
                     .foregroundStyle(AppColor.muted)
             }
@@ -227,17 +262,18 @@ private struct SummaryCard: View {
         .padding(AppSpacing.card)
         .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
         .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
+        .accessibilityElement(children: .combine)
     }
 }
 
 // MARK: - PackageCard
 
-/// Reduziertes TierCard-Muster (wie `CoachingPaywallView`): fixe Preisspalte links,
-/// EINE punktgetrennte Muted-Wertzeile, kein Feature-Katalog pro Karte.
+/// Auswählbare Paket-Karte: fixe Preisspalte links, EINE punktgetrennte
+/// Muted-Wertzeile, Auswahl-Indikator rechts. Gekauft wird über den einen CTA.
 private struct PackageCard: View {
     let package:    CreditPackage
-    let purchasing: Bool
-    let onBuy:      () -> Void
+    let isSelected: Bool
+    let onSelect:   () -> Void
 
     /// "N Lektionen · M Monate gültig"
     private var valueLine: String {
@@ -249,14 +285,15 @@ private struct PackageCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 0) {
+        Button(action: onSelect) {
+            HStack(alignment: .center, spacing: 0) {
                 // Preis — fixe Spalte, damit alle Paketnamen auf einer Achse starten.
                 VStack(alignment: .leading, spacing: 2) {
                     Text(package.priceFormatted)
                         .font(.app(19, weight: .heavy))
                         .foregroundStyle(AppColor.text)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                     if let pps = package.perSessionFormatted {
                         Text(pps)
                             .font(.caption)
@@ -272,7 +309,7 @@ private struct PackageCard: View {
                     Text(package.name)
                         .font(.subheadline.bold())
                         .foregroundStyle(AppColor.text)
-                    if let desc = package.description {
+                    if let desc = package.description, !desc.isEmpty {
                         Text(desc)
                             .font(.caption)
                             .foregroundStyle(AppColor.muted)
@@ -280,28 +317,28 @@ private struct PackageCard: View {
                     Text(valueLine)
                         .font(.caption)
                         .foregroundStyle(AppColor.muted)
-                        .multilineTextAlignment(.leading)
                 }
+                .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            }
 
-            // Kaufen-Button
-            Button(action: onBuy) {
-                if purchasing {
-                    HStack(spacing: 8) {
-                        ProgressView().tint(AppColor.white).scaleEffect(0.8)
-                        Text("Wird verarbeitet…")
-                    }
-                } else {
-                    Text("Abo kaufen")
-                }
+                Spacer().frame(width: 8)
+
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.app(20))
+                    .foregroundStyle(isSelected ? AppColor.primary : AppColor.border)
+                    .accessibilityHidden(true)
             }
-            .buttonStyle(PrimaryButtonStyle(fill: purchasing ? AppColor.muted.opacity(0.3) : AppColor.cta))
-            .disabled(purchasing)
+            .padding(AppSpacing.card)
+            .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
+            .overlay(
+                RoundedRectangle(cornerRadius: AppRadius.card)
+                    .stroke(isSelected ? AppColor.primary : AppColor.muted.opacity(0.15),
+                            lineWidth: isSelected ? 2 : 1)
+            )
         }
-        .padding(AppSpacing.card)
-        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
-        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -347,10 +384,11 @@ private struct AGBSheet: View {
                 // Footer: Checkbox + Button
                 VStack(spacing: 14) {
                     Divider().background(AppColor.muted.opacity(0.2))
-                    HStack(spacing: 10) {
-                        Button {
-                            withAnimation { accepted.toggle() }
-                        } label: {
+                    // Checkbox samt Text als EIN Bedienelement (grössere Trefferfläche, VoiceOver)
+                    Button {
+                        withAnimation { accepted.toggle() }
+                    } label: {
+                        HStack(spacing: 10) {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 4)
                                     .stroke(accepted ? AppColor.primary : AppColor.muted, lineWidth: 1.5)
@@ -362,10 +400,19 @@ private struct AGBSheet: View {
                                         .font(.caption.bold()).foregroundStyle(AppColor.white)
                                 }
                             }
+                            .accessibilityHidden(true)
+                            Text("Ich habe die AGB gelesen und akzeptiere diese.")
+                                .font(.callout).foregroundStyle(AppColor.text)
+                                .multilineTextAlignment(.leading)
+                            Spacer(minLength: 0)
                         }
-                        Text("Ich habe die AGB gelesen und akzeptiere diese.")
-                            .font(.callout).foregroundStyle(AppColor.text)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Ich habe die AGB gelesen und akzeptiere diese.")
+                    .accessibilityValue(accepted ? "Ausgewählt" : "Nicht ausgewählt")
+                    .accessibilityAddTraits(accepted ? [.isButton, .isSelected] : .isButton)
 
                     Button {
                         dismiss()
@@ -449,9 +496,12 @@ private struct PaymentMethodSheet: View {
             VStack(spacing: 6) {
                 Text("Zahlungsmethode wählen")
                     .font(.title3.bold()).foregroundStyle(AppColor.text)
-                Text("\(package.name) – \(package.priceFormatted)")
+                Text("\(package.name) – \(package.priceFormattedExact)")
                     .font(.callout).foregroundStyle(AppColor.muted)
+                Text("Personal-Training-Lektionen im Studio")
+                    .font(.caption).foregroundStyle(AppColor.muted)
             }
+            .multilineTextAlignment(.center)
             .padding(.vertical, 20)
 
             // Online
@@ -481,7 +531,7 @@ private struct PaymentMethodSheet: View {
             Spacer(minLength: 32)
         }
         .background(AppColor.surface)
-        .presentationDetents([.height(340)])
+        .presentationDetents([.height(360)])
         .onDisappear { if !didSelect { onSelect(nil) } }
     }
 }
@@ -523,13 +573,31 @@ private struct PaymentMethodTile: View {
 
 // MARK: - PaymentPendingSheet
 
-/// Pendant zu `_PaymentPendingDialog` — polling während der User in Safari bezahlt.
+/// Pendant zu `_PaymentPendingDialog` — fragt den Status ab, während im Browser
+/// bezahlt wird. Meldet Erfolg, Fehlschlag und Zeitüberschreitung mit Ausweg.
 private struct PaymentPendingSheet: View {
+    enum Outcome { case paid, open }
+
+    private enum Phase: Equatable {
+        case waiting
+        case timedOut
+        case failed(String)
+    }
+
     let invoiceNumber: String
-    let onResult:      (Bool) -> Void
-    @Environment(\.dismiss) private var dismiss
+    let onResult:      (Outcome) -> Void
+
+    @Environment(\.dismiss)    private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @State private var pollTask: Task<Void, Never>? = nil
+    @State private var phase: Phase = .waiting
     @State private var isChecking = false
+    @State private var hint: String?
+    @State private var reported = false
+
+    private static let interval: UInt64   = 3_000_000_000  // 3 s
+    private static let maxAttempts        = 120             // ~6 min
+    private static let maxNetworkErrors   = 10              // ~30 s ohne Verbindung
 
     var body: some View {
         NavigationStack {
@@ -537,34 +605,40 @@ private struct PaymentPendingSheet: View {
                 AppColor.background.ignoresSafeArea()
                 VStack(spacing: 24) {
                     Spacer()
-                    ProgressView()
-                        .scaleEffect(1.5)
-                        .tint(AppColor.primary)
+                    statusIcon
                     VStack(spacing: 8) {
-                        Text("Zahlung läuft…")
+                        Text(title)
                             .font(.headline).foregroundStyle(AppColor.text)
-                        Text("Bitte schliesse die Zahlung in Safari ab.\nDieses Fenster schliesst automatisch nach erfolgreicher Zahlung.")
+                        Text(message)
                             .font(.callout).foregroundStyle(AppColor.muted)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 32)
+                        if let hint {
+                            Text(hint)
+                                .font(.footnote).foregroundStyle(AppColor.muted)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 32)
+                        }
                     }
                     Spacer()
                     HStack(spacing: 12) {
-                        Button("Abbrechen") {
-                            pollTask?.cancel()
-                            dismiss()
-                            onResult(false)
+                        Button(phase == .waiting ? "Abbrechen" : "Schliessen") {
+                            finish(.open)
                         }
                         .buttonStyle(.bordered).tint(AppColor.muted)
 
                         Button {
-                            Task { await checkManually() }
+                            if phase == .waiting {
+                                Task { await checkManually() }
+                            } else {
+                                startPolling()
+                            }
                         } label: {
                             if isChecking {
                                 ProgressView().tint(AppColor.white).scaleEffect(0.8)
                                     .frame(width: 80)
                             } else {
-                                Text("Status prüfen")
+                                Text(phase == .waiting ? "Status prüfen" : "Erneut prüfen")
                             }
                         }
                         .buttonStyle(.borderedProminent)
@@ -578,40 +652,124 @@ private struct PaymentPendingSheet: View {
             .navigationBarTitleDisplayMode(.inline)
         }
         .task { startPolling() }
-        .onDisappear { pollTask?.cancel() }
+        // Rückkehr aus dem Browser → sofort prüfen statt bis zum nächsten Takt zu warten
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active, phase == .waiting { Task { await checkOnce(manual: false) } }
+        }
+        .onDisappear {
+            pollTask?.cancel()
+            // Wegwischen zählt wie Schliessen — Ergebnis immer melden
+            if !reported { reported = true; onResult(.open) }
+        }
     }
+
+    // MARK: - Darstellung
+
+    @ViewBuilder
+    private var statusIcon: some View {
+        switch phase {
+        case .waiting:
+            ProgressView().scaleEffect(1.5).tint(AppColor.primary)
+        case .timedOut:
+            Image(systemName: "clock.badge.questionmark")
+                .font(.app(40)).foregroundStyle(AppColor.muted)
+                .accessibilityHidden(true)
+        case .failed:
+            Image(systemName: "exclamationmark.triangle")
+                .font(.app(40)).foregroundStyle(AppColor.orange)
+                .accessibilityHidden(true)
+        }
+    }
+
+    private var title: String {
+        switch phase {
+        case .waiting:  return "Zahlung läuft…"
+        case .timedOut: return "Zahlung noch nicht bestätigt"
+        case .failed:   return "Zahlung nicht abgeschlossen"
+        }
+    }
+
+    private var openInvoiceHint: String {
+        "Ohne Zahlungseingang bleibt die Rechnung \(invoiceNumber) offen. Du findest sie im Profil unter Rechnungen und kannst sie dort per QR-Rechnung bezahlen."
+    }
+
+    private var message: String {
+        switch phase {
+        case .waiting:
+            return "Bitte schliesse die Zahlung im Browser ab.\nDieses Fenster schliesst automatisch, sobald die Zahlung eingegangen ist."
+        case .timedOut:
+            return "Wir haben noch keinen Zahlungseingang erhalten. Falls du bezahlt hast, prüfe den Status erneut.\n\n\(openInvoiceHint)"
+        case .failed(let reason):
+            return "\(reason)\n\n\(openInvoiceHint)"
+        }
+    }
+
+    // MARK: - Ablauf
 
     private func startPolling() {
         pollTask?.cancel()
-        pollTask = Task {
-            var attempts = 0
-            while !Task.isCancelled && attempts < 120 {   // max 6 min
-                try? await Task.sleep(nanoseconds: 3_000_000_000)  // 3s
-                if Task.isCancelled { break }
-                attempts += 1
-                guard let status = try? await CreditsService.shared.checkPaymentStatus(
-                    invoiceNumber: invoiceNumber) else { continue }
-                if status == "paid" {
-                    await MainActor.run {
-                        pollTask?.cancel()
-                        dismiss()
-                        onResult(true)
+        phase = .waiting
+        hint  = nil
+        pollTask = Task { @MainActor in
+            var networkErrors = 0
+            for _ in 0..<Self.maxAttempts {
+                try? await Task.sleep(nanoseconds: Self.interval)
+                if Task.isCancelled { return }
+                do {
+                    let status = try await CreditsService.shared.checkPaymentStatus(invoiceNumber: invoiceNumber)
+                    networkErrors = 0
+                    if Task.isCancelled { return }
+                    if handle(status) { return }
+                } catch {
+                    if Task.isCancelled { return }
+                    networkErrors += 1
+                    if networkErrors >= Self.maxNetworkErrors {
+                        phase = .failed("Der Zahlungsstatus konnte nicht abgefragt werden. Bitte prüfe deine Internetverbindung.")
+                        return
                     }
-                    return
                 }
             }
+            if !Task.isCancelled { phase = .timedOut }
+        }
+    }
+
+    /// true = Ablauf beendet (bezahlt oder fehlgeschlagen)
+    @discardableResult
+    private func handle(_ status: PaymentStatus) -> Bool {
+        switch status {
+        case .paid:
+            finish(.paid)
+            return true
+        case .failed(let reason):
+            pollTask?.cancel()
+            phase = .failed(reason)
+            return true
+        case .pending:
+            return false
         }
     }
 
     private func checkManually() async {
         isChecking = true
-        if let status = try? await CreditsService.shared.checkPaymentStatus(
-            invoiceNumber: invoiceNumber), status == "paid" {
-            pollTask?.cancel()
-            dismiss()
-            onResult(true)
-        }
+        await checkOnce(manual: true)
         isChecking = false
+    }
+
+    private func checkOnce(manual: Bool) async {
+        do {
+            let status = try await CreditsService.shared.checkPaymentStatus(invoiceNumber: invoiceNumber)
+            if !handle(status), manual { hint = "Noch kein Zahlungseingang." }
+        } catch {
+            if manual { hint = "Status konnte nicht abgefragt werden. Bitte prüfe deine Internetverbindung." }
+        }
+    }
+
+    private func finish(_ outcome: Outcome) {
+        pollTask?.cancel()
+        guard !reported else { return }
+        reported = true
+        dismiss()
+        onResult(outcome)
     }
 }
 

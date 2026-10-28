@@ -28,9 +28,17 @@ enum WorkoutActivity: String, CaseIterable, Identifiable, Codable {
     /// Outdoor-Aktivitäten zeichnen eine GPS-Route auf.
     var usesGPS: Bool { self != .kraft }
 
+    /// Rad-Aktivitäten: Tempo in km/h statt Pace in min/km.
+    var isCycling: Bool {
+        switch self {
+        case .rad, .mtb: return true
+        case .kraft, .joggen, .wandern, .bergtour: return false
+        }
+    }
+
     /// Plausibilitätsgrenze für Punkt-zu-Punkt-Geschwindigkeit (m/s).
     /// Auf dem Rad (auch bergab im Gelände) sind höhere Spitzen normal.
-    var maxSpeed: Double { (self == .rad || self == .mtb) ? 25 : 12 }
+    var maxSpeed: Double { isCycling ? 25 : 12 }
 
     // MARK: Zuletzt genutzte Aktivität
 
@@ -183,7 +191,7 @@ final class WorkoutRecorder {
     /// Ø-Pace (min/km) bzw. Ø-Tempo (km/h beim Rad) über die gesamte Aufnahme.
     var paceString: String {
         guard distanceMeters > 50, elapsed > 10 else { return "–" }
-        if activity == .rad {
+        if activity.isCycling {
             let kmh = distanceMeters / elapsed * 3.6
             return String(format: "%.1f km/h", kmh)
         }
@@ -216,7 +224,8 @@ final class WorkoutRecorder {
         self.activity = activity
         recordingId = UUID().uuidString
         ownerClientId = clientId
-        WorkoutPhotoService.clearActivePhoto(recordingId: nil)   // keine Altlast anhängen
+        // Fotos liegen je recordingId — die neue ID hat keins. Fotos
+        // unterbrochener Trainings bleiben für deren Wiederherstellung liegen.
         // Gurt-Empfang gehört zum Start wie das GPS: Die Sensor-Einrichtung
         // im Profil nutzt eine eigene, beim Verlassen freigegebene Instanz —
         // ohne diesen Aufruf käme hier nie ein Puls an (0 Messwerte).
@@ -396,7 +405,7 @@ final class WorkoutRecorder {
     /// nächste Start zeigte erneut die alte Zusammenfassung.
     func reset() {
         teardown()
-        Self.clearSnapshot()
+        Self.clearSnapshot(recordingId: recordingId)
         phase = .setup
         hrState = .idle
         gpsState = .idle
@@ -683,34 +692,89 @@ final class WorkoutRecorder {
         var ownerClientId: String? = nil
     }
 
-    private static var snapshotURL: URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    /// Snapshots je Aufzeichnung (`<recordingId>.json`) in Application
+    /// Support: ein offener Snapshot eines Kontos wird nie von einer neuen
+    /// Aufzeichnung (oder einem anderen Konto) überschrieben. Nicht im
+    /// Backup; Dateischutz UnlessOpen — Schreiben bei gesperrtem Bildschirm
+    /// während der Aufzeichnung muss gehen.
+    private static let snapshotDir: URL = {
+        let fm = FileManager.default
+        var dir = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("active-workouts", isDirectory: true)
+        try? fm.createDirectory(at: dir, withIntermediateDirectories: true,
+                                attributes: [.protectionKey: FileProtectionType.completeUnlessOpen])
+        var rv = URLResourceValues(); rv.isExcludedFromBackup = true
+        try? dir.setResourceValues(rv)
+        migrateLegacySnapshot(into: dir)
+        return dir
+    }()
+
+    private static let writeOptions: Data.WritingOptions = [.atomic, .completeFileProtectionUnlessOpen]
+
+    /// Früher: eine einzige Datei in Documents (ohne Dateischutz, im Backup).
+    private static func migrateLegacySnapshot(into dir: URL) {
+        let fm = FileManager.default
+        let legacy = fm.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("active-workout.json")
+        guard fm.fileExists(atPath: legacy.path),
+              let data = try? Data(contentsOf: legacy) else { return }   // gesperrt: später
+        if var snap = try? JSONDecoder().decode(Snapshot.self, from: data) {
+            if snap.recordingId == nil { snap.recordingId = UUID().uuidString }
+            guard let rid = snap.recordingId, let out = try? JSONEncoder().encode(snap),
+                  (try? out.write(to: dir.appendingPathComponent("\(rid).json"), options: writeOptions)) != nil
+            else { return }
+        }
+        try? fm.removeItem(at: legacy)
+    }
+
+    private static func snapshotURL(_ recordingId: String) -> URL {
+        snapshotDir.appendingPathComponent("\(recordingId).json")
     }
 
     private func persistSnapshot() {
-        guard let start = startedAt else { return }
+        guard let start = startedAt, let rid = recordingId else { return }
+        // Demo-Läufe werden nie hochgeladen — nichts wiederherzustellen
+        guard let owner = ownerClientId, !owner.isEmpty, owner != "demo" else { return }
         lastSnapshot = Date()
         let snap = Snapshot(activity: activity, startedAt: start,
                             elapsed: elapsed, samples: samples,
                             track: track.isEmpty ? nil : track,
                             distanceMeters: distanceMeters > 0 ? distanceMeters : nil,
                             elevationGain: elevationGain > 0 ? elevationGain : nil,
-                            recordingId: recordingId, ownerClientId: ownerClientId)
+                            recordingId: rid, ownerClientId: owner)
         if let data = try? JSONEncoder().encode(snap) {
-            try? data.write(to: Self.snapshotURL, options: .atomic)
+            try? data.write(to: Self.snapshotURL(rid), options: Self.writeOptions)
         }
     }
 
-    static func clearSnapshot() {
-        try? FileManager.default.removeItem(at: snapshotURL)
+    /// Snapshot genau dieser Aufzeichnung löschen (nie die anderer).
+    static func clearSnapshot(recordingId: String?) {
+        guard let recordingId else { return }
+        try? FileManager.default.removeItem(at: snapshotURL(recordingId))
     }
 
-    /// Liegt ein unterbrochenes (nicht hochgeladenes) Training vor?
-    static func pendingSnapshot() -> Snapshot? {
-        guard let data = try? Data(contentsOf: snapshotURL),
-              let snap = try? JSONDecoder().decode(Snapshot.self, from: data),
-              snap.samples.count >= 10 || (snap.track?.count ?? 0) >= 10 else { return nil }
-        return snap
+    /// Ältestes unterbrochenes (nicht hochgeladenes) Training DIESES Kontos.
+    /// Snapshots anderer Konten bleiben unangetastet liegen. Wiederherstellbar
+    /// ist es mit HF- oder GPS-Daten oder ab 1 min Dauer (Kraft ohne Gurt);
+    /// leere Kurzläufe des Kontos werden dabei weggeräumt.
+    static func pendingSnapshot(for clientId: String?, excluding: Set<String> = []) -> Snapshot? {
+        guard let clientId, !clientId.isEmpty, clientId != "demo" else { return nil }
+        let files = (try? FileManager.default.contentsOfDirectory(
+            at: snapshotDir, includingPropertiesForKeys: nil)) ?? []
+        var candidates: [Snapshot] = []
+        for url in files where url.pathExtension == "json" {
+            guard let data = try? Data(contentsOf: url),
+                  let snap = try? JSONDecoder().decode(Snapshot.self, from: data),
+                  let rid = snap.recordingId, !excluding.contains(rid),
+                  // Ohne Besitzer (Altbestand) gilt er dem angemeldeten Konto
+                  (snap.ownerClientId ?? clientId) == clientId else { continue }
+            if snap.samples.count >= 10 || (snap.track?.count ?? 0) >= 10 || snap.elapsed >= 60 {
+                candidates.append(snap)
+            } else {
+                try? FileManager.default.removeItem(at: url)
+                WorkoutPhotoService.clearActivePhoto(recordingId: rid)
+            }
+        }
+        return candidates.min { $0.startedAt < $1.startedAt }
     }
 }

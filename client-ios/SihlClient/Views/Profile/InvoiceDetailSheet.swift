@@ -12,12 +12,13 @@ struct InvoiceDetailSheet: View {
 
     private let svc = InvoiceService()
 
-    private static let dateFmt: DateFormatter = {
-        let f = DateFormatter(); f.dateFormat = "dd.MM.yyyy"; return f
-    }()
     private func fmt(_ date: Date?) -> String {
-        date.map { Self.dateFmt.string(from: $0) } ?? "-"
+        date.map { SwissDay.display($0) } ?? "–"
     }
+
+    /// Zahlungsweg nur für Lektionen vor Ort — Coaching-Rechnungen sind in
+    /// der App reine Belege (App-Store 3.1.1/3.1.3(b)).
+    private var showsPayment: Bool { !invoice.isPaid && !invoice.isCoaching }
 
     var body: some View {
         NavigationStack {
@@ -32,10 +33,9 @@ struct InvoiceDetailSheet: View {
                     detailRows
                         .padding(.bottom, 16)
 
-                    paymentInfoBox
-                        .padding(.bottom, invoice.isPaid ? 0 : 16)
-
-                    if !invoice.isPaid {
+                    if showsPayment {
+                        paymentInfoBox
+                            .padding(.bottom, 16)
                         qrBillSection
                     }
                 }
@@ -77,7 +77,7 @@ struct InvoiceDetailSheet: View {
             Spacer()
 
             // Amount
-            Text("\(invoice.currency) \(String(format: "%.2f", invoice.amount))")
+            Text(invoice.amountFormatted)
                 .font(.app(20, weight: .heavy))
                 .foregroundStyle(AppColor.text)
         }
@@ -98,19 +98,21 @@ struct InvoiceDetailSheet: View {
 
     private var detailRows: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if let pkg = invoice.packageName {
-                DetailRow(label: "Paket", value: pkg)
+            if let pkg = invoice.packageName, !pkg.isEmpty {
+                DetailRow(label: "Position", value: pkg)
             }
-            if let c = invoice.credits {
+            if !invoice.isCoaching, let c = invoice.credits, c > 0 {
                 DetailRow(label: "Lektionen",
-                          value: "\(c) × 60 Min. Personal Training")
+                          value: "\(c) \(c == 1 ? "Lektion" : "Lektionen")")
             }
             if let m = invoice.durationMonths {
                 DetailRow(label: "Gültigkeit",
                           value: "\(m) \(m == 1 ? "Monat" : "Monate")")
             }
             DetailRow(label: "Rechnungsdatum", value: fmt(invoice.transactionDate))
-            DetailRow(label: "Fällig am",       value: fmt(invoice.dueDate))
+            if !invoice.isCoaching {
+                DetailRow(label: "Fällig am",   value: fmt(invoice.dueDate))
+            }
         }
     }
 
@@ -121,7 +123,7 @@ struct InvoiceDetailSheet: View {
             Text("Zahlungsinformationen")
                 .font(.app(13, weight: .bold))
                 .foregroundStyle(AppColor.text)
-            Text("SIHLHEALTH GmbH\nVerwendungszweck: \(invoice.invoiceNumber)")
+            Text("Personal Training vor Ort\nSIHLHEALTH GmbH\nVerwendungszweck: \(invoice.invoiceNumber)")
                 .font(.app(12))
                 .foregroundStyle(AppColor.muted)
                 .lineSpacing(4)

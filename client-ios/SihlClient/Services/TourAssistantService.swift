@@ -13,6 +13,8 @@ struct AssistantMessage: Identifiable {
     var route: TourDetail? = nil
     /// Planungspunkte der Route — damit lässt sie sich im Planer anpassen.
     var plan: RoutePlan? = nil
+    /// Lokale Fehlermeldung der App — wird nie als Verlauf ans Backend gesendet.
+    var isLocalError = false
 }
 
 /// Eine Route als Planung: Punkte in Reihenfolge, Aktivität, Rundkurs.
@@ -33,8 +35,9 @@ struct RoutePlan {
     init?(json: [String: Any]?, name: String) {
         guard let json else { return nil }
         let points: [CLLocationCoordinate2D] = (json["points"] as? [[String: Any]] ?? []).compactMap {
-            guard let lat = Double("\($0["lat"] ?? "")"),
-                  let lon = Double("\($0["lon"] ?? "")") else { return nil }
+            guard let lat = Double("\($0["lat"] ?? "")"), lat.isFinite, (-90...90).contains(lat),
+                  let lon = Double("\($0["lon"] ?? "")"), lon.isFinite, (-180...180).contains(lon)
+            else { return nil }
             return CLLocationCoordinate2D(latitude: lat, longitude: lon)
         }
         guard points.count >= 2, points.count <= RoutePlannerModel.maxPoints else { return nil }
@@ -49,7 +52,8 @@ struct RoutePlan {
 enum TourAssistantService {
     /// Chat-Verlauf ans Backend; Antwort = Text + optionale Route.
     static func send(clientId: String, history: [AssistantMessage]) async throws -> AssistantMessage {
-        let messages = history.map { m in
+        // Eigene Fehlermeldungen gehören nicht in den Verlauf fürs Modell
+        let messages = history.filter { !$0.isLocalError }.map { m in
             ["role": m.role == .user ? "user" : "assistant", "content": m.text]
         }
         guard let json = try await APIClient.shared.postJSONObject(
@@ -65,6 +69,8 @@ enum TourAssistantService {
         if let routeJson = json["route"] as? [String: Any] {
             route = TourDetail(json: routeJson)
             plan = RoutePlan(json: routeJson["plan"] as? [String: Any], name: route?.name ?? "Route")
+            // Planungspunkte mitgeben — „nächster Punkt" auch beim Start aus dem Detail
+            if let plan { route?.waypoints = plan.points }
         }
         return AssistantMessage(role: .assistant, text: reply, route: route, plan: plan)
     }
@@ -73,23 +79,25 @@ enum TourAssistantService {
     static func demoReply(for _: String) -> AssistantMessage {
         let lat = 47.31, lon = 8.52, km = 8.0
         let r = km / (2 * .pi), latKm = 110.574, lonKm = 111.32 * cos(lat * .pi / 180)
+        // Vier Punkte auf dem Kreis der Beispielrunde, als Rundkurs
+        let plan = RoutePlan(
+            name: "Rundtour · 8.0 km",
+            points: [
+                CLLocationCoordinate2D(latitude: lat, longitude: lon),
+                CLLocationCoordinate2D(latitude: lat + r / latKm, longitude: lon - r / lonKm),
+                CLLocationCoordinate2D(latitude: lat + 2 * r / latKm, longitude: lon),
+                CLLocationCoordinate2D(latitude: lat + r / latKm, longitude: lon + r / lonKm),
+            ],
+            activity: .wandern, roundtrip: true)
+        var route = TourService.demoRoundtrip(lat: lat, lon: lon, distanceKm: km, activity: .wandern)
+        route.waypoints = plan.points
         return AssistantMessage(
             role: .assistant,
             text: "Im Demo-Modus rechne ich mit Beispieldaten: Hier ist eine "
                 + "8-km-Wanderrunde ab Adliswil — 1 Std 55 Min, sanfte Hügel. "
                 + "Mit echtem Konto suche ich dir Routen in der ganzen Schweiz.",
-            route: TourService.demoRoundtrip(lat: lat, lon: lon,
-                                             distanceKm: km, activity: .wandern),
-            // Vier Punkte auf dem Kreis der Beispielrunde, als Rundkurs
-            plan: RoutePlan(
-                name: "Rundtour · 8.0 km",
-                points: [
-                    CLLocationCoordinate2D(latitude: lat, longitude: lon),
-                    CLLocationCoordinate2D(latitude: lat + r / latKm, longitude: lon - r / lonKm),
-                    CLLocationCoordinate2D(latitude: lat + 2 * r / latKm, longitude: lon),
-                    CLLocationCoordinate2D(latitude: lat + r / latKm, longitude: lon + r / lonKm),
-                ],
-                activity: .wandern, roundtrip: true)
+            route: route,
+            plan: plan
         )
     }
 }

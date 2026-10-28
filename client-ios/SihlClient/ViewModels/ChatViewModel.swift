@@ -16,6 +16,8 @@ import Foundation
     // MARK: - Fetch
 
     func fetchConversations(clientId: String) async {
+        // Demo/ohne Session: keine Requests ohne Token
+        guard !clientId.isEmpty, clientId != "demo" else { return }
         isLoading = true
         error     = nil
         do {
@@ -29,6 +31,7 @@ import Foundation
     // MARK: - Mark read (optimistisch lokal, dann API)
 
     func markRead(clientId: String, trainerId: String) async {
+        guard !clientId.isEmpty, clientId != "demo", !trainerId.isEmpty else { return }
         if let i = conversations.firstIndex(where: { $0.trainerId == trainerId }) {
             conversations[i].unreadCount = 0
         }

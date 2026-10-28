@@ -128,7 +128,10 @@ struct PerformanceDetailView: View {
             Text("Messwerte")
                 .font(.headline).foregroundStyle(AppColor.text)
 
-            ForEach(item.history.reversed(), id: \.date) { p in
+            // Index als ID — zwei Messungen am selben Tag sind möglich
+            let rows = Array(item.history.enumerated().reversed())
+            ForEach(rows, id: \.offset) { entry in
+                let p = entry.element
                 HStack {
                     Text(p.date, format: .dateTime.day().month().year())
                         .font(.callout).foregroundStyle(AppColor.muted)

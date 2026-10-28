@@ -15,18 +15,14 @@ struct ChatMessage: Identifiable {
     var isFromTrainer: Bool { senderType == "trainer" }
 
     init(json: [String: Any]) {
-        self.id         = "\(json["id"] ?? "")"
+        // Ohne ID (sollte nicht vorkommen) eindeutige Ersatz-ID, damit ForEach nicht kollidiert
+        self.id         = jsonID(json["id"]) ?? UUID().uuidString
         self.text       = (json["text"] ?? json["message"] ?? json["comment"])
                             .map { "\($0)" } ?? ""
         self.senderType = json["sender_type"] as? String ?? "client"
         self.author     = json["author"] as? String
         self.isCircle   = Self.parseBool(json["is_circle"])
-        if let raw = json["created_at"] as? String {
-            self.createdAt = ISO8601DateFormatter().date(from: raw)
-                ?? DateFormatter.yyyyMMddHHmm.date(from: raw)
-        } else {
-            self.createdAt = nil
-        }
+        self.createdAt  = (json["created_at"] as? String).flatMap(ZurichTime.parseTimestamp)
     }
 
     private static func parseBool(_ v: Any?) -> Bool {
@@ -50,18 +46,14 @@ struct ChatConversation: Identifiable, Hashable {
     var unreadCount:   Int
 
     init(json: [String: Any]) {
-        self.trainerId     = json["trainer_id"]   as? String ?? ""
+        // Backend liefert trainer_id als Zahl
+        self.trainerId     = jsonID(json["trainer_id"]) ?? ""
         self.trainerName   = json["trainer_name"] as? String ?? "Trainer"
         self.trainerPicture = json["trainer_picture"] as? String
         self.lastMessage   = json["last_message"] as? String
         self.unreadCount   = Int("\(json["unread_count"] ?? 0)") ?? 0
         self.id            = self.trainerId
-        if let raw = json["last_message_at"] as? String {
-            self.lastMessageAt = ISO8601DateFormatter().date(from: raw)
-                ?? DateFormatter.yyyyMMddHHmm.date(from: raw)
-        } else {
-            self.lastMessageAt = nil
-        }
+        self.lastMessageAt = (json["last_message_at"] as? String).flatMap(ZurichTime.parseTimestamp)
     }
 
     var initials: String {
@@ -70,14 +62,4 @@ struct ChatConversation: Identifiable, Hashable {
         if parts.count == 1 { return String(parts[0].prefix(1)).uppercased() }
         return (String(parts.first!.prefix(1)) + String(parts.last!.prefix(1))).uppercased()
     }
-}
-
-// MARK: - DateFormatter helper
-
-private extension DateFormatter {
-    static let yyyyMMddHHmm: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        return f
-    }()
 }

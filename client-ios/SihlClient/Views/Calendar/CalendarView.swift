@@ -9,6 +9,8 @@ struct CalendarView: View {
     @State private var bookingSlot: CalTimeSlot?
     @State private var detailAppointment: Appointment?
     @State private var pendingCancelAppt: Appointment?
+    /// Absage aus dem Detail-Sheet angefordert — Dialog erst nach dessen Schliessen
+    @State private var cancelAfterDismiss: Appointment?
     @State private var showCancelAlert = false
     @State private var showNoCreditsAlert = false
 
@@ -23,19 +25,22 @@ struct CalendarView: View {
                 LoadingView(message: "Lade Kalender…")
             } else if let err = vm.error, vm.calendarData == nil {
                 ErrorStateView(message: err) {
-                    Task { await vm.load(clientId: auth.clientId ?? "") }
+                    guard let id = realClientId else { return }
+                    Task { await vm.load(clientId: id) }
                 }
             } else {
                 mainContent
             }
         }
         .task {
-            if vm.calendarData == nil, let id = auth.clientId {
+            // Demo/ohne Session: keine Requests ohne Token
+            guard let id = realClientId else { return }
+            if vm.calendarData == nil {
                 await vm.load(clientId: id)
             }
         }
         .refreshable {
-            if let id = auth.clientId { await vm.load(clientId: id) }
+            if let id = realClientId { await vm.load(clientId: id) }
         }
         // Booking sheet
         .sheet(item: $bookingSlot) { slot in
@@ -55,10 +60,16 @@ struct CalendarView: View {
             }
         }
         // Appointment detail sheet
-        .sheet(item: $detailAppointment) { appt in
-            AppointmentDetailSheet(appointment: appt, token: auth.token) {
-                pendingCancelAppt = appt
-                showCancelAlert   = true
+        .sheet(item: $detailAppointment, onDismiss: {
+            // Alert erst nach dem Schliessen zeigen — sonst kollidiert die Präsentation
+            if let appt = cancelAfterDismiss {
+                cancelAfterDismiss = nil
+                pendingCancelAppt  = appt
+                showCancelAlert    = true
+            }
+        }) { appt in
+            AppointmentDetailSheet(appointment: appt) {
+                cancelAfterDismiss = appt
             }
         }
         // Cancel alert
@@ -86,10 +97,10 @@ struct CalendarView: View {
             }
         }
         // No credits alert
-        .alert("Keine Credits verfügbar", isPresented: $showNoCreditsAlert) {
-            Button("Schließen", role: .cancel) {}
+        .alert("Kein Guthaben für Lektionen", isPresented: $showNoCreditsAlert) {
+            Button("Schliessen", role: .cancel) {}
         } message: {
-            Text("Du hast keine verfügbaren Credits. Bitte kaufe neue Credits, um Termine buchen zu können.")
+            Text("Für eine Buchung brauchst du Guthaben für Lektionen im Studio. Pakete findest du im Profil unter „Lektionen & Guthaben“.")
         }
         // Toast overlay
         .appToast($vm.toast)
@@ -110,6 +121,12 @@ struct CalendarView: View {
                 }
             }
         }
+    }
+
+    /// Client-ID einer echten Session (nicht Demo, nicht leer).
+    private var realClientId: String? {
+        guard let id = auth.clientId, !id.isEmpty, id != "demo" else { return nil }
+        return id
     }
 
     // MARK: - Main Content
@@ -187,13 +204,13 @@ struct CalendarView: View {
 
     // MARK: - Day Header
 
+    private static let dayHeaderFmt = ZurichTime.displayFormatter("EEEE, d. MMMM")
+
     private var dayHeader: some View {
         let slots = vm.slotsForDay(vm.selectedDate)
-        let fmt = DateFormatter()
-        fmt.locale = Locale(identifier: "de_DE"); fmt.dateFormat = "EEEE, d. MMMM"
 
         return HStack {
-            Text(fmt.string(from: vm.selectedDate))
+            Text(Self.dayHeaderFmt.string(from: vm.selectedDate))
                 .font(.app(15, weight: .semibold))
                 .foregroundStyle(AppColor.text)
             Spacer()
@@ -224,14 +241,14 @@ private struct MonthCalendarView: View {
     let availForDay:  (Date) -> [AvailabilityInterval]
     let hasBookable:  (Date) -> Bool
 
-    private let cal = Calendar.current
+    private let cal = ZurichTime.calendar
     private let weekDays = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
     private let columns  = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
 
+    private static let monthFmt = ZurichTime.displayFormatter("MMMM yyyy")
+
     private var monthTitle: String {
-        let fmt = DateFormatter()
-        fmt.locale = Locale(identifier: "de_DE"); fmt.dateFormat = "MMMM yyyy"
-        return fmt.string(from: displayMonth)
+        Self.monthFmt.string(from: displayMonth)
     }
 
     private var monthDays: [Date?] {
@@ -327,7 +344,22 @@ private struct DayCell: View {
         return false
     }
 
-    private var dayNum: Int { Calendar.current.component(.day, from: date) }
+    private var dayNum: Int { ZurichTime.calendar.component(.day, from: date) }
+
+    private static let a11yDateFmt = ZurichTime.displayFormatter("EEEE, d. MMMM")
+
+    /// VoiceOver: Datum + Status statt nur der Tageszahl.
+    private var accessibilityText: String {
+        var parts = [Self.a11yDateFmt.string(from: date)]
+        if isToday { parts.append("heute") }
+        if bookedCount == 1 { parts.append("1 Termin gebucht") }
+        if bookedCount > 1  { parts.append("\(bookedCount) Termine gebucht") }
+        if missedCount > 0  { parts.append(missedCount == 1 ? "1 Termin verpasst" : "\(missedCount) Termine verpasst") }
+        if cancelledCount > 0 { parts.append(cancelledCount == 1 ? "1 Termin abgesagt" : "\(cancelledCount) Termine abgesagt") }
+        if hasBookable { parts.append("freie Termine verfügbar") }
+        if isOutOfRange { parts.append("nicht wählbar") }
+        return parts.joined(separator: ", ")
+    }
 
     private var bookedCount:    Int { appointments.filter { $0.status.lowercased() == "booked" || $0.status.lowercased() == "attended" }.count }
     private var missedCount:    Int { appointments.filter { $0.status.lowercased() == "missed"    }.count }
@@ -369,6 +401,9 @@ private struct DayCell: View {
         }
         .buttonStyle(.plain)
         .disabled(isOutOfRange)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityText)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 
     private func dot(_ color: Color) -> some View {
@@ -449,9 +484,7 @@ struct CalEventCard: View {
     let appointment: Appointment
     let onTap: () -> Void
 
-    private static let timeFmt: DateFormatter = {
-        let f = DateFormatter(); f.dateFormat = "HH:mm"; return f
-    }()
+    private static let timeFmt = ZurichTime.time
 
     var body: some View {
         let statusLower = appointment.status.lowercased()

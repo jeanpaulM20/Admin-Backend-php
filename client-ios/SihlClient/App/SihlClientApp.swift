@@ -4,12 +4,15 @@ import SwiftUI
 /// In Flutter wurden alle Provider per `MultiProvider` registriert; in SwiftUI
 /// werden ViewModels per `.environment(...)` injiziert. Weitere ViewModels
 /// (Appointment, Profile, Credits, ...) hier ergänzen, sobald übersetzt.
+///
+/// Composition Root: verdrahtet den APIClient (401 → Logout) mit dem
+/// AuthViewModel und setzt beim Logout alle Daten-ViewModels neu auf.
 @main
 struct SihlClientApp: App {
     // APNs-Callbacks kommen über UIApplicationDelegate
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
-    @State private var auth      = AuthViewModel()
+    @State private var auth: AuthViewModel
     @State private var libre     = LibreViewModel()
     @State private var start     = StartViewModel()
     @State private var profile   = ProfileViewModel()
@@ -19,6 +22,15 @@ struct SihlClientApp: App {
     @State private var analytics = AnalyticsViewModel()
     @State private var creditsVM = CreditsViewModel()
     @State private var launcher  = RecordingLauncher()
+
+    init() {
+        let auth = AuthViewModel()
+        _auth = State(initialValue: auth)
+        // Ungültige Sitzung (401 ausser Login) → zentral abmelden
+        APIClient.shared.setUnauthorizedHandler {
+            await auth.sessionExpired()
+        }
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -35,16 +47,17 @@ struct SihlClientApp: App {
                 .environment(launcher)
                 .preferredColorScheme(.dark)
                 .tint(AppColor.primary)
-                .onChange(of: auth.clientId) { _, newId in
-                    // APNs-Service mit clientId konfigurieren sobald eingeloggt
-                    if let id = newId {
+                .onChange(of: auth.clientId, initial: true) { _, newId in
+                    // APNs mit clientId konfigurieren — bei jedem Start und
+                    // nach Login; nicht im Demo-Modus
+                    if let id = newId, !id.isEmpty, id != AuthViewModel.demoClientId {
                         Task { await PushNotificationService.shared.configure(clientId: id) }
                     }
                 }
                 .onChange(of: auth.isAuthenticated) { _, loggedIn in
                     // Bei Logout alle Daten-ViewModels verwerfen, damit nach einem
                     // Account-Wechsel keine Daten des vorherigen Users angezeigt werden.
-                    // (Libre hat einen eigenen, unabhängigen Login und bleibt bestehen.)
+                    // Caches, Push und UserDefaults räumt `SessionCleanup` auf.
                     if !loggedIn {
                         start     = StartViewModel()
                         profile   = ProfileViewModel()
@@ -54,8 +67,13 @@ struct SihlClientApp: App {
                         analytics = AnalyticsViewModel()
                         creditsVM = CreditsViewModel()
                         launcher  = RecordingLauncher()
-                        // Übungsbilder des vorigen Kontos nicht weiterzeigen
-                        Task { await TokenImageStore.shared.removeAll() }
+                        // Libre-Zugang (Keychain, UserDefaults, Messwerte) gehört
+                        // zum Konto — abmelden, dann frisch aufsetzen
+                        let oldLibre = libre
+                        Task {
+                            await oldLibre.logout()
+                            libre = LibreViewModel()
+                        }
                     }
                 }
         }

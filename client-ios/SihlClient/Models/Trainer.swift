@@ -14,7 +14,7 @@ struct Trainer: Identifiable {
     init(json: [String: Any]) {
         let first = (json["firstname"] as? String) ?? ""
         let last  = (json["lastname"]  as? String) ?? ""
-        self.id        = "\(json["id"] ?? "")"
+        self.id        = jsonID(json["id"]) ?? ""
         self.firstName = first
         self.lastName  = last
         self.shortName = (json["shortName"] as? String)

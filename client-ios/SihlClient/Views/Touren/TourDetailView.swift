@@ -54,10 +54,12 @@ struct TourDetailView: View {
             if let url = gpxURL {
                 ToolbarItem(placement: .topBarTrailing) {
                     ShareLink(item: url) {
-                        Image(systemName: "square.and.arrow.up")
+                        Label("Route als GPX teilen", systemImage: "square.and.arrow.up")
+                            .labelStyle(.iconOnly)
                             .font(.callout)
                             .foregroundStyle(AppColor.muted)
                     }
+                    .accessibilityLabel("Route als GPX teilen")
                 }
             }
         }
@@ -104,6 +106,8 @@ struct TourDetailView: View {
                 }
                 .contentShape(RoundedRectangle(cornerRadius: AppRadius.card))
                 .onTapGesture { showMapFullscreen = true }
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Routenkarte")
                 .padding(.top, AppSpacing.stack)
 
                 // Kennzahlen
@@ -198,12 +202,15 @@ struct TourDetailView: View {
                         .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
                 }
 
-                // Übergabe an die Aufzeichnung im Start-Tab (Phase 5.1)
+                // Übergabe an die Aufzeichnung im Start-Tab (Phase 5.1) —
+                // `asRoute` trägt die gesetzten Punkte für „nächster Punkt" mit
                 Button("Tour starten") { launcher.start(d.asRoute) }
                     .buttonStyle(PrimaryButtonStyle())
+                    .disabled(!Self.hasGeometry(d))
+                    .opacity(Self.hasGeometry(d) ? 1 : 0.45)
                     .padding(.top, 8)
 
-                Text("\(d.durationMin != nil && d.elevationGain == nil ? "Die Dauer ist eine Schätzung ohne Höhenmeter. " : "")Routendaten: © OpenStreetMap-Mitwirkende (ODbL).\(d.official != nil ? " Anlagen-Infos: Stadt Zürich (Open Data)." : "")")
+                Text(Self.footnote(d))
                     .font(.caption2)
                     .foregroundStyle(AppColor.muted)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -212,6 +219,23 @@ struct TourDetailView: View {
             .padding(.horizontal, AppSpacing.screen)
             .padding(.bottom, AppSpacing.bottomInset)
         }
+    }
+
+    /// Ohne Linie (mind. zwei Punkte) gibt es nichts zu folgen.
+    static func hasGeometry(_ d: TourDetail) -> Bool {
+        d.segments.contains { $0.count >= 2 }
+    }
+
+    /// Hinweis + Quellenangabe; GPX-Importe stammen nicht aus OSM.
+    static func footnote(_ d: TourDetail) -> String {
+        var parts: [String] = []
+        if d.durationMin != nil && d.elevationGain == nil {
+            parts.append("Die Dauer ist eine Schätzung ohne Höhenmeter.")
+        }
+        parts.append(d.isImported ? "Routendaten: importierte GPX-Datei."
+                                  : "Routendaten: © OpenStreetMap-Mitwirkende (ODbL).")
+        if d.official != nil { parts.append("Anlagen-Infos: Stadt Zürich (Open Data).") }
+        return parts.joined(separator: " ")
     }
 
     private func factRow(_ icon: String, _ text: String) -> some View {
@@ -277,7 +301,12 @@ struct TourDetailView: View {
             prepareGPX()
             return
         }
-        guard let clientId = auth.clientId else { return }
+        guard let clientId = auth.clientId else {
+            // Ohne Anmeldung nicht endlos laden
+            isLoading = false
+            error = "Bitte melde dich an, um die Route zu laden."
+            return
+        }
         Task {
             do {
                 detail = try await TourService.shared.detail(clientId: clientId, tourId: tourId)

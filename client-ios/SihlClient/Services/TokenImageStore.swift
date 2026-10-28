@@ -23,7 +23,8 @@ actor TokenImageStore {
 
     /// Fertige Bilder je Schlüssel (`url` = Vollbild, `url#px` = Thumbnail).
     /// NSCache ist threadsicher — darum auch ohne Actor-Hop lesbar.
-    private nonisolated let images: NSCache<NSString, UIImage> = {
+    // NSCache ist threadsicher, aber nicht als Sendable markiert
+    private nonisolated(unsafe) let images: NSCache<NSString, UIImage> = {
         let c = NSCache<NSString, UIImage>()
         c.totalCostLimit = 64 << 20   // 64 MB dekodierte Bitmaps
         c.countLimit = 150
@@ -31,7 +32,7 @@ actor TokenImageStore {
     }()
 
     /// Rohdaten je URL — daraus entstehen weitere Grössen ohne neuen Download.
-    private nonisolated let data: NSCache<NSString, NSData> = {
+    private nonisolated(unsafe) let data: NSCache<NSString, NSData> = {
         let c = NSCache<NSString, NSData>()
         c.totalCostLimit = 24 << 20
         return c

@@ -23,7 +23,14 @@ struct TourDiscoveryView: View {
 
     @State private var tours: [Tour] = []
     @State private var isLoading = false
+    /// Ladefehler der Tourenliste (ersetzt die Karten unten, mit „Erneut")
     @State private var error: String?
+    /// Flüchtiger Hinweis (Suche, GPX, Ortung) — eigener Banner mit Schliessen
+    @State private var notice: String?
+    /// Laufende Touren-Anfrage — wird vor jeder neuen abgebrochen
+    @State private var loadTask: Task<Void, Never>?
+    /// Erstladen (Standort/Zürich) nur einmal, nicht bei jedem Wiedererscheinen
+    @State private var didInitialLoad = false
     @State private var detailTour: Tour?
     @State private var showPlanSheet = false
     @State private var generatedDetail: TourDetail?
@@ -80,6 +87,19 @@ struct TourDiscoveryView: View {
 
             VStack(spacing: AppSpacing.stack) {
                 header
+
+                if let notice {
+                    NoticeBanner(message: notice) {
+                        withAnimation { self.notice = nil }
+                    }
+                    .task(id: notice) {
+                        // Hinweis verschwindet nach ein paar Sekunden von selbst
+                        try? await Task.sleep(for: .seconds(6))
+                        guard !Task.isCancelled else { return }
+                        withAnimation { self.notice = nil }
+                    }
+                    .transition(.opacity)
+                }
 
                 // Live-Ortsvorschläge direkt unter der Suche
                 if searchFocused && !searchModel.suggestions.isEmpty {
@@ -168,11 +188,13 @@ struct TourDiscoveryView: View {
             }
         }
         .task {
-            guard tours.isEmpty else { return }
+            guard !didInitialLoad else { return }
+            didInitialLoad = true
             if locator.isAuthorized {
                 // Bereits erlaubt: still am eigenen Standort starten statt in Zürich
+                // (im Planungsmodus die Karte nicht wegziehen)
                 locator.locate { outcome in
-                    if case .located(let c) = outcome { moveTo(c) } else { reload() }
+                    if case .located(let c) = outcome, !isPlanning { moveTo(c) } else { reload() }
                 }
             } else {
                 reload()
@@ -193,6 +215,8 @@ struct TourDiscoveryView: View {
         .sheet(isPresented: $showPlanSheet) {
             PlanTourSheet(activity: activity.roundtrip, isDemo: isDemo,
                           center: cameraCenter ?? center) { detail in
+                // Sheet inzwischen weggewischt → Ergebnis verwerfen
+                guard showPlanSheet else { return }
                 showPlanSheet = false
                 if let detail { generatedDetail = detail }
             }
@@ -202,7 +226,7 @@ struct TourDiscoveryView: View {
             if case .success(let url) = result, let detail = GPXFile.parse(url: url) {
                 generatedDetail = detail
             } else {
-                error = "GPX-Datei konnte nicht gelesen werden."
+                notice = "GPX-Datei konnte nicht gelesen werden."
             }
         }
     }
@@ -542,6 +566,7 @@ struct TourDiscoveryView: View {
 
     private func exitPlanning() {
         planner.reset()
+        notice = nil
         hasFittedRoute = false
         withAnimation(.easeInOut(duration: 0.25)) { isPlanning = false }
     }
@@ -599,6 +624,8 @@ struct TourDiscoveryView: View {
                                 if isPlanning { planner.add(pin.coordinate) }
                             }
                             .accessibilityLabel("Suchtreffer \(pin.name)")
+                            .accessibilityAddTraits(isPlanning ? .isButton : [])
+                            .accessibilityHint(isPlanning ? "Setzt hier einen Routenpunkt" : "")
                     }
                 }
             }
@@ -694,29 +721,35 @@ struct TourDiscoveryView: View {
                     .frame(width: 44, height: 44)
                     .contentShape(Circle())
                     .onTapGesture { detailTour = tour }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(tour.name)
+                    .accessibilityAddTraits(.isButton)
                 }
             }
     }
 
     private func activityChip(_ a: TourActivity) -> some View {
         let selected = activity == a
-        return HStack(spacing: 6) {
-            Image(systemName: a.icon).font(.app(13))
-            Text(a.label).font(.footnote.weight(selected ? .bold : .medium))
-        }
-        .foregroundStyle(selected ? AppColor.white : AppColor.muted)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(selected ? AppColor.primary : AppColor.surface,
-                    in: RoundedRectangle(cornerRadius: AppRadius.control))
-        .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
-            .stroke(selected ? AppColor.primary : AppColor.border, lineWidth: 1))
-        .contentShape(Rectangle())
-        .onTapGesture {
+        return Button {
             guard activity != a else { return }
             activity = a
             reload()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: a.icon).font(.app(13))
+                Text(a.label).font(.footnote.weight(selected ? .bold : .medium))
+            }
+            .foregroundStyle(selected ? AppColor.white : AppColor.muted)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(selected ? AppColor.primary : AppColor.surface,
+                        in: RoundedRectangle(cornerRadius: AppRadius.control))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
+                .stroke(selected ? AppColor.primary : AppColor.border, lineWidth: 1))
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     // MARK: Karten unten
@@ -735,9 +768,20 @@ struct TourDiscoveryView: View {
             .padding(.horizontal, AppSpacing.screen)
             .padding(.bottom, 16)
         } else if let error {
-            InlineErrorBanner(message: error)
-                .padding(.horizontal, AppSpacing.screen)
-                .padding(.bottom, 16)
+            HStack(spacing: 8) {
+                InlineErrorBanner(message: error)
+                Button("Erneut") { reload() }
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(AppColor.text)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.control))
+                    .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
+                        .stroke(AppColor.border, lineWidth: 1))
+                    .accessibilityLabel("Touren erneut laden")
+            }
+            .padding(.horizontal, AppSpacing.screen)
+            .padding(.bottom, 16)
         } else if tours.isEmpty {
             Text("In diesem Gebiet wurde nichts gefunden.")
                 .font(.footnote)
@@ -771,6 +815,11 @@ struct TourDiscoveryView: View {
     }
 
     private func tourCard(_ tour: Tour) -> some View {
+        Button { detailTour = tour } label: { tourCardLabel(tour) }
+            .buttonStyle(.plain)
+    }
+
+    private func tourCardLabel(_ tour: Tour) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 if let diff = tour.difficulty {
@@ -810,31 +859,40 @@ struct TourDiscoveryView: View {
         .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
         .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
         .contentShape(Rectangle())
-        .onTapGesture { detailTour = tour }
     }
 
     // MARK: Daten
 
     private func reload() {
+        // Ältere Anfrage abbrechen — sonst überschreibt eine späte Antwort
+        // (z.B. Joggen) die neuere (MTB)
+        loadTask?.cancel()
+        loadTask = nil
         error = nil
         visibleTourId = nil
         previewCache = [:]
         if isDemo {
+            isLoading = false
             tours = TourService.demoTours(activity: activity)
             visibleTourId = tours.first?.id
             loadPreview(for: visibleTourId)
             return
         }
-        guard let clientId = auth.clientId else { return }
+        guard let clientId = auth.clientId else { isLoading = false; return }
         isLoading = true
-        Task {
+        let lat = center.latitude, lon = center.longitude
+        let radius = radiusKm, act = activity
+        loadTask = Task {
             do {
-                tours = try await TourService.shared.tours(
-                    clientId: clientId, lat: center.latitude, lon: center.longitude,
-                    radiusKm: radiusKm, activity: activity)
+                let result = try await TourService.shared.tours(
+                    clientId: clientId, lat: lat, lon: lon, radiusKm: radius, activity: act)
+                guard !Task.isCancelled else { return }
+                tours = result
                 visibleTourId = tours.first?.id
                 loadPreview(for: visibleTourId)
             } catch {
+                guard !Task.isCancelled else { return }
+                tours = []
                 self.error = "Touren konnten nicht geladen werden."
             }
             isLoading = false
@@ -864,6 +922,8 @@ struct TourDiscoveryView: View {
         .padding(.vertical, 10)
         .contentShape(Rectangle())
         .onTapGesture { select(s) }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
     }
 
     /// Vorschlag übernehmen: auflösen, Karte zentrieren, Touren laden.
@@ -873,7 +933,7 @@ struct TourDiscoveryView: View {
         searchModel.clear()
         Task {
             guard let place = await searchModel.resolve(s) else {
-                error = "Ort konnte nicht geladen werden."
+                notice = "Ort konnte nicht geladen werden."
                 return
             }
             show(place)
@@ -907,7 +967,8 @@ struct TourDiscoveryView: View {
     /// Fallback für die „Suchen“-Taste ohne gewählten Vorschlag.
     private func searchLocation() {
         // Der oberste Vorschlag ist genauer als die Freitext-Suche
-        if let top = searchModel.suggestions.first {
+        // … aber nur, wenn er zum aktuellen Text gehört
+        if let top = searchModel.topSuggestion(for: searchText) {
             select(top)
             return
         }
@@ -917,7 +978,7 @@ struct TourDiscoveryView: View {
         guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { return }
         Task {
             guard let place = await searchModel.search(query, near: center) else {
-                error = "„\(query)“ wurde nicht gefunden."
+                notice = "„\(query)“ wurde nicht gefunden."
                 return
             }
             show(place)
@@ -952,7 +1013,7 @@ struct TourDiscoveryView: View {
             switch outcome {
             case .located(let c): moveTo(c, span: 0.02)
             case .denied:         locationDenied = true
-            case .failed:         error = "Standort gerade nicht verfügbar."
+            case .failed:         notice = "Standort gerade nicht verfügbar."
             }
         }
     }
@@ -1028,6 +1089,7 @@ private struct PlannerPinsOverlay: View {
                      lifted: draggingID == point.id,
                      label: planner.label(of: point))
             .onTapGesture { onSelect(point) }
+            .accessibilityAddTraits(.isButton)
             .gesture(
                 DragGesture(minimumDistance: 4, coordinateSpace: .named(Self.space))
                     .updating($isDragging) { _, state, _ in state = true }
@@ -1064,6 +1126,8 @@ private struct PlanTourSheet: View {
     @State private var chosenActivity: RoundtripActivity
     @State private var isGenerating = false
     @State private var error: String?
+    /// Laufende Berechnung — wird beim Wegwischen abgebrochen
+    @State private var generateTask: Task<Void, Never>?
 
     init(activity: RoundtripActivity, isDemo: Bool,
          center: CLLocationCoordinate2D, onDone: @escaping (TourDetail?) -> Void) {
@@ -1128,23 +1192,30 @@ private struct PlanTourSheet: View {
         }
         .presentationDetents([.height(420)])
         .presentationDragIndicator(.visible)
+        .onDisappear {
+            generateTask?.cancel()
+            generateTask = nil
+        }
     }
 
     private func choice(_ a: RoundtripActivity) -> some View {
         let selected = chosenActivity == a
-        return HStack(spacing: 6) {
-            Image(systemName: a.icon).font(.app(13))
-            Text(a.label).font(.footnote.weight(selected ? .bold : .medium))
+        return Button { chosenActivity = a } label: {
+            HStack(spacing: 6) {
+                Image(systemName: a.icon).font(.app(13))
+                Text(a.label).font(.footnote.weight(selected ? .bold : .medium))
+            }
+            .foregroundStyle(selected ? AppColor.white : AppColor.muted)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(selected ? AppColor.primary : AppColor.surface,
+                        in: RoundedRectangle(cornerRadius: AppRadius.control))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
+                .stroke(selected ? AppColor.primary : AppColor.border, lineWidth: 1))
+            .contentShape(Rectangle())
         }
-        .foregroundStyle(selected ? AppColor.white : AppColor.muted)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(selected ? AppColor.primary : AppColor.surface,
-                    in: RoundedRectangle(cornerRadius: AppRadius.control))
-        .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
-            .stroke(selected ? AppColor.primary : AppColor.border, lineWidth: 1))
-        .contentShape(Rectangle())
-        .onTapGesture { chosenActivity = a }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private func generate() {
@@ -1156,11 +1227,14 @@ private struct PlanTourSheet: View {
         }
         guard let clientId = auth.clientId else { return }
         isGenerating = true
-        Task {
+        generateTask?.cancel()
+        generateTask = Task {
             do {
                 let detail = try await TourService.shared.roundtrip(
                     clientId: clientId, lat: center.latitude, lon: center.longitude,
                     distanceKm: distanceKm, activity: chosenActivity)
+                // Sheet inzwischen geschlossen → Ergebnis nicht mehr öffnen
+                guard !Task.isCancelled else { return }
                 isGenerating = false
                 if let detail {
                     onDone(detail)
@@ -1168,9 +1242,45 @@ private struct PlanTourSheet: View {
                     error = "Keine Route gefunden — anderen Startpunkt versuchen."
                 }
             } catch {
+                guard !Task.isCancelled else { return }
                 isGenerating = false
                 self.error = "Route konnte nicht berechnet werden."
             }
         }
+    }
+}
+
+// MARK: - NoticeBanner
+
+/// Flüchtiger Hinweis über der Karte (Suche, GPX, Ortung) — getrennt vom
+/// Ladefehler der Tourenliste, mit eigenem Schliessen-Knopf.
+private struct NoticeBanner: View {
+    let message: String
+    let onClose: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.circle.fill")
+                .font(.footnote)
+                .foregroundStyle(AppColor.orange)
+            Text(message)
+                .font(.footnote)
+                .foregroundStyle(AppColor.text)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.app(12, weight: .semibold))
+                    .foregroundStyle(AppColor.muted)
+                    .frame(width: 32, height: 32)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("Hinweis schliessen")
+        }
+        .padding(.leading, 12)
+        .padding(.vertical, 4)
+        .padding(.trailing, 4)
+        .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.control))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
+            .stroke(AppColor.border, lineWidth: 1))
     }
 }

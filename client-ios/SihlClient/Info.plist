@@ -31,17 +31,25 @@
 	<key>NSCameraUsageDescription</key>
 	<string>SIHLMOVE nimmt nach dem Training auf Wunsch ein Foto auf, das in deiner Trainings-Galerie erscheint.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>SIHLMOVE zeichnet deine Route bei Outdoor-Trainings auf (Joggen, Radfahren, Wandern).</string>
+	<string>SIHLMOVE nutzt deinen Standort, um Touren in deiner Nähe zu zeigen, Routen zu planen und während eines Trainings deine Strecke aufzuzeichnen und dich zu führen – auch bei gesperrtem Bildschirm, solange das Training läuft.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>SIHLMOVE wählt auf Wunsch ein Foto aus deiner Mediathek für deine Trainings-Galerie.</string>
 	<key>UIBackgroundModes</key>
 	<array>
-		<string>remote-notification</string>
 		<string>bluetooth-central</string>
 		<string>location</string>
 		<string>audio</string>
 	</array>
 	<key>UILaunchScreen</key>
-	<dict/>
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+	</dict>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UIUserInterfaceStyle</key>
+	<string>Dark</string>
 </dict>
 </plist>

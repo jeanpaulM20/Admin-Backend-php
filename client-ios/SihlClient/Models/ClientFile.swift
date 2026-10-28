@@ -9,6 +9,22 @@ struct ClientFile: Identifiable {
 
     var hasUrl: Bool { !(url?.isEmpty ?? true) }
 
+    /// Eigener Backend-Pfad (`/api/…`) — wird mit Header-Auth geladen,
+    /// nie mit Token in der URL.
+    var downloadPath: String? {
+        guard let url, url.hasPrefix("/api/") else { return nil }
+        return url
+    }
+
+    /// Externe Adresse (http/https) — darf direkt im Browser öffnen.
+    var externalURL: URL? {
+        guard let url, downloadPath == nil,
+              let parsed = URL(string: url),
+              let scheme = parsed.scheme?.lowercased(),
+              scheme == "https" || scheme == "http" else { return nil }
+        return parsed
+    }
+
     init(json: [String: Any]) {
         self.id   = "\(json["id"] ?? UUID().uuidString)"
         self.name = (json["filename"] as? String) ?? (json["name"] as? String) ?? ""

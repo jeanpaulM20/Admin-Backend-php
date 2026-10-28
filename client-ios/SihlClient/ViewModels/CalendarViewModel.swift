@@ -50,9 +50,9 @@ final class CalendarViewModel {
     var toast: AppToast?
 
     // Calendar navigation state
-    var selectedDate:  Date = Date()
+    var selectedDate:  Date = ZurichTime.calendar.startOfDay(for: Date())
     var displayMonth:  Date = {
-        let cal = Calendar.current
+        let cal = ZurichTime.calendar
         let c = cal.dateComponents([.year, .month], from: Date())
         return cal.date(from: c) ?? Date()
     }()
@@ -62,18 +62,39 @@ final class CalendarViewModel {
 
     // MARK: - Load
 
+    /// Lädt Kalender + Präferenzen. Läuft bereits ein Ladevorgang, wird danach
+    /// erneut geladen (z. B. nach Buchen/Absagen), statt den Aufruf zu verwerfen.
     func load(clientId: String) async {
-        guard !isLoading else { return }
-        isLoading = true; error = nil
-
-        async let calTask   = apptService.getCalendarData(clientId: clientId)
-        async let prefTask  = prefService.getPreferences(clientId: clientId)
-
-        do { calendarData = try await calTask } catch { self.error = error.localizedDescription }
-        if let prefs = try? await prefTask {
-            prefTrainerId  = prefs["trainer_id"] ?? nil
-            prefLocationId = prefs["location_id"] ?? nil
+        // Demo/ohne Session: keine Requests ohne Token
+        guard !clientId.isEmpty, clientId != "demo" else { return }
+        if let running = loadTask {
+            reloadRequested = true
+            await running.value
+            return
         }
+        let task = Task { await performLoad(clientId: clientId) }
+        loadTask = task
+        await task.value
+        loadTask = nil
+    }
+
+    @ObservationIgnored private var loadTask: Task<Void, Never>?
+    @ObservationIgnored private var reloadRequested = false
+
+    private func performLoad(clientId: String) async {
+        isLoading = true
+        repeat {
+            reloadRequested = false
+            error = nil
+            async let calTask   = apptService.getCalendarData(clientId: clientId)
+            async let prefTask  = prefService.getPreferences(clientId: clientId)
+
+            do { calendarData = try await calTask } catch { self.error = error.localizedDescription }
+            if let prefs = try? await prefTask {
+                prefTrainerId  = prefs["trainer_id"] ?? nil
+                prefLocationId = prefs["location_id"] ?? nil
+            }
+        } while reloadRequested
         isLoading = false
     }
 
@@ -82,7 +103,7 @@ final class CalendarViewModel {
     func eventsForDay(_ day: Date) -> [Appointment] {
         guard let cal = calendarData else { return [] }
         return cal.appointments
-            .filter { Calendar.current.isDate($0.startDate, inSameDayAs: day) }
+            .filter { ZurichTime.calendar.isDate($0.startDate, inSameDayAs: day) }
             .sorted {
                 let ac = $0.status.lowercased() == "cancelled" ? 1 : 0
                 let bc = $1.status.lowercased() == "cancelled" ? 1 : 0
@@ -112,7 +133,7 @@ final class CalendarViewModel {
         let avail = availabilityForDay(day)
         if avail.isEmpty { return false }
         let minBookable = Date().addingTimeInterval(12 * 3600)
-        let cal = Calendar.current
+        let cal = ZurichTime.calendar
         for a in avail {
             guard let toMin = parseTime(a.to) else { continue }
             let latestStartMin = toMin - 60
@@ -132,6 +153,7 @@ final class CalendarViewModel {
         isBooking = true; toast = nil
 
         guard let cal = calendarData else { isBooking = false; return }
+        // Trainingsart der gewählten Verfügbarkeit; Standard nur als Rückfall
         let typeId = selection.trainingTypeId ?? cal.defaultTypeId ?? ""
 
         do {
@@ -161,15 +183,19 @@ final class CalendarViewModel {
         isBooking = false
     }
 
-    /// Returns `creditRefunded` flag (from backend), or throws on error.
+    /// Gibt `creditRefunded` (vom Backend) zurück; wirft bei Fehler — auch
+    /// wenn das Backend `success != true` meldet.
     func cancel(appointment: Appointment, clientId: String) async throws -> Bool {
         isCancelling = true
         defer { isCancelling = false }
         let result = try await apptService.cancelAppointment(
             clientId: clientId, appointmentId: appointment.id
         )
+        guard let result else {
+            throw APIError(statusCode: -1, message: "Der Termin konnte nicht abgesagt werden.")
+        }
         await load(clientId: clientId)
-        return result?["creditRefunded"] as? Bool ?? false
+        return result["creditRefunded"] as? Bool ?? false
     }
 
     // MARK: - Slot Generation (1:1 aus Flutter portiert)
@@ -193,7 +219,7 @@ final class CalendarViewModel {
         }
         if allMinutes.isEmpty { return [] }
 
-        let cal = Calendar.current
+        let cal = ZurichTime.calendar
         var slots: [CalTimeSlot] = []
 
         for startMin in allMinutes.sorted() {
@@ -210,7 +236,7 @@ final class CalendarViewModel {
             for a in calData.appointments {
                 guard a.status.lowercased() != "cancelled",
                       cal.isDate(a.startDate, inSameDayAs: day) else { continue }
-                let aStart = a.startDate.hour60 * 60 + a.startDate.minute60
+                let aStart = ZurichTime.minuteOfDay(a.startDate)
                 let aEnd   = aStart + a.duration
                 if startMin < aEnd && aStart < endMin { clientConflict = true; break }
             }
@@ -288,7 +314,7 @@ final class CalendarViewModel {
     }
 
     private func buildLocationBuffers(_ calData: CalendarData) -> [String: Int] {
-        Dictionary(uniqueKeysWithValues: calData.locations.map { ($0.id, $0.bufferMinutes) })
+        Dictionary(calData.locations.map { ($0.id, $0.bufferMinutes) }, uniquingKeysWith: { first, _ in first })
     }
 
     func parseTime(_ time: String) -> Int? {
@@ -297,15 +323,8 @@ final class CalendarViewModel {
         return parts[0] * 60 + parts[1]
     }
 
+    /// "yyyy-MM-dd" in Zürcher Zeit, gregorianisch (auch an das Backend).
     private func dayString(_ date: Date) -> String {
-        let c = Calendar.current.dateComponents([.year, .month, .day], from: date)
-        return String(format: "%04d-%02d-%02d", c.year!, c.month!, c.day!)
+        ZurichTime.dayString(date)
     }
-}
-
-// MARK: - Date helpers (private)
-
-private extension Date {
-    var hour60:   Int { Calendar.current.component(.hour,   from: self) }
-    var minute60: Int { Calendar.current.component(.minute, from: self) }
 }

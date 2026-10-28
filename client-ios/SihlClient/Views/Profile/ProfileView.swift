@@ -1,16 +1,24 @@
+import QuickLook
 import SwiftUI
 import UIKit
 
 /// Pendant zu `screens/profile_screen.dart`.
 /// Geöffnet als NavigationDestination vom Profil-Avatar in MainTabView.
 struct ProfileView: View {
+    @AppStorage(TourAssistantConsent.storageKey) private var aiConsent = false
     @Environment(AuthViewModel.self)    private var auth
     @Environment(ProfileViewModel.self) private var vm
 
     @State private var selectedInvoice: Invoice?
     @State private var showLogoutAlert   = false
     @State private var showPolarDisconnectAlert = false
-    @State private var polarToast: AppToast?
+    @State private var showDeleteAccount = false
+    @State private var toast: AppToast?
+    @Environment(\.openURL) private var openURL
+
+    // Dateien: lokale Kopie für die QuickLook-Vorschau
+    @State private var previewURL: URL?
+    @State private var openingFileId: String?
 
     // Push Notifications
     @State private var pushEnabled  = false
@@ -26,8 +34,14 @@ struct ProfileView: View {
             } else if vm.isLoading {
                 LoadingView(message: "Lade Profil…")
             } else if let err = vm.error {
-                ErrorStateView(message: err) {
-                    Task { await vm.load(clientId: auth.clientId ?? "") }
+                // Auch ohne Profildaten muss man sich abmelden können
+                VStack(spacing: 0) {
+                    ErrorStateView(message: err) {
+                        Task { await vm.load(clientId: auth.clientId ?? "") }
+                    }
+                    logoutButton
+                        .padding(.horizontal, AppSpacing.screen)
+                        .padding(.bottom, AppSpacing.bottomInset)
                 }
             } else {
                 content
@@ -47,6 +61,10 @@ struct ProfileView: View {
         .sheet(item: $selectedInvoice) { invoice in
             InvoiceDetailSheet(invoice: invoice)
         }
+        .sheet(isPresented: $showDeleteAccount) {
+            DeleteAccountSheet(clientId: auth.clientId ?? "")
+        }
+        .quickLookPreview($previewURL)
         .alert("Abmelden", isPresented: $showLogoutAlert) {
             Button("Abbrechen", role: .cancel) {}
             Button("Abmelden", role: .destructive) {
@@ -63,14 +81,14 @@ struct ProfileView: View {
                     do {
                         try await vm.disconnectPolar(clientId: id)
                     } catch {
-                        polarToast = AppToast(message: "Polar-Trennung fehlgeschlagen", style: .error)
+                        toast = AppToast(message: "Polar-Trennung fehlgeschlagen", style: .error)
                     }
                 }
             }
         } message: {
             Text("Polar-Verbindung wirklich trennen?")
         }
-        .appToast($polarToast)
+        .appToast($toast)
     }
 
     // MARK: - Demo-Modus
@@ -87,6 +105,7 @@ struct ProfileView: View {
                 .padding(.vertical, 12)
 
                 sensorsRow
+                privacyRow
 
                 Spacer(minLength: 24)
                 logoutButton
@@ -111,10 +130,15 @@ struct ProfileView: View {
                 invoicesSection
                 filesSection
                 connectionsSection
-                glucoseRow
+                if AppFeatures.glucose {
+                    glucoseRow
+                }
 
                 sensorsRow
                 notificationsSection
+                privacyRow
+                if aiConsent { aiConsentRow }
+                deleteAccountRow
 
                 Spacer(minLength: 24)
                 logoutButton
@@ -155,7 +179,7 @@ struct ProfileView: View {
     private var creditsSection: some View {
         SectionDisclosure(
             icon: "creditcard.fill",
-            title: "Meine Credits",
+            title: "Meine Lektionen",
             subtitle: vm.creditsSubtitle
         ) {
             if vm.activePacks.isEmpty {
@@ -179,13 +203,50 @@ struct ProfileView: View {
         }
     }
 
-    // MARK: - Credits kaufen Row
+    // MARK: - Lektionen & Guthaben Row
 
     private var creditsBuyRow: some View {
         NavRow(icon: "cart", tint: AppColor.primary,
-               title: "Credits kaufen", subtitle: "Abos & Pakete ansehen") {
+               title: "Lektionen & Guthaben", subtitle: "Pakete für Training im Studio") {
             CreditsView()
         }
+    }
+
+    // MARK: - Datenschutz & Konto löschen
+
+    private var privacyRow: some View {
+        Link(destination: AppLinks.privacy) {
+            ProfileRowLabel(icon: "hand.raised.fill", tint: AppColor.primary,
+                            title: "Datenschutz", subtitle: "So gehen wir mit deinen Daten um",
+                            trailingIcon: "arrow.up.right")
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Erteilte KI-Einwilligung (Touren-Assistent) widerrufen. Danach fragt
+    /// der Assistent vor der nächsten Nutzung erneut.
+    private var aiConsentRow: some View {
+        Button {
+            aiConsent = false
+        } label: {
+            ProfileRowLabel(icon: "sparkles", tint: AppColor.brass,
+                            title: "KI-Einwilligung widerrufen",
+                            subtitle: "Touren-Assistent fragt beim nächsten Mal erneut",
+                            trailingIcon: "xmark.circle")
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Widerruft die Zustimmung zur Übermittlung an den KI-Anbieter")
+    }
+
+    private var deleteAccountRow: some View {
+        Button {
+            showDeleteAccount = true
+        } label: {
+            ProfileRowLabel(icon: "person.crop.circle.badge.xmark", tint: AppColor.red,
+                            title: "Konto löschen", subtitle: "Konto und Daten löschen lassen",
+                            trailingIcon: "chevron.right")
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Blutzucker Row (CGM — ehemals Tab 6; max. 5 Tabs, s. MainTabView)
@@ -231,16 +292,38 @@ struct ProfileView: View {
     private var filesSection: some View {
         SectionDisclosure(
             icon: "folder.fill",
-            title: "Files",
+            title: "Dateien",
             subtitle: vm.countLabel(vm.files.count, "Datei", "Dateien")
         ) {
             if vm.files.isEmpty {
                 EmptyHint(text: "Keine Dateien vorhanden")
             } else {
                 ForEach(vm.files) { file in
-                    FileRow(file: file, token: auth.token)
-                        .padding(.bottom, 8)
+                    FileRow(file: file, loading: openingFileId == file.id) {
+                        open(file)
+                    }
+                    .padding(.bottom, 8)
                 }
+            }
+        }
+    }
+
+    /// Eigene Dateien mit Header-Auth laden und in QuickLook zeigen —
+    /// kein Token in der URL (Safari-Verlauf, Server-Logs).
+    private func open(_ file: ClientFile) {
+        if let url = file.externalURL {
+            openURL(url)
+            return
+        }
+        guard file.downloadPath != nil, openingFileId == nil else { return }
+        openingFileId = file.id
+        Task {
+            defer { openingFileId = nil }
+            do {
+                previewURL = try await vm.downloadFile(file)
+            } catch {
+                let message = (error as? APIError)?.message ?? "Datei konnte nicht geladen werden"
+                withAnimation { toast = AppToast(message: message, style: .error) }
             }
         }
     }
@@ -263,10 +346,10 @@ struct ProfileView: View {
                         guard let id = auth.clientId else { return }
                         do {
                             let message = try await vm.syncPolar(clientId: id)
-                            withAnimation { polarToast = AppToast(message: message, style: .success) }
+                            withAnimation { toast = AppToast(message: message, style: .success) }
                         } catch {
-                            let message = (error as? APIError)?.message ?? "Polar-Sync fehlgeschlagen"
-                            withAnimation { polarToast = AppToast(message: message, style: .error) }
+                            let message = (error as? APIError)?.message ?? "Polar-Abgleich fehlgeschlagen"
+                            withAnimation { toast = AppToast(message: message, style: .error) }
                         }
                     }
                 },
@@ -275,9 +358,9 @@ struct ProfileView: View {
                     Task {
                         guard let id = auth.clientId else { return }
                         if let message = await vm.connectPolar(clientId: id) {
-                            withAnimation { polarToast = AppToast(message: message, style: .error) }
+                            withAnimation { toast = AppToast(message: message, style: .error) }
                         } else if vm.polarConnected {
-                            withAnimation { polarToast = AppToast(message: "Polar verbunden", style: .success) }
+                            withAnimation { toast = AppToast(message: "Polar verbunden", style: .success) }
                         }
                     }
                 }
@@ -338,9 +421,15 @@ struct ProfileView: View {
             showLogoutAlert = true
         } label: {
             HStack(spacing: 8) {
-                Image(systemName: "rectangle.portrait.and.arrow.right")
-                    .font(.app(16))
-                Text("Abmelden")
+                // Abmelden meldet erst Push beim Server ab (bis 8 s bei
+                // schlechtem Netz) — darum sichtbar „läuft"
+                if auth.isLoggingOut {
+                    ProgressView().tint(AppColor.red)
+                } else {
+                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                        .font(.app(16))
+                }
+                Text(auth.isLoggingOut ? "Wird abgemeldet …" : "Abmelden")
                     .font(.app(15, weight: .semibold))
             }
             .foregroundStyle(AppColor.red)
@@ -351,6 +440,7 @@ struct ProfileView: View {
                     .stroke(AppColor.red.opacity(0.47), lineWidth: 1)
             )
         }
+        .disabled(auth.isLoggingOut)
     }
 }
 
@@ -488,7 +578,7 @@ private struct InvoiceRow: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 4) {
-                Text("\(invoice.currency) \(String(format: "%.2f", invoice.amount))")
+                Text(invoice.amountFormatted)
                     .font(.app(16, weight: .heavy))
                     .foregroundStyle(AppColor.text)
                 Text(isPaid ? "Bezahlt" : "Offen")
@@ -513,16 +603,15 @@ private struct InvoiceRow: View {
 
 private struct FileRow: View {
     let file: ClientFile
-    let token: String?
+    let loading: Bool
+    let onOpen: () -> Void
 
     private static let dateFmt: DateFormatter = {
         let f = DateFormatter(); f.dateFormat = "dd.MM.yyyy"; return f
     }()
 
     var body: some View {
-        Button {
-            openFile()
-        } label: {
+        Button(action: onOpen) {
             HStack(spacing: 10) {
                 Image(systemName: "doc.fill")
                     .font(.app(18))
@@ -536,8 +625,10 @@ private struct FileRow: View {
                         .foregroundStyle(AppColor.muted)
                 }
                 Spacer()
-                if file.hasUrl {
-                    Image(systemName: "arrow.up.right.square")
+                if loading {
+                    ProgressView().tint(AppColor.primary)
+                } else if file.hasUrl {
+                    Image(systemName: file.externalURL != nil ? "arrow.up.right.square" : "eye")
                         .font(.app(16))
                         .foregroundStyle(AppColor.primary)
                 }
@@ -546,23 +637,113 @@ private struct FileRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(!file.hasUrl)
+        .disabled(!file.hasUrl || loading)
+    }
+}
+
+// MARK: - Profil-Zeile (Link/Aktion)
+
+/// Optik wie `NavRow`, aber für Links und Aktionen statt Navigation.
+private struct ProfileRowLabel: View {
+    let icon: String
+    let tint: Color
+    let title: String
+    let subtitle: String
+    let trailingIcon: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: AppRadius.control)
+                .fill(tint.opacity(0.14))
+                .frame(width: 36, height: 36)
+                .overlay(Image(systemName: icon)
+                    .font(.app(16))
+                    .foregroundStyle(tint))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.app(15, weight: .bold))
+                    .foregroundStyle(AppColor.text)
+                Text(subtitle)
+                    .font(.app(12))
+                    .foregroundStyle(AppColor.muted)
+            }
+            .multilineTextAlignment(.leading)
+            Spacer()
+            Image(systemName: trailingIcon)
+                .font(.app(14))
+                .foregroundStyle(AppColor.muted)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(AppColor.surface)
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.border, lineWidth: 1))
+        .contentShape(Rectangle())
+    }
+}
+
+// MARK: - Konto löschen
+
+/// Bestätigung mit Erklärung; die Löschung läuft per E-Mail an Sihl Training.
+private struct DeleteAccountSheet: View {
+    let clientId: String
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+    @State private var mailFailed = false
+
+    private var mailURL: URL? {
+        AppLinks.supportMail(
+            subject: "Konto löschen – Kunden-ID \(clientId)",
+            body: "Bitte löscht mein Konto bei Sihl Training und die dazugehörigen Daten.\n\nKunden-ID: \(clientId)"
+        )
     }
 
-    private func openFile() {
-        guard let rawUrl = file.url, !rawUrl.isEmpty else { return }
-        let fullUrl: String
-        if rawUrl.hasPrefix("/api/") {
-            let base = APIConfig.baseURL.absoluteString
-                .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-            let sep = rawUrl.contains("?") ? "&" : "?"
-            let tokenSuffix = token.map { "\(sep)token=\($0)" } ?? ""
-            fullUrl = "\(base)\(rawUrl)\(tokenSuffix)"
-        } else {
-            fullUrl = rawUrl
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Konto löschen")
+                    .font(.app(20, weight: .bold))
+                    .foregroundStyle(AppColor.text)
+                Spacer()
+                Button("Abbrechen") { dismiss() }
+                    .font(.app(15))
+                    .foregroundStyle(AppColor.muted)
+            }
+
+            Text("Wir löschen dein Konto und deine Daten innerhalb von 30 Tagen; gesetzlich aufzubewahrende Rechnungen ausgenommen.")
+                .font(.app(15))
+                .foregroundStyle(AppColor.text)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text("Tippe unten, um eine vorbereitete E-Mail an \(AppLinks.supportEmail) zu öffnen, und sende sie ab.")
+                .font(.app(13))
+                .foregroundStyle(AppColor.muted)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if mailFailed {
+                InlineErrorBanner(message: "Keine Mail-App gefunden. Schreib bitte an \(AppLinks.supportEmail) mit Betreff „Konto löschen – Kunden-ID \(clientId)“.")
+                    .textSelection(.enabled)
+            }
+
+            Spacer(minLength: 0)
+
+            Button {
+                guard let mailURL else { mailFailed = true; return }
+                openURL(mailURL) { accepted in
+                    if accepted { dismiss() } else { mailFailed = true }
+                }
+            } label: {
+                Text("Löschung per E-Mail anfragen")
+            }
+            .buttonStyle(PrimaryButtonStyle(fill: AppColor.red))
         }
-        guard let url = URL(string: fullUrl) else { return }
-        UIApplication.shared.open(url)
+        .padding(AppSpacing.screen)
+        .padding(.top, 8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(AppColor.background.ignoresSafeArea())
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 }
 
@@ -608,7 +789,7 @@ private struct PolarCard: View {
             } else if connected {
                 HStack(spacing: 8) {
                     Button(action: onSync) {
-                        Label("Sync", systemImage: "arrow.clockwise")
+                        Label("Abgleichen", systemImage: "arrow.clockwise")
                             .font(.app(13, weight: .semibold))
                             .foregroundStyle(AppColor.primary)
                             .padding(.horizontal, 12)
@@ -649,7 +830,7 @@ private struct PolarCard: View {
     private var statusText: String {
         if connected {
             guard let lastSync else { return "Verbunden" }
-            return "Verbunden · Sync \(lastSync.formatted(.relative(presentation: .named)))"
+            return "Verbunden · abgeglichen \(lastSync.formatted(.relative(presentation: .named)))"
         }
         return available ? "Nicht verbunden" : "Derzeit nicht verfügbar"
     }
@@ -693,7 +874,7 @@ private struct PushNotificationCard: View {
                 Text("Push-Benachrichtigungen")
                     .font(.app(15, weight: .bold))
                     .foregroundStyle(AppColor.text)
-                // Zustand signalisiert der Toggle; Fließtext nur im denied-Fall.
+                // Zustand signalisiert der Toggle; Fliesstext nur im denied-Fall.
                 if denied {
                     Text("In den iOS-Einstellungen aktivieren")
                         .font(.app(12))

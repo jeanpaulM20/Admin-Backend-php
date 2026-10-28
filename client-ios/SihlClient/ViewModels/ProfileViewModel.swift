@@ -52,6 +52,13 @@ final class ProfileViewModel {
         isLoading = false
     }
 
+    // MARK: - Dateien
+
+    /// Datei für die Vorschau laden; liefert die lokale Datei-URL.
+    func downloadFile(_ file: ClientFile) async throws -> URL {
+        try await service.downloadFile(file)
+    }
+
     // MARK: - Polar
 
     /// Öffnet die Polar-Anmeldung; danach den Status neu laden.

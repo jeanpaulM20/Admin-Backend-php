@@ -17,6 +17,9 @@ struct MainTabView: View {
 
     @Environment(StartViewModel.self) private var start
     @Environment(RecordingLauncher.self) private var launcher
+    @Environment(\.scenePhase) private var scenePhase
+
+    private var isDemo: Bool { auth.clientId == "demo" }
 
     var body: some View {
         TabView(selection: $selection) {
@@ -53,18 +56,27 @@ struct MainTabView: View {
             selection = TabIndex.start.rawValue
         }
         .task {
+            // Demo: keine echten Requests (ohne Token → nur Fehler)
+            guard !isDemo else { return }
             // Conversations schon beim App-Start laden, damit der Unread-Badge
             // sichtbar ist, bevor der Chat-Tab je geöffnet wurde (Flutter lädt
             // alle Screens eager im IndexedStack).
             if chat.conversations.isEmpty, let id = auth.clientId {
                 await chat.fetchConversations(clientId: id)
             }
-            // Offline aufgezeichnete Trainings nachreichen
-            await WorkoutUploadService.shared.retryPending()
+            // Offline aufgezeichnete Trainings nachreichen — jetzt und später
+            // bei Rückkehr in den Vordergrund bzw. wenn das Netz zurückkommt
+            let scheduler = PendingUploadScheduler.shared
+            scheduler.clientIdProvider = { [auth] in auth.clientId }
+            scheduler.startMonitoring()
+            scheduler.trigger(delay: .zero)
             // Stammdaten für die Avatar-Initialen (kam bisher aus der Startseite)
             if start.startData == nil, let id = auth.clientId {
                 await start.load(clientId: id)
             }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active, !isDemo { PendingUploadScheduler.shared.trigger() }
         }
     }
 }

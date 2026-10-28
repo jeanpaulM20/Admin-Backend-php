@@ -12,6 +12,9 @@ struct AnalyticsView: View {
     @State private var compareMode     = false
     @State private var selectedReviews = Set<String>()   // IDs
     @State private var compareTarget:  CompareSelection? = nil
+    /// Ein Navigationsziel für den ganzen Screen — registriert ausserhalb
+    /// des LazyVStack, sonst verpufft die Navigation sporadisch
+    @State private var destination: AnalyticsDestination?
 
     var body: some View {
         ZStack {
@@ -43,8 +46,15 @@ struct AnalyticsView: View {
         .sheet(item: $compareTarget) { sel in
             TrainingCompareView(reviews: sel.reviews)
         }
-        // Navigation läuft programmatisch in den Section-Cards
-        // (navigationDestination(item:) + Tap-Gesten).
+        // Navigation programmatisch: Zellen setzen `destination` per Tap-Geste
+        .navigationDestination(item: $destination) { target in
+            switch target {
+            case .metric(let t):
+                PerformanceDetailView(item: t.item, sectionTitle: t.sectionTitle)
+            case .review(let r):
+                TrainingReviewDetailView(review: r)
+            }
+        }
     }
 
     // MARK: - Content list
@@ -54,7 +64,7 @@ struct AnalyticsView: View {
             LazyVStack(spacing: 12) {
                 // Performance-Sektionen
                 ForEach(analytics.sections) { section in
-                    PerformanceSectionCard(section: section)
+                    PerformanceSectionCard(section: section) { destination = .metric($0) }
                 }
 
                 // Trainingsaufzeichnungen
@@ -66,7 +76,8 @@ struct AnalyticsView: View {
                         onCompare: {
                             let selected = analytics.reviews.filter { selectedReviews.contains($0.id) }
                             compareTarget = selected.isEmpty ? nil : CompareSelection(reviews: selected)
-                        }
+                        },
+                        onOpen: { destination = .review($0) }
                     )
                 }
 
@@ -83,9 +94,8 @@ struct AnalyticsView: View {
 /// Pendant zu `PerformanceSectionTile` — aufklappbare Karte mit Metrikwerten.
 private struct PerformanceSectionCard: View {
     let section: PerformanceSection
+    let onOpen: (PerformanceNavTarget) -> Void
     @State private var expanded = false
-
-    @State private var detailTarget: PerformanceNavTarget?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -118,8 +128,11 @@ private struct PerformanceSectionCard: View {
             .onTapGesture {
                 withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() }
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityValue(expanded ? "aufgeklappt" : "zugeklappt")
 
-            // Items — programmatische Navigation über navigationDestination(item:)
+            // Items — Navigation über das Ziel in AnalyticsView
             if expanded {
                 Divider().background(AppColor.muted.opacity(0.2))
                 // Spaltenköpfe — sonst bleiben die zwei Zahlen unbeschriftet
@@ -141,16 +154,15 @@ private struct PerformanceSectionCard: View {
                     )
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        detailTarget = PerformanceNavTarget(sectionTitle: section.title, item: item)
+                        onOpen(PerformanceNavTarget(sectionTitle: section.title, item: item))
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityAddTraits(.isButton)
                 }
             }
         }
         .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
         .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(AppColor.muted.opacity(0.15), lineWidth: 1))
-        .navigationDestination(item: $detailTarget) { target in
-            PerformanceDetailView(item: target.item, sectionTitle: target.sectionTitle)
-        }
     }
 }
 
@@ -229,10 +241,10 @@ private struct TrainingReviewSectionCard: View {
     @Binding var compareMode: Bool
     @Binding var selectedIds: Set<String>
     let onCompare: () -> Void
+    let onOpen: (TrainingReview) -> Void
 
     private let minCompare = 2
     @State private var expanded = false
-    @State private var detailReview: TrainingReview?
 
     private var comparableCount: Int { reviews.filter(\.hasChartData).count }
 
@@ -344,18 +356,17 @@ private struct TrainingReviewSectionCard: View {
                                 }
                             }
                         } else {
-                            detailReview = review
+                            onOpen(review)
                         }
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityAddTraits(compareMode && isSelected ? [.isButton, .isSelected] : .isButton)
                 }
             }
         }
         .background(AppColor.surface, in: RoundedRectangle(cornerRadius: AppRadius.card))
         .overlay(RoundedRectangle(cornerRadius: AppRadius.card).stroke(
             AppColor.muted.opacity(0.15), lineWidth: 1))
-        .navigationDestination(item: $detailReview) { review in
-            TrainingReviewDetailView(review: review)
-        }
     }
 }
 
@@ -415,6 +426,21 @@ private struct ReviewRowView: View {
     }
 }
 
+
+// MARK: - AnalyticsDestination
+
+/// Navigationsziele des Auswertungs-Screens (ein @State-Item in `AnalyticsView`).
+enum AnalyticsDestination: Hashable, Identifiable {
+    case metric(PerformanceNavTarget)
+    case review(TrainingReview)
+
+    var id: String {
+        switch self {
+        case .metric(let t): return "metric-\(t.id)"
+        case .review(let r): return "review-\(r.id)"
+        }
+    }
+}
 
 // MARK: - CompareSelection (sheet item wrapper)
 

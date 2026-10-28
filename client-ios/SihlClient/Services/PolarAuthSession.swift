@@ -61,8 +61,9 @@ final class PolarAuthSession: NSObject, ASWebAuthenticationPresentationContextPr
                 }
             }
             session.presentationContextProvider = self
-            // Bestehende Polar-Flow-Anmeldung in Safari mitnutzen
-            session.prefersEphemeralWebBrowserSession = false
+            // Eigene, flüchtige Browser-Sitzung: keine Safari-Cookies teilen
+            // oder hinterlassen (kein Fremdkonto, kein Hinweisdialog)
+            session.prefersEphemeralWebBrowserSession = true
             self.session = session
             if !session.start() {
                 continuation.resume(returning: .failed("Polar-Anmeldung konnte nicht geöffnet werden"))

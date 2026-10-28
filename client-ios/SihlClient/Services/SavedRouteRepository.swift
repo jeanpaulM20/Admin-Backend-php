@@ -91,15 +91,20 @@ struct SavedRouteRepository {
         if isDemo {
             let demo = TourService.demoPlannedRoute(points: route.points, activity: route.activity,
                                                     roundtrip: route.roundtrip)
-            return TourDetail(id: "saved-\(route.id)", name: route.name, activity: demo.activity,
-                              description: demo.description, distanceKm: demo.distanceKm,
-                              durationMin: demo.durationMin, difficulty: demo.difficulty,
-                              segments: demo.segments)
+            var detail = TourDetail(id: "saved-\(route.id)", name: route.name, activity: demo.activity,
+                                    description: demo.description, distanceKm: demo.distanceKm,
+                                    durationMin: demo.durationMin, difficulty: demo.difficulty,
+                                    segments: demo.segments)
+            detail.waypoints = route.points
+            return detail
         }
         guard let clientId,
               let json = try await APIClient.shared
-                .getJSONObject("/api/client/tours/planned/\(clientId)/\(route.id)", timeout: 30) else { return nil }
-        return TourDetail(json: json)
+                .getJSONObject("/api/client/tours/planned/\(clientId)/\(route.id)", timeout: 30),
+              var detail = TourDetail(json: json) else { return nil }
+        // Gesetzte Punkte für „nächster Punkt" in der Aufzeichnung
+        detail.waypoints = route.points
+        return detail
     }
 
     /// Neue Route speichern oder — mit `replacing` — eine bestehende mit

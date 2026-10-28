@@ -1,24 +1,25 @@
 import SwiftUI
-import UIKit
+import QuickLook
 
 /// Detail-Sheet für einen bestehenden Termin — Pendant zu `_showAppointmentDetail` in
 /// `calendar_screen.dart`. Zeigt Infos + Buttons: "Zum Kalender" + "Absagen".
 struct AppointmentDetailSheet: View {
     let appointment: Appointment
-    let token: String?
+    /// Wird vor dem Schliessen aufgerufen; der Aufrufer zeigt den Absage-Dialog
+    /// erst nach dem Schliessen des Sheets (onDismiss).
     let onCancel: () -> Void
 
     @Environment(\.dismiss) private var dismiss
 
-    private static let longDateFmt: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "de_DE")
-        f.dateFormat = "EEEE, d. MMMM yyyy"
-        return f
-    }()
-    private static let timeFmt: DateFormatter = {
-        let f = DateFormatter(); f.dateFormat = "HH:mm"; return f
-    }()
+    /// Lokal gespeicherte .ics-Datei (per Header-Auth geladen, kein Token in der URL).
+    @State private var icsFile: URL?
+    /// QuickLook zeigt die .ics als Termin mit „Zum Kalender hinzufügen" —
+    /// das Teilen-Menü böte keine Kalender-Aktion
+    @State private var icsPreview: URL?
+    @State private var icsFailed = false
+
+    private static let longDateFmt = ZurichTime.displayFormatter("EEEE, d. MMMM yyyy")
+    private static let timeFmt     = ZurichTime.time
 
     private var isCancelled: Bool { appointment.status.lowercased() == "cancelled" }
     private var isAttended:  Bool { appointment.status.lowercased() == "attended" }
@@ -66,24 +67,13 @@ struct AppointmentDetailSheet: View {
 
                     // Buttons
                     HStack(spacing: 10) {
-                        // "Zum Kalender" — lädt die iCal-URL
-                        Button {
-                            addToCalendar()
-                            dismiss()
-                        } label: {
-                            Label("Kalender", systemImage: "calendar.badge.plus")
-                                .font(.app(14, weight: .medium))
-                                .foregroundStyle(AppColor.primary)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
-                                    .stroke(AppColor.primary, lineWidth: 1))
-                        }
+                        // "Zum Kalender" — teilt die vorab geladene .ics-Datei
+                        calendarButton
 
                         if canCancel {
                             Button {
-                                dismiss()
                                 onCancel()
+                                dismiss()
                             } label: {
                                 Label("Absagen", systemImage: "xmark.circle")
                                     .font(.app(14, weight: .medium))
@@ -111,6 +101,43 @@ struct AppointmentDetailSheet: View {
         }
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
+        .task { await loadICS() }
+    }
+
+    // MARK: - Kalender-Button
+
+    @ViewBuilder
+    private var calendarButton: some View {
+        if let icsFile {
+            Button { icsPreview = icsFile } label: {
+                calendarLabel("Kalender")
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Termin in Kalender übernehmen")
+            .quickLookPreview($icsPreview)
+        } else if icsFailed {
+            Button {
+                Task { await loadICS() }
+            } label: {
+                calendarLabel("Erneut laden")
+            }
+            .accessibilityLabel("Kalenderdatei erneut laden")
+        } else {
+            calendarLabel("Kalender")
+                .opacity(0.5)
+                .overlay { ProgressView().tint(AppColor.primary) }
+                .accessibilityLabel("Kalenderdatei wird geladen")
+        }
+    }
+
+    private func calendarLabel(_ title: String) -> some View {
+        Label(title, systemImage: "calendar.badge.plus")
+            .font(.app(14, weight: .medium))
+            .foregroundStyle(AppColor.primary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
+                .stroke(AppColor.primary, lineWidth: 1))
     }
 
     // MARK: - Status Badge
@@ -155,12 +182,18 @@ struct AppointmentDetailSheet: View {
 
     // MARK: - iCal
 
-    private func addToCalendar() {
-        let base = APIConfig.baseURL.absoluteString
-            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        var urlStr = "\(base)/api/training/\(appointment.id)/ical"
-        if let t = token { urlStr += "?token=\(t)" }
-        guard let url = URL(string: urlStr) else { return }
-        UIApplication.shared.open(url)
+    /// Lädt die .ics per `APIClient` (Token im Header) und legt sie als
+    /// temporäre Datei ab — Safari-Aufruf mit `?token=` entfällt.
+    private func loadICS() async {
+        icsFailed = false
+        do {
+            let data = try await APIClient.shared.get("api/training/\(appointment.id)/ical")
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent("SIHLMOVE-Termin-\(appointment.id).ics")
+            try data.write(to: url, options: [.atomic, .completeFileProtection])
+            icsFile = url
+        } catch {
+            if !Task.isCancelled { icsFailed = true }
+        }
     }
 }

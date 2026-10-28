@@ -15,6 +15,8 @@ struct SavedRoutesSheet: View {
     @State private var routes: [SavedRoute] = []
     @State private var isLoading = true
     @State private var error: String?
+    /// Liste konnte nicht geladen werden — eigener Zustand mit „Erneut"
+    @State private var loadError: String?
     @State private var openingID: Int?
     @State private var openTask: Task<Void, Never>?
     @State private var renaming: SavedRoute?
@@ -65,6 +67,10 @@ struct SavedRoutesSheet: View {
     private var content: some View {
         if isLoading {
             LoadingView(message: "Lade Routen…")
+        } else if let loadError, routes.isEmpty {
+            ErrorStateView(message: loadError) {
+                Task { await reload() }
+            }
         } else if routes.isEmpty {
             VStack(spacing: 10) {
                 if let error { InlineErrorBanner(message: error) }
@@ -157,11 +163,20 @@ struct SavedRoutesSheet: View {
     private func load() async {
         do {
             routes = try await repository.list()
+            loadError = nil
             error = nil
         } catch {
-            self.error = "Routen konnten nicht geladen werden."
+            guard !Task.isCancelled else { return }
+            loadError = "Routen konnten nicht geladen werden."
         }
         isLoading = false
+    }
+
+    /// „Erneut versuchen" nach einem Ladefehler.
+    private func reload() async {
+        isLoading = true
+        loadError = nil
+        await load()
     }
 
     private func open(_ route: SavedRoute) {

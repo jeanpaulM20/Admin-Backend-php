@@ -43,7 +43,7 @@ struct TrainingCompareView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Schließen") { dismiss() }
+                    Button("Schliessen") { dismiss() }
                         .foregroundStyle(AppColor.muted)
                 }
             }
@@ -172,7 +172,7 @@ struct TrainingCompareView: View {
                 Text("Max HF")
                     .font(.caption).foregroundStyle(AppColor.muted)
                     .frame(width: 60, alignment: .trailing)
-                Text("Avg HF")
+                Text("Ø HF")
                     .font(.caption).foregroundStyle(AppColor.muted)
                     .frame(width: 60, alignment: .trailing)
                 Text("HRR")

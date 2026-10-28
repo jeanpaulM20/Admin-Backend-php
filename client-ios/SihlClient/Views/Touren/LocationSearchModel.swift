@@ -17,6 +17,10 @@ final class LocationSearchModel: NSObject, MKLocalSearchCompleterDelegate {
     }
 
     private(set) var suggestions: [Suggestion] = []
+    /// Suchtext, zu dem `suggestions` gehören (leer = keine gültigen)
+    private var suggestionsQuery = ""
+    /// Zuletzt angefragter Suchtext — spätere Antworten älterer Anfragen verwerfen
+    private var currentQuery = ""
     private let completer = MKLocalSearchCompleter()
 
     override init() {
@@ -27,10 +31,13 @@ final class LocationSearchModel: NSObject, MKLocalSearchCompleterDelegate {
 
     /// Bei jeder Eingabe aufrufen; leerer Text räumt die Vorschläge weg.
     func update(query: String, near center: CLLocationCoordinate2D) {
-        guard !query.trimmingCharacters(in: .whitespaces).isEmpty else {
-            suggestions = []
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else {
+            // Laufende Anfrage stoppen, sonst tauchen alte Vorschläge wieder auf
+            clear()
             return
         }
+        currentQuery = trimmed
         completer.region = MKCoordinateRegion(
             center: center,
             span: MKCoordinateSpan(latitudeDelta: 2, longitudeDelta: 2))
@@ -38,7 +45,19 @@ final class LocationSearchModel: NSObject, MKLocalSearchCompleterDelegate {
     }
 
     func clear() {
+        currentQuery = ""
+        suggestionsQuery = ""
         suggestions = []
+        completer.cancel()
+        completer.queryFragment = ""
+    }
+
+    /// Oberster Vorschlag — nur wenn er zum aktuellen Suchtext gehört
+    /// (die „Suchen"-Taste springt sonst zu einem veralteten Ort).
+    func topSuggestion(for query: String) -> Suggestion? {
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, trimmed == suggestionsQuery else { return nil }
+        return suggestions.first
     }
 
     /// Aufgelöster Suchtreffer: exakte Koordinate, Anzeigename und ein zur
@@ -90,12 +109,17 @@ final class LocationSearchModel: NSObject, MKLocalSearchCompleterDelegate {
     // MARK: MKLocalSearchCompleterDelegate (Callbacks auf dem Main Thread)
 
     func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
+        let query = completer.queryFragment.trimmingCharacters(in: .whitespaces)
+        // Feld inzwischen geleert oder Text geändert → Antwort verwerfen
+        guard !currentQuery.isEmpty, query == currentQuery else { return }
+        suggestionsQuery = query
         suggestions = completer.results.prefix(5).enumerated().map { i, c in
             Suggestion(id: i, title: c.title, subtitle: c.subtitle, completion: c)
         }
     }
 
     func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) {
+        suggestionsQuery = ""
         suggestions = []
     }
 }

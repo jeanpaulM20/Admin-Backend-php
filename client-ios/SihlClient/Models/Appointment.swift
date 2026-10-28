@@ -22,38 +22,22 @@ extension Appointment {
     /// Baut ein Appointment aus einem rohen JSON-Dictionary.
     /// Das Backend liefert Datum und Uhrzeit getrennt ("date" + "starttime").
     init?(json: [String: Any]) {
-        guard let idVal = json["id"] else { return nil }
-        self.id = "\(idVal)"
+        guard let id = jsonID(json["id"]) else { return nil }
+        self.id = id
 
+        // Datum + Uhrzeit sind Zürcher Ortszeit ohne Zeitzonen-Angabe
         let dateStr = (json["date"] as? String) ?? ""
-        let timeStr = (json["starttime"] as? String)
-                   ?? (json["time_from"] as? String)
-                   ?? "00:00"
-        if dateStr.isEmpty {
-            self.startDate = Date(timeIntervalSince1970: 0)
-        } else {
-            let combined = "\(dateStr)T\(timeStr)"
-            // Try ISO 8601 first; fall back to date-only
-            let isoFmt = ISO8601DateFormatter()
-            isoFmt.formatOptions = [.withFullDate, .withTime,
-                                    .withColonSeparatorInTime,
-                                    .withDashSeparatorInDate]
-            if let d = isoFmt.date(from: combined) {
-                self.startDate = d
-            } else if let d = ISO8601DateFormatter().date(from: dateStr) {
-                self.startDate = d
-            } else {
-                self.startDate = Date(timeIntervalSince1970: 0)
-            }
-        }
+        let timeStr = (json["starttime"] as? String) ?? (json["time_from"] as? String)
+        guard let start = ZurichTime.date(day: dateStr, time: timeStr ?? "00:00") else { return nil }
+        self.startDate = start
 
         self.duration        = Int("\(json["duration"] ?? 60)") ?? 60
         self.text            = (json["notes"] as? String) ?? (json["text"] as? String) ?? ""
-        self.trainingTypeId  = "\(json["training_type_id"] ?? "")"
-        self.trainingTypeName = "\(json["training_type_name"] ?? "")"
-        self.locationId      = "\(json["location_id"] ?? "")"
-        self.locationName    = "\(json["location_name"] ?? "")"
-        self.trainerId       = "\(json["trainer_id"] ?? "")"
+        self.trainingTypeId  = jsonID(json["training_type_id"]) ?? ""
+        self.trainingTypeName = (json["training_type_name"] as? String) ?? ""
+        self.locationId      = jsonID(json["location_id"]) ?? ""
+        self.locationName    = (json["location_name"] as? String) ?? ""
+        self.trainerId       = jsonID(json["trainer_id"]) ?? ""
 
         if let trainer = json["trainer"] as? [String: Any] {
             let first = (trainer["firstname"] as? String) ?? ""
@@ -66,8 +50,7 @@ extension Appointment {
         self.creditsCharged = Int("\(json["credits_charged"] ?? 0)") ?? 0
         self.status         = (json["status"] as? String) ?? ""
 
-        let rawPlanId = json["training_plan_id"] ?? json["trainingPlanId"]
-        self.trainingPlanId = Int("\(rawPlanId ?? "")")
+        self.trainingPlanId = jsonID(json["training_plan_id"] ?? json["trainingPlanId"]).flatMap { Int($0) }
 
         if let name = json["training_plan_name"] as? String {
             self.trainingPlanName = name

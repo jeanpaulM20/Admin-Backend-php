@@ -7,6 +7,9 @@ actor LibreRepository {
 
     private let storage = LibreStorageService()
     private var apiClient: LibreAPIClient?
+    /// Steigt bei jedem Logout — ein Sync, der davor begonnen hat, darf
+    /// danach nichts mehr zurückschreiben.
+    private var generation = 0
 
     // MARK: - Auth
 
@@ -16,6 +19,7 @@ actor LibreRepository {
     }
 
     func login(email: String, password: String, region: LibreRegion = .eu) async throws {
+        let startedIn = generation
         let client = LibreAPIClient(region: region)
         let ticket = try await client.login(email: email, password: password)
 
@@ -23,12 +27,17 @@ actor LibreRepository {
         guard let first = connections.first else {
             throw LibreError(code: 0, message: "Keine Libre-Verbindungen gefunden")
         }
+        // Zwischenzeitlich abgemeldet → Zugang nicht speichern
+        guard startedIn == generation else {
+            throw LibreError(code: 0, message: "Anmeldung abgebrochen")
+        }
         storage.saveAuth(email: email, ticket: ticket,
                          patientId: first.patientId, region: region)
         apiClient = client
     }
 
     func logout() {
+        generation += 1
         storage.clearAuth()
         storage.clearReadings()
         apiClient = nil
@@ -40,22 +49,33 @@ actor LibreRepository {
         let cached = storage.loadReadings()
         let lastSync = storage.loadLastSync()
         let needsSync = forceRefresh
-            || lastSync == nil
-            || Date().timeIntervalSince(lastSync!) > Self.syncInterval
+            || lastSync.map { Date().timeIntervalSince($0) > Self.syncInterval } ?? true
 
         guard needsSync else {
             return LibreResult(readings: cached, fromCache: true, lastSync: lastSync)
         }
 
+        let startedIn = generation
         do {
             let fresh = try await fetchFresh()
+            // Während des Syncs getrennt → Daten verwerfen statt zurückschreiben
+            guard startedIn == generation else {
+                return LibreResult(readings: [], fromCache: false, lastSync: nil, needsReauth: true)
+            }
             storage.saveReadings(fresh)
             return LibreResult(readings: fresh, fromCache: false, lastSync: Date())
         } catch let e as LibreError {
+            guard startedIn == generation else {
+                return LibreResult(readings: [], fromCache: false, lastSync: nil, needsReauth: true)
+            }
             if e.code == 401 { storage.clearAuth() }
             return LibreResult(readings: cached, fromCache: true,
-                               lastSync: lastSync, error: e.message)
+                               lastSync: lastSync, error: e.message,
+                               needsReauth: e.code == 401)
         } catch {
+            guard startedIn == generation else {
+                return LibreResult(readings: [], fromCache: false, lastSync: nil, needsReauth: true)
+            }
             return LibreResult(readings: cached, fromCache: true,
                                lastSync: lastSync,
                                error: "Keine Verbindung — lokale Daten werden angezeigt")
@@ -79,6 +99,8 @@ struct LibreResult {
     let fromCache: Bool
     let lastSync: Date?
     var error: String? = nil
+    /// Zugang ungültig (401) oder abgemeldet → neu einloggen
+    var needsReauth = false
 
     var latest: GlucoseReading? { readings.last }
 }

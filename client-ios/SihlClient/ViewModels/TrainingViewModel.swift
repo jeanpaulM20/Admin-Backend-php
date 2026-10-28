@@ -8,8 +8,6 @@ final class TrainingViewModel {
     var plans: [ClientTrainingPlan] = []
     var subscription   = SubscriptionStatus()
     var exerciseIdMap: [String: Int] = [:]
-    var isActivatingTrial = false
-    var toast: AppToast?
 
     private let service = TrainingPlanService()
 
@@ -23,31 +21,15 @@ final class TrainingViewModel {
 
         do {
             plans = try await plansTask
-        } catch {
-            self.error = error.localizedDescription
-        }
-        do {
-            subscription = try await subTask
         } catch let err as APIError {
             self.error = err.message
         } catch {
             self.error = error.localizedDescription
         }
+        // Coaching-Status ist reine Info (Ablaufhinweis) — ein Fehler hier
+        // soll die Planliste nicht mit einem Fehlerbanner überlagern
+        if let sub = try? await subTask { subscription = sub }
         if let ex = try? await exTask { exerciseIdMap = ex }
         isLoading = false
-    }
-
-    /// Gibt nil bei Erfolg zurück, user-facing Fehlermeldung bei Fehler.
-    func activateTrial(clientId: String) async -> String? {
-        isActivatingTrial = true
-        defer { isActivatingTrial = false }
-        do {
-            subscription = try await service.activateTrial(clientId: clientId)
-            return nil
-        } catch let err as APIError {
-            return err.message
-        } catch {
-            return error.localizedDescription
-        }
     }
 }

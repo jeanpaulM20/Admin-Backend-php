@@ -21,16 +21,21 @@ struct ChatThreadView: View {
     @State private var showAttach    = false
     @State private var dataDetail:   DataDetailItem? = nil
     @State private var toast:        AppToast? = nil
-    @State private var sse           = SSEClient()
+    @State private var loadError:    String? = nil
 
     var body: some View {
         ZStack {
             AppColor.background.ignoresSafeArea()
             VStack(spacing: 0) {
-                if isLoading {
+                if isLoading && messages.isEmpty {
                     Spacer()
                     ProgressView().tint(AppColor.primary)
                     Spacer()
+                } else if let loadError, messages.isEmpty {
+                    ErrorStateView(message: loadError) {
+                        Task { await loadMessages() }
+                    }
+                    .frame(maxHeight: .infinity)
                 } else {
                     messageScrollView
                 }
@@ -74,11 +79,10 @@ struct ChatThreadView: View {
                 showAttach  = false
             }
         }
+        // Strukturiert: .task wird beim Verlassen abgebrochen → SSE-Stream endet mit
         .task {
-            await loadAndSubscribe()
-        }
-        .onDisappear {
-            Task { await sse.disconnect() }
+            await loadMessages()
+            await subscribeRealtime()
         }
     }
 
@@ -154,6 +158,7 @@ struct ChatThreadView: View {
                 }
             }
             .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending)
+            .accessibilityLabel(isSending ? "Nachricht wird gesendet" : "Nachricht senden")
         }
         .padding(.horizontal, AppSpacing.screen)
         .padding(.vertical, 10)
@@ -162,42 +167,56 @@ struct ChatThreadView: View {
 
     // MARK: - Load + SSE
 
-    private func loadAndSubscribe() async {
+    private var clientId: String? {
+        guard let id = auth.clientId, !id.isEmpty, id != "demo" else { return nil }
+        return id
+    }
+
+    /// Lädt den Thread; Fehler ohne vorhandene Nachrichten → Fehlerzustand,
+    /// sonst Hinweis per Toast.
+    private func loadMessages() async {
+        guard let clientId, !trainerId.isEmpty else {
+            isLoading = false
+            loadError = "Chat konnte nicht geladen werden"
+            return
+        }
         isLoading = true
         do {
-            messages  = try await ChatService.shared.getMessages(clientId: auth.clientId ?? "", trainerId: trainerId)
-        } catch {}
-        isLoading = false
-
-        // Als gelesen markieren
-        await chat.markRead(clientId: auth.clientId ?? "", trainerId: trainerId)
-
-        // SSE abonnieren (Kanal: client_{clientId}) — nur mit gültiger Session,
-        // sonst würde der Reconnect-Loop endlos einen leeren Kanal abonnieren.
-        guard let clientId = auth.clientId, !clientId.isEmpty,
-              let token = auth.token, !token.isEmpty else { return }
-        await sse.connect(channel: "client_\(clientId)", token: token) {
-            [self] eventType in
-            guard eventType == "chat" else { return }
-            Task { @MainActor in
-                // Wie Flutter `_refresh`: neu laden UND als gelesen markieren,
-                // sonst bleibt die Nachricht serverseitig ungelesen.
-                if let fresh = try? await ChatService.shared.getMessages(
-                    clientId: clientId, trainerId: self.trainerId) {
-                    self.messages = fresh
-                }
-                await self.chat.markRead(clientId: clientId, trainerId: self.trainerId)
+            let fresh = try await ChatService.shared.getMessages(clientId: clientId, trainerId: trainerId)
+            guard !Task.isCancelled else { return }
+            messages  = fresh
+            loadError = nil
+            isLoading = false
+            await chat.markRead(clientId: clientId, trainerId: trainerId)
+        } catch {
+            guard !Task.isCancelled else { return }
+            isLoading = false
+            if messages.isEmpty {
+                loadError = "Nachrichten konnten nicht geladen werden"
+            } else {
+                withAnimation { toast = AppToast(message: "Aktualisieren fehlgeschlagen", style: .error) }
             }
+        }
+    }
+
+    /// SSE (Kanal client_{clientId}) — läuft, solange der .task der View lebt.
+    /// Bei jedem Chat-Event neu laden und als gelesen markieren (wie Flutter `_refresh`).
+    private func subscribeRealtime() async {
+        guard let clientId, let token = auth.token, !token.isEmpty else { return }
+        for await eventType in SSEClient.events(channel: "client_\(clientId)", token: token) {
+            guard !Task.isCancelled else { return }
+            guard eventType == "chat" else { continue }
+            guard let fresh = try? await ChatService.shared.getMessages(
+                clientId: clientId, trainerId: trainerId) else { continue }
+            guard !Task.isCancelled else { return }
+            messages = fresh
+            await chat.markRead(clientId: clientId, trainerId: trainerId)
         }
     }
 
     /// Pendant zu Flutter `_refresh`: Nachrichten neu laden + als gelesen markieren.
     private func refresh() async {
-        if let fresh = try? await ChatService.shared.getMessages(
-            clientId: auth.clientId ?? "", trainerId: trainerId) {
-            messages = fresh
-        }
-        await chat.markRead(clientId: auth.clientId ?? "", trainerId: trainerId)
+        await loadMessages()
     }
 
     // MARK: - Send
@@ -205,21 +224,31 @@ struct ChatThreadView: View {
     /// Pendant zu Flutter `_send`: bei Fehlschlag Text zurücklegen + Fehlermeldung.
     private func sendMessage() async {
         let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !isSending else { return }
+        guard !text.isEmpty, !isSending, let clientId else { return }
         isSending = true
         let savedText = messageText
         messageText = ""
         do {
             if let msg = try await ChatService.shared.sendMessage(
-                clientId: auth.clientId ?? "", trainerId: trainerId, text: text) {
+                clientId: clientId, trainerId: trainerId, text: text),
+               // SSE-Reload kann die Nachricht schon geliefert haben
+               !messages.contains(where: { $0.id == msg.id }) {
                 messages.append(msg)
             }
         } catch {
             // Text wiederherstellen, damit erneut gesendet werden kann
             messageText = savedText
-            withAnimation { toast = AppToast(message: "Nachricht konnte nicht gesendet werden", style: .error) }
+            withAnimation { toast = AppToast(message: Self.sendErrorMessage(error), style: .error) }
         }
         isSending = false
+    }
+
+    /// Fachliche Backend-Meldungen (z. B. „Tageslimit erreicht …“) unverändert zeigen.
+    private static func sendErrorMessage(_ error: Error) -> String {
+        if let api = error as? APIError, [400, 409, 422, 429].contains(api.statusCode), !api.message.isEmpty {
+            return api.message
+        }
+        return "Nachricht konnte nicht gesendet werden"
     }
 
     // MARK: - Grouped items (Datum-Separatoren + Kreis-Gruppen)
@@ -228,7 +257,7 @@ struct ChatThreadView: View {
         var result: [GroupedItem] = []
         var i = 0
         var lastDate: String? = nil
-        let cal = Calendar.current
+        let cal = ZurichTime.calendar   // passend zu chatDDMMYYYY
 
         while i < messages.count {
             let msg = messages[i]

@@ -15,6 +15,10 @@ struct CommentsSheet: View {
     @State private var text = ""
     @State private var showDeleteAlert = false
     @State private var pendingDeleteId: Int?
+    /// Laden fehlgeschlagen und noch nichts angezeigt → Fehlerzustand statt „Noch keine Kommentare“
+    @State private var loadError: String?
+    /// Senden/Löschen fehlgeschlagen — Banner über der Eingabe
+    @State private var actionError: String?
 
     private let service = TrainingPlanService()
 
@@ -41,6 +45,8 @@ struct CommentsSheet: View {
                 Spacer()
                 ProgressView().tint(AppColor.primary)
                 Spacer()
+            } else if comments.isEmpty, let err = loadError {
+                ErrorStateView(message: err) { Task { await load() } }
             } else if comments.isEmpty {
                 Spacer()
                 EmptyStateView(icon: "bubble.left", message: "Noch keine Kommentare")
@@ -65,6 +71,10 @@ struct CommentsSheet: View {
 
             // Eingabe
             Divider().background(AppColor.border)
+            if let err = actionError {
+                InlineErrorBanner(message: err)
+                    .padding(.horizontal, 16).padding(.top, 10)
+            }
             inputRow
         }
         .background(AppColor.surface.ignoresSafeArea())
@@ -73,7 +83,7 @@ struct CommentsSheet: View {
         .alert("Kommentar löschen?", isPresented: $showDeleteAlert, presenting: pendingDeleteId) { id in
             Button("Abbrechen", role: .cancel) {}
             Button("Löschen", role: .destructive) {
-                Task { try? await service.deleteComment(commentId: id); await load() }
+                Task { await delete(id) }
             }
         } message: { _ in Text("Dieser Kommentar wird unwiderruflich gelöscht.") }
         .task { await load() }
@@ -90,6 +100,7 @@ struct CommentsSheet: View {
                 .padding(.horizontal, AppSpacing.card).padding(.vertical, 8)
                 .background(AppColor.surface2)
                 .clipShape(RoundedRectangle(cornerRadius: AppRadius.hero))
+                .disabled(isSending)
 
             Button {
                 Task { await send() }
@@ -105,6 +116,7 @@ struct CommentsSheet: View {
                 }
             }
             .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending)
+            .accessibilityLabel(isSending ? "Kommentar wird gesendet" : "Kommentar senden")
         }
         .padding(.horizontal, 16).padding(.vertical, 10)
     }
@@ -170,20 +182,47 @@ struct CommentsSheet: View {
 
     // MARK: - Load / Send
 
+    /// Lädt die Kommentare. Bei Fehler bleiben bereits angezeigte erhalten.
     private func load() async {
-        isLoading = true
-        comments = (try? await service.getComments(planId: planId, exerciseKey: exerciseKey)) ?? []
+        isLoading = comments.isEmpty
+        do {
+            comments  = try await service.getComments(planId: planId, exerciseKey: exerciseKey)
+            loadError = nil
+        } catch {
+            if comments.isEmpty {
+                loadError = "Kommentare konnten nicht geladen werden."
+            } else {
+                actionError = "Kommentare konnten nicht aktualisiert werden."
+            }
+        }
         isLoading = false
     }
 
+    /// Text bleibt im Feld, bis der Server den Kommentar angenommen hat —
+    /// offline geht nichts verloren.
     private func send() async {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, !isSending else { return }
-        isSending = true
-        text = ""
-        try? await service.sendComment(planId: planId, text: trimmed, exerciseKey: exerciseKey)
-        await load()
+        isSending   = true
+        actionError = nil
+        do {
+            try await service.sendComment(planId: planId, text: trimmed, exerciseKey: exerciseKey)
+            text = ""
+            await load()
+        } catch {
+            actionError = "Kommentar konnte nicht gesendet werden. Bitte prüfe deine Verbindung und versuche es erneut."
+        }
         isSending = false
+    }
+
+    private func delete(_ id: Int) async {
+        actionError = nil
+        do {
+            try await service.deleteComment(commentId: id)
+            await load()
+        } catch {
+            actionError = "Kommentar konnte nicht gelöscht werden. Bitte versuche es erneut."
+        }
     }
 }
 

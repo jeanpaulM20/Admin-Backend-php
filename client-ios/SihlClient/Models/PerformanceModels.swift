@@ -12,8 +12,9 @@ struct MetricHistoryPoint {
     let unit:  String
 
     init?(json: [String: Any]) {
+        // Nur endliche Werte — "NaN"/"inf" würden die Chart-Achse sprengen
         guard let d = APIDate.parse("\(json["date"] ?? "")"),
-              let v = Double("\(json["value"] ?? "")") else { return nil }
+              let v = Double("\(json["value"] ?? "")"), v.isFinite else { return nil }
         self.date  = d
         self.value = v
         self.unit  = json["unit"] as? String ?? ""
@@ -59,12 +60,15 @@ struct PerformanceItem: Hashable {
 
 /// Pendant zu `PerformanceSection` in `models/performance_section.dart`.
 struct PerformanceSection: Identifiable {
-    let id    = UUID()
+    /// Stabil über Refreshes (Titel) — sonst klappen alle Sektionen zu.
+    /// Doppelte Titel macht `AnalyticsViewModel` eindeutig.
+    var id: String
     let title: String
     let items: [PerformanceItem]
 
     init(json: [String: Any]) {
         self.title = "\(json["section"] ?? json["title"] ?? "")"
+        self.id = title.isEmpty ? "section" : title
         if let raw = json["data"] as? [[String: Any]] {
             self.items = raw.map { PerformanceItem(json: $0) }
         } else {
@@ -87,6 +91,9 @@ struct HrPoint {
 struct TrainingReview: Identifiable, Hashable {
     let id:           String
     let date:         Date
+    /// Datum lesbar? Unlesbare Einträge verwirft `PerformanceService`
+    /// (statt sie als „heute" einzusortieren).
+    let hasValidDate: Bool
     let trainingType: String
     let duration:     String?
     let hrMax:        Int?
@@ -99,21 +106,24 @@ struct TrainingReview: Identifiable, Hashable {
     let chart:        [HrPoint]
 
     init(json: [String: Any]) {
-        self.id           = "\(json["id"] ?? UUID().uuidString)"
         let rawDate       = json["date"] as? String ?? ""
-        self.date         = APIDate.parse(rawDate) ?? Date()
+        // Ohne Server-ID eine stabile Ersatz-ID aus Datum + Typ
+        self.id           = "\(json["id"] ?? "review-\(rawDate)-\(json["trainingType"] ?? "")")"
+        let parsed        = APIDate.parse(rawDate)
+        self.hasValidDate = parsed != nil
+        self.date         = parsed ?? .distantPast
         self.trainingType = json["trainingType"] as? String ?? ""
         self.duration     = json["duration"] as? String
         self.hrMax        = Int("\(json["hrMax"] ?? "")")
         self.hrAvg        = Int("\(json["hrAvg"] ?? "")")
         self.hrr          = Int("\(json["hrr"]   ?? "")")
-        self.hrv          = Double("\(json["hrv"] ?? "")")
-        self.distance      = Double("\(json["distance"] ?? "")")
+        self.hrv          = Double("\(json["hrv"] ?? "")").flatMap { $0.isFinite ? $0 : nil }
+        self.distance      = Double("\(json["distance"] ?? "")").flatMap { $0.isFinite ? $0 : nil }
         self.elevationGain = Int("\(json["elevationGain"] ?? "")")
 
         if let rawChart = json["chart"] as? [[String: Any]] {
             self.chart = rawChart.compactMap { p -> HrPoint? in
-                guard let v = Double("\(p["v"] ?? "")") else { return nil }
+                guard let v = Double("\(p["v"] ?? "")"), v.isFinite else { return nil }
                 return HrPoint(time: p["t"] as? String, value: v)
             }
         } else {
@@ -133,8 +143,9 @@ struct TrainingReview: Identifiable, Hashable {
 
         var intervalMin: Double = 0
         if valid.count >= 2, let t1 = valid.first?.time, let t2 = valid.last?.time,
-           let dt1 = ISO8601DateFormatter().date(from: t1),
-           let dt2 = ISO8601DateFormatter().date(from: t2) {
+           // APIDate versteht auch ISO-Werte mit Millisekunden
+           let dt1 = APIDate.parse(t1),
+           let dt2 = APIDate.parse(t2) {
             let sec = dt2.timeIntervalSince(dt1)
             if sec > 0 { intervalMin = (sec / Double(valid.count - 1)) / 60 }
         }
@@ -172,7 +183,7 @@ struct TrainingReview: Identifiable, Hashable {
         if t < 100 { return "Moderat" }
         if t < 150 { return "Mittel" }
         if t < 200 { return "Hart" }
-        if t < 300 { return "Sehr Hart" }
+        if t < 300 { return "Sehr hart" }
         return "Extrem"
     }
 
@@ -189,13 +200,24 @@ struct TrainingReview: Identifiable, Hashable {
     static func == (l: Self, r: Self) -> Bool { l.id == r.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
 
+    /// Fester gregorianischer Kalender in Schweizer Zeit — der Gerätekalender
+    /// (z.B. hebräisch mit 13 Monaten) darf die Anzeige nicht beeinflussen.
+    static let displayCalendar: Calendar = {
+        var c = Calendar(identifier: .gregorian)
+        c.locale = Locale(identifier: "de_CH")
+        c.timeZone = TimeZone(identifier: "Europe/Zurich") ?? .current
+        return c
+    }()
+
     // Datumsformat-Hilfsmethode
     func formattedDate() -> String {
-        let months = ["Jan","Feb","Mar","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"]
-        let c = Calendar.current
+        guard hasValidDate else { return "Datum unbekannt" }
+        let months = ["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"]
+        let c = Self.displayCalendar
         let m = c.component(.month, from: date) - 1
         let d = c.component(.day,   from: date)
         let y = c.component(.year,  from: date)
+        guard months.indices.contains(m) else { return "\(d). \(y)" }
         return "\(d). \(months[m]) \(y)"
     }
 
@@ -203,7 +225,8 @@ struct TrainingReview: Identifiable, Hashable {
     /// ohne Uhrzeit vorliegt (Termine ohne echte Startzeit stehen auf
     /// Mitternacht und würden sonst „00:00" vortäuschen).
     func formattedStartTime() -> String? {
-        let c = Calendar.current
+        guard hasValidDate else { return nil }
+        let c = Self.displayCalendar
         let comps = c.dateComponents([.hour, .minute, .second], from: date)
         if (comps.hour ?? 0) == 0, (comps.minute ?? 0) == 0, (comps.second ?? 0) == 0 {
             return nil

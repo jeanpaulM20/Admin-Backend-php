@@ -38,7 +38,7 @@ struct ElevationProfileView: View {
                     km += (dLat * dLat + dLon * dLon).squareRoot()
                 }
                 prev = c
-                if s < elevations.count, i < elevations[s].count, let e = elevations[s][i] {
+                if s < elevations.count, i < elevations[s].count, let e = elevations[s][i], e.isFinite {
                     out.append(Sample(km: km, ele: e))
                 }
             }
@@ -48,7 +48,7 @@ struct ElevationProfileView: View {
 
     var body: some View {
         let pts = samples
-        if pts.count >= 2 {
+        if pts.count >= 2, pts.allSatisfy({ $0.km.isFinite }) {
             Canvas { ctx, size in
                 let minE = pts.map(\.ele).min() ?? 0
                 let maxE = pts.map(\.ele).max() ?? 0
@@ -96,6 +96,7 @@ struct ElevationProfileView: View {
                 let label = { (t: String) in
                     Text(t).font(.app(10, weight: .medium)).foregroundStyle(AppColor.muted)
                 }
+                guard maxE.isFinite, minE.isFinite, totalKm.isFinite else { return }
                 ctx.draw(label("\(Int(maxE.rounded())) m"), at: CGPoint(x: 0, y: 0), anchor: .topLeading)
                 ctx.draw(label("\(Int(minE.rounded())) m"),
                          at: CGPoint(x: 0, y: top + plotH + 2), anchor: .topLeading)

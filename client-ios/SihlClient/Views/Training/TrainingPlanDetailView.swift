@@ -119,12 +119,22 @@ struct TrainingPlanDetailView: View {
         }
         .navigationTitle(planName ?? "Trainingsplan")
         .navigationBarTitleDisplayMode(.inline)
+        // SSE-Lebensdauer strukturiert an die View gebunden: Verlässt man den
+        // Plan während `load()`, wird gar nicht erst verbunden; sonst trennt
+        // der Abbruch der Task (onDisappear) die Verbindung wieder.
         .task {
             await vm.load()
+            guard !Task.isCancelled else { return }
             await subscribeRealtime()
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 3_600_000_000_000)
+            }
+            await sse.disconnect()
         }
+        .onAppear { timer.attach() }
         .onDisappear {
-            Task { await sse.disconnect() }
+            // Anzeige-Takt stoppen; laufende Zeit rechnet über Start-/Endzeit weiter
+            timer.detach()
         }
         .sheet(item: $commentsTarget) { item in
             CommentsSheet(
@@ -147,12 +157,12 @@ struct TrainingPlanDetailView: View {
     private func subscribeRealtime() async {
         guard let clientId = auth.clientId,
               let token = auth.token, !token.isEmpty else { return }
+        // Nur das ViewModel schwach halten — kein Zyklus über die View
         await sse.connect(channel: "client_\(clientId)", token: token) {
-            [self] eventType in
-            guard eventType == "plan_updated" || eventType == "plan_comment" else { return }
-            Task { @MainActor in
-                await self.vm.load()
-            }
+            [weak vm] eventType in
+            guard eventType == "plan_updated" || eventType == "plan_comment",
+                  let vm else { return }
+            Task { @MainActor in await vm.load() }
         }
     }
 
@@ -199,6 +209,8 @@ struct TrainingPlanDetailView: View {
                             }
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel(meta.label)
+                        .accessibilityAddTraits(isSelected ? .isSelected : [])
                     }
                 }
             }
@@ -226,6 +238,8 @@ struct TrainingPlanDetailView: View {
                 }
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(running ? "Timer pausieren" : "Timer starten")
+            .accessibilityValue(timer.display)
 
             // Zeit
             Spacer()
@@ -319,20 +333,17 @@ struct TrainingPlanDetailView: View {
 
     // MARK: - Locked View
 
+    /// Neutraler Hinweis — kein Preis, kein Knopf, kein Link (App-Store 3.1.1/3.1.3(b)).
     private func lockedView(plan: ClientTrainingPlan) -> some View {
         VStack(spacing: 16) {
             Image(systemName: "lock.fill")
-                .font(.app(44)).foregroundStyle(AppColor.orange)
+                .font(.app(44)).foregroundStyle(AppColor.muted)
+                .accessibilityHidden(true)
             Text("Dieser Plan ist gesperrt")
                 .font(.app(16, weight: .bold)).foregroundStyle(AppColor.text)
-            Text("Schalte Online Coaching frei, um den Plan zu sehen.")
+            Text(LockedPlanInfo.message)
                 .font(.app(13)).foregroundStyle(AppColor.muted)
                 .multilineTextAlignment(.center)
-            NavigationLink(destination: CoachingPaywallView(plan: plan)) {
-                Text("Freischalten")
-            }
-            .buttonStyle(PrimaryButtonStyle())
-            .padding(.top, 4)
         }
         .padding(40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

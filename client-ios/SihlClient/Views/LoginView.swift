@@ -27,6 +27,7 @@ struct LoginView: View {
 
                     InputField(text: $email, label: "E-Mail", systemIcon: "envelope")
                         .keyboardType(.emailAddress)
+                        .textContentType(.username)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .padding(.top, 40)
@@ -42,8 +43,17 @@ struct LoginView: View {
                         }
                         .accessibilityLabel(obscurePassword ? "Passwort anzeigen" : "Passwort verbergen")
                     })
+                    .textContentType(.password)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
                     .padding(.top, 16)
                     .onSubmit(submit)
+
+                    if let message = auth.error {
+                        InlineErrorBanner(message: message)
+                            .padding(.top, 16)
+                            .accessibilityAddTraits(.isStaticText)
+                    }
 
                     loginButton
                         .padding(.top, 28)
@@ -54,6 +64,10 @@ struct LoginView: View {
                     .font(.footnote)
                     .foregroundStyle(AppColor.muted)
                     .padding(.top, 16)
+
+                    footer
+                        .padding(.top, 40)
+                        .padding(.bottom, 24)
                 }
                 .frame(maxWidth: 400)
                 .padding(.horizontal, AppSpacing.screen)
@@ -63,6 +77,34 @@ struct LoginView: View {
         .alert("Bitte E-Mail und Passwort eingeben", isPresented: $showEmptyHint) {
             Button("OK", role: .cancel) {}
         }
+        // Fehlermeldung verschwindet, sobald neu getippt wird
+        .onChange(of: email) { _, _ in clearErrorIfNeeded() }
+        .onChange(of: password) { _, _ in clearErrorIfNeeded() }
+    }
+
+    /// Hinweis zum Konto + Datenschutz
+    private var footer: some View {
+        VStack(spacing: 10) {
+            Text("Dein Konto erhältst du von Sihl Training.")
+                .font(.footnote)
+                .foregroundStyle(AppColor.muted)
+            if let mail = AppLinks.supportMail() {
+                Link(AppLinks.supportEmail, destination: mail)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(AppColor.primary)
+            }
+            Link("Datenschutz", destination: AppLinks.privacy)
+                .font(.footnote)
+                .foregroundStyle(AppColor.muted)
+                .underline()
+                .padding(.top, 6)
+        }
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func clearErrorIfNeeded() {
+        if auth.error != nil { auth.clearError() }
     }
 
     private var logo: some View {

@@ -1,4 +1,5 @@
 import Foundation
+import UniformTypeIdentifiers
 
 /// Pendant zu `services/profile_service.dart` + Polar-Calls aus `screens/profile_screen.dart`.
 struct ProfileService {
@@ -36,6 +37,54 @@ struct ProfileService {
             return []
         }
         return list.map { ClientFile(json: $0) }
+    }
+
+    // MARK: - Datei-Download (Vorschau)
+
+    /// Ablage geladener Dateien für die Vorschau; wird beim Logout geleert.
+    private static var downloadDir: URL {
+        FileManager.default.temporaryDirectory
+            .appendingPathComponent("client-files", isDirectory: true)
+    }
+
+    /// Lädt eine Datei mit Header-Auth in eine temporäre Datei und liefert
+    /// deren lokale URL (für QuickLook). Kein Token in URL, Verlauf oder Logs.
+    func downloadFile(_ file: ClientFile) async throws -> URL {
+        guard let path = file.downloadPath else {
+            throw APIError(statusCode: -3, message: "Datei nicht verfügbar")
+        }
+        let result = try await APIClient.shared.download(path)
+        let name = Self.fileName(for: file, mimeType: result.mimeType,
+                                 suggested: result.suggestedFilename)
+        // Eigener Unterordner je Download: gleiche Dateinamen kollidieren nicht
+        let dir = Self.downloadDir.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let target = dir.appendingPathComponent(name)
+        try result.data.write(to: target, options: [.atomic, .completeFileProtection])
+        return target
+    }
+
+    /// Alle geladenen Dateien entfernen (Logout).
+    static func clearDownloadedFiles() {
+        try? FileManager.default.removeItem(at: downloadDir)
+    }
+
+    /// Dateiname mit Endung — QuickLook erkennt den Typ nur daran.
+    private static func fileName(for file: ClientFile, mimeType: String?, suggested: String?) -> String {
+        let invalid = CharacterSet(charactersIn: "/\\:?%*|\"<>")
+        func clean(_ s: String) -> String {
+            s.components(separatedBy: invalid).joined(separator: "_")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        var name = clean(file.name)
+        if name.isEmpty { name = clean(suggested ?? "") }
+        if name.isEmpty { name = "Datei" }
+        if (name as NSString).pathExtension.isEmpty {
+            let ext = suggested.map { ($0 as NSString).pathExtension }.flatMap { $0.isEmpty ? nil : $0 }
+                ?? mimeType.flatMap { UTType(mimeType: $0)?.preferredFilenameExtension }
+            if let ext { name += ".\(ext)" }
+        }
+        return name
     }
 
     // MARK: - Polar

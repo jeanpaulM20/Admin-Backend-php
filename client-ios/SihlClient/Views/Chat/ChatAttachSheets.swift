@@ -28,7 +28,7 @@ struct AttachMenuSheet: View {
 
                         attachOption(
                             icon:     "chart.line.uptrend.xyaxis",
-                            label:    "Performance Daten",
+                            label:    "Performance-Daten",
                             subtitle: "Leistungstest-Ergebnisse teilen",
                             color:    AppColor.green
                         ) { pickerType = .performance }
@@ -86,20 +86,28 @@ enum AttachPickerType: String, Identifiable {
     case review, performance
     var id: String { rawValue }
     /// Flutter: "Aufzeichnung wählen" / "Performance Test wählen".
-    var title: String { self == .review ? "Aufzeichnung wählen" : "Performance Test wählen" }
+    var title: String { self == .review ? "Aufzeichnung wählen" : "Performance-Test wählen" }
 }
 
 /// Pendant zu Flutter `_showPickerSheet` + `_shareReviewData` / `_sharePerformanceData`:
-/// Zeilen zeigen Typ + Datum + HR bzw. Testdatum + Punkte; Auswahl formatiert den
+/// Zeilen zeigen Typ + Datum + HF bzw. Testdatum + Punkte; Auswahl formatiert den
 /// Text für das Eingabefeld.
 struct DataPickerSheet: View {
     let type:     AttachPickerType
     let clientId: String
     let onPick:   (String) -> Void
-    @State private var items:     [[String: Any]] = []
+    @State private var rows:      [PickerRow] = []
     @State private var isLoading  = true
     @State private var loadError  = false
     @Environment(\.dismiss) private var dismiss
+
+    /// Eine auswählbare Zeile (Titel, Untertitel, Text fürs Eingabefeld).
+    struct PickerRow: Identifiable {
+        let id:       String
+        let title:    String
+        let subtitle: String
+        let share:    String
+    }
 
     var body: some View {
         NavigationStack {
@@ -108,10 +116,10 @@ struct DataPickerSheet: View {
                 if isLoading {
                     ProgressView().tint(AppColor.primary)
                 } else if loadError {
-                    Text("Daten konnten nicht geladen werden")
-                        .font(.callout)
-                        .foregroundStyle(AppColor.muted)
-                } else if items.isEmpty {
+                    ErrorStateView(message: "Daten konnten nicht geladen werden") {
+                        Task { await load() }
+                    }
+                } else if rows.isEmpty {
                     Text(type == .review
                          ? "Keine Aufzeichnungen vorhanden"
                          : "Keine Performance-Daten vorhanden")
@@ -129,7 +137,7 @@ struct DataPickerSheet: View {
                         .foregroundStyle(AppColor.muted)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Text("\(items.count) Einträge")
+                    Text("\(rows.count) Einträge")
                         .font(.caption)
                         .foregroundStyle(AppColor.muted)
                 }
@@ -140,10 +148,9 @@ struct DataPickerSheet: View {
 
     private var itemList: some View {
         List {
-            // Wie Flutter: Liste in umgekehrter Reihenfolge (neueste zuerst)
-            ForEach(Array(items.enumerated().reversed()), id: \.offset) { _, item in
+            ForEach(rows) { row in
                 Button {
-                    onPick(shareText(for: item))
+                    onPick(row.share)
                 } label: {
                     HStack(spacing: 12) {
                         ZStack {
@@ -155,10 +162,10 @@ struct DataPickerSheet: View {
                                 .foregroundStyle(accentColor)
                         }
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(rowTitle(for: item))
+                            Text(row.title)
                                 .font(.callout)
                                 .foregroundStyle(AppColor.text)
-                            Text(rowSubtitle(for: item))
+                            Text(row.subtitle)
                                 .font(.caption)
                                 .foregroundStyle(AppColor.muted)
                                 .lineLimit(2)
@@ -179,60 +186,50 @@ struct DataPickerSheet: View {
     private var iconName:    String { type == .review ? "waveform.path.ecg" : "chart.line.uptrend.xyaxis" }
     private var accentColor: Color  { type == .review ? AppColor.red : AppColor.green }
 
-    // MARK: Zeilen-Texte (Flutter titleBuilder / subtitleBuilder)
+    // MARK: Zeilen (Flutter titleBuilder / subtitleBuilder / onSelect)
 
-    private func rowTitle(for item: [String: Any]) -> String {
-        switch type {
-        case .review:
-            let typeLabel = trainingTypeLabel(item["trainingType"] as? String)
-            return "\(typeLabel) -- \(fmtChatDate(item["date"] as? String))"
-        case .performance:
-            return "Test vom \(fmtChatDate(item["date"] as? String))"
-        }
+    private static func reviewRow(_ item: [String: Any], index: Int) -> PickerRow {
+        let typeLabel = trainingTypeLabel(item["trainingType"] as? String)
+        let date      = fmtChatDate(item["date"] as? String)
+        let duration  = jsonString(item["duration"])
+        let hr        = jsonString(item["hrAvg"])
+        let stats     = "Dauer: \(duration) | HF: \(hr) bpm"
+        return PickerRow(
+            id:       jsonID(item["id"]) ?? "idx-\(index)",
+            title:    "\(typeLabel) – \(date)",
+            subtitle: stats,
+            share:    "[Aufzeichnung] \(typeLabel) (\(date))\n\(stats)"
+        )
     }
 
-    private func rowSubtitle(for item: [String: Any]) -> String {
-        switch type {
-        case .review:
-            let duration = jsonString(item["duration"])
-            let hr       = jsonString(item["hrAvg"])
-            return "Dauer: \(duration) | HR: \(hr) bpm"
-        case .performance:
-            var parts = ["Punkte: \(jsonString(item["points"], fallback: "0"))"]
-            if let pushups = nonZeroValue(item["pushups"]) { parts.append("Liegestuetz: \(pushups)") }
-            if let pullups = nonZeroValue(item["pullups"]) { parts.append("Klimmzuege: \(pullups)") }
-            return parts.joined(separator: " | ")
-        }
-    }
-
-    // MARK: Auswahl-Text fürs Eingabefeld (Flutter onSelect)
-
-    private func shareText(for item: [String: Any]) -> String {
-        switch type {
-        case .review:
-            let typeLabel = trainingTypeLabel(item["trainingType"] as? String)
-            let duration  = jsonString(item["duration"])
-            let hr        = jsonString(item["hrAvg"])
-            let date      = fmtChatDate(item["date"] as? String)
-            return "[Aufzeichnung] \(typeLabel) (\(date))\nDauer: \(duration) | HR: \(hr) bpm"
-        case .performance:
-            let date = fmtChatDate(item["date"] as? String)
-            var parts = ["Punkte: \(jsonString(item["points"], fallback: "0"))"]
-            if let pushups = nonZeroValue(item["pushups"]) { parts.append("Liegestuetz: \(pushups)") }
-            if let pullups = nonZeroValue(item["pullups"]) { parts.append("Klimmzuege: \(pullups)") }
-            if let forearm = nonZeroValue(item["forearm_support"]) { parts.append("Unterarmstuetz: \(forearm)") }
-            return "[Performance] Test (\(date))\n\(parts.joined(separator: " | "))"
-        }
+    private static func performanceRow(_ test: PerformanceTestEntry) -> PickerRow {
+        let date = fmtChatDate(test.date)
+        var parts = ["Punkte: \(nonZeroValue(test.value("Gesamtpunkte")) ?? "0")"]
+        if let v = nonZeroValue(test.value("Liegestütze")) { parts.append("Liegestütze: \(v)") }
+        if let v = nonZeroValue(test.value("Klimmzüge"))   { parts.append("Klimmzüge: \(v)") }
+        let subtitle = parts.joined(separator: " | ")
+        if let v = nonZeroValue(test.value("Unterarmstütz")) { parts.append("Unterarmstütz: \(v)") }
+        return PickerRow(
+            id:       test.id,
+            title:    "Test vom \(date)",
+            subtitle: subtitle,
+            share:    "[Performance] Test (\(date))\n\(parts.joined(separator: " | "))"
+        )
     }
 
     private func load() async {
         isLoading = true
+        loadError = false
         do {
             switch type {
             case .review:
-                items = try await ChatService.shared.getReviews(clientId: clientId)
+                let items = try await ChatService.shared.getReviews(clientId: clientId)
+                // Wie Flutter: neueste zuerst
+                rows = items.enumerated().reversed().map { Self.reviewRow($0.element, index: $0.offset) }
             case .performance:
-                items = try await ChatService.shared.getPerformanceTests(clientId: clientId)
+                // Bereits neueste zuerst
+                rows = try await ChatService.shared.getPerformanceTests(clientId: clientId)
+                    .map(Self.performanceRow)
             }
         } catch {
             loadError = true
@@ -244,18 +241,7 @@ struct DataPickerSheet: View {
 // MARK: - DateFormatter helpers
 
 extension DateFormatter {
-    /// API-Datumsformate: fixe POSIX-Locale + gregorianischer Kalender, damit
-    /// Parsen/Formatieren unabhängig vom Gerätekalender funktioniert
-    /// (z.B. buddhistischer Kalender würde sonst Jahr 2569 liefern).
-    private static func apiFormatter(_ format: String) -> DateFormatter {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.calendar = Calendar(identifier: .gregorian)
-        f.dateFormat = format
-        return f
-    }
-    static let chatDDMMYYYY      = apiFormatter("dd.MM.yyyy")
-    static let chatYYYYMMDD      = apiFormatter("yyyy-MM-dd")
-    static let chatYYYYMMDDHHMMSS = apiFormatter("yyyy-MM-dd HH:mm:ss")
-    static let chatISO8601 = ISO8601DateFormatter()
+    /// "dd.MM.yyyy" — POSIX, gregorianisch, Zürcher Zeit (unabhängig vom
+    /// Gerätekalender; buddhistischer Kalender würde sonst Jahr 2569 liefern).
+    static let chatDDMMYYYY = ZurichTime.apiFormatter("dd.MM.yyyy")
 }

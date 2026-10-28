@@ -83,7 +83,9 @@ actor LibreAPIClient {
     }
 
     private func send(path: String, method: String, body: [String: Any]?, token: String?) async throws -> Data {
-        let url = URL(string: "\(region.rawValue)/\(path)")!
+        guard let url = URL(string: "\(region.rawValue)/\(path)") else {
+            throw LibreError(code: -1, message: "Ungültige Adresse")
+        }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.timeoutInterval = Self.timeout

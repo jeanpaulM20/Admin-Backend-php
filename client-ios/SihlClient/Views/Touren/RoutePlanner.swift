@@ -23,7 +23,7 @@ struct PlannedPoint: Identifiable, Equatable {
 /// automatisch neu gerechnet; eine laufende Berechnung wird abgebrochen.
 @Observable @MainActor
 final class RoutePlannerModel {
-    static let maxPoints = 25
+    nonisolated static let maxPoints = 25
     /// Ab diesem Abstand zur Route gilt ein Punkt als „abseits der Wege".
     static let offRouteThresholdM = 150
 
@@ -379,11 +379,17 @@ final class RoutePlannerModel {
               let minLon = lons.min(), let maxLon = lons.max() else { return nil }
         // Rechts unten sitzt der Lokalisieren-Knopf über dem Panel — genug
         // Rand lassen, damit kein Pin darunter verschwindet
-        let latDelta = max((maxLat - minLat) * 3.0, 0.012)
-        let lonDelta = max((maxLon - minLon) * 1.7, 0.012)
+        // Spanne begrenzen, sonst entsteht eine ungültige MKCoordinateRegion
+        let latDelta = min(max((maxLat - minLat) * 3.0, 0.012), 170)
+        let lonDelta = min(max((maxLon - minLon) * 1.7, 0.012), 350)
+        // Mitte so legen, dass die Region in −90…90 bleibt
+        let halfLat = latDelta / 2
+        let rawLat = (minLat + maxLat) / 2 - latDelta * 0.13
+        let centerLat = min(max(rawLat, -90 + halfLat), 90 - halfLat)
+        let centerLon = min(max((minLon + maxLon) / 2, -180), 180)
+        guard centerLat.isFinite, centerLon.isFinite else { return nil }
         return MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: (minLat + maxLat) / 2 - latDelta * 0.13,
-                                           longitude: (minLon + maxLon) / 2),
+            center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
             span: MKCoordinateSpan(latitudeDelta: latDelta, longitudeDelta: lonDelta))
     }
 
@@ -408,7 +414,9 @@ final class RoutePlannerModel {
             guard !Task.isCancelled, let self else { return }
             defer { if !Task.isCancelled { isCalculating = false; task = nil } }
             if demo {
-                result = TourService.demoPlannedRoute(points: coords, activity: act, roundtrip: loop)
+                var r = TourService.demoPlannedRoute(points: coords, activity: act, roundtrip: loop)
+                r.waypoints = coords
+                result = r
                 return
             }
             guard let cid else {
@@ -423,7 +431,9 @@ final class RoutePlannerModel {
                     error = "Keine Route gefunden — Punkt verschieben oder löschen."
                     return
                 }
-                result = planned.detail
+                var detail = planned.detail
+                detail.waypoints = coords   // „nächster Punkt" auch beim Start aus dem Detail
+                result = detail
                 for (i, meters) in planned.offRouteM.enumerated() where i < snapshot.count {
                     if let meters, meters > Self.offRouteThresholdM { offRoute[snapshot[i].id] = meters }
                 }
@@ -633,6 +643,9 @@ struct RoutePlannerPanel: View {
             }
             .contentShape(Rectangle())
             .onTapGesture { onDetails(r) }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityHint("Öffnet die Details der Route")
         } else {
             // Der Bedienhinweis steht in der Kopfzeile — hier nur das Prinzip
             Text("Start, Zwischenpunkte, Ziel — die Route wird automatisch berechnet. Pins lassen sich ziehen.")
@@ -704,19 +717,22 @@ struct RoutePlannerPanel: View {
 
     private func chip(_ a: RoundtripActivity) -> some View {
         let selected = model.activity == a
-        return HStack(spacing: 6) {
-            Image(systemName: a.icon).font(.app(13))
-            Text(a.label).font(.footnote.weight(selected ? .bold : .medium))
+        return Button { model.setActivity(a) } label: {
+            HStack(spacing: 6) {
+                Image(systemName: a.icon).font(.app(13))
+                Text(a.label).font(.footnote.weight(selected ? .bold : .medium))
+            }
+            .foregroundStyle(selected ? AppColor.white : AppColor.muted)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(selected ? AppColor.primary : AppColor.surface2,
+                        in: RoundedRectangle(cornerRadius: AppRadius.control))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
+                .stroke(selected ? AppColor.primary : AppColor.border, lineWidth: 1))
+            .contentShape(Rectangle())
         }
-        .foregroundStyle(selected ? AppColor.white : AppColor.muted)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(selected ? AppColor.primary : AppColor.surface2,
-                    in: RoundedRectangle(cornerRadius: AppRadius.control))
-        .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
-            .stroke(selected ? AppColor.primary : AppColor.border, lineWidth: 1))
-        .contentShape(Rectangle())
-        .onTapGesture { model.setActivity(a) }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private func iconButton(_ symbol: String, _ label: String, disabled: Bool = false,

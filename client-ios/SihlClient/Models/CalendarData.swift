@@ -13,13 +13,14 @@ struct AvailabilityInterval: Identifiable {
     let locationId: String?
 
     init(json: [String: Any]) {
-        self.id             = "\(json["id"] ?? "")"
-        self.trainerId      = "\(json["trainer_id"] ?? "")"
-        self.date           = (json["date"] as? String) ?? ""
+        // IDs kommen als Zahl → robust lesen
+        self.id             = jsonID(json["id"]) ?? UUID().uuidString
+        self.trainerId      = jsonID(json["trainer_id"]) ?? ""
+        self.date           = String(((json["date"] as? String) ?? "").prefix(10))
         self.from           = (json["from"] as? String) ?? ""
         self.to             = (json["to"]   as? String) ?? ""
-        self.trainingTypeId = (json["training_type_id"] as? String)
-        self.locationId     = (json["location_id"] as? String)
+        self.trainingTypeId = jsonID(json["training_type_id"])
+        self.locationId     = jsonID(json["location_id"])
     }
 }
 
@@ -36,12 +37,12 @@ struct TrainerBooking: Identifiable {
     let status: String
 
     init(json: [String: Any]) {
-        self.id         = "\(json["id"] ?? "")"
-        self.trainerId  = "\(json["trainer_id"] ?? "")"
-        self.date       = (json["date"] as? String) ?? ""
+        self.id         = jsonID(json["id"]) ?? UUID().uuidString
+        self.trainerId  = jsonID(json["trainer_id"]) ?? ""
+        self.date       = String(((json["date"] as? String) ?? "").prefix(10))
         self.starttime  = (json["starttime"] as? String) ?? "00:00"
         self.duration   = Int("\(json["duration"] ?? 60)") ?? 60
-        self.locationId = (json["location_id"] as? String)
+        self.locationId = jsonID(json["location_id"])
         self.status     = (json["status"] as? String) ?? ""
     }
 }
@@ -56,7 +57,7 @@ struct LocationInfo: Identifiable {
     let bufferMinutes: Int
 
     init(json: [String: Any]) {
-        self.id            = "\(json["id"] ?? "")"
+        self.id            = jsonID(json["id"]) ?? ""
         self.name          = (json["name"] as? String) ?? ""
         self.address       = json["address"] as? String
         self.bufferMinutes = Int("\(json["buffer_minutes"] ?? 30)") ?? 30
@@ -80,15 +81,18 @@ struct CalendarData {
     let locations: [LocationInfo]
 
     init(json: [String: Any]) {
-        let trainers = (json["trainers"] as? [[String: Any]])?.map { Trainer(json: $0) } ?? []
-        let types    = (json["training_types"] as? [[String: Any]])?.map { TrainingType(json: $0) } ?? []
+        let trainers = ((json["trainers"] as? [[String: Any]])?.map { Trainer(json: $0) } ?? [])
+            .filter { !$0.id.isEmpty }
+        let types    = ((json["training_types"] as? [[String: Any]])?.map { TrainingType(json: $0) } ?? [])
+            .filter { !$0.id.isEmpty }
 
         let rawAppts = (json["appointments"] as? [[String: Any]]) ?? []
         let appts = rawAppts.compactMap { Appointment(json: $0) }
 
         let avail = (json["availability"] as? [[String: Any]])?.map { AvailabilityInterval(json: $0) } ?? []
         let bookings = (json["trainer_bookings"] as? [[String: Any]])?.map { TrainerBooking(json: $0) } ?? []
-        let locs = (json["locations"] as? [[String: Any]])?.map { LocationInfo(json: $0) } ?? []
+        let locs = ((json["locations"] as? [[String: Any]])?.map { LocationInfo(json: $0) } ?? [])
+            .filter { !$0.id.isEmpty }
 
         self.trainers              = trainers
         self.trainingTypes         = types
@@ -99,7 +103,9 @@ struct CalendarData {
         self.credits               = Int("\(json["credits"] ?? 0)") ?? 0
         self.defaultTrainerId      = trainers.first?.id
         self.defaultTypeId         = types.first?.id
-        self.minimumDate           = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
-        self.maximumDate           = Calendar.current.date(byAdding: .day, value:  90, to: Date()) ?? Date()
+        let cal = ZurichTime.calendar
+        let today = cal.startOfDay(for: Date())
+        self.minimumDate           = cal.date(byAdding: .day, value: -30, to: today) ?? today
+        self.maximumDate           = cal.date(byAdding: .day, value:  90, to: today) ?? today
     }
 }

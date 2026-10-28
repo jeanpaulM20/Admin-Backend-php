@@ -2,25 +2,48 @@ import Foundation
 
 /// iOS-Ersatz für Flutter's `dart:html EventSource` aus `realtime_service.dart`.
 ///
-/// Flutter (Web) nutzt `dart:html EventSource` — das ist web-only.
-/// Auf iOS öffnen wir stattdessen einen `URLSession`-Streaming-Request und iterieren
-/// per `AsyncBytes.lines` über die SSE-Zeilen (verfügbar ab iOS 15).
+/// Öffnet einen `URLSession`-Streaming-Request und iteriert per
+/// `AsyncBytes.lines` über die SSE-Zeilen.
 ///
-/// Verbindung:  `GET /api/events/stream?channel=client_{clientId}&token=...`
-/// Wiederverbindung: automatisch nach 5 s (wie im Flutter-Original).
+/// Verbindung:  `GET /api/events/stream?channel=client_{clientId}`,
+/// Token im Header `X-Auth-Token` (nicht in der URL — landet sonst in Logs).
+/// Wiederverbindung: nach 5 s; bei 401/403 wird endgültig aufgehört.
 actor SSEClient {
 
     private var streamTask: Task<Void, Never>?
 
-    // MARK: - Public API
+    // MARK: - Strukturierte API (bevorzugt)
+
+    /// Liefert die Event-Typen eines Kanals als `AsyncStream`. Der Stream endet,
+    /// sobald der konsumierende Task abgebrochen wird (z. B. `.task` beim
+    /// Verlassen der View) — keine verwaiste Verbindung, kein Reconnect-Loop.
+    /// Endet ebenfalls bei 401/403.
+    static func events(channel: String, token: String) -> AsyncStream<String> {
+        AsyncStream(bufferingPolicy: .bufferingNewest(8)) { continuation in
+            let task = Task {
+                await run(channel: channel, token: token) { type in
+                    continuation.yield(type)
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    // MARK: - Callback-API
 
     /// Öffnet die SSE-Verbindung für den angegebenen Channel.
     /// `onEvent` wird auf dem **MainActor** aufgerufen.
+    /// Ist der aufrufende Task bereits abgebrochen, wird nicht verbunden.
     func connect(channel: String, token: String, onEvent: @escaping @Sendable (String) -> Void) {
         streamTask?.cancel()
-        streamTask = Task { [weak self] in
-            guard let self else { return }
-            await self.stream(channel: channel, token: token, onEvent: onEvent)
+        streamTask = nil
+        guard !Task.isCancelled else { return }
+        streamTask = Task {
+            await Self.run(channel: channel, token: token) { type in
+                guard !Task.isCancelled else { return }
+                await MainActor.run { onEvent(type) }
+            }
         }
     }
 
@@ -30,29 +53,36 @@ actor SSEClient {
         streamTask = nil
     }
 
-    // MARK: - Private streaming loop
+    // MARK: - Streaming-Schleife
 
-    private func stream(
+    /// Liest den Stream bis Abbruch oder Auth-Fehler; reconnectet nach 5 s.
+    private static func run(
         channel: String,
         token: String,
-        onEvent: @escaping @Sendable (String) -> Void
+        onEvent: @Sendable (String) async -> Void
     ) async {
+        guard !channel.isEmpty, !token.isEmpty,
+              let encodedChannel = channel.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
+        else { return }
+        let base = APIConfig.baseURL.absoluteString
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        guard let url = URL(string: "\(base)/api/events/stream?channel=\(encodedChannel)") else { return }
+
         while !Task.isCancelled {
             do {
-                guard
-                    let encodedChannel = channel.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-                    let encodedToken   = token.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
-                else { return }
-
-                let base = APIConfig.baseURL.absoluteString
-                    .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-                guard let url = URL(string: "\(base)/api/events/stream?channel=\(encodedChannel)&token=\(encodedToken)") else { return }
-
                 var request = URLRequest(url: url)
                 request.timeoutInterval = 300          // 5 min — SSE-Verbindung bleibt offen
                 request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+                request.setValue(token, forHTTPHeaderField: APIConfig.authHeader)
 
-                let (asyncBytes, _) = try await URLSession.shared.bytes(for: request)
+                let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
+                if let http = response as? HTTPURLResponse {
+                    // Token ungültig/abgelaufen: Neuverbinden bringt nichts
+                    if http.statusCode == 401 || http.statusCode == 403 { return }
+                    guard (200..<300).contains(http.statusCode) else {
+                        throw URLError(.badServerResponse)
+                    }
+                }
                 for try await line in asyncBytes.lines {
                     if Task.isCancelled { return }
                     guard line.hasPrefix("data:") else { continue }
@@ -63,16 +93,13 @@ actor SSEClient {
                         let type  = obj["type"] as? String,
                         type != "ping"
                     else { continue }
-                    // Auf den MainActor wechseln, dann Callback auslösen
-                    await MainActor.run { onEvent(type) }
+                    await onEvent(type)
                 }
-                // Stream sauber beendet (z.B. 401/Fehlerantwort ohne Exception):
-                // ohne Delay würde die while-Schleife den Server im Tight-Loop hämmern.
+                // Stream vom Server beendet: verzögert neu verbinden (kein Tight-Loop)
                 if Task.isCancelled { return }
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
             } catch {
                 if Task.isCancelled { return }
-                // 5 s warten, dann neu verbinden (wie Flutter: `Future.delayed(5s)`)
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
             }
         }

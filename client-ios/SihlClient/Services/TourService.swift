@@ -284,6 +284,11 @@ struct TourDetail: Identifiable, Hashable {
     /// ihre Wege ungeordnet — dann gibt es Overlay und Abstand, aber keinen
     /// Fortschritt entlang der Route.
     let ordered: Bool
+    /// Gesetzte Punkte (Start, Zwischenpunkte, Ziel) — Planer, Meine Routen,
+    /// Assistent; für „nächster Punkt" in der Aufzeichnung. OSM/GPX: leer.
+    var waypoints: [CLLocationCoordinate2D] = []
+    /// Aus einer GPX-Datei importiert — keine OSM-Quellenangabe
+    var isImported = false
 
     init(id: String, name: String, activity: String, network: String? = nil,
          operatorName: String? = nil, description: String? = nil,
@@ -320,10 +325,13 @@ struct TourDetail: Identifiable, Hashable {
             var coords: [CLLocationCoordinate2D] = []
             var segEles: [Double?] = []
             for p in seg {
-                guard let lat = Double("\(p["lat"] ?? "")"),
-                      let lon = Double("\(p["lon"] ?? "")") else { continue }
+                // Nur endliche, plausible Werte übernehmen
+                guard let lat = Double("\(p["lat"] ?? "")"), lat.isFinite, (-90...90).contains(lat),
+                      let lon = Double("\(p["lon"] ?? "")"), lon.isFinite, (-180...180).contains(lon)
+                else { continue }
                 coords.append(CLLocationCoordinate2D(latitude: lat, longitude: lon))
-                segEles.append(Double("\(p["ele"] ?? "")"))
+                let ele = Double("\(p["ele"] ?? "")")
+                segEles.append(ele.flatMap { $0.isFinite && (-500...9000).contains($0) ? $0 : nil })
             }
             if coords.count >= 2 { segs.append(coords); eles.append(segEles) }
         }
@@ -396,8 +404,8 @@ extension TourDetail {
     var asRoute: TourRoute {
         TourRoute(name: name, segments: segments, distanceKm: distanceKm, activity: activity,
                   elevations: elevations, elevationGain: elevationGain,
-                  elevationLoss: elevationLoss, durationMin: durationMin, hints: hints,
-                  ordered: ordered)
+                  elevationLoss: elevationLoss, durationMin: durationMin,
+                  waypoints: waypoints, hints: hints, ordered: ordered)
     }
 }
 

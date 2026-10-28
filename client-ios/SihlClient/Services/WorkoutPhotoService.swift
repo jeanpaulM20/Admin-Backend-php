@@ -101,6 +101,11 @@ actor WorkoutPhotoService {
         return image
     }
 
+    /// Bildcache leeren (Logout — keine Fotos über Kontowechsel hinweg).
+    func clearCache() {
+        imageCache.removeAll()
+    }
+
     func delete(clientId: String, photoId: Int) async throws {
         _ = try await APIClient.shared.delete("/api/client/workouts/\(clientId)/photo/\(photoId)")
         imageCache[photoId] = nil
@@ -137,7 +142,7 @@ actor WorkoutPhotoService {
 
     /// Bereits zugeschnittene JPEG-Daten unter der Aufzeichnungs-ID sichern.
     nonisolated static func saveActivePhotoData(_ data: Data, recordingId: String) {
-        try? data.write(to: activePhotoURL(recordingId), options: .atomic)
+        try? data.write(to: activePhotoURL(recordingId), options: [.atomic, .completeFileProtectionUnlessOpen])
     }
 
     nonisolated static func activePhotoData(recordingId: String?) -> Data? {

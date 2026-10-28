@@ -26,12 +26,25 @@ import Foundation
 
             let (t, m, r) = try await (tests, metrics, revs)
             // Metriken zuerst, dann Tests — wie Flutter `[...metrics, ...tests]`
-            sections = m + t
+            sections = Self.withUniqueIDs(m + t)
             reviews  = r
         } catch {
             self.error = error.localizedDescription
         }
         isLoading = false
+    }
+
+    /// Doppelte Sektionstitel (z.B. in Tests und Metriken) eindeutig machen —
+    /// die IDs bleiben über Refreshes gleich.
+    private static func withUniqueIDs(_ list: [PerformanceSection]) -> [PerformanceSection] {
+        var seen: [String: Int] = [:]
+        return list.map { section in
+            var s = section
+            let n = seen[s.id, default: 0]
+            seen[s.id] = n + 1
+            if n > 0 { s.id = "\(s.id)#\(n)" }
+            return s
+        }
     }
 
     // MARK: - Demo-Daten (Pendant zu Flutter `MockData.performanceData`)

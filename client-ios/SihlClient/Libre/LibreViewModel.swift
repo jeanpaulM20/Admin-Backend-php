@@ -17,6 +17,12 @@ final class LibreViewModel {
     var latestReading: GlucoseReading? { readings.last }
 
     init() {
+        guard AppFeatures.glucose else {
+            // Funktion ausgeblendet: nichts laden, Altdaten bisheriger
+            // Tester einmalig entfernen (Datenschutz)
+            LibreStorageService().purgeIfPresent()
+            return
+        }
         Task { await initialize() }
     }
 
@@ -55,6 +61,7 @@ final class LibreViewModel {
     // MARK: - Daten laden
 
     func loadReadings(forceRefresh: Bool = false) async {
+        guard AppFeatures.glucose else { return }
         isLoading = true
         error = nil
         let result = await repo.getReadings(forceRefresh: forceRefresh)
@@ -62,7 +69,7 @@ final class LibreViewModel {
         fromCache = result.fromCache
         lastSync = result.lastSync
         if let e = result.error { error = e }
-        if result.error?.contains("401") == true { isLoggedIn = false }
+        if result.needsReauth { isLoggedIn = false }
         isLoading = false
     }
 

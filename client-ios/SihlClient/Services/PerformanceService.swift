@@ -24,6 +24,7 @@ struct PerformanceService {
         try await APIClient.shared
             .getJSONArray("/api/client/reviews/\(clientId)")
             .map { TrainingReview(json: $0) }
+            .filter(\.hasValidDate)   // unlesbares Datum → verwerfen statt „heute"
     }
 
     /// `GET /api/client/workouts/{clientId}/{reviewId}/track` — GPS-Route
@@ -42,10 +43,11 @@ struct GeoPoint {
     let ele: Double?
 
     init?(json: [String: Any]) {
-        guard let lat = Double("\(json["lat"] ?? "")"),
-              let lon = Double("\(json["lon"] ?? "")") else { return nil }
+        guard let lat = Double("\(json["lat"] ?? "")"), lat.isFinite, (-90...90).contains(lat),
+              let lon = Double("\(json["lon"] ?? "")"), lon.isFinite, (-180...180).contains(lon)
+        else { return nil }
         self.lat = lat
         self.lon = lon
-        self.ele = Double("\(json["ele"] ?? "")")
+        self.ele = Double("\(json["ele"] ?? "")").flatMap { $0.isFinite && (-500...9000).contains($0) ? $0 : nil }
     }
 }

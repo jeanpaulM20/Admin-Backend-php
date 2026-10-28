@@ -78,4 +78,19 @@ struct LibreStorageService {
         try? FileManager.default.removeItem(at: readingsFile)
         UserDefaults.standard.removeObject(forKey: Keys.lastSync)
     }
+
+    // MARK: - Alles entfernen
+
+    /// Löscht Zugang und Messwerte, falls noch etwas davon auf dem Gerät liegt
+    /// (Funktion ausgeblendet → Altdaten früherer Tester entfernen).
+    func purgeIfPresent() {
+        let ud = UserDefaults.standard
+        let hasDefaults = [Keys.expires, Keys.email, Keys.patientId, Keys.region, Keys.lastSync]
+            .contains { ud.object(forKey: $0) != nil }
+        let hasFile = FileManager.default.fileExists(atPath: readingsFile.path)
+        let hasToken = KeychainStore.get(Keys.token) != nil
+        guard hasDefaults || hasFile || hasToken else { return }
+        clearAuth()
+        clearReadings()
+    }
 }

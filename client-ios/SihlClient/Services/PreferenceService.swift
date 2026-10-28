@@ -13,10 +13,11 @@ actor PreferenceService {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return emptyPrefs()
         }
+        // Backend liefert Zahlen (oder null) → robust als String lesen
         let prefs: [String: String?] = [
-            "trainer_id":       json["trainer_id"]       as? String,
-            "training_type_id": json["training_type_id"] as? String,
-            "location_id":      json["location_id"]      as? String,
+            "trainer_id":       jsonID(json["trainer_id"]),
+            "training_type_id": jsonID(json["training_type_id"]),
+            "location_id":      jsonID(json["location_id"]),
         ]
         cache = prefs
         return prefs

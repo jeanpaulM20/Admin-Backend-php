@@ -58,6 +58,13 @@ struct WorkoutSessionView: View {
         .onChange(of: recorder.phase) { _, phase in
             if phase == .finished { RouteVoice.shared.stop() }
         }
+        // Mehrere Gurte in Reichweite, keiner gewählt: ohne Gurt weiter
+        .onChange(of: recorder.hrState) { _, state in
+            if state == .chooseStrap {
+                routeToast = AppToast(message: "Mehrere Gurte gefunden — Gurt in Profil → Sensoren wählen",
+                                      style: .neutral)
+            }
+        }
         // Ziel erreicht (5.2): Haptik, Banner auf der Karte bietet „Beenden"
         .onChange(of: recorder.arrived) { _, arrived in
             if arrived {
@@ -251,7 +258,7 @@ struct WorkoutSessionView: View {
 
                 HStack(spacing: 0) {
                     liveStat("Distanz", recorder.distanceString)
-                    liveStat(recorder.activity == .rad ? "Tempo" : "Pace", recorder.paceString)
+                    liveStat(recorder.activity.isCycling ? "Tempo" : "Pace", recorder.paceString)
                     liveStat("Höhenmeter", "\(Int(recorder.elevationGain)) m")
                 }
 
@@ -312,7 +319,7 @@ struct WorkoutSessionView: View {
                 if recorder.activity.usesGPS {
                     HStack(spacing: 0) {
                         liveStat("Distanz", recorder.distanceString)
-                        liveStat(recorder.activity == .rad ? "Tempo" : "Pace", recorder.paceString)
+                        liveStat(recorder.activity.isCycling ? "Tempo" : "Pace", recorder.paceString)
                         liveStat("Höhenmeter", "\(Int(recorder.elevationGain)) m")
                     }
                     routeGuidance
@@ -348,7 +355,8 @@ struct WorkoutSessionView: View {
                     .overlay(RoundedRectangle(cornerRadius: AppRadius.control)
                         .stroke(photo == nil ? AppColor.border : AppColor.primary, lineWidth: 1))
             }
-            .accessibilityLabel(photo == nil ? "Foto aufnehmen" : "Foto ersetzt — erneut aufnehmen")
+            .accessibilityLabel(photo == nil ? "Foto aufnehmen" : "Neues Foto aufnehmen")
+            .accessibilityHint(photo == nil ? "" : "Ersetzt das bereits aufgenommene Foto")
 
             Button(recorder.phase == .paused ? "Weiter" : "Pause") {
                 recorder.phase == .paused ? recorder.resume() : recorder.pause()
@@ -554,6 +562,8 @@ struct WorkoutSessionView: View {
                     .overlay(Circle().stroke(AppColor.border, lineWidth: 1))
             }
             .padding(10)
+            .accessibilityLabel("Karte auf meine Position zentrieren")
+            .accessibilityValue(followUser ? "Karte folgt der Position" : "")
         }
     }
 
@@ -850,7 +860,7 @@ struct WorkoutSessionView: View {
                 if recorder.activity.usesGPS {
                     HStack(spacing: AppSpacing.stack) {
                         summaryStat("Distanz", recorder.distanceString, "", AppColor.text)
-                        summaryStat(recorder.activity == .rad ? "Tempo" : "Pace",
+                        summaryStat(recorder.activity.isCycling ? "Tempo" : "Pace",
                                     recorder.paceString, "", AppColor.text)
                         summaryStat("Höhenmeter", "\(Int(recorder.elevationGain))", "m", AppColor.text)
                     }
@@ -904,7 +914,7 @@ struct WorkoutSessionView: View {
         .alert("Training verwerfen?", isPresented: $confirmDiscard) {
             Button("Abbrechen", role: .cancel) {}
             Button("Verwerfen", role: .destructive) {
-                WorkoutRecorder.clearSnapshot()
+                WorkoutRecorder.clearSnapshot(recordingId: recorder.recordingId)
                 WorkoutPhotoService.clearActivePhoto(recordingId: recorder.recordingId)
                 complete()
             }
@@ -957,15 +967,19 @@ struct WorkoutSessionView: View {
         guard let started = recorder.startedAt, !isSaving, !finished else { return }
         let rid = recorder.recordingId
         if isDemo {
-            WorkoutRecorder.clearSnapshot()
+            WorkoutRecorder.clearSnapshot(recordingId: rid)
             WorkoutPhotoService.clearActivePhoto(recordingId: rid)
             complete()
+            return
+        }
+        guard let clientId = auth.clientId, !clientId.isEmpty else {
+            saveError = "Nicht angemeldet — bitte erneut anmelden. Das Training bleibt auf dem Gerät gesichert."
             return
         }
         isSaving = true
         saveError = nil
         var payload = WorkoutUploadService.Payload(
-            clientId: auth.clientId ?? "",
+            clientId: clientId,
             trainingType: recorder.activity.rawValue,
             startedAt: started,
             duration: recorder.durationString,
@@ -978,19 +992,23 @@ struct WorkoutSessionView: View {
         // Nur das Foto DIESER Aufzeichnung — nie eine Altlast
         let photoData: Data? = WorkoutPhotoService.activePhotoData(recordingId: rid)
             ?? photo.flatMap { WorkoutPhotoService.prepare($0) }
-        let clientId = auth.clientId ?? ""
 
-        /// Offline o. Ä.: Training UND Foto in die Warteschlange — das Backend
-        /// dedupliziert über die Aufzeichnungs-ID, ein Nachreichen ist sicher.
-        func enqueueAndFinish() async {
+        /// Vorübergehender Fehler: Training UND Foto in die Warteschlange — das
+        /// Backend dedupliziert über die Aufzeichnungs-ID, Nachreichen ist sicher.
+        func enqueueAndFinish(_ message: String) async {
             var queued = payload
             if let photoData { queued.photoFile = WorkoutUploadService.shared.stashPhoto(photoData) }
-            WorkoutUploadService.shared.queue(queued)
+            guard WorkoutUploadService.shared.queue(queued) else {
+                // Nicht eingereiht: Snapshot bleibt, Wiederherstellung greift
+                saveError = "Training konnte nicht zwischengespeichert werden — bitte erneut versuchen."
+                isSaving = false
+                return
+            }
             WorkoutPhotoService.clearActivePhoto(recordingId: rid)
-            WorkoutRecorder.clearSnapshot()
-            saveError = "Kein Netz — Training gespeichert und wird automatisch nachgereicht."
+            WorkoutRecorder.clearSnapshot(recordingId: rid)
+            saveError = message
             // isSaving bleibt gesetzt: kein zweiter Tipp im Wartefenster
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            try? await Task.sleep(nanoseconds: 2_500_000_000)
             complete()
         }
 
@@ -999,11 +1017,29 @@ struct WorkoutSessionView: View {
             do {
                 reviewId = try await WorkoutUploadService.shared.upload(payload)
             } catch {
-                await enqueueAndFinish(); return
+                switch WorkoutUploadService.classify(error) {
+                case .transient:
+                    await enqueueAndFinish(error is URLError
+                        ? "Kein Netz — Training gespeichert und wird automatisch nachgereicht."
+                        : "Server nicht erreichbar — Training gespeichert und wird automatisch nachgereicht.")
+                case .sessionExpired:
+                    await enqueueAndFinish("Sitzung abgelaufen — Training ist auf dem Gerät gesichert und wird nach dem erneuten Anmelden übertragen.")
+                case .forbidden:
+                    await enqueueAndFinish("Kein Zugriff auf dieses Konto — Training ist auf dem Gerät gesichert und wird nach dem erneuten Anmelden übertragen.")
+                case .rejected(let reason):
+                    // Erneutes Senden hilft nicht: nicht still einreihen.
+                    // Der Snapshot bleibt, bis gespeichert oder verworfen wird.
+                    saveError = "Training wurde nicht angenommen: \(reason). Du kannst es erneut versuchen oder verwerfen."
+                    isSaving = false
+                }
+                return
             }
-            // Ohne id wäre das Foto nicht zuordenbar → wie Fehler behandeln,
-            // die Dedupe-ID macht den erneuten Upload gefahrlos
-            guard let reviewId else { await enqueueAndFinish(); return }
+            // Ohne id wäre das Foto nicht zuordenbar → wie vorübergehender
+            // Fehler behandeln, die Dedupe-ID macht den erneuten Upload gefahrlos
+            guard let reviewId else {
+                await enqueueAndFinish("Training wird automatisch nachgereicht.")
+                return
+            }
 
             if let photoData, let image = UIImage(data: photoData) {
                 do {
@@ -1016,7 +1052,7 @@ struct WorkoutSessionView: View {
                 }
             }
             WorkoutPhotoService.clearActivePhoto(recordingId: rid)
-            WorkoutRecorder.clearSnapshot()
+            WorkoutRecorder.clearSnapshot(recordingId: rid)
             complete()
         }
     }

@@ -1,11 +1,13 @@
 import Foundation
 
+/// Lektionen-Guthaben & -Pakete für Personal Training vor Ort.
 /// Pendant zu `credits_service.dart` + `payment_service.dart`.
+/// Online-Coaching-Abos werden in der App bewusst nicht verkauft (App-Store 3.1.1).
 struct CreditsService {
     static let shared = CreditsService()
     private init() {}
 
-    // MARK: - Credits & Packages
+    // MARK: - Guthaben & Pakete
 
     /// `GET /api/client/credits/{clientId}`
     func listClientCredits(clientId: String) async throws -> [ClientCredit] {
@@ -14,19 +16,13 @@ struct CreditsService {
             .map { ClientCredit(json: $0) }
     }
 
-    /// `GET /api/client/packages` + `GET /api/client/packages?kind=coaching` (parallel)
+    /// `GET /api/client/packages` — Lektionen-Pakete (Backend-Default `kind=credits`).
+    /// Coaching-Pakete werden zusätzlich clientseitig ausgefiltert.
     func listPackages() async throws -> [CreditPackage] {
-        async let credits  = APIClient.shared.getJSONArray("/api/client/packages")
-        async let coaching = APIClient.shared.getJSONArray("/api/client/packages?kind=coaching")
-        let (c, co) = try await (credits, coaching)
-        return (c + co).map { CreditPackage(json: $0) }
-    }
-
-    /// `GET /api/client/packages?kind=coaching` — nur Coaching-Abos (für Paywall)
-    func listCoachingPackages() async throws -> [CreditPackage] {
         try await APIClient.shared
-            .getJSONArray("/api/client/packages?kind=coaching")
+            .getJSONArray("/api/client/packages")
             .map { CreditPackage(json: $0) }
+            .filter { !$0.isCoaching }
     }
 
     /// `POST /api/client/purchase/{clientId}` — Banküberweisung / QR-Rechnung
@@ -40,29 +36,38 @@ struct CreditsService {
                 d["message"] as? String ?? "Unbekannter Fehler")
     }
 
-    // MARK: - Online Payment (Saferpay)
+    // MARK: - Online-Zahlung (Saferpay)
 
-    /// `POST /api/client/payment/initialize/{clientId}` — Saferpay initialisieren
+    /// `POST /api/client/payment/initialize/{clientId}` — Saferpay initialisieren.
+    /// Ohne Rechnungsnummer liesse sich der Status nicht abfragen → Fehler.
     func initializePayment(clientId: String, packageId: Int) async throws -> PaymentInitResult {
         let body: [String: Any] = ["packageId": packageId]
         let json = try await APIClient.shared.postJSONObject(
             "/api/client/payment/initialize/\(clientId)", body: body)
         if let d = json, d["success"] as? Bool == true,
-           let url = d["redirectUrl"] as? String {
-            return PaymentInitResult(
-                redirectUrl: url,
-                invoiceNumber: d["invoiceNumber"] as? String ?? ""
-            )
+           let url = d["redirectUrl"] as? String, !url.isEmpty,
+           let invoice = d["invoiceNumber"] as? String, !invoice.isEmpty {
+            return PaymentInitResult(redirectUrl: url, invoiceNumber: invoice)
         }
         let msg = json?["error"] as? String ?? "Zahlung konnte nicht gestartet werden"
         throw NSError(domain: "CreditsService", code: 0, userInfo: [NSLocalizedDescriptionKey: msg])
     }
 
-    /// `GET /api/client/payment/status/{invoiceNumber}` — Status abfragen
-    func checkPaymentStatus(invoiceNumber: String) async throws -> String {
+    /// `GET /api/client/payment/status/{invoiceNumber}` — Status abfragen.
+    /// Netzwerkfehler werden geworfen; fachliche Fehler kommen als `.failed`.
+    func checkPaymentStatus(invoiceNumber: String) async throws -> PaymentStatus {
+        guard !invoiceNumber.isEmpty else { return .failed("Rechnung nicht gefunden") }
         guard let d = try await APIClient.shared.getJSONObject(
-            "/api/client/payment/status/\(invoiceNumber)"),
-              d["success"] as? Bool == true else { return "error" }
-        return d["status"] as? String ?? "pending"
+            "/api/client/payment/status/\(invoiceNumber)") else {
+            return .failed("Ungültige Antwort vom Server")
+        }
+        guard d["success"] as? Bool == true else {
+            return .failed(d["error"] as? String ?? "Zahlungsstatus unbekannt")
+        }
+        switch (d["status"] as? String ?? "pending").lowercased() {
+        case "paid":                                     return .paid
+        case "failed", "cancelled", "canceled", "aborted": return .failed("Zahlung nicht abgeschlossen")
+        default:                                         return .pending
+        }
     }
 }

@@ -20,7 +20,7 @@ enum GPXFile {
             xml += "<trkseg>\n"
             for (i, c) in seg.enumerated() {
                 let ele = (s < elevations.count && i < elevations[s].count) ? elevations[s][i] : nil
-                if let ele {
+                if let ele, ele.isFinite {
                     xml += "<trkpt lat=\"\(c.latitude)\" lon=\"\(c.longitude)\"><ele>\(Int(ele))</ele></trkpt>\n"
                 } else {
                     xml += "<trkpt lat=\"\(c.latitude)\" lon=\"\(c.longitude)\"/>\n"
@@ -59,9 +59,11 @@ enum GPXFile {
         parser.delegate = delegate
         parser.parse()
 
-        let segments = delegate.segments.filter { $0.count >= 2 }
+        // Segmente und Höhen synchron filtern, damit die Indizes zusammenpassen
+        let kept = delegate.segments.indices.filter { delegate.segments[$0].count >= 2 }
+        let segments = kept.map { delegate.segments[$0] }
+        let elevations = kept.map { $0 < delegate.elevations.count ? delegate.elevations[$0] : [] }
         guard !segments.isEmpty else { return nil }
-        let elevations = delegate.elevations
 
         var distanceM = 0.0
         var gain = 0.0
@@ -81,9 +83,11 @@ enum GPXFile {
         }
         let km = distanceM / 1000
         let climbH = gain / 400, horizH = km / 4.2
-        let durationMin = Int((max(horizH, climbH) + min(horizH, climbH) / 2) * 60)
+        let rawMin = (max(horizH, climbH) + min(horizH, climbH) / 2) * 60
+        guard km.isFinite, gain.isFinite, rawMin.isFinite else { return nil }
+        let durationMin = Int(rawMin)
 
-        return TourDetail(
+        var detail = TourDetail(
             id: "gpx-\(url.lastPathComponent)",
             name: delegate.trackName ?? url.deletingPathExtension().lastPathComponent,
             activity: "hiking",
@@ -95,6 +99,8 @@ enum GPXFile {
             segments: segments,
             elevations: elevations
         )
+        detail.isImported = true
+        return detail
     }
 
     private final class Delegate: NSObject, XMLParserDelegate {
@@ -107,6 +113,8 @@ enum GPXFile {
         private var inName = false
         private var inEle = false
         private var pendingEle: Double?
+        /// Aktueller `<trkpt>` wurde übernommen — sonst darf sein `<ele>` keinen Vorgänger überschreiben
+        private var pointAccepted = false
 
         func parser(_ parser: XMLParser, didStartElement name: String, namespaceURI: String?,
                     qualifiedName: String?, attributes: [String: String]) {
@@ -115,10 +123,13 @@ enum GPXFile {
                 currentSeg = []; currentEles = []
             case "trkpt":
                 pendingEle = nil
-                if let lat = Double(attributes["lat"] ?? ""),
-                   let lon = Double(attributes["lon"] ?? "") {
+                pointAccepted = false
+                // Nur endliche, plausible Koordinaten ("nan"/"inf" verwerfen)
+                if let lat = Double(attributes["lat"] ?? ""), lat.isFinite, (-90...90).contains(lat),
+                   let lon = Double(attributes["lon"] ?? ""), lon.isFinite, (-180...180).contains(lon) {
                     currentSeg.append(CLLocationCoordinate2D(latitude: lat, longitude: lon))
                     currentEles.append(nil)
+                    pointAccepted = true
                 }
             case "ele":  inEle = true;  text = ""
             case "name": inName = true; text = ""
@@ -135,9 +146,15 @@ enum GPXFile {
             switch name {
             case "trkseg":
                 if !currentSeg.isEmpty { segments.append(currentSeg); elevations.append(currentEles) }
+            case "trkpt":
+                pointAccepted = false
             case "ele":
                 inEle = false
-                if !currentEles.isEmpty { currentEles[currentEles.count - 1] = Double(text.trimmingCharacters(in: .whitespacesAndNewlines)) }
+                if pointAccepted, !currentEles.isEmpty,
+                   let e = Double(text.trimmingCharacters(in: .whitespacesAndNewlines)),
+                   e.isFinite, (-500...9000).contains(e) {
+                    currentEles[currentEles.count - 1] = e
+                }
             case "name":
                 inName = false
                 if trackName == nil { trackName = text.trimmingCharacters(in: .whitespacesAndNewlines) }

@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// Fehler-Typ analog zur Flutter `ApiException`.
 struct APIError: LocalizedError {
@@ -16,14 +17,36 @@ struct APIError: LocalizedError {
 ///
 /// Token wird im Arbeitsspeicher gehalten; persistente Speicherung
 /// übernimmt der `AuthViewModel` via `KeychainStore`.
+///
+/// Ein 401 auf einen Request mit Token (ausser dem Login) heisst: Sitzung
+/// ungültig. Dann ruft der Client den `unauthorizedHandler` auf, den die
+/// Composition Root (`SihlClientApp`) setzt — dort wird abgemeldet.
 actor APIClient {
     static let shared = APIClient()
 
-    private var token: String?
+    /// Login-Endpunkt: Ein 401 dort heisst „falsche Zugangsdaten“, nicht
+    /// „Sitzung abgelaufen“.
+    static let loginPath = "api/client/token"
 
-    func setToken(_ token: String?) {
-        self.token = token
+    /// Token und Handler synchron les-/setzbar, damit der Kaltstart das
+    /// Token schon vor dem ersten Request gesetzt hat.
+    private nonisolated let state = OSAllocatedUnfairLock(initialState: SharedState())
+
+    private struct SharedState {
+        var token: String?
+        var unauthorizedHandler: (@Sendable () async -> Void)?
     }
+
+    nonisolated func setToken(_ token: String?) {
+        state.withLock { $0.token = token }
+    }
+
+    /// Wird bei einem 401 mit gültigem Token (ausser Login) aufgerufen.
+    nonisolated func setUnauthorizedHandler(_ handler: (@Sendable () async -> Void)?) {
+        state.withLock { $0.unauthorizedHandler = handler }
+    }
+
+    private var token: String? { state.withLock { $0.token } }
 
     // MARK: - Öffentliche Verben
 
@@ -81,15 +104,31 @@ actor APIClient {
 
     // MARK: - Intern
 
+    /// Datei laden (Header-Auth) — liefert zusätzlich MIME-Typ und
+    /// vorgeschlagenen Dateinamen für die Vorschau.
+    func download(_ path: String, timeout: TimeInterval = 60) async throws
+        -> (data: Data, mimeType: String?, suggestedFilename: String?) {
+        let (data, http) = try await perform(path: path, method: "GET", body: nil,
+                                             timeout: timeout, accept: "*/*")
+        return (data, http.mimeType, http.suggestedFilename)
+    }
+
     private func send(path: String, method: String, body: [String: Any]?,
                       timeout: TimeInterval? = nil) async throws -> Data {
+        try await perform(path: path, method: method, body: body, timeout: timeout).data
+    }
+
+    private func perform(path: String, method: String, body: [String: Any]?,
+                         timeout: TimeInterval? = nil,
+                         accept: String = "application/json") async throws -> (data: Data, http: HTTPURLResponse) {
         var request = URLRequest(url: buildURL(path))
         request.httpMethod = method
         request.timeoutInterval = timeout ?? APIConfig.timeout
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        if let token, !token.isEmpty {
-            request.setValue(token, forHTTPHeaderField: APIConfig.authHeader)
+        request.setValue(accept, forHTTPHeaderField: "Accept")
+        let sentToken = token
+        if let sentToken, !sentToken.isEmpty {
+            request.setValue(sentToken, forHTTPHeaderField: APIConfig.authHeader)
         }
         if let body {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -100,9 +139,27 @@ actor APIClient {
             throw APIError(statusCode: -1, message: "Ungültige Serverantwort")
         }
         guard (200..<300).contains(http.statusCode) else {
-            throw decodeError(statusCode: http.statusCode, data: data)
+            let isLogin = Self.isLoginPath(path)
+            if http.statusCode == 401, !isLogin {
+                handleUnauthorized(sentToken: sentToken)
+            }
+            throw decodeError(statusCode: http.statusCode, data: data, isLogin: isLogin)
         }
-        return data
+        return (data, http)
+    }
+
+    /// Sitzung ungültig → zentral abmelden. Nur, wenn der Request das noch
+    /// aktuelle Token trug (nicht nach Logout oder Neuanmeldung).
+    private func handleUnauthorized(sentToken: String?) {
+        guard let sentToken, !sentToken.isEmpty else { return }
+        let (current, handler) = state.withLock { ($0.token, $0.unauthorizedHandler) }
+        guard current == sentToken, let handler else { return }
+        Task { await handler() }
+    }
+
+    private static func isLoginPath(_ path: String) -> Bool {
+        let clean = path.hasPrefix("/") ? String(path.dropFirst()) : path
+        return clean.split(separator: "?").first.map(String.init) == loginPath
     }
 
     private func buildURL(_ path: String) -> URL {
@@ -118,10 +175,11 @@ actor APIClient {
         }
     }
 
-    private func decodeError(statusCode: Int, data: Data) -> APIError {
+    private func decodeError(statusCode: Int, data: Data, isLogin: Bool) -> APIError {
         var message: String
         switch statusCode {
-        case 401:      message = "E-Mail oder Passwort falsch"
+        case 401:      message = isLogin ? "E-Mail oder Passwort falsch"
+                                         : "Sitzung abgelaufen – bitte neu anmelden"
         case 403:      message = "Dafür fehlt die Berechtigung."
         case 404:      message = "Nicht gefunden."
         case 500...:   message = "Der Server ist gerade nicht erreichbar — bitte später erneut versuchen."

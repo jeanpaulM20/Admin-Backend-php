@@ -135,7 +135,7 @@ private struct CurrentValueCard: View {
 
     var body: some View {
         VStack(spacing: 6) {
-            // Großer Zahlenwert
+            // Grosser Zahlenwert
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(String(format: "%.1f", reading.valueMmol))
                     .font(.app(64, weight: .heavy, design: .rounded))

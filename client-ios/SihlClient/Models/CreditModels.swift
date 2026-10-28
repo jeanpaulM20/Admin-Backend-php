@@ -2,6 +2,7 @@ import Foundation
 
 // MARK: - CreditPackage
 
+/// Lektionen-Paket für Personal Training vor Ort.
 /// Pendant zu `CreditPackage` in `models/buyable_credit.dart`.
 struct CreditPackage: Identifiable {
     let id:              String
@@ -14,26 +15,31 @@ struct CreditPackage: Identifiable {
     let includes:        String?
     let kind:            String   // 'credits' | 'coaching'
 
+    /// Online-Coaching-Abo — wird in der App nicht angeboten (App-Store 3.1.1).
     var isCoaching: Bool { kind == "coaching" }
 
-    /// Preis formatiert in CHF (z.B. "CHF 250")
+    /// Preis in CHF, ganze Franken ohne Rappen (z.B. "CHF 250", "CHF 32.50")
     var priceFormatted: String { Self.chf(price, minFraction: 0) }
 
-    /// Preis mit Rappen (z.B. "CHF 250.00") — z.B. im Bestätigungsdialog
+    /// Preis immer mit Rappen (z.B. "CHF 250.00") — z.B. im Bestätigungsdialog
     var priceFormattedExact: String { Self.chf(price, minFraction: 2) }
-
-    private static func chf(_ value: Double, minFraction: Int) -> String {
-        let f = NumberFormatter()
-        f.numberStyle           = .decimal
-        f.minimumFractionDigits = minFraction
-        f.maximumFractionDigits = 2
-        f.locale = Locale(identifier: "de_CH")
-        return "CHF \(f.string(from: NSNumber(value: value)) ?? "\(Int(value))")"
-    }
 
     var perSessionFormatted: String? {
         guard let pps = pricePerSession else { return nil }
-        return "CHF \(Int(pps)) / Lektion"
+        return "\(Self.chf(pps, minFraction: 0)) / Lektion"
+    }
+
+    /// Einheitliche CHF-Formatierung (de_CH). `minFraction: 0` lässt die Rappen
+    /// nur bei ganzen Franken weg — Beträge mit Rappen erscheinen immer zweistellig.
+    static func chf(_ value: Double, minFraction: Int = 2) -> String {
+        let whole = (value * 100).rounded().truncatingRemainder(dividingBy: 100) == 0
+        let digits = (minFraction == 0 && whole) ? 0 : 2
+        let f = NumberFormatter()
+        f.numberStyle           = .decimal
+        f.minimumFractionDigits = digits
+        f.maximumFractionDigits = digits
+        f.locale = Locale(identifier: "de_CH")
+        return "CHF \(f.string(from: NSNumber(value: value)) ?? String(format: "%.2f", value))"
     }
 
     init(json: [String: Any]) {
@@ -51,7 +57,7 @@ struct CreditPackage: Identifiable {
 
 // MARK: - ClientCredit
 
-/// Pendant zu `ClientCredit` in `models/buyable_credit.dart` — ein gebuchtes Abo.
+/// Gebuchtes Lektionen-Paket. Pendant zu `ClientCredit` in `models/buyable_credit.dart`.
 struct ClientCredit: Identifiable {
     let id:        String
     let title:     String
@@ -65,7 +71,12 @@ struct ClientCredit: Identifiable {
         let paid     = Int("\(json["paid"]     ?? 0)") ?? 0
         let attended = Int("\(json["attended"] ?? 0)") ?? 0
         self.id        = "\(json["id"] ?? UUID().uuidString)"
-        self.title     = json["title"] as? String ?? "Credit-Paket"
+        // Gehört der Eintrag zu einem Online-Coaching-Abo (Backend: kind),
+        // klar so benennen — er bleibt im Guthaben, weil seine Lektionen
+        // buchbar sind
+        self.title     = (json["kind"] as? String) == "coaching"
+            ? "Online Coaching"
+            : json["title"] as? String ?? "Lektionen-Paket"
         self.paid      = paid
         self.attended  = attended
         self.remaining = Int("\(json["remaining"] ?? 0)") ?? (paid - attended)
@@ -73,29 +84,25 @@ struct ClientCredit: Identifiable {
         self.expires   = json["expires"]   as? String
     }
 
-    /// Ist dieses Abo zum aktuellen Zeitpunkt aktiv?
+    /// Aktiv ab Beginn des Starttags bis Ende des Ablauftags (Zürcher Zeit).
     var isActive: Bool {
         let now = Date()
-        if let exp = expires, let d = Self.parseDate(exp), d < now { return false }
-        if let start = startdate, let d = Self.parseDate(start), d > now { return false }
+        if let d = SwissDay.parse(expires), now >= SwissDay.endOfDay(d) { return false }
+        if let d = SwissDay.parse(startdate), now < SwissDay.startOfDay(d) { return false }
         return true
     }
-
-    private static func parseDate(_ s: String) -> Date? {
-        ISO8601DateFormatter().date(from: s)
-        ?? DateFormatter.yyyyMMdd.date(from: s)
-    }
 }
 
-private extension DateFormatter {
-    static let yyyyMMdd: DateFormatter = {
-        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f
-    }()
-}
-
-// MARK: - PaymentInitResult
+// MARK: - Online-Zahlung (Saferpay, nur Lektionen vor Ort)
 
 struct PaymentInitResult {
     let redirectUrl:   String
     let invoiceNumber: String
+}
+
+/// Ergebnis einer Status-Abfrage `GET /payment/status/{invoiceNumber}`.
+enum PaymentStatus: Equatable {
+    case paid
+    case pending
+    case failed(String)
 }

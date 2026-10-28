@@ -30,12 +30,13 @@ struct BookingSheet: View {
             ? prefTrainerId
             : (trainerIds.count == 1 ? trainerIds.first : nil)
 
-        let allLocIds = calData.locations.map(\.id)
+        // Nur Standorte, die der vorausgewählte Trainer in diesem Slot anbietet
+        let initLocIds = Self.locationIds(options: options, calData: calData, trainerId: initTrainer)
         let initLoc: String?
-        if let pref = prefLocationId, allLocIds.contains(pref) {
+        if let pref = prefLocationId, initLocIds.contains(pref) {
             initLoc = pref
-        } else if allLocIds.count == 1 {
-            initLoc = allLocIds.first
+        } else if initLocIds.count == 1 {
+            initLoc = initLocIds.first
         } else {
             initLoc = nil
         }
@@ -44,10 +45,7 @@ struct BookingSheet: View {
         _selLocationId = State(initialValue: initLoc)
     }
 
-    private static let dateFmt: DateFormatter = {
-        let f = DateFormatter(); f.locale = Locale(identifier: "de_DE")
-        f.dateFormat = "EEEE, d. MMMM"; return f
-    }()
+    private static let dateFmt = ZurichTime.displayFormatter("EEEE, d. MMMM")
 
     var body: some View {
         NavigationStack {
@@ -129,7 +127,9 @@ struct BookingSheet: View {
     // MARK: - Trainer Picker
 
     private var trainerIds: [String] {
-        Array(Set(options.map(\.trainerId)))
+        // Stabile Reihenfolge (Set wäre bei jedem Rendern anders sortiert)
+        var seen = Set<String>()
+        return options.map(\.trainerId).filter { seen.insert($0).inserted }
     }
 
     private var trainerPicker: some View {
@@ -152,11 +152,22 @@ struct BookingSheet: View {
 
     // MARK: - Location Picker
 
+    /// Standorte laut Verfügbarkeit (location_id) des gewählten Trainers in
+    /// diesem Slot, zusätzlich gegen Puffer zu bestehenden Buchungen geprüft.
     private var availableLocationIds: [String] {
-        guard let tid = selTrainerId else { return calData.locations.map(\.id) }
-        return calData.locations.map(\.id).filter { locId in
-            isTrainerFreeForLocation(trainerId: tid, locationId: locId)
-        }
+        let offered = Self.locationIds(options: options, calData: calData, trainerId: selTrainerId)
+        guard let tid = selTrainerId else { return offered }
+        return offered.filter { isTrainerFreeForLocation(trainerId: tid, locationId: $0) }
+    }
+
+    /// Standort-IDs aus den Slot-Optionen (ggf. eines Trainers). Verfügbarkeiten
+    /// ohne Standort erlauben alle Standorte.
+    private static func locationIds(options: [SlotOption], calData: CalendarData, trainerId: String?) -> [String] {
+        let relevant = options.filter { trainerId == nil || $0.trainerId == trainerId }
+        let allIds = calData.locations.map(\.id)
+        if relevant.contains(where: { $0.locationId == nil }) { return allIds }
+        let offered = Set(relevant.compactMap(\.locationId))
+        return allIds.filter { offered.contains($0) }
     }
 
     private var locationPicker: some View {
@@ -181,7 +192,7 @@ struct BookingSheet: View {
             confirmRow("Trainer", trainerName(id: trainerId))
             confirmRow("Ort",     locationName(id: locationId))
             confirmRow("Dauer",   "60 Min.")
-            confirmRow("Credits", "1 Credit")
+            confirmRow("Guthaben", "1 Lektion")
         }
         .padding(12)
         .background(AppColor.green.opacity(0.04))
@@ -218,7 +229,9 @@ struct BookingSheet: View {
 
             Button("Jetzt buchen") {
                 guard let tid = selTrainerId, let lid = selLocationId else { return }
-                let typeId = options.first(where: { $0.trainerId == tid })?.trainingTypeId
+                // Trainingsart der Verfügbarkeit von Trainer + Standort
+                let typeId = options.first(where: { $0.trainerId == tid && $0.locationId == lid })?.trainingTypeId
+                    ?? options.first(where: { $0.trainerId == tid })?.trainingTypeId
                 onConfirm(SlotSelection(trainerId: tid, locationId: lid, trainingTypeId: typeId))
                 dismiss()
             }
@@ -265,14 +278,15 @@ struct BookingSheet: View {
     private func isTrainerFreeForLocation(trainerId: String, locationId: String) -> Bool {
         guard let dateStr = selDateStr() else { return true }
         let startMin = slot.startMin; let endMin = startMin + 60
-        let locBuffers = Dictionary(uniqueKeysWithValues: calData.locations.map { ($0.id, $0.bufferMinutes) })
+        let locBuffers = Dictionary(calData.locations.map { ($0.id, $0.bufferMinutes) },
+                                    uniquingKeysWith: { first, _ in first })
         for b in calData.trainerBookings {
             guard b.trainerId == trainerId, b.date == dateStr,
                   b.status.lowercased() != "cancelled" else { continue }
             let parts = b.starttime.split(separator: ":").compactMap { Int($0) }
             guard parts.count >= 2 else { continue }
             let bStart = parts[0] * 60 + parts[1]; let bEnd = bStart + b.duration
-            let same = b.locationId == locationId
+            let same = b.locationId != nil && b.locationId == locationId
             let buf  = same ? 0 : max(locBuffers[locationId] ?? 30, locBuffers[b.locationId ?? ""] ?? 30)
             if startMin < bEnd + buf && bStart < endMin + buf { return false }
         }
@@ -288,9 +302,8 @@ struct BookingSheet: View {
         }
     }
 
+    /// "yyyy-MM-dd" in Zürcher Zeit, gregorianisch.
     private func selDateStr() -> String? {
-        let c = Calendar.current.dateComponents([.year, .month, .day], from: day)
-        guard let y = c.year, let m = c.month, let d = c.day else { return nil }
-        return String(format: "%04d-%02d-%02d", y, m, d)
+        ZurichTime.dayString(day)
     }
 }

@@ -52,7 +52,7 @@ struct CircleGroupView: View {
                         Text("\(messages.count) Trainingseinheiten")
                             .font(.footnote.weight(.medium))
                             .foregroundStyle(AppColor.text)
-                        Text("Intensitaet: Ø \(String(format: "%.1f", avg))/10 · Max \(maxVal)/10")
+                        Text("Intensität: Ø \(String(format: "%.1f", avg))/10 · Max \(maxVal)/10")
                             .font(.caption2)
                             .foregroundStyle(AppColor.muted)
                     }
@@ -109,7 +109,7 @@ struct CirclesExpandedSheet: View {
                     Image(systemName: "dumbbell.fill")
                         .font(.callout)
                         .foregroundStyle(AppColor.primary)
-                    Text("Trainingsintensitaeten (\(values.count))")
+                    Text("Trainingsintensitäten (\(values.count))")
                         .font(.callout.weight(.semibold))
                         .foregroundStyle(AppColor.text)
                 }
@@ -159,7 +159,7 @@ struct CircleDetailSheet: View {
         ZStack {
             AppColor.surface.ignoresSafeArea()
             VStack(spacing: 20) {
-                Text("Trainingsintensitaet")
+                Text("Trainingsintensität")
                     .font(.callout)
                     .foregroundStyle(AppColor.text)
 
@@ -177,7 +177,7 @@ struct CircleDetailSheet: View {
                 }
                 .frame(width: 240, height: 240)
 
-                Button("Schließen") { dismiss() }
+                Button("Schliessen") { dismiss() }
                     .font(.callout)
                     .foregroundStyle(AppColor.primary)
             }

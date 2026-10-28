@@ -77,7 +77,9 @@ struct CameraPicker: UIViewControllerRepresentable {
                     ?? (try? Data(contentsOf: url)).flatMap(UIImage.init(data:)) {
                     return completion(img)
                 }
+                #if DEBUG
                 NSLog("CameraPicker: imageURL nicht lesbar: %@", url.path)
+                #endif
             }
             if let asset = info[.phAsset] as? PHAsset {
                 let opts = PHImageRequestOptions()
@@ -88,7 +90,9 @@ struct CameraPicker: UIViewControllerRepresentable {
                     contentMode: .aspectFill, options: opts) { img, _ in completion(img) }
                 return
             }
+            #if DEBUG
             NSLog("CameraPicker: kein Bild extrahierbar")
+            #endif
             completion(nil)
         }
     }

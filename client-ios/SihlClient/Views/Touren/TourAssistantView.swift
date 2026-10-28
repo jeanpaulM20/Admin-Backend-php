@@ -20,7 +20,12 @@ struct TourAssistantView: View {
     @Environment(RecordingLauncher.self) private var launcher
     @FocusState private var inputFocused: Bool
 
+    /// Einwilligung zur KI-Übermittlung (App-Store-Guideline 5.1.2(i))
+    @AppStorage(TourAssistantConsent.storageKey) private var aiConsent = false
+
     private var isDemo: Bool { auth.clientId == "demo" }
+    /// Ohne Einwilligung wird nichts ans Backend gesendet (Demo braucht keine)
+    private var mayUseAI: Bool { isDemo || aiConsent }
 
     private static let examples = [
         "Panorama-Wanderung ab Zug, ca. 2 Stunden",
@@ -32,9 +37,19 @@ struct TourAssistantView: View {
         NavigationStack {
             ZStack {
                 AppColor.background.ignoresSafeArea()
-                VStack(spacing: 0) {
-                    conversation
-                    inputBar
+                if mayUseAI {
+                    VStack(spacing: 0) {
+                        conversation
+                        aiNotice
+                        inputBar
+                    }
+                } else {
+                    // Erstes Öffnen: Einwilligung statt Chat (als Inhalt dieses
+                    // Sheets — ein zweites Sheet darüber käme beim Öffnen nicht
+                    // zuverlässig an). „Nicht jetzt" schliesst den Assistenten.
+                    TourAssistantConsentView(
+                        onAccept: { aiConsent = true },
+                        onDecline: { dismiss() })
                 }
             }
             .navigationTitle("Touren-Assistent")
@@ -53,6 +68,18 @@ struct TourAssistantView: View {
             // die Aufzeichnung übernimmt im Start-Tab (Phase 5.1)
             .onChange(of: launcher.requestCount) { _, _ in dismiss() }
         }
+    }
+
+    /// Dauerhafter Hinweis über dem Eingabefeld
+    private var aiNotice: some View {
+        Text("KI-Antworten können Fehler enthalten – Wege und Verhältnisse selbst prüfen.")
+            .font(.app(11))
+            .foregroundStyle(AppColor.muted)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, AppSpacing.screen)
+            .padding(.top, 6)
+            .background(AppColor.background)
     }
 
     // MARK: Verlauf
@@ -278,6 +305,7 @@ struct TourAssistantView: View {
     private func submit() {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !isThinking else { return }
+        guard mayUseAI else { return }   // ohne Einwilligung nichts senden
         input = ""
         inputFocused = false
         messages.append(AssistantMessage(role: .user, text: text))
@@ -300,9 +328,77 @@ struct TourAssistantView: View {
             } catch {
                 messages.append(AssistantMessage(
                     role: .assistant,
-                    text: "Das hat gerade nicht geklappt — bitte versuch es nochmal."))
+                    text: "Das hat gerade nicht geklappt — bitte versuch es nochmal.",
+                    isLocalError: true))
             }
             isThinking = false
+        }
+    }
+}
+
+// MARK: - Einwilligung
+
+/// Speicherort der Einwilligung zur KI-Übermittlung.
+enum TourAssistantConsent {
+    static let storageKey = "tourAssistant.aiConsent.v1"
+    static let privacyURL = AppLinks.privacy
+}
+
+/// Hinweis und Einwilligung vor der ersten Nutzung des Assistenten.
+struct TourAssistantConsentView: View {
+    let onAccept: () -> Void
+    let onDecline: () -> Void
+
+    var body: some View {
+        // Scrollbar, damit grosse Schrift (Dynamic Type) nicht abschneidet
+        ScrollView {
+        VStack(alignment: .leading, spacing: AppSpacing.card) {
+            HStack(spacing: AppSpacing.stack) {
+                Image(systemName: "sparkles")
+                    .font(.app(20, weight: .semibold))
+                    .foregroundStyle(AppColor.primaryLight)
+                Text("Touren-Assistent")
+                    .font(.app(20, weight: .bold))
+                    .foregroundStyle(AppColor.text)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
+
+            Text("Der Touren-Assistent nutzt KI. Deine Nachrichten und der gewählte Startpunkt werden zur Beantwortung über unseren Server an Anthropic (USA) übermittelt und dort nicht zum Training verwendet. Gib keine Gesundheits- oder Personendaten ein.")
+                .font(.app(15))
+                .foregroundStyle(AppColor.text)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Link(destination: TourAssistantConsent.privacyURL) {
+                HStack(spacing: 4) {
+                    Text("Datenschutz")
+                    Image(systemName: "arrow.up.right.square")
+                }
+                .font(.app(14, weight: .medium))
+                .foregroundStyle(AppColor.primaryLight)
+            }
+
+            Button(action: onAccept) {
+                Text("Zustimmen")
+                    .font(.app(16, weight: .bold))
+                    .foregroundStyle(AppColor.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(AppColor.cta, in: RoundedRectangle(cornerRadius: AppRadius.control))
+            }
+            .buttonStyle(.plain)
+
+            Button(action: onDecline) {
+                Text("Nicht jetzt")
+                    .font(.app(15, weight: .medium))
+                    .foregroundStyle(AppColor.muted)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(AppSpacing.hero)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         }
     }
 }

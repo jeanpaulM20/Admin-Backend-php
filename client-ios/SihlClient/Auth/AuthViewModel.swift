@@ -17,32 +17,41 @@ final class AuthViewModel {
         static let clientId = "client_id"    // UserDefaults
     }
 
+    nonisolated static let demoClientId = "demo"
+
     private(set) var token: String?
     private(set) var clientId: String?
     var isLoading = false
+    /// Meldung für den Login-Screen (falsches Passwort, Sitzung abgelaufen …)
     var error: String?
 
+    /// Verhindert doppelte Abmeldung (mehrere parallele 401).
+    private(set) var isLoggingOut = false
+
     var isAuthenticated: Bool { (token?.isEmpty == false) }
+    var isDemo: Bool { clientId == Self.demoClientId }
 
     init() {
-        Task { await loadSavedAuth() }
+        // Synchron lesen (Keychain ist schnell): kein kurzes Aufblitzen des
+        // Login-Screens beim Kaltstart.
+        token = KeychainStore.get(Keys.token)
+        clientId = UserDefaults.standard.string(forKey: Keys.clientId)
+        guard let token, !token.isEmpty else { return }
+        api.setToken(token)
+        // clientId aus alter Session evtl. nicht gespeichert → vom Server holen.
+        if clientId?.isEmpty != false {
+            Task { await recoverMissingClientId() }
+        }
     }
 
     // MARK: - Persistenz
 
-    private func loadSavedAuth() async {
-        token = KeychainStore.get(Keys.token)
-        clientId = UserDefaults.standard.string(forKey: Keys.clientId)
-        guard let token, !token.isEmpty else { return }
-        await api.setToken(token)
-        // clientId aus alter Session evtl. nicht gespeichert → vom Server holen.
-        if clientId?.isEmpty != false {
-            await recoverClientId()
-            // Ohne clientId ist die App nicht nutzbar (RootView gated darauf) —
-            // dann lieber sauber ausloggen statt endlos im Ladezustand hängen.
-            if clientId?.isEmpty != false {
-                await logout()
-            }
+    private func recoverMissingClientId() async {
+        await recoverClientId()
+        // Ohne clientId ist die App nicht nutzbar (RootView gated darauf) —
+        // dann lieber sauber ausloggen statt endlos im Ladezustand hängen.
+        if isAuthenticated, clientId?.isEmpty != false {
+            await logout()
         }
     }
 
@@ -74,7 +83,7 @@ final class AuthViewModel {
             let auth = try await service.login(email: email, password: password)
             token = auth.token
             clientId = auth.clientId
-            await api.setToken(auth.token)
+            api.setToken(auth.token)
             saveAuth()
             isLoading = false
             return true
@@ -87,15 +96,33 @@ final class AuthViewModel {
 
     /// Demo/Preview-Login (mirror von `loginDemo`).
     func loginDemo() {
+        error = nil
         token = "demo-token-preview"
-        clientId = "demo"
+        clientId = Self.demoClientId
     }
 
+    /// Abmelden inkl. zentraler Aufräum-Routine (`SessionCleanup`).
     func logout() async {
+        guard !isLoggingOut else { return }
+        isLoggingOut = true
+        defer { isLoggingOut = false }
+
+        // Push-Abmeldung braucht noch das gültige Token
+        await SessionCleanup.beforeTokenRemoval(clientId: clientId)
+
         token = nil
         clientId = nil
-        await api.setToken(nil)
+        api.setToken(nil)
         saveAuth()
+
+        await SessionCleanup.afterTokenRemoval()
+    }
+
+    /// Vom APIClient bei 401 ausgelöst: abmelden und Hinweis zeigen.
+    func sessionExpired() async {
+        guard isAuthenticated, !isDemo, !isLoggingOut else { return }
+        await logout()
+        error = "Sitzung abgelaufen – bitte neu anmelden"
     }
 
     func clearError() { error = nil }

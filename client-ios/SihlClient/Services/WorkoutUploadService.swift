@@ -1,10 +1,12 @@
 import Foundation
+import Network
 import UIKit
 
 /// Lädt aufgezeichnete Trainings als Batch hoch
 /// (`POST /api/client/workouts/{clientId}` → Review + HF-Timeseries).
-/// Schlägt der Upload fehl (offline), landet das Training in einer lokalen
-/// Warteschlange und wird beim nächsten App-Start nachgereicht.
+/// Schlägt der Upload vorübergehend fehl (offline, Server, Sitzung), landet
+/// das Training in einer lokalen Warteschlange und wird nachgereicht
+/// (App-Start, Rückkehr in den Vordergrund, Netz wieder da).
 struct WorkoutUploadService {
     static let shared = WorkoutUploadService()
     private init() {}
@@ -39,7 +41,10 @@ struct WorkoutUploadService {
         var attempts: Int = 0
     }
 
-    static let maxAttempts = 20
+    /// Zählt nur endgültige Ablehnungen (4xx) — Netz- und Sitzungsfehler
+    /// zählen nicht. Drei genügen, weil sich eine Ablehnung nicht von selbst
+    /// erledigt und jeder Versuch den vollen Payload sendet.
+    static let maxAttempts = 3
 
     private static let iso = ISO8601DateFormatter()
 
@@ -88,10 +93,40 @@ struct WorkoutUploadService {
         // die auch über langsames Mobilfunknetz durchkommen sollen
         let result = try await APIClient.shared.postJSONObject(
             "/api/client/workouts/\(p.clientId)", body: body, timeout: 120)
-        guard result?["success"] as? Bool == true else {
+        // Kein JSON (z. B. Hotel-WLAN mit Anmeldeseite): vorübergehend
+        guard let result else {
+            throw APIError(statusCode: -2, message: "Antwort konnte nicht gelesen werden")
+        }
+        guard result["success"] as? Bool == true else {
             throw APIError(statusCode: -3, message: "Training konnte nicht gespeichert werden")
         }
-        return (result?["id"] as? Int) ?? Int("\(result?["id"] ?? "")")
+        return (result["id"] as? Int) ?? Int("\(result["id"] ?? "")")
+    }
+
+    // MARK: - Fehlerart
+
+    enum Failure: Equatable {
+        /// Kein Netz, Timeout, Server 5xx/408/429, unlesbare Antwort
+        case transient
+        /// 401: Token abgelaufen — nach erneutem Login nachreichen
+        case sessionExpired
+        /// 403: kein Zugriff auf dieses Konto (Server prüft Mandant)
+        case forbidden
+        /// Übrige 4xx bzw. inhaltliche Ablehnung — erneutes Senden hilft nicht
+        case rejected(String)
+    }
+
+    static func classify(_ error: Error) -> Failure {
+        if error is URLError { return .transient }
+        guard let api = error as? APIError else { return .transient }
+        switch api.statusCode {
+        case 401:                        return .sessionExpired
+        case 403:                        return .forbidden
+        case 408, 429:                   return .transient
+        case 413:                        return .rejected("Training zu gross für den Upload")
+        case 400..<500, -3:              return .rejected(api.message)
+        default:                         return .transient   // 5xx, -1, -2
+        }
     }
 
     // MARK: - Offline-Warteschlange
@@ -114,12 +149,20 @@ struct WorkoutUploadService {
         !clientId.isEmpty && clientId != "demo"
     }
 
-    func queue(_ p: Payload) {
-        guard isQueueable(p.clientId) else { removePhotoFile(p.photoFile); return }
+    /// Dateischutz der Warteschlange: HF/GPS/Fotos sind Gesundheits- bzw.
+    /// Standortdaten. UnlessOpen statt complete: Schreiben bei gesperrtem
+    /// Bildschirm muss gehen, Lesen erst nach dem Entsperren.
+    private static let writeOptions: Data.WritingOptions = [.atomic, .completeFileProtectionUnlessOpen]
+
+    /// Gibt false zurück, wenn nichts eingereiht wurde (Demo/leeres Konto,
+    /// Schreibfehler) — der Aufrufer darf dann den Snapshot nicht löschen.
+    @discardableResult
+    func queue(_ p: Payload) -> Bool {
+        guard isQueueable(p.clientId) else { removePhotoFile(p.photoFile); return false }
         let url = queueDir.appendingPathComponent("\(UUID().uuidString).json")
-        if let data = try? JSONEncoder().encode(p) {
-            try? data.write(to: url, options: .atomic)
-        }
+        guard let data = try? JSONEncoder().encode(p),
+              (try? data.write(to: url, options: Self.writeOptions)) != nil else { return false }
+        return true
     }
 
     /// Wartende Foto-Nachlieferung für ein Review verwerfen — z. B. wenn der
@@ -139,7 +182,7 @@ struct WorkoutUploadService {
     /// Foto-JPEG in die Warteschlange legen, gibt den Dateinamen zurück.
     func stashPhoto(_ data: Data) -> String {
         let name = "\(UUID().uuidString).jpg"
-        try? data.write(to: queueDir.appendingPathComponent(name), options: .atomic)
+        try? data.write(to: queueDir.appendingPathComponent(name), options: Self.writeOptions)
         return name
     }
 
@@ -149,7 +192,7 @@ struct WorkoutUploadService {
         let retry = PhotoRetry(clientId: clientId, reviewId: reviewId, photoFile: photoFile)
         let url = queueDir.appendingPathComponent("photo-\(UUID().uuidString).json")
         if let data = try? JSONEncoder().encode(retry) {
-            try? data.write(to: url, options: .atomic)
+            try? data.write(to: url, options: Self.writeOptions)
         }
     }
 
@@ -162,25 +205,34 @@ struct WorkoutUploadService {
     }
 
     /// Läuft gerade ein Nachreichen? Verhindert, dass zwei überlappende Läufe
-    /// (Re-Login, View-Neuaufbau) dieselbe Datei doppelt verarbeiten.
+    /// (Re-Login, Vordergrund, Netzwechsel) dieselbe Datei doppelt verarbeiten.
     @MainActor private static var retryInFlight = false
 
-    /// Nachreichen liegen gebliebener Trainings (Aufruf beim App-Start).
+    /// Liegen gebliebene Trainings des angemeldeten Kontos nachreichen.
+    /// Einträge anderer Konten bleiben liegen (Upload mit fremdem Token
+    /// endet in 403). Fehlversuche zählen nur bei endgültigen Ablehnungen —
+    /// eine Mehrtagestour ohne Netz darf nie zum Verwerfen führen.
     @MainActor
-    func retryPending() async {
+    func retryPending(clientId: String?) async {
+        guard let clientId, isQueueable(clientId) else { return }
+        // Gesperrtes Gerät: Dateien (UnlessOpen) sind nicht lesbar — ein
+        // Lesefehler darf nie als „kaputt" gelten und gelöscht werden
+        guard UIApplication.shared.isProtectedDataAvailable else { return }
         guard !Self.retryInFlight else { return }
         Self.retryInFlight = true
         defer { Self.retryInFlight = false }
 
         let files = (try? FileManager.default.contentsOfDirectory(
             at: queueDir, includingPropertiesForKeys: nil)) ?? []
+        var allReadable = true
         for file in files where file.pathExtension == "json" {
-            let data = (try? Data(contentsOf: file)) ?? Data()
+            guard let data = try? Data(contentsOf: file) else { allReadable = false; continue }
 
             // Reine Foto-Nachlieferung (Training war schon gespeichert)
             if file.lastPathComponent.hasPrefix("photo-") {
                 if let retry = try? JSONDecoder().decode(PhotoRetry.self, from: data) {
-                    await retryPhoto(retry, jsonFile: file)
+                    guard retry.clientId == clientId else { continue }
+                    if await retryPhoto(retry, jsonFile: file) == .stop { break }
                 } else {
                     try? FileManager.default.removeItem(at: file)
                 }
@@ -192,7 +244,9 @@ struct WorkoutUploadService {
                 try? FileManager.default.removeItem(at: file)
                 continue
             }
-            if !isQueueable(payload.clientId) || payload.attempts >= Self.maxAttempts {
+            // Fremdes Konto: liegen lassen, bis es wieder angemeldet ist
+            guard payload.clientId == clientId else { continue }
+            if payload.attempts >= Self.maxAttempts {
                 removePhotoFile(payload.photoFile)
                 try? FileManager.default.removeItem(at: file)
                 continue
@@ -202,15 +256,23 @@ struct WorkoutUploadService {
             do {
                 reviewId = try await upload(payload)
             } catch {
-                payload.attempts += 1
-                if let d = try? JSONEncoder().encode(payload) { try? d.write(to: file, options: .atomic) }
-                continue  // offline o. Ä. — nächster Start
+                switch Self.classify(error) {
+                case .rejected:
+                    // 413 (zu gross) wird nie angenommen → sofort aufgeben
+                    let tooLarge = (error as? APIError)?.statusCode == 413
+                    payload.attempts = tooLarge ? Self.maxAttempts : payload.attempts + 1
+                    if let d = try? JSONEncoder().encode(payload) { try? d.write(to: file, options: Self.writeOptions) }
+                    continue
+                case .transient, .sessionExpired, .forbidden:
+                    // Netz/Sitzung: alle weiteren scheitern gleich — später
+                    return
+                }
             }
             // Ohne id ist das Foto nicht zuordenbar: Eintrag behalten, das
             // Backend dedupliziert über clientRecordingId beim nächsten Versuch
             guard let rid = reviewId else {
                 payload.attempts += 1
-                if let d = try? JSONEncoder().encode(payload) { try? d.write(to: file, options: .atomic) }
+                if let d = try? JSONEncoder().encode(payload) { try? d.write(to: file, options: Self.writeOptions) }
                 continue
             }
 
@@ -230,7 +292,13 @@ struct WorkoutUploadService {
             }
             try? FileManager.default.removeItem(at: file)
         }
-        sweepOrphanPhotos()
+        sweepIfSafe(allReadable: allReadable)
+    }
+
+    /// Verwaiste Fotos nur entfernen, wenn alle Einträge gelesen werden
+    /// konnten — sonst gälte ein Foto eines unlesbaren Eintrags als verwaist.
+    private func sweepIfSafe(allReadable: Bool) {
+        if allReadable { sweepOrphanPhotos() }
     }
 
     /// JPEGs ohne referenzierende JSON entfernen (Schreibfehler, kaputte Einträge).
@@ -239,7 +307,7 @@ struct WorkoutUploadService {
             at: queueDir, includingPropertiesForKeys: nil)) ?? []
         var referenced = Set<String>()
         for f in files where f.pathExtension == "json" {
-            guard let d = try? Data(contentsOf: f) else { continue }
+            guard let d = try? Data(contentsOf: f) else { return }   // unlesbar: nichts löschen
             if let p = try? JSONDecoder().decode(Payload.self, from: d), let n = p.photoFile { referenced.insert(n) }
             if let r = try? JSONDecoder().decode(PhotoRetry.self, from: d) { referenced.insert(r.photoFile) }
         }
@@ -248,21 +316,95 @@ struct WorkoutUploadService {
         }
     }
 
-    private func retryPhoto(_ retry: PhotoRetry, jsonFile: URL) async {
-        guard retry.attempts < Self.maxAttempts,
-              let bytes = photoData(retry.photoFile), let image = UIImage(data: bytes) else {
+    private enum RetryOutcome { case next, stop }
+
+    private func retryPhoto(_ retry: PhotoRetry, jsonFile: URL) async -> RetryOutcome {
+        guard retry.attempts < Self.maxAttempts else {
             try? FileManager.default.removeItem(at: jsonFile)
             removePhotoFile(retry.photoFile)
-            return
+            return .next
+        }
+        guard let bytes = photoData(retry.photoFile) else { return .next }   // ggf. gesperrt: später
+        guard let image = UIImage(data: bytes) else {
+            try? FileManager.default.removeItem(at: jsonFile)
+            removePhotoFile(retry.photoFile)
+            return .next
         }
         do {
             try await WorkoutPhotoService.shared.upload(
                 clientId: retry.clientId, reviewId: retry.reviewId, image: image)
             removePhotoFile(retry.photoFile)
             try? FileManager.default.removeItem(at: jsonFile)
+            return .next
         } catch {
+            guard case .rejected = Self.classify(error) else { return .stop }
             var next = retry; next.attempts += 1
-            if let d = try? JSONEncoder().encode(next) { try? d.write(to: jsonFile, options: .atomic) }
+            if let d = try? JSONEncoder().encode(next) { try? d.write(to: jsonFile, options: Self.writeOptions) }
+            return .next
         }
+    }
+}
+
+// MARK: - Nachreichen auslösen
+
+/// Stösst `retryPending` an: beim Start, bei Rückkehr in den Vordergrund und
+/// sobald das Netz zurückkommt. Entprellt (mehrere Auslöser in kurzer Folge
+/// ergeben einen Lauf); parallele Läufe verhindert `retryInFlight`.
+@MainActor
+final class PendingUploadScheduler {
+    static let shared = PendingUploadScheduler()
+    private init() {}
+
+    /// Liefert das aktuell angemeldete Konto (nil/Demo → kein Nachreichen).
+    var clientIdProvider: @MainActor () -> String? = { nil }
+
+    private var debounce: Task<Void, Never>?
+    private var monitor: NWPathMonitor?
+    private var wasOnline: Bool?
+    /// Läuft gerade ein Nachreichen? Dann nicht abbrechen (ein halber
+    /// Upload über Mobilfunk begänne sonst bei null), sondern danach
+    /// genau einmal erneut laufen lassen.
+    private var running = false
+    private var rerunRequested = false
+
+    /// Entprellt nur die Wartezeit — ein laufender Upload wird nie abgebrochen.
+    func trigger(delay: Duration = .seconds(2)) {
+        debounce?.cancel()
+        debounce = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: delay)
+            guard let self, !Task.isCancelled else { return }
+            self.startRun()
+        }
+    }
+
+    private func startRun() {
+        guard !running else { rerunRequested = true; return }
+        running = true
+        // Eigener Task, unabhängig vom Entprell-Task: ein späterer trigger()
+        // bricht ihn nicht ab
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            repeat {
+                self.rerunRequested = false
+                await WorkoutUploadService.shared.retryPending(clientId: self.clientIdProvider())
+            } while self.rerunRequested
+            self.running = false
+        }
+    }
+
+    /// Netzwechsel beobachten: offline → online löst ein Nachreichen aus.
+    func startMonitoring() {
+        guard monitor == nil else { return }
+        let m = NWPathMonitor()
+        m.pathUpdateHandler = { [weak self] path in
+            let online = path.status == .satisfied
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                defer { self.wasOnline = online }
+                if online, self.wasOnline == false { self.trigger(delay: .seconds(3)) }
+            }
+        }
+        m.start(queue: DispatchQueue(label: "sihl.upload.path"))
+        monitor = m
     }
 }

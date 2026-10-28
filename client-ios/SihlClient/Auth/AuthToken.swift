@@ -3,6 +3,8 @@ import Foundation
 /// Pendant zu Flutter `auth_token.dart`.
 /// Server liefert: `{ "token": "...", "client": { "id": 123, "firstname": "...", "lastname": "..." } }`
 /// `id` kann als Zahl ODER String kommen — daher der flexible Decoder unten.
+/// Fehlende Felder werden leer dekodiert; `AuthService` prüft sie und
+/// meldet dann einen Fehler statt einer leeren Sitzung.
 struct AuthToken: Decodable {
     let token: String
     let clientId: String

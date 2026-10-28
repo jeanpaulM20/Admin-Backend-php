@@ -1,16 +1,19 @@
 import Foundation
 
-/// Pendant zu `CreditsProvider` — lädt Abos und Pakete.
+/// Pendant zu `CreditsProvider` — lädt Lektionen-Guthaben und -Pakete (Training vor Ort).
 @MainActor @Observable final class CreditsViewModel {
     var credits:  [ClientCredit]  = []
     var packages: [CreditPackage] = []
     var isLoading = false
     var error: String?
 
-    /// Summe der aktuell aktiven Credits über alle Abos.
+    /// Summe der aktuell verfügbaren Lektionen über alle Pakete.
     var activeCredits: Int {
         credits.filter(\.isActive).reduce(0) { $0 + $1.remaining }
     }
+
+    /// Anzahl aktiver Pakete
+    var activePackCount: Int { credits.filter(\.isActive).count }
 
     func fetch(clientId: String) async {
         isLoading = true

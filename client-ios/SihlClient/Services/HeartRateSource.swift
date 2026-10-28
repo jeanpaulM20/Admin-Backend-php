@@ -17,6 +17,8 @@ enum HeartRateSourceState: Equatable {
     case disconnected          // Verbindung verloren (Reconnect läuft)
     case bluetoothOff
     case unauthorized
+    /// Mehrere Gurte in Reichweite, keiner gewählt — ohne Gurt aufzeichnen
+    case chooseStrap
 
     var label: String {
         switch self {
@@ -27,6 +29,7 @@ enum HeartRateSourceState: Equatable {
         case .disconnected:      return "Verbindung verloren — verbinde neu…"
         case .bluetoothOff:      return "Bluetooth ist ausgeschaltet"
         case .unauthorized:      return "Kein Bluetooth-Zugriff (Einstellungen)"
+        case .chooseStrap:       return "Mehrere Gurte gefunden — Gurt in Profil → Sensoren wählen"
         }
     }
 
@@ -34,6 +37,18 @@ enum HeartRateSourceState: Equatable {
         if case .connected = self { return true }
         return false
     }
+}
+
+/// In der Sensor-Suche gefundener Gurt.
+struct DiscoveredStrap: Identifiable, Equatable {
+    let id: UUID
+    let name: String
+    /// Signalstärke in dBm (näher an 0 = stärker)
+    var rssi: Int
+
+    /// Grobe Stufe 1…3 für die Anzeige.
+    var signalLevel: Int { rssi >= -60 ? 3 : rssi >= -75 ? 2 : 1 }
+    var signalLabel: String { ["schwach", "mittel", "stark"][signalLevel - 1] }
 }
 
 /// Quelle für Herzfrequenz-Daten — echter BLE-Gurt oder Simulation (Demo/Simulator).
@@ -47,28 +62,102 @@ protocol HeartRateSource: AnyObject {
 
 // MARK: - Polar H10 / generischer BLE-Herzfrequenzgurt
 
-/// Verbindet sich mit jedem Gurt, der den Standard-BLE-Heart-Rate-Service
-/// (0x180D / Characteristic 0x2A37) spricht — Polar H10, Garmin, Wahoo etc.
-/// Kein Polar-SDK nötig. Merkt sich den zuletzt verbundenen Gurt und
-/// verbindet automatisch neu bei Abbrüchen.
+/// Verbindet sich mit Gurten, die den Standard-BLE-Heart-Rate-Service
+/// (0x180D / Characteristic 0x2A37) sprechen — Polar H10, Garmin, Wahoo etc.
+/// Kein Polar-SDK nötig.
+///
+/// Gemerkt wird ein Gurt nur nach ausdrücklicher Wahl in Profil → Sensoren
+/// (`startDiscovery()` + `select(_:)`) — im Studio liegen oft fremde Gurte in
+/// Reichweite. Beim Training (`start()`) wird nur der gemerkte Gurt
+/// verbunden; ohne gemerkten Gurt nur dann automatisch, wenn genau einer in
+/// Reichweite ist (ohne ihn zu merken), sonst wird ohne Gurt aufgezeichnet.
 final class BleHeartRateSource: NSObject, HeartRateSource {
     private static let hrService        = CBUUID(string: "180D")
     private static let hrMeasurement    = CBUUID(string: "2A37")
-    private static let rememberedKey    = "hr_peripheral_uuid"
+    private nonisolated static let rememberedKey    = "hr_peripheral_uuid"
+    private nonisolated static let rememberedNameKey = "hr_peripheral_name"
+
+    /// Gemerkter (gewählter) Gurt.
+    nonisolated static var rememberedId: UUID? {
+        UserDefaults.standard.string(forKey: rememberedKey).flatMap(UUID.init(uuidString:))
+    }
+    nonisolated static var rememberedName: String? {
+        UserDefaults.standard.string(forKey: rememberedNameKey)
+    }
 
     var onSample: ((Int) -> Void)?
     var onStateChange: ((HeartRateSourceState) -> Void)?
+    /// Suchliste für die Sensor-Einstellungen (nach Signalstärke sortiert).
+    var onStrapsChange: (([DiscoveredStrap]) -> Void)?
+
+    private enum Mode { case recording, discovery }
+    private var mode: Mode = .recording
 
     private var central: CBCentralManager?
     private var peripheral: CBPeripheral?
     private var stopped = false
+    /// Gefundene Gurte (Kennung → Gerät + Anzeige)
+    private var found: [UUID: (peripheral: CBPeripheral, strap: DiscoveredStrap)] = [:]
+    private var lastPublish = Date.distantPast
+    /// Entscheid ohne gemerkten Gurt: erst nach kurzem Suchfenster, damit ein
+    /// zweiter Gurt in Reichweite sicher mitgezählt wird
+    private var autoPick: DispatchWorkItem?
+    private static let autoPickWindow: Double = 4
     /// Wächter für den Direktverbindungsversuch zum gemerkten Gurt:
     /// CBCentralManager.connect hat KEIN Timeout — liegt der Gurt in der
     /// Schublade, bliebe der Zustand sonst ewig auf „Verbinde…".
     private var connectTimeout: DispatchWorkItem?
     private static let connectTimeoutSeconds: Double = 10
 
+    /// Aufzeichnung: nur gemerkter Gurt (bzw. genau einer in Reichweite).
     func start() {
+        mode = .recording
+        startCentral()
+    }
+
+    /// Sensor-Einstellungen: alle Gurte in Reichweite auflisten; der gemerkte
+    /// wird verbunden, um den Puls zu zeigen.
+    func startDiscovery() {
+        mode = .discovery
+        startCentral()
+    }
+
+    /// Gurt aus der Suchliste wählen: merken und verbinden.
+    func select(_ id: UUID) {
+        guard let entry = found[id] else { return }
+        UserDefaults.standard.set(id.uuidString, forKey: Self.rememberedKey)
+        UserDefaults.standard.set(entry.strap.name, forKey: Self.rememberedNameKey)
+        if let p = peripheral, p.identifier != id {
+            central?.cancelPeripheralConnection(p)
+            peripheral = nil
+        }
+        if peripheral == nil { connect(entry.peripheral) }
+        publishStraps(force: true)
+    }
+
+    /// Gemerkten Gurt vergessen und trennen.
+    func forget() {
+        UserDefaults.standard.removeObject(forKey: Self.rememberedKey)
+        UserDefaults.standard.removeObject(forKey: Self.rememberedNameKey)
+        connectTimeout?.cancel(); connectTimeout = nil
+        if let p = peripheral { central?.cancelPeripheralConnection(p) }
+        peripheral = nil
+        emit(mode == .discovery ? .scanning : .idle)
+        publishStraps(force: true)
+    }
+
+    func stop() {
+        stopped = true
+        connectTimeout?.cancel(); connectTimeout = nil
+        autoPick?.cancel(); autoPick = nil
+        central?.stopScan()
+        if let p = peripheral { central?.cancelPeripheralConnection(p) }
+        peripheral = nil
+        found = [:]
+        emit(.idle)
+    }
+
+    private func startCentral() {
         stopped = false
         if central == nil {
             central = CBCentralManager(delegate: self, queue: .main)
@@ -77,30 +166,56 @@ final class BleHeartRateSource: NSObject, HeartRateSource {
         }
     }
 
-    func stop() {
-        stopped = true
-        connectTimeout?.cancel(); connectTimeout = nil
-        central?.stopScan()
-        if let p = peripheral { central?.cancelPeripheralConnection(p) }
-        peripheral = nil
-        emit(.idle)
-    }
-
     private func emit(_ state: HeartRateSourceState) {
         Task { @MainActor in self.onStateChange?(state) }
     }
 
     private func beginScanOrReconnect() {
-        guard let central, central.state == .poweredOn else { return }
+        guard let central, central.state == .poweredOn, !stopped else { return }
         // Bekannten Gurt direkt verbinden (schneller als Scan)
-        if let saved = UserDefaults.standard.string(forKey: Self.rememberedKey),
-           let uuid = UUID(uuidString: saved),
+        if let uuid = Self.rememberedId,
            let known = central.retrievePeripherals(withIdentifiers: [uuid]).first {
             connect(known)
+            // In der Suche trotzdem weiter auflisten (Gurt wechseln)
+            if mode == .discovery { scan() }
             return
         }
-        emit(.scanning)
-        central.scanForPeripherals(withServices: [Self.hrService])
+        scan()
+    }
+
+    /// Suche starten. Aufzeichnung ohne gemerkten Gurt: nach dem Suchfenster
+    /// entscheiden (genau einer → verbinden, mehrere → ohne Gurt + Hinweis).
+    private func scan() {
+        guard let central else { return }
+        found = [:]
+        if peripheral == nil { emit(.scanning) }
+        // Doppelte Meldungen nur in der Suche (laufende Signalstärke)
+        central.scanForPeripherals(withServices: [Self.hrService],
+                                   options: [CBCentralManagerScanOptionAllowDuplicatesKey: mode == .discovery])
+        if mode == .recording, Self.rememberedId == nil { armAutoPick(after: Self.autoPickWindow) }
+    }
+
+    private func armAutoPick(after seconds: Double) {
+        autoPick?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.evaluateAutoPick() }
+        autoPick = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: work)
+    }
+
+    private func evaluateAutoPick() {
+        autoPick = nil
+        guard !stopped, mode == .recording, Self.rememberedId == nil, peripheral == nil else { return }
+        switch found.count {
+        case 0:
+            break   // weiter suchen; der erste Fund startet ein neues Fenster
+        case 1:
+            central?.stopScan()
+            if let only = found.values.first { connect(only.peripheral) }
+        default:
+            // Nicht raten, welcher Gurt der eigene ist
+            central?.stopScan()
+            emit(.chooseStrap)
+        }
     }
 
     private func connect(_ p: CBPeripheral) {
@@ -111,19 +226,27 @@ final class BleHeartRateSource: NSObject, HeartRateSource {
         armConnectTimeout(for: p)
     }
 
-    /// Kommt der gemerkte Gurt nicht binnen 10 s, Versuch abbrechen und auf
-    /// den Scan zurückfallen (findet auch einen anderen/neuen Gurt).
+    /// Kommt der Gurt nicht binnen 10 s, Versuch abbrechen und weiter suchen
+    /// (in der Aufzeichnung nur nach demselben, gemerkten Gurt).
     private func armConnectTimeout(for p: CBPeripheral) {
         connectTimeout?.cancel()
         let work = DispatchWorkItem { [weak self] in
             guard let self, !self.stopped, self.peripheral === p, p.state != .connected else { return }
             self.central?.cancelPeripheralConnection(p)
             self.peripheral = nil
-            self.emit(.scanning)
-            self.central?.scanForPeripherals(withServices: [Self.hrService])
+            self.scan()
         }
         connectTimeout = work
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.connectTimeoutSeconds, execute: work)
+    }
+
+    private func publishStraps(force: Bool = false) {
+        guard mode == .discovery, let onStrapsChange else { return }
+        // Signalstärke höchstens 1× pro Sekunde nachführen
+        guard force || Date().timeIntervalSince(lastPublish) >= 1 else { return }
+        lastPublish = Date()
+        let list = found.values.map(\.strap).sorted { $0.rssi > $1.rssi }
+        Task { @MainActor in onStrapsChange(list) }
     }
 }
 
@@ -139,13 +262,36 @@ extension BleHeartRateSource: CBCentralManagerDelegate {
 
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral,
                         advertisementData: [String: Any], rssi RSSI: NSNumber) {
-        central.stopScan()
-        connect(peripheral)
+        guard !stopped else { return }
+        let rssi = RSSI.intValue
+        guard rssi < 0 else { return }   // 127 = nicht verfügbar
+        let id = peripheral.identifier
+        let isNew = found[id] == nil
+        let name = peripheral.name
+            ?? advertisementData[CBAdvertisementDataLocalNameKey] as? String
+            ?? "Herzfrequenz-Gurt"
+        found[id] = (peripheral, DiscoveredStrap(id: id, name: name, rssi: rssi))
+
+        switch mode {
+        case .discovery:
+            publishStraps(force: isNew)
+            // Gemerkter Gurt taucht auf (nicht direkt abrufbar gewesen)
+            if id == Self.rememberedId, self.peripheral == nil { connect(peripheral) }
+        case .recording:
+            if let remembered = Self.rememberedId {
+                // Nur der gewählte Gurt — fremde Gurte ignorieren
+                guard id == remembered, self.peripheral == nil else { return }
+                central.stopScan()
+                connect(peripheral)
+            } else if isNew, autoPick == nil, self.peripheral == nil {
+                // Fund nach leerem Suchfenster: kurz weitersuchen, dann entscheiden
+                armAutoPick(after: 3)
+            }
+        }
     }
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         connectTimeout?.cancel(); connectTimeout = nil
-        UserDefaults.standard.set(peripheral.identifier.uuidString, forKey: Self.rememberedKey)
         peripheral.discoverServices([Self.hrService])
     }
 
@@ -164,7 +310,8 @@ extension BleHeartRateSource: CBCentralManagerDelegate {
 
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral,
                         error: Error?) {
-        guard !stopped else { return }
+        // Bewusst getrennt (Gurt gewechselt/vergessen): nicht neu verbinden
+        guard !stopped, self.peripheral === peripheral else { return }
         // Gurtkontakt verloren / Reichweite: iOS verbindet automatisch neu,
         // sobald der Gurt wieder sichtbar ist.
         emit(.disconnected)
