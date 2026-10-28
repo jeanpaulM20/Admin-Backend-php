@@ -234,6 +234,18 @@ export class StartupMigrationService implements OnApplicationBootstrap {
          imported_at DATETIME NOT NULL,
          UNIQUE KEY uniq_polar_exercise_import (client_id, exercise_id)
        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+      // Guthaben aus einem Online-Coaching-Kauf eindeutig kennzeichnen (die
+      // App zeigt Coaching nicht als Lektionen-Guthaben, App-Store 3.1.1)
+      `ALTER TABLE client_credits ADD COLUMN coaching_invoice_number VARCHAR(64) DEFAULT NULL`,
+      // Einmalige Übernahme für Käufe vor dieser Spalte: gleiche Laufzeit wie
+      // das Coaching-Abo. Nur Altbestand (vor dem Stichtag), sonst könnte ein
+      // am selben Tag gekauftes Lektionen-Paket fälschlich zugeordnet werden.
+      `UPDATE client_credits cc
+         JOIN coaching_subscription cs
+           ON cs.client_id = cc.client_id AND cs.valid_from = cc.startdate
+          AND cs.valid_to = cc.expires AND cs.invoice_number IS NOT NULL
+        SET cc.coaching_invoice_number = cs.invoice_number
+        WHERE cc.coaching_invoice_number IS NULL AND cc.sell_date < '2026-10-29'`,
     ];
 
     // Create training_plan_comment table if not exists

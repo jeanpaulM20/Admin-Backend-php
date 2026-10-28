@@ -57,9 +57,14 @@ export class InvoiceService {
    * Returns all invoices for a given client.
    */
   async getInvoices(clientId: number) {
+    // kind: 'coaching' für Rechnungen eines Online-Coaching-Abos (verknüpft
+    // über die Rechnungsnummer), sonst 'credits' (Lektionen im Studio) —
+    // die App zeigt Coaching-Rechnungen nur als Beleg ohne Zahlungsweg.
     const rows: any[] = await this.dataSource.query(
-      `SELECT invoice_number, package_name, amount, credits, duration_months, status, created_at
-       FROM invoice WHERE client_id = ? ORDER BY created_at DESC`,
+      `SELECT i.invoice_number, i.package_name, i.amount, i.credits, i.duration_months, i.status, i.created_at,
+              CASE WHEN EXISTS (SELECT 1 FROM coaching_subscription cs WHERE cs.invoice_number = i.invoice_number)
+                   THEN 'coaching' ELSE 'credits' END AS kind
+       FROM invoice i WHERE i.client_id = ? ORDER BY i.created_at DESC`,
       [clientId],
     );
     return rows.map((r) => {
@@ -72,6 +77,7 @@ export class InvoiceService {
         credits: r.credits,
         durationMonths: r.duration_months,
         status: r.status,
+        kind: r.kind,
         currency: 'CHF',
         transactionDate: createdAt.toISOString(),
         dueDate: dueDate.toISOString(),

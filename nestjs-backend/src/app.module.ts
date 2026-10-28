@@ -73,6 +73,13 @@ const dbConfig: any = isSqlite
         serveRoot: '/st',
         serveStaticOptions: { index: ['index.html'] },
       },
+      // Rechtstexte der Apps (Datenschutz) — eigener Ordner, den der
+      // Flutter-Deploy (ersetzt public/) nicht anfasst
+      {
+        rootPath: join(__dirname, 'public-legal'),
+        serveRoot: '/legal',
+        serveStaticOptions: { index: false },
+      },
     ),
     AuthModule,
     TrainerModule,

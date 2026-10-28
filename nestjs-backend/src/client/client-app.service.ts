@@ -207,8 +207,22 @@ export class ClientAppService {
   /** Credits list – returns client's credit packs with remaining balances */
   async getCredits(clientId: number) {
     const credits = await this.creditsRepo.find({ where: { clientId } });
+    // Guthaben aus einem Online-Coaching-Kauf ist über coaching_invoice_number
+    // verknüpft (Spalte per Startmigration; roh gelesen, damit ein Fehlen der
+    // Spalte die Guthaben-Liste nicht bricht)
+    let coachingIds = new Set<number>();
+    try {
+      const rows: { id: number }[] = await this.dataSource.query(
+        'SELECT id FROM client_credits WHERE client_id = ? AND coaching_invoice_number IS NOT NULL',
+        [clientId],
+      );
+      coachingIds = new Set(rows.map((r) => Number(r.id)));
+    } catch {
+      // Spalte (noch) nicht vorhanden → alles gilt als Lektionen-Guthaben
+    }
     return credits.map((c) => ({
       id: c.id,
+      kind: coachingIds.has(c.id) ? 'coaching' : 'credits',
       title: `Credit-Paket #${c.id}`,
       paid: c.paid ?? 0,
       attended: c.attended ?? 0,
@@ -299,11 +313,12 @@ export class ClientAppService {
       try {
         // 4a. Create client_credits entry
         logger.log(`Creating credits: paid=${credits}, start=${startDate}, expires=${expiresStr}`);
-        await queryRunner.query(
+        const creditsInsert: any = await queryRunner.query(
           `INSERT INTO client_credits (client_id, training_type_id, paid, attended, abbonement_id, sold_by_id, startdate, expires, sell_date)
            VALUES (?, NULL, ?, 0, NULL, NULL, ?, ?, ?)`,
           [clientId, credits, startDate, expiresStr, startDate],
         );
+        const creditsId: number | undefined = creditsInsert?.insertId;
 
         // 4b. Create invoice (uses same queryRunner → same transaction)
         logger.log('Creating invoice');
@@ -314,6 +329,13 @@ export class ClientAppService {
 
         // 4c. Coaching package → also create the subscription entitlement period
         if (pkg.kind === 'coaching') {
+          // Guthaben-Eintrag mit dem Abo verknüpfen (App trennt Coaching von Lektionen)
+          if (creditsId) {
+            await queryRunner.query(
+              'UPDATE client_credits SET coaching_invoice_number = ? WHERE id = ?',
+              [invoiceNumber, creditsId],
+            );
+          }
           const tier = (durationMonths ?? 1) >= 12 ? 'yearly' : 'monthly';
           // Cancel any existing active subscription first (trial or paid) so a
           // purchase/renewal never leaves two overlapping active rows.
