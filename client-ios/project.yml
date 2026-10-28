@@ -26,15 +26,22 @@ targets:
         # .dateTime-Formate schrieben dann "Saturday, 29 August 2026"
         CFBundleDevelopmentRegion: de_CH
         CFBundleLocalizations: [de]
-        UILaunchScreen: {}
+        # Dunkler Start ohne weissen Blitz — die App ist nur dunkel
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UIUserInterfaceStyle: Dark
+        # Layouts (Aufzeichnung, Karte) sind fürs Hochformat gebaut
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        # Kein remote-notification: die App nutzt nur sichtbare Pushes,
+        # keine stillen — der Modus wäre ohne Funktion (Guideline 2.5.4)
         UIBackgroundModes:
-          - remote-notification
           - bluetooth-central
           - location
           # Sprachhinweise der Routenführung auch bei gesperrtem Bildschirm
           - audio
         NSBluetoothAlwaysUsageDescription: "SIHLMOVE verbindet sich mit deinem Herzfrequenz-Brustgurt (z.B. Polar H10), um dein Training aufzuzeichnen."
-        NSLocationWhenInUseUsageDescription: "SIHLMOVE zeichnet deine Route bei Outdoor-Trainings auf (Joggen, Radfahren, Wandern)."
+        NSLocationWhenInUseUsageDescription: "SIHLMOVE nutzt deinen Standort, um Touren in deiner Nähe zu zeigen, Routen zu planen und während eines Trainings deine Strecke aufzuzeichnen und dich zu führen – auch bei gesperrtem Bildschirm, solange das Training läuft."
         ITSAppUsesNonExemptEncryption: false
         NSCameraUsageDescription: "SIHLMOVE nimmt nach dem Training auf Wunsch ein Foto auf, das in deiner Trainings-Galerie erscheint."
         NSPhotoLibraryUsageDescription: "SIHLMOVE wählt auf Wunsch ein Foto aus deiner Mediathek für deine Trainings-Galerie."
@@ -42,7 +49,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ch.sihltraining.SihlClient
         MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: 4
+        CURRENT_PROJECT_VERSION: 5
+        CODE_SIGN_ENTITLEMENTS: SihlClient/SihlClient.entitlements
         SWIFT_VERSION: "5.9"
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_STYLE: Automatic
