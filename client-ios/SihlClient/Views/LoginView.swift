@@ -16,15 +16,18 @@ struct LoginView: View {
             ScrollView {
                 VStack(spacing: 0) {
                     logo
-                    // Name wie im UID-Register: „Jean Paul Mvongo, Personal Training"
-                    Text("Jean Paul Mvongo")
-                        .font(.title2.weight(.heavy))
-                        .foregroundStyle(AppColor.text)
+                    // Wortmarke SIHLMOVE (Schrift und Laufweite des SIHLTRAINING-Logos)
+                    Image("SihlmoveWordmark")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(height: 26)
                         .padding(.top, 24)
-                    Text("Personal Training")
+                        .accessibilityLabel("SIHLMOVE")
+                    // Anbieter wie im UID-Register
+                    Text("Jean Paul Mvongo, Personal Training")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(AppColor.brass)
-                        .padding(.top, 2)
+                        .padding(.top, 8)
                     Text("Melde dich mit deinem Konto an")
                         .font(.subheadline)
                         .foregroundStyle(AppColor.muted)
@@ -112,16 +115,14 @@ struct LoginView: View {
         if auth.error != nil { auth.clearError() }
     }
 
+    /// App-Marke: das S des App-Icons (Times New Roman auf Olive) — 1:1
+    /// dieselbe Grafik wie das Icon, nur mit abgerundeten Ecken.
     private var logo: some View {
-        RoundedRectangle(cornerRadius: AppRadius.hero)
-            .fill(AppColor.primary)
+        Image("SihlmoveMark")
+            .resizable()
             .frame(width: 72, height: 72)
-            .overlay(
-                Text("ST")
-                    .font(.app(28, weight: .black))
-                    .foregroundStyle(AppColor.white)
-                    .kerning(1)
-            )
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.hero))
+            .accessibilityHidden(true)
     }
 
     private var loginButton: some View {
