@@ -24,7 +24,8 @@ struct AppointmentDetailSheet: View {
     private var isCancelled: Bool { appointment.status.lowercased() == "cancelled" }
     private var isAttended:  Bool { appointment.status.lowercased() == "attended" }
     private var isMissed:    Bool { appointment.status.lowercased() == "missed" }
-    private var canCancel:   Bool { !isCancelled && !isAttended && !isMissed }
+    /// Nur kommende Termine lassen sich absagen (das Backend prüft dasselbe).
+    private var canCancel:   Bool { !isCancelled && !isAttended && !isMissed && appointment.startDate > Date() }
 
     var body: some View {
         NavigationStack {

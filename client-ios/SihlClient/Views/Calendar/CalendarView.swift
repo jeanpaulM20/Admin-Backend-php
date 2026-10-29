@@ -5,6 +5,7 @@ import SwiftUI
 struct CalendarView: View {
     @Environment(AuthViewModel.self)     private var auth
     @Environment(CalendarViewModel.self) private var vm
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var bookingSlot: CalTimeSlot?
     @State private var detailAppointment: Appointment?
@@ -33,11 +34,16 @@ struct CalendarView: View {
             }
         }
         .task {
+            // Bei jedem Öffnen frisch laden (auch zurück aus dem Profil, z. B.
+            // nach einem Paketkauf) — vorhandene Daten bleiben sichtbar.
             // Demo/ohne Session: keine Requests ohne Token
             guard let id = realClientId else { return }
-            if vm.calendarData == nil {
-                await vm.load(clientId: id)
-            }
+            await vm.load(clientId: id)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            // Zurück in der App: Änderungen des Trainers übernehmen
+            guard phase == .active, let id = realClientId else { return }
+            Task { await vm.load(clientId: id) }
         }
         .refreshable {
             if let id = realClientId { await vm.load(clientId: id) }
@@ -81,8 +87,8 @@ struct CalendarView: View {
                     do {
                         let refunded = try await vm.cancel(appointment: appt, clientId: id)
                         vm.toast = refunded
-                            ? AppToast(message: "Termin abgesagt – Credit zurückerstattet.", style: .success)
-                            : AppToast(message: "Termin abgesagt – Credit nicht zurückerstattet.", style: .neutral)
+                            ? AppToast(message: "Termin abgesagt – die Lektion ist wieder in deinem Guthaben.", style: .success)
+                            : AppToast(message: "Termin abgesagt – die Lektion verfällt.", style: .neutral)
                     } catch {
                         vm.toast = AppToast(message: "Absage fehlgeschlagen: \(error.localizedDescription)", style: .error)
                     }
@@ -91,9 +97,9 @@ struct CalendarView: View {
         } message: { appt in
             let hoursUntil = appt.startDate.timeIntervalSinceNow / 3600.0
             if hoursUntil < 12 {
-                Text("Verspätete Absage (< 12 Stunden). Credit wird nicht zurückerstattet.")
+                Text("Späte Absage (weniger als 12 Stunden vorher): Die Lektion verfällt.")
             } else {
-                Text("Credit wird automatisch zurückerstattet.")
+                Text("Die Lektion kommt wieder in dein Guthaben.")
             }
         }
         // No credits alert
@@ -176,18 +182,12 @@ struct CalendarView: View {
 
                 if !slots.isEmpty {
                     SlotGridView(slots: slots) { slot in
-                        guard let cal = vm.calendarData else { return }
-                        if cal.credits <= 0 { showNoCreditsAlert = true; return }
-                        let opts = vm.optionsForSlot(slot, day: vm.selectedDate)
-                        if opts.isEmpty {
-                            vm.toast = AppToast(message: "Slot nicht mehr verfügbar.", style: .error)
-                            return
-                        }
-                        bookingSlot = slot
+                        Task { await openBooking(slot) }
                     }
                     .padding(.horizontal, AppSpacing.screen)
                     .padding(.top, 8)
-                    .padding(.bottom, 80)
+
+                    advanceHint.padding(.bottom, 80)
 
                 } else if avail.isEmpty {
                     EmptyStateView(icon: "calendar.badge.exclamationmark",
@@ -196,10 +196,34 @@ struct CalendarView: View {
                 } else {
                     EmptyStateView(icon: "calendar.badge.exclamationmark",
                                    message: "Keine buchbaren Termine an diesem Tag. Bitte einen anderen Tag wählen.")
-                        .padding(.bottom, 80)
+                    advanceHint.padding(.bottom, 80)
                 }
             }
         }
+    }
+
+    /// Slot antippen: Guthaben prüfen (bei 0 erst frisch laden — evtl. gerade
+    /// ein Paket gekauft), dann das Buchungs-Sheet öffnen.
+    private func openBooking(_ slot: CalTimeSlot) async {
+        guard let id = realClientId else { return }
+        if (vm.calendarData?.credits ?? 0) <= 0 { await vm.load(clientId: id) }
+        guard let cal = vm.calendarData else { return }
+        if cal.credits <= 0 { showNoCreditsAlert = true; return }
+        if vm.optionsForSlot(slot, day: vm.selectedDate).isEmpty {
+            vm.toast = AppToast(message: "Diese Startzeit ist nicht mehr frei.", style: .error)
+            return
+        }
+        bookingSlot = slot
+    }
+
+    /// Warum frühe Startzeiten fehlen können.
+    private var advanceHint: some View {
+        Label("Buchen und kostenlos absagen bis 12 Stunden vor Beginn.", systemImage: "info.circle")
+            .font(.app(12))
+            .foregroundStyle(AppColor.muted)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, AppSpacing.screen)
+            .padding(.top, 10)
     }
 
     // MARK: - Day Header

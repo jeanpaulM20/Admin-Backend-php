@@ -90,6 +90,9 @@ final class CalendarViewModel {
             async let prefTask  = prefService.getPreferences(clientId: clientId)
 
             do { calendarData = try await calTask } catch { self.error = error.localizedDescription }
+            // App über Nacht offen: Auswahl nicht auf einem vergangenen Tag lassen
+            let today = ZurichTime.calendar.startOfDay(for: Date())
+            if selectedDate < today { selectedDate = today }
             if let prefs = try? await prefTask {
                 prefTrainerId  = prefs["trainer_id"] ?? nil
                 prefLocationId = prefs["location_id"] ?? nil
@@ -127,23 +130,10 @@ final class CalendarViewModel {
         return getOptionsForSlot(slot, day: day, calData: cal)
     }
 
-    /// Simplified check for dot marker: does any availability window allow a 60-min
-    /// slot that starts ≥12h from now? (Does not check trainer conflicts.)
+    /// Grüner Punkt im Monat: gibt es an dem Tag mindestens eine buchbare
+    /// Startzeit? Gleiche Prüfung wie die Slot-Liste (12h, Konflikte, Puffer).
     func hasAnyBookableWindow(for day: Date) -> Bool {
-        let avail = availabilityForDay(day)
-        if avail.isEmpty { return false }
-        let minBookable = Date().addingTimeInterval(12 * 3600)
-        let cal = ZurichTime.calendar
-        for a in avail {
-            guard let toMin = parseTime(a.to) else { continue }
-            let latestStartMin = toMin - 60
-            guard latestStartMin >= 0 else { continue }
-            let latest = cal.date(bySettingHour: latestStartMin / 60,
-                                  minute: latestStartMin % 60,
-                                  second: 0, of: day) ?? day
-            if latest >= minBookable { return true }
-        }
-        return false
+        !slotsForDay(day).isEmpty
     }
 
     // MARK: - Booking
@@ -205,7 +195,6 @@ final class CalendarViewModel {
         let slotStep     = 30
         let dateStr      = dayString(day)
         let now          = Date()
-        let locBuffers   = buildLocationBuffers(calData)
 
         let dayAvail = calData.availabilityIntervals.filter { $0.date == dateStr }
         if dayAvail.isEmpty { return [] }
@@ -247,9 +236,8 @@ final class CalendarViewModel {
             for a in dayAvail {
                 guard let fromMin = parseTime(a.from), let toMin = parseTime(a.to),
                       startMin >= fromMin, endMin <= toMin else { continue }
-                if isTrainerFree(trainerId: a.trainerId, locationId: a.locationId,
-                                 startMin: startMin, endMin: endMin,
-                                 dateStr: dateStr, calData: calData, locBuffers: locBuffers) {
+                if calData.isTrainerFree(trainerId: a.trainerId, locationId: a.locationId,
+                                         dateStr: dateStr, startMin: startMin, endMin: endMin) {
                     anyFree = true; break
                 }
             }
@@ -264,16 +252,14 @@ final class CalendarViewModel {
         let dateStr  = dayString(day)
         let startMin = slot.startMin
         let endMin   = startMin + 60
-        let locBufs  = buildLocationBuffers(calData)
         let dayAvail = calData.availabilityIntervals.filter { $0.date == dateStr }
 
         var options: [SlotOption] = []
         for a in dayAvail {
             guard let fromMin = parseTime(a.from), let toMin = parseTime(a.to),
                   startMin >= fromMin, endMin <= toMin else { continue }
-            if isTrainerFree(trainerId: a.trainerId, locationId: a.locationId,
-                             startMin: startMin, endMin: endMin,
-                             dateStr: dateStr, calData: calData, locBuffers: locBufs) {
+            if calData.isTrainerFree(trainerId: a.trainerId, locationId: a.locationId,
+                                     dateStr: dateStr, startMin: startMin, endMin: endMin) {
                 options.append(SlotOption(trainerId: a.trainerId,
                                           locationId: a.locationId,
                                           trainingTypeId: a.trainingTypeId))
@@ -289,38 +275,8 @@ final class CalendarViewModel {
 
     // MARK: - Helpers
 
-    private func isTrainerFree(trainerId: String, locationId: String?,
-                                startMin: Int, endMin: Int,
-                                dateStr: String, calData: CalendarData,
-                                locBuffers: [String: Int]) -> Bool {
-        for b in calData.trainerBookings {
-            guard b.trainerId == trainerId,
-                  b.date == dateStr,
-                  b.status.lowercased() != "cancelled",
-                  let bStart = parseTime(b.starttime) else { continue }
-            let bEnd = bStart + b.duration
-            let sameLocation = locationId != nil && b.locationId != nil && b.locationId == locationId
-            let buffer: Int
-            if sameLocation {
-                buffer = 0
-            } else {
-                let reqBuf  = locationId != nil ? (locBuffers[locationId!]  ?? 30) : 30
-                let exiBuf  = b.locationId != nil ? (locBuffers[b.locationId!] ?? 30) : 30
-                buffer = max(reqBuf, exiBuf)
-            }
-            if startMin < bEnd + buffer && bStart < endMin + buffer { return false }
-        }
-        return true
-    }
-
-    private func buildLocationBuffers(_ calData: CalendarData) -> [String: Int] {
-        Dictionary(calData.locations.map { ($0.id, $0.bufferMinutes) }, uniquingKeysWith: { first, _ in first })
-    }
-
     func parseTime(_ time: String) -> Int? {
-        let parts = time.split(separator: ":").compactMap { Int($0) }
-        guard parts.count >= 2 else { return nil }
-        return parts[0] * 60 + parts[1]
+        CalendarData.minutes(time)
     }
 
     /// "yyyy-MM-dd" in Zürcher Zeit, gregorianisch (auch an das Backend).

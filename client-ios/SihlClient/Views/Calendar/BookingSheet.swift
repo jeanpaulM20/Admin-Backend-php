@@ -276,21 +276,9 @@ struct BookingSheet: View {
     }
 
     private func isTrainerFreeForLocation(trainerId: String, locationId: String) -> Bool {
-        guard let dateStr = selDateStr() else { return true }
-        let startMin = slot.startMin; let endMin = startMin + 60
-        let locBuffers = Dictionary(calData.locations.map { ($0.id, $0.bufferMinutes) },
-                                    uniquingKeysWith: { first, _ in first })
-        for b in calData.trainerBookings {
-            guard b.trainerId == trainerId, b.date == dateStr,
-                  b.status.lowercased() != "cancelled" else { continue }
-            let parts = b.starttime.split(separator: ":").compactMap { Int($0) }
-            guard parts.count >= 2 else { continue }
-            let bStart = parts[0] * 60 + parts[1]; let bEnd = bStart + b.duration
-            let same = b.locationId != nil && b.locationId == locationId
-            let buf  = same ? 0 : max(locBuffers[locationId] ?? 30, locBuffers[b.locationId ?? ""] ?? 30)
-            if startMin < bEnd + buf && bStart < endMin + buf { return false }
-        }
-        return true
+        calData.isTrainerFree(trainerId: trainerId, locationId: locationId,
+                              dateStr: ZurichTime.dayString(day),
+                              startMin: slot.startMin, endMin: slot.startMin + 60)
     }
 
     private func resetLocationIfNeeded(newTrainerId: String) {
@@ -300,10 +288,5 @@ struct BookingSheet: View {
             locationWasReset = true
             selLocationId = avail.count == 1 ? avail.first : nil
         }
-    }
-
-    /// "yyyy-MM-dd" in Zürcher Zeit, gregorianisch.
-    private func selDateStr() -> String? {
-        ZurichTime.dayString(day)
     }
 }

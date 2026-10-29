@@ -22,6 +22,7 @@ import { ToursAssistantService } from './tours-assistant.service';
 import { PUBLIC_BROUTER_URL, ROUTING_BASE_URLS, ToursService } from './tours.service';
 import { ReviewPhoto } from '../entities/review-photo.entity';
 import { PlannedRoute } from '../entities/planned-route.entity';
+import { ExternalBusy } from '../calendar/entities/external-busy.entity';
 import { PlannedRouteService } from './planned-route.service';
 import { ClientChatService } from './client-chat.service';
 import { ClientController } from './client.controller';
@@ -44,6 +45,7 @@ import { ClientAppController } from './client-php-proxy.controller';
       Metric,
       ReviewPhoto,
       PlannedRoute,
+      ExternalBusy,
     ]),
     ReviewModule,
     FileModule,

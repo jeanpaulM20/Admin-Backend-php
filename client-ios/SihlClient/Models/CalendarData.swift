@@ -108,4 +108,35 @@ struct CalendarData {
         self.minimumDate           = cal.date(byAdding: .day, value: -30, to: today) ?? today
         self.maximumDate           = cal.date(byAdding: .day, value:  90, to: today) ?? today
     }
+
+    /// Ist der Trainer von `startMin` bis `endMin` am Standort frei? Gleiche
+    /// Regel wie das Backend: gleicher Standort ohne Puffer, sonst der grössere
+    /// Standort-Puffer; Fremdkalender (`status == "external"`) ohne Puffer.
+    func isTrainerFree(trainerId: String, locationId: String?, dateStr: String,
+                       startMin: Int, endMin: Int) -> Bool {
+        let buffers = Dictionary(locations.map { ($0.id, $0.bufferMinutes) },
+                                 uniquingKeysWith: { first, _ in first })
+        for b in trainerBookings {
+            let status = b.status.lowercased()
+            guard b.trainerId == trainerId, b.date == dateStr, status != "cancelled",
+                  let bStart = Self.minutes(b.starttime) else { continue }
+            let bEnd = bStart + b.duration
+            let buffer: Int
+            if status == "external" || (locationId != nil && b.locationId == locationId) {
+                buffer = 0
+            } else {
+                buffer = max(locationId.flatMap { buffers[$0] } ?? 30,
+                             b.locationId.flatMap { buffers[$0] } ?? 30)
+            }
+            if startMin < bEnd + buffer && bStart < endMin + buffer { return false }
+        }
+        return true
+    }
+
+    /// "HH:mm" bzw. "HH:mm:ss" → Minuten seit Mitternacht.
+    static func minutes(_ time: String) -> Int? {
+        let parts = time.split(separator: ":").compactMap { Int($0) }
+        guard parts.count >= 2 else { return nil }
+        return parts[0] * 60 + parts[1]
+    }
 }
